@@ -2,6 +2,7 @@ package com.royalplus.launcher
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,21 +23,60 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 internal fun RoyalHomeScreen(
     apps: List<LauncherApp>,
+    weather: WeatherUiState,
+    onRequestLocation: () -> Unit,
+    onRefreshWeather: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit
 ) {
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = System.currentTimeMillis()
+            delay(1_000L)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30 * 60 * 1_000L)
+            onRefreshWeather()
+        }
+    }
+
+    val displayTimeZone = remember(weather.timeZoneId) {
+        TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
+    }
+    val dateText = remember(currentTime, weather.timeZoneId) {
+        SimpleDateFormat("EEE, dd MMM yyyy", Locale.getDefault()).apply {
+            timeZone = displayTimeZone
+        }.format(Date(currentTime))
+    }
+    val timeText = remember(currentTime, weather.timeZoneId) {
+        SimpleDateFormat("HH:mm:ss", Locale.getDefault()).apply {
+            timeZone = displayTimeZone
+        }.format(Date(currentTime))
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = RoyalColors.Black
@@ -67,16 +107,68 @@ internal fun RoyalHomeScreen(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = remember {
-                        SimpleDateFormat(
-                            "EEE, dd MMM  •  HH:mm",
-                            Locale.getDefault()
-                        ).format(Date())
-                    },
-                    color = RoyalColors.Pearl,
-                    fontSize = 16.sp
-                )
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = dateText,
+                        color = RoyalColors.Pearl,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = timeText,
+                        color = RoyalColors.Gold,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Box(
+                        modifier = Modifier
+                            .border(
+                                1.dp,
+                                RoyalColors.Gold.copy(alpha = 0.55f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            val temperatureText = weather.temperatureC?.let { "$it°C  •  ${weather.description}" }
+                                ?: weather.description
+                            Text(
+                                text = temperatureText,
+                                color = RoyalColors.Pearl,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = weather.city,
+                                color = RoyalColors.Muted,
+                                fontSize = 11.sp
+                            )
+                            if (weather.needsPermission) {
+                                Text(
+                                    text = "السماح بالموقع",
+                                    color = RoyalColors.Gold,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier
+                                        .clickable(onClick = onRequestLocation)
+                                        .focusable()
+                                        .padding(top = 3.dp)
+                                )
+                            } else if (!weather.isLoading && weather.temperatureC == null) {
+                                Text(
+                                    text = "إعادة المحاولة",
+                                    color = RoyalColors.Gold,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier
+                                        .clickable(onClick = onRefreshWeather)
+                                        .focusable()
+                                        .padding(top = 3.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
