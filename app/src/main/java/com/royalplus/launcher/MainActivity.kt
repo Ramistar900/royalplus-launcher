@@ -1,8 +1,11 @@
 package com.royalplus.launcher
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Settings
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,6 +35,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(8, 10, 18)
         window.navigationBarColor = android.graphics.Color.rgb(8, 10, 18)
+        window.decorView.systemUiVisibility =
+            (View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
 
         setContent {
             MaterialTheme {
@@ -50,6 +60,13 @@ class MainActivity : ComponentActivity() {
                             startActivity(app.launchIntent)
                         } catch (_: Exception) {
                             // The app may have been removed after the launcher list was loaded.
+                        }
+                    },
+                    onOpenSettings = {
+                        try {
+                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                        } catch (_: Exception) {
+                            // The device may not expose a system settings activity.
                         }
                     }
                 )
