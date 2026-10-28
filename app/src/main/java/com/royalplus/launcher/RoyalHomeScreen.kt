@@ -108,6 +108,7 @@ internal fun RoyalHomeScreen(
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
+    var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -212,6 +213,7 @@ internal fun RoyalHomeScreen(
                                         focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp,
+                                        iconStyle = selectedIconStyle,
                                         onExploreApps = { selectedDestination = LauncherDestination.APPS }
                                     )
                                 }
@@ -223,6 +225,7 @@ internal fun RoyalHomeScreen(
                                         focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp,
+                                        iconStyle = selectedIconStyle,
                                         initialHighlight = true
                                     )
                                 }
@@ -300,10 +303,12 @@ internal fun RoyalHomeScreen(
                             .padding(22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("الخلفيات", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                        Text("تخصيص الواجهة", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
-                        Text("اختر خلفية الشاشة الرئيسية", color = RoyalColors.Pearl, fontSize = 14.sp)
-                        Spacer(Modifier.height(18.dp))
+                        Text("اختر الخلفية وشكل أيقونات التطبيقات", color = RoyalColors.Pearl, fontSize = 14.sp)
+                        Spacer(Modifier.height(14.dp))
+                        Text("الخلفيات", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             WallpaperChoice(
                                 modifier = Modifier.weight(1f),
@@ -326,7 +331,28 @@ internal fun RoyalHomeScreen(
                                 }
                             )
                         }
-                        Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(14.dp))
+                        Text("أشكال الأيقونات", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconStyleChoice("ناعم", "rounded", selectedIconStyle) {
+                                selectedIconStyle = "rounded"
+                                wallpaperPreferences.edit().putString("launcher_icon_style", "rounded").apply()
+                            }
+                            IconStyleChoice("دائري", "circle", selectedIconStyle) {
+                                selectedIconStyle = "circle"
+                                wallpaperPreferences.edit().putString("launcher_icon_style", "circle").apply()
+                            }
+                            IconStyleChoice("ذهبي", "gold", selectedIconStyle) {
+                                selectedIconStyle = "gold"
+                                wallpaperPreferences.edit().putString("launcher_icon_style", "gold").apply()
+                            }
+                            IconStyleChoice("نيون", "neon", selectedIconStyle) {
+                                selectedIconStyle = "neon"
+                                wallpaperPreferences.edit().putString("launcher_icon_style", "neon").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
@@ -358,6 +384,56 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
         modifier = modifier.fillMaxSize()
     )
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
+}
+
+@Composable
+private fun IconStyleChoice(
+    title: String,
+    style: String,
+    selectedStyle: String,
+    onClick: () -> Unit
+) {
+    val selected = style == selectedStyle
+    val shape = when (style) {
+        "circle" -> RoundedCornerShape(50)
+        "gold" -> RoundedCornerShape(8.dp)
+        "neon" -> RoundedCornerShape(16.dp)
+        else -> RoundedCornerShape(12.dp)
+    }
+    val accent = when (style) {
+        "neon" -> Color(0xFF42E8E0)
+        else -> RoyalColors.Gold
+    }
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF080A0F))
+            .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .focusable()
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(shape)
+                .background(if (style == "gold") Color(0xFF3A2A0C) else Color(0xFF17212B))
+                .border(1.5.dp, accent, shape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Apps,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(25.dp)
+            )
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(title, color = if (selected) accent else RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1)
+        if (selected) Text("✓", color = accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable
@@ -481,6 +557,7 @@ private fun HomeDashboard(
     otherApps: List<LauncherApp>,
     columns: Int,
     favoriteTileWidth: Dp,
+    iconStyle: String,
     focusedAppPackage: String?,
     onAppFocused: (String) -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
@@ -521,6 +598,7 @@ private fun HomeDashboard(
                             app = app,
                             modifier = Modifier.width(favoriteTileWidth).height(favoriteHeight),
                             highlighted = highlighted,
+                            iconStyle = iconStyle,
                             onFocused = onAppFocused,
                             onLaunch = { onLaunchApp(app) }
                         )
@@ -758,6 +836,7 @@ private fun AppCatalog(
     focusedAppPackage: String?,
     onAppFocused: (String) -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
+    iconStyle: String,
     initialHighlight: Boolean
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -807,6 +886,7 @@ private fun AppGrid(
                     app = app,
                     modifier = Modifier.fillMaxWidth().height(tileHeight),
                     highlighted = highlighted,
+                    iconStyle = iconStyle,
                     onFocused = onAppFocused,
                     onLaunch = { onLaunchApp(app) }
                 )
@@ -820,10 +900,16 @@ private fun AppTile(
     app: LauncherApp,
     modifier: Modifier,
     highlighted: Boolean,
+    iconStyle: String,
     onFocused: (String) -> Unit,
     onLaunch: () -> Unit
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = when (iconStyle) {
+        "circle" -> RoundedCornerShape(50)
+        "gold" -> RoundedCornerShape(9.dp)
+        "neon" -> RoundedCornerShape(18.dp)
+        else -> RoundedCornerShape(14.dp)
+    }
     Card(
         onClick = onLaunch,
         modifier = modifier.onFocusChanged { state ->
@@ -842,20 +928,42 @@ private fun AppTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            val icon = app.icon
-            if (icon != null) {
-                Image(
-                    painter = remember(icon) { BitmapPainter(icon.asImageBitmap()) },
-                    contentDescription = app.label,
-                    modifier = Modifier.size(42.dp)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Rounded.Apps,
-                    contentDescription = app.label,
-                    tint = RoyalColors.Gold,
-                    modifier = Modifier.size(40.dp)
-                )
+            val iconBackground = when (iconStyle) {
+                "gold" -> Color(0xFF17110A)
+                "neon" -> Color(0xFF08131A)
+                "circle" -> Color(0xFF11151D)
+                else -> Color(0xFF0D1119)
+            }
+            val iconBorder = when (iconStyle) {
+                "gold" -> RoyalColors.Gold
+                "neon" -> Color(0xFF42E8E0)
+                else -> RoyalColors.Gold.copy(alpha = 0.42f)
+            }
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(shape)
+                    .background(iconBackground)
+                    .border(if (iconStyle == "rounded" ) 1.dp else 1.5.dp, iconBorder, shape)
+                    .padding(4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val icon = app.icon
+                if (icon != null) {
+                    Image(
+                        painter = remember(icon) { BitmapPainter(icon.asImageBitmap()) },
+                        contentDescription = app.label,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().clip(shape)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Apps,
+                        contentDescription = app.label,
+                        tint = if (iconStyle == "neon") Color(0xFF42E8E0) else RoyalColors.Gold,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
