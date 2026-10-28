@@ -335,19 +335,19 @@ internal fun RoyalHomeScreen(
                         Text("أشكال الأيقونات", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice("ناعم", "rounded", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "ناعم", "rounded", selectedIconStyle) {
                                 selectedIconStyle = "rounded"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "rounded").apply()
                             }
-                            IconStyleChoice("دائري", "circle", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "دائري", "circle", selectedIconStyle) {
                                 selectedIconStyle = "circle"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "circle").apply()
                             }
-                            IconStyleChoice("ذهبي", "gold", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "ذهبي", "gold", selectedIconStyle) {
                                 selectedIconStyle = "gold"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "gold").apply()
                             }
-                            IconStyleChoice("نيون", "neon", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "نيون", "neon", selectedIconStyle) {
                                 selectedIconStyle = "neon"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "neon").apply()
                             }
@@ -388,6 +388,7 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
 
 @Composable
 private fun IconStyleChoice(
+    modifier: Modifier,
     title: String,
     style: String,
     selectedStyle: String,
@@ -405,8 +406,7 @@ private fun IconStyleChoice(
         else -> RoyalColors.Gold
     }
     Column(
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF080A0F))
             .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
