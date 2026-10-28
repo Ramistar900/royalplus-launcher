@@ -1,5 +1,6 @@
 package com.royalplus.launcher
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -30,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -132,7 +136,7 @@ internal fun RoyalHomeScreen(
                             .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.End) {
-                            val temperatureText = weather.temperatureC?.let { "$it°C  •  ${weather.description}" }
+                            val temperatureText = weather.temperatureC?.let { "${it}°C  •  ${weather.description}" }
                                 ?: weather.description
                             Text(
                                 text = temperatureText,
@@ -244,26 +248,42 @@ internal fun RoyalHomeScreen(
                                 defaultElevation = 2.dp
                             )
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.Center
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = app.label,
-                                    color = RoyalColors.Pearl,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "OPEN APP  ›",
-                                    color = RoyalColors.Gold,
-                                    fontSize = 11.sp,
-                                    letterSpacing = 1.sp
-                                )
+                                val icon = app.icon
+                                if (icon != null) {
+                                    Image(
+                                        painter = remember(icon) {
+                                            BitmapPainter(icon.asImageBitmap())
+                                        },
+                                        contentDescription = app.label,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = app.label,
+                                        color = RoyalColors.Pearl,
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "OPEN APP  ›",
+                                        color = RoyalColors.Gold,
+                                        fontSize = 11.sp,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
                             }
                         }
                     }
