@@ -20,8 +20,17 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Thunderstorm
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -138,37 +148,70 @@ internal fun RoyalHomeScreen(
                         Column(horizontalAlignment = Alignment.End) {
                             val temperatureText = weather.temperatureC?.let { "${it}°C  •  ${weather.description}" }
                                 ?: weather.description
-                            Text(
-                                text = temperatureText,
-                                color = RoyalColors.Pearl,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = weatherIcon(weather.description),
+                                    contentDescription = "Weather",
+                                    tint = RoyalColors.Gold,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Text(
+                                    text = temperatureText,
+                                    color = RoyalColors.Pearl,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                             Text(
                                 text = weather.city,
                                 color = RoyalColors.Muted,
                                 fontSize = 11.sp
                             )
                             if (weather.needsPermission) {
-                                Text(
-                                    text = "السماح بالموقع",
-                                    color = RoyalColors.Gold,
-                                    fontSize = 11.sp,
+                                Row(
                                     modifier = Modifier
                                         .clickable(onClick = onRequestLocation)
                                         .focusable()
-                                        .padding(top = 3.dp)
-                                )
+                                        .padding(top = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.LocationOn,
+                                        contentDescription = null,
+                                        tint = RoyalColors.Gold,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "السماح بالموقع",
+                                        color = RoyalColors.Gold,
+                                        fontSize = 11.sp
+                                    )
+                                }
                             } else if (!weather.isLoading && weather.temperatureC == null) {
-                                Text(
-                                    text = "إعادة المحاولة",
-                                    color = RoyalColors.Gold,
-                                    fontSize = 11.sp,
+                                Row(
                                     modifier = Modifier
                                         .clickable(onClick = onRefreshWeather)
                                         .focusable()
-                                        .padding(top = 3.dp)
-                                )
+                                        .padding(top = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Refresh,
+                                        contentDescription = null,
+                                        tint = RoyalColors.Gold,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "إعادة المحاولة",
+                                        color = RoyalColors.Gold,
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -257,13 +300,29 @@ internal fun RoyalHomeScreen(
                             ) {
                                 val icon = app.icon
                                 if (icon != null) {
-                                    Image(
-                                        painter = remember(icon) {
-                                            BitmapPainter(icon.asImageBitmap())
-                                        },
-                                        contentDescription = app.label,
-                                        modifier = Modifier.size(48.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(58.dp)
+                                            .background(
+                                                RoyalColors.Black,
+                                                RoundedCornerShape(14.dp)
+                                            )
+                                            .border(
+                                                1.dp,
+                                                RoyalColors.Gold.copy(alpha = 0.35f),
+                                                RoundedCornerShape(14.dp)
+                                            )
+                                            .padding(5.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Image(
+                                            painter = remember(icon) {
+                                                BitmapPainter(icon.asImageBitmap())
+                                            },
+                                            contentDescription = app.label,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
                                 }
                                 Column(
                                     modifier = Modifier.weight(1f),
@@ -290,5 +349,18 @@ internal fun RoyalHomeScreen(
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun weatherIcon(description: String): ImageVector {
+    val value = description.lowercase(Locale.getDefault())
+    return when {
+        "thunder" in value || "رعد" in value -> Icons.Rounded.Thunderstorm
+        "snow" in value || "ثلج" in value -> Icons.Rounded.AcUnit
+        "rain" in value || "مطر" in value || "drizzle" in value -> Icons.Rounded.WaterDrop
+        "cloud" in value || "غائم" in value || "سحب" in value -> Icons.Rounded.Cloud
+        else -> Icons.Rounded.WbSunny
     }
 }
