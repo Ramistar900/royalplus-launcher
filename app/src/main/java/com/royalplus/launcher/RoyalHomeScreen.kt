@@ -237,6 +237,7 @@ internal fun RoyalHomeScreen(
                                         focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp,
+                                        iconStyle = selectedIconStyle,
                                         initialHighlight = true
                                     )
                                 }
@@ -248,6 +249,7 @@ internal fun RoyalHomeScreen(
                                         focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp,
+                                        iconStyle = selectedIconStyle,
                                         initialHighlight = true
                                     )
                                 }
