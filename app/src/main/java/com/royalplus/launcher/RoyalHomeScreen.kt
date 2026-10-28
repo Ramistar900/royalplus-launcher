@@ -68,6 +68,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -101,6 +104,10 @@ internal fun RoyalHomeScreen(
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showWallpaperSettings by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
+    var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -159,7 +166,7 @@ internal fun RoyalHomeScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            RoyalBackdrop(Modifier.matchParentSize())
+            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
 
             val sidebarWidth = if (maxWidth >= 900.dp) 202.dp else (maxWidth * 0.225f).coerceIn(150.dp, 190.dp)
             Row(
@@ -266,7 +273,7 @@ internal fun RoyalHomeScreen(
                             }
                         }
                     },
-                    onOpenSettings = onOpenSettings,
+                    onOpenSettings = { showWallpaperSettings = true },
                     onSearch = {
                         searchActive = true
                         selectedDestination = LauncherDestination.APPS
@@ -275,54 +282,120 @@ internal fun RoyalHomeScreen(
                     onRefreshWeather = onRefreshWeather
                 )
             }
+
+            if (showWallpaperSettings) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xF5080A10))
+                        .padding(horizontal = 28.dp, vertical = 22.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0xFF10131B))
+                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
+                            .padding(22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("الخلفيات", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        Text("اختر خلفية الشاشة الرئيسية", color = RoyalColors.Pearl, fontSize = 14.sp)
+                        Spacer(Modifier.height(18.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            WallpaperChoice(
+                                modifier = Modifier.weight(1f),
+                                title = "الخلفية الملونة",
+                                selected = selectedWallpaper == "color",
+                                image = painterResource(R.drawable.royal_color_wallpaper),
+                                onClick = {
+                                    selectedWallpaper = "color"
+                                    wallpaperPreferences.edit().putString("launcher_wallpaper", "color").apply()
+                                }
+                            )
+                            WallpaperChoice(
+                                modifier = Modifier.weight(1f),
+                                title = "الخلفية الطبيعية",
+                                selected = selectedWallpaper == "nature",
+                                image = painterResource(R.drawable.royal_nature_wallpaper),
+                                onClick = {
+                                    selectedWallpaper = "nature"
+                                    wallpaperPreferences.edit().putString("launcher_wallpaper", "nature").apply()
+                                }
+                            )
+                        }
+                        Spacer(Modifier.height(18.dp))
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(RoyalColors.Gold.copy(alpha = 0.14f))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                .clickable { showWallpaperSettings = false }
+                                .focusable()
+                                .padding(horizontal = 24.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("تم", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun RoyalBackdrop(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF080B12), Color(0xFF020407), Color(0xFF080A10))
+private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String) {
+    Image(
+        painter = painterResource(
+            if (selectedWallpaper == "nature") R.drawable.royal_nature_wallpaper
+            else R.drawable.royal_color_wallpaper
+        ),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier.fillMaxSize()
+    )
+    Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
+}
+
+@Composable
+private fun WallpaperChoice(
+    modifier: Modifier,
+    title: String,
+    selected: Boolean,
+    image: androidx.compose.ui.graphics.painter.Painter,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF080A0F))
+            .border(
+                width = if (selected) 3.dp else 1.dp,
+                color = if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(16.dp)
             )
+            .clickable(onClick = onClick)
+            .focusable()
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = image,
+            contentDescription = title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(10.dp))
         )
-        val lineWidth = 1.2.dp.toPx()
-        val upperWave = Path().apply {
-            moveTo(-size.width * 0.04f, size.height * 0.10f)
-            cubicTo(size.width * 0.18f, size.height * 0.01f, size.width * 0.27f, size.height * 0.16f, size.width * 0.46f, size.height * 0.06f)
-            cubicTo(size.width * 0.63f, -size.height * 0.03f, size.width * 0.81f, size.height * 0.09f, size.width * 1.04f, -size.height * 0.01f)
-        }
-        drawPath(
-            upperWave,
-            brush = Brush.horizontalGradient(
-                listOf(Color.Transparent, RoyalColors.Gold.copy(alpha = 0.52f), Color(0xFF8C6428).copy(alpha = 0.12f), Color.Transparent)
-            ),
-            style = Stroke(width = lineWidth)
-        )
-
-        val lowerWave = Path().apply {
-            moveTo(-size.width * 0.04f, size.height * 0.82f)
-            cubicTo(size.width * 0.18f, size.height * 0.98f, size.width * 0.32f, size.height * 0.87f, size.width * 0.51f, size.height * 0.95f)
-            cubicTo(size.width * 0.68f, size.height * 1.02f, size.width * 0.83f, size.height * 0.80f, size.width * 1.04f, size.height * 0.84f)
-        }
-        drawPath(
-            lowerWave,
-            brush = Brush.horizontalGradient(
-                listOf(Color.Transparent, RoyalColors.Gold.copy(alpha = 0.72f), Color(0xFF8C6428).copy(alpha = 0.28f), Color.Transparent)
-            ),
-            style = Stroke(width = 2.dp.toPx())
-        )
-
-        val fineWave = Path().apply {
-            moveTo(-size.width * 0.02f, size.height * 0.87f)
-            cubicTo(size.width * 0.22f, size.height * 1.00f, size.width * 0.39f, size.height * 0.90f, size.width * 0.56f, size.height * 0.98f)
-            cubicTo(size.width * 0.77f, size.height * 1.03f, size.width * 0.86f, size.height * 0.84f, size.width * 1.03f, size.height * 0.87f)
-        }
-        drawPath(
-            fineWave,
-            color = Color(0xFFFFE2A0).copy(alpha = 0.35f),
-            style = Stroke(width = 0.7.dp.toPx())
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = if (selected) "✓  $title" else title,
+            color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
