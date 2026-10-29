@@ -115,6 +115,7 @@ internal fun RoyalHomeScreen(
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
+    var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
     var selectedShortcutPackages by remember {
         mutableStateOf(wallpaperPreferences.getStringSet("launcher_shortcut_packages", emptySet())?.toSet() ?: emptySet())
     }
@@ -310,6 +311,7 @@ internal fun RoyalHomeScreen(
                     modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
                     currentTime = timeText,
                     dateText = dateText,
+                    showDateOnHome = showDateOnHome,
                     weather = weather,
                     selectedDestination = selectedDestination,
                     onNavigate = { destination ->
@@ -421,6 +423,28 @@ internal fun RoyalHomeScreen(
                                 Text(if (use24HourClock) "24 ساعة" else "12 ساعة", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
                             Text(if (use24HourClock) "24H" else "12H", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    showDateOnHome = !showDateOnHome
+                                    wallpaperPreferences.edit().putBoolean("launcher_show_date", showDateOnHome).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("عرض التاريخ", color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(if (showDateOnHome) "ظاهر" else "مخفي", color = RoyalColors.Gold, fontSize = 12.sp)
+                            }
+                            Text(if (showDateOnHome) "ON" else "OFF", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Row(
@@ -1084,6 +1108,7 @@ private fun RoyalSidePanel(
     modifier: Modifier,
     currentTime: String,
     dateText: String,
+    showDateOnHome: Boolean,
     weather: WeatherUiState,
     selectedDestination: LauncherDestination,
     onNavigate: (LauncherDestination) -> Unit,
@@ -1125,16 +1150,20 @@ private fun RoyalSidePanel(
             letterSpacing = 0.4.sp,
             maxLines = 1
         )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            text = dateText,
-            color = RoyalColors.Pearl.copy(alpha = 0.92f),
-            fontSize = 10.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Spacer(Modifier.height(12.dp))
+        if (showDateOnHome) {
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = dateText,
+                color = RoyalColors.Pearl.copy(alpha = 0.92f),
+                fontSize = 10.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Spacer(Modifier.height(5.dp))
+        }
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
 
