@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -114,6 +116,22 @@ internal fun RoyalHomeScreen(
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var selectedShortcutPackages by remember {
         mutableStateOf(wallpaperPreferences.getStringSet("launcher_shortcut_packages", emptySet())?.toSet() ?: emptySet())
+    }
+
+    BackHandler(
+        enabled = showWallpaperSettings || searchActive || selectedDestination != LauncherDestination.HOME
+    ) {
+        when {
+            showWallpaperSettings -> showWallpaperSettings = false
+            searchActive -> {
+                searchActive = false
+                searchQuery = ""
+                selectedDestination = LauncherDestination.HOME
+            }
+            selectedDestination != LauncherDestination.HOME -> {
+                selectedDestination = LauncherDestination.HOME
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
