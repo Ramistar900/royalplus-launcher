@@ -114,6 +114,7 @@ internal fun RoyalHomeScreen(
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
+    var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var selectedShortcutPackages by remember {
         mutableStateOf(wallpaperPreferences.getStringSet("launcher_shortcut_packages", emptySet())?.toSet() ?: emptySet())
     }
@@ -156,8 +157,8 @@ internal fun RoyalHomeScreen(
             timeZone = displayTimeZone
         }.format(Date(currentTime))
     }
-    val timeText = remember(currentTime, weather.timeZoneId) {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).apply {
+    val timeText = remember(currentTime, weather.timeZoneId, use24HourClock) {
+        SimpleDateFormat(if (use24HourClock) "HH:mm" else "h:mm a", Locale.getDefault()).apply {
             timeZone = displayTimeZone
         }.format(Date(currentTime))
     }
@@ -398,6 +399,28 @@ internal fun RoyalHomeScreen(
                                 selectedIconStyle = "neon"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "neon").apply()
                             }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    use24HourClock = !use24HourClock
+                                    wallpaperPreferences.edit().putBoolean("launcher_24_hour_clock", use24HourClock).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("تنسيق الساعة", color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(if (use24HourClock) "24 ساعة" else "12 ساعة", color = RoyalColors.Gold, fontSize = 12.sp)
+                            }
+                            Text(if (use24HourClock) "24H" else "12H", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Row(
