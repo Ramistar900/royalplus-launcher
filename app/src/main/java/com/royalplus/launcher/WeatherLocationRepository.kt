@@ -30,6 +30,8 @@ internal data class WeatherUiState(
     val weatherCode: Int? = null,
     val description: String = "جارٍ تحميل الطقس",
     val timeZoneId: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val isLoading: Boolean = true,
     val needsPermission: Boolean = false
 )
@@ -223,6 +225,8 @@ internal object RoyalWeatherRepository {
                 weatherCode = weatherCode,
                 description = weatherDescription(weatherCode),
                 timeZoneId = timeZone,
+                latitude = location.latitude,
+                longitude = location.longitude,
                 isLoading = false
             )
         } finally {
