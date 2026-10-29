@@ -53,6 +53,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -71,6 +72,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -78,6 +80,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -169,11 +172,12 @@ internal fun RoyalHomeScreen(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
 
-            val sidebarWidth = if (maxWidth >= 900.dp) 202.dp else (maxWidth * 0.225f).coerceIn(150.dp, 190.dp)
+            val sidebarWidth = if (maxWidth >= 900.dp) 188.dp else (maxWidth * 0.205f).coerceIn(148.dp, 188.dp)
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 22.dp, vertical = 14.dp),
+                    .padding(horizontal = 22.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Column(
@@ -286,6 +290,7 @@ internal fun RoyalHomeScreen(
                     onRequestLocation = onRequestLocation,
                     onRefreshWeather = onRefreshWeather
                 )
+            }
             }
 
             if (showWallpaperSettings) {
@@ -1072,7 +1077,7 @@ private fun SidebarNavItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(42.dp)
             .clip(shape)
             .background(
                 if (selected) Brush.horizontalGradient(
