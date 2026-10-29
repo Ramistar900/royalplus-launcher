@@ -92,7 +92,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MUSLIM, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -255,6 +255,12 @@ internal fun RoyalHomeScreen(
                                         onLaunchApp = onLaunchApp,
                                         iconStyle = selectedIconStyle,
                                         initialHighlight = true
+                                    )
+                                }
+                                LauncherDestination.MUSLIM -> {
+                                    MuslimScreen(
+                                        weather = weather,
+                                        onRequestLocation = onRequestLocation
                                     )
                                 }
                                 LauncherDestination.FAVORITES -> {
@@ -1193,6 +1199,13 @@ private fun RoyalSidePanel(
             icon = Icons.Rounded.Apps,
             selected = selectedDestination == LauncherDestination.APPS,
             onClick = { onNavigate(LauncherDestination.APPS) }
+        )
+        Spacer(Modifier.height(5.dp))
+        SidebarNavItem(
+            title = "مسلم",
+            icon = Icons.Rounded.Star,
+            selected = selectedDestination == LauncherDestination.MUSLIM,
+            onClick = { onNavigate(LauncherDestination.MUSLIM) }
         )
         Spacer(Modifier.height(5.dp))
         SidebarNavItem(
