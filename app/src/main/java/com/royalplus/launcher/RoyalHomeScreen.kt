@@ -214,6 +214,7 @@ internal fun RoyalHomeScreen(
                                 LauncherDestination.HOME -> {
                                     HomeDashboard(
                                         favorites = favorites,
+                                        shortcuts = apps.filter { it.packageName in selectedShortcutPackages },
                                         otherApps = otherApps,
                                         columns = columns,
                                         favoriteTileWidth = favoriteTileWidth,
@@ -647,6 +648,7 @@ private fun ShortcutManagerScreen(
 @Composable
 private fun HomeDashboard(
     favorites: List<LauncherApp>,
+    shortcuts: List<LauncherApp>,
     otherApps: List<LauncherApp>,
     columns: Int,
     favoriteTileWidth: Dp,
@@ -691,6 +693,31 @@ private fun HomeDashboard(
                             app = app,
                             modifier = Modifier.width(favoriteTileWidth).height(favoriteHeight),
                             highlighted = highlighted,
+                            iconStyle = iconStyle,
+                            onFocused = onAppFocused,
+                            onLaunch = { onLaunchApp(app) }
+                        )
+                    }
+                }
+            }
+            if (shortcuts.isNotEmpty()) {
+                Spacer(Modifier.height(7.dp))
+                SectionHeading(
+                    title = "اختصاراتي",
+                    icon = Icons.Rounded.ArrowForward
+                )
+                Spacer(Modifier.height(5.dp))
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().height(72.dp),
+                    contentPadding = PaddingValues(end = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    rowItems(shortcuts, key = { it.packageName }) { app ->
+                        AppTile(
+                            app = app,
+                            modifier = Modifier.width(favoriteTileWidth).height(72.dp),
+                            highlighted = focusedAppPackage == app.packageName,
                             iconStyle = iconStyle,
                             onFocused = onAppFocused,
                             onLaunch = { onLaunchApp(app) }
