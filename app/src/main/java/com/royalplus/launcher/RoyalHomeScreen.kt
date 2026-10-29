@@ -1027,7 +1027,10 @@ private fun AppTile(
             if (state.isFocused) onFocused(app.packageName)
         },
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF070A0E).copy(alpha = 0.93f)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (highlighted) Color(0xFF211A0D).copy(alpha = 0.98f)
+            else Color(0xFF070A0E).copy(alpha = 0.93f)
+        ),
         border = BorderStroke(
             if (highlighted) 2.5.dp else 1.dp,
             if (highlighted) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.48f)
