@@ -639,115 +639,38 @@ private fun RoyalScenicBanner(
             .clip(shape)
             .border(BorderStroke(1.dp, RoyalColors.Gold.copy(alpha = 0.85f)), shape)
     ) {
-        Canvas(Modifier.matchParentSize()) {
-            val w = size.width
-            val h = size.height
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF172A3D), Color(0xFF6F6D70), Color(0xFF172B35))
+        Image(
+            painter = painterResource(R.drawable.royal_nature_wallpaper),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize()
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xD900050A),
+                            Color(0x5500050A),
+                            Color(0xC900050A)
+                        )
+                    )
                 )
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFFFFE3A1).copy(alpha = 0.85f), Color(0xFFF7B955).copy(alpha = 0.23f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(w * 0.76f, h * 0.30f),
-                    radius = h * 0.72f
-                ),
-                radius = h * 0.72f,
-                center = androidx.compose.ui.geometry.Offset(w * 0.76f, h * 0.30f)
-            )
-
-            val farPeaks = Path().apply {
-                moveTo(0f, h * 0.76f)
-                lineTo(w * 0.08f, h * 0.48f)
-                lineTo(w * 0.15f, h * 0.58f)
-                lineTo(w * 0.25f, h * 0.27f)
-                lineTo(w * 0.34f, h * 0.53f)
-                lineTo(w * 0.43f, h * 0.37f)
-                lineTo(w * 0.52f, h * 0.62f)
-                lineTo(w * 0.63f, h * 0.31f)
-                lineTo(w * 0.72f, h * 0.56f)
-                lineTo(w * 0.83f, h * 0.39f)
-                lineTo(w * 0.92f, h * 0.61f)
-                lineTo(w, h * 0.44f)
-                lineTo(w, h)
-                lineTo(0f, h)
-                close()
-            }
-            drawPath(farPeaks, Color(0xFF243447))
-
-            val snowPeaks = Path().apply {
-                moveTo(w * 0.12f, h * 0.56f)
-                lineTo(w * 0.25f, h * 0.17f)
-                lineTo(w * 0.31f, h * 0.40f)
-                lineTo(w * 0.36f, h * 0.51f)
-                lineTo(w * 0.47f, h * 0.22f)
-                lineTo(w * 0.55f, h * 0.51f)
-                lineTo(w * 0.62f, h * 0.38f)
-                lineTo(w * 0.73f, h * 0.61f)
-                lineTo(w * 0.81f, h * 0.45f)
-                lineTo(w * 0.90f, h * 0.62f)
-                lineTo(w * 0.90f, h * 0.82f)
-                lineTo(w * 0.12f, h * 0.82f)
-                close()
-            }
-            drawPath(snowPeaks, Color(0xFF101A27))
-            val snowHighlights = Path().apply {
-                moveTo(w * 0.22f, h * 0.27f)
-                lineTo(w * 0.25f, h * 0.17f)
-                lineTo(w * 0.31f, h * 0.40f)
-                lineTo(w * 0.27f, h * 0.34f)
-                lineTo(w * 0.25f, h * 0.30f)
-                close()
-                moveTo(w * 0.44f, h * 0.31f)
-                lineTo(w * 0.47f, h * 0.22f)
-                lineTo(w * 0.55f, h * 0.51f)
-                lineTo(w * 0.50f, h * 0.40f)
-                lineTo(w * 0.47f, h * 0.34f)
-                close()
-            }
-            drawPath(snowHighlights, Color(0xFFBCC3C5).copy(alpha = 0.60f))
-
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF172B35).copy(alpha = 0.15f), Color(0xFF06121B), Color(0xFF02070B)),
-                    startY = h * 0.61f,
-                    endY = h
-                ),
-                topLeft = androidx.compose.ui.geometry.Offset(0f, h * 0.61f),
-                size = androidx.compose.ui.geometry.Size(w, h * 0.39f)
-            )
-            drawLine(
-                color = RoyalColors.Gold.copy(alpha = 0.55f),
-                start = androidx.compose.ui.geometry.Offset(0f, h * 0.66f),
-                end = androidx.compose.ui.geometry.Offset(w, h * 0.66f),
-                strokeWidth = 0.8.dp.toPx()
-            )
-            for (i in 0..13) {
-                val y = h * (0.70f + i * 0.021f)
-                val x = w * (0.30f + (i % 4) * 0.12f)
-                drawLine(
-                    color = Color(0xFFF4BB68).copy(alpha = 0.18f - i * 0.009f),
-                    start = androidx.compose.ui.geometry.Offset(x, y),
-                    end = androidx.compose.ui.geometry.Offset((x + w * (0.04f + (i % 3) * 0.035f)).coerceAtMost(w), y),
-                    strokeWidth = (1.4f - i * 0.05f).coerceAtLeast(0.45f).dp.toPx()
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x22000000),
+                            Color(0x12000000),
+                            Color(0xD900050A)
+                        )
+                    )
                 )
-            }
-
-            val vignette = Path().apply {
-                moveTo(0f, 0f)
-                lineTo(w * 0.24f, 0f)
-                lineTo(w * 0.15f, h)
-                lineTo(0f, h)
-                close()
-            }
-            drawPath(vignette, Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.82f), Color.Black.copy(alpha = 0.18f))))
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color.Black.copy(alpha = 0.28f), Color.Transparent, Color.Black.copy(alpha = 0.78f))
-                )
-            )
-        }
+        )
 
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 13.dp),
