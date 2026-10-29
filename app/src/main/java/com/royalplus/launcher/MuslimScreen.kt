@@ -82,11 +82,11 @@ internal fun MuslimScreen(
         }
     }
 
-    val timeZone = remember(weather.timeZoneId) {
+    val prayerTimeZone = remember(weather.timeZoneId) {
         TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
     }
-    val nextPrayer = remember(data, now, timeZone) {
-        val current = SimpleDateFormat("HH:mm", Locale.US).apply { timeZone = timeZone }.format(Date(now))
+    val nextPrayer = remember(data, now, prayerTimeZone) {
+        val current = SimpleDateFormat("HH:mm", Locale.US).apply { this.timeZone = prayerTimeZone }.format(Date(now))
         val candidates = data?.times.orEmpty().mapNotNull { (key, value) ->
             val parts = value.split(":")
             val mins = parts.getOrNull(0)?.toIntOrNull()?.times(60)?.plus(parts.getOrNull(1)?.toIntOrNull() ?: 0)
@@ -96,7 +96,7 @@ internal fun MuslimScreen(
         val currentMinutes = currentParts[0].toInt() * 60 + currentParts[1].toInt()
         candidates.firstOrNull { it.third > currentMinutes } ?: candidates.firstOrNull()
     }
-    val countdown = remember(nextPrayer, now, timeZone) {
+    val countdown = remember(nextPrayer, now, prayerTimeZone) {
         if (nextPrayer == null) "" else {
             val current = SimpleDateFormat("HH:mm:ss", Locale.US).apply { timeZone = timeZone }.format(Date(now)).split(":")
             val currentSeconds = current[0].toInt() * 3600 + current[1].toInt() * 60 + current[2].toInt()
