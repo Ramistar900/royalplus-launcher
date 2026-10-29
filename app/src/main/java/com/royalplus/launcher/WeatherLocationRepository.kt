@@ -27,6 +27,7 @@ import kotlin.math.roundToInt
 internal data class WeatherUiState(
     val city: String = "جارٍ تحديد الموقع",
     val temperatureC: Int? = null,
+    val weatherCode: Int? = null,
     val description: String = "جارٍ تحميل الطقس",
     val timeZoneId: String? = null,
     val isLoading: Boolean = true,
@@ -219,6 +220,7 @@ internal object RoyalWeatherRepository {
             return WeatherUiState(
                 city = city,
                 temperatureC = temperature,
+                weatherCode = weatherCode,
                 description = weatherDescription(weatherCode),
                 timeZoneId = timeZone,
                 isLoading = false
