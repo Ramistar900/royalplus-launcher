@@ -1263,6 +1263,8 @@ private fun SidebarNavItem(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val emphasized = selected || focused
     val shape = RoundedCornerShape(13.dp)
     Row(
         modifier = Modifier
@@ -1270,16 +1272,17 @@ private fun SidebarNavItem(
             .height(42.dp)
             .clip(shape)
             .background(
-                if (selected) Brush.horizontalGradient(
-                    listOf(Color(0xFFD5A64F).copy(alpha = 0.78f), Color(0xFF6D4C1A).copy(alpha = 0.55f), Color.Transparent)
+                if (emphasized) Brush.horizontalGradient(
+                    listOf(Color(0xFFD5A64F).copy(alpha = if (selected) 0.78f else 0.48f), Color(0xFF6D4C1A).copy(alpha = 0.55f), Color.Transparent)
                 ) else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
             )
             .border(
-                if (selected) 1.2.dp else 0.6.dp,
-                if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
+                if (focused) 2.dp else if (selected) 1.2.dp else 0.6.dp,
+                if (focused) Color(0xFFFFD36A) else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
                 shape
             )
             .clickable(onClick = onClick)
+            .onFocusChanged { focused = it.isFocused }
             .focusable()
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1287,15 +1290,15 @@ private fun SidebarNavItem(
     ) {
         Text(
             text = title,
-            color = if (selected) Color(0xFFFFE2A1) else RoyalColors.Pearl,
+            color = if (emphasized) Color(0xFFFFE2A1) else RoyalColors.Pearl,
             fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
+            tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
             modifier = Modifier.size(20.dp)
         )
     }
