@@ -937,13 +937,13 @@ private fun AppTile(
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = Color(0xFF070A0E).copy(alpha = 0.93f)),
         border = BorderStroke(
-            if (highlighted) 2.dp else 1.dp,
+            if (highlighted) 2.5.dp else 1.dp,
             if (highlighted) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.48f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (highlighted) 8.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (highlighted) 12.dp else 2.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 5.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -960,7 +960,7 @@ private fun AppTile(
             }
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(56.dp)
                     .clip(shape)
                     .background(iconBackground)
                     .border(if (iconStyle == "rounded" ) 1.dp else 1.5.dp, iconBorder, shape)
@@ -988,7 +988,7 @@ private fun AppTile(
             Text(
                 text = app.label,
                 color = RoyalColors.Pearl,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
