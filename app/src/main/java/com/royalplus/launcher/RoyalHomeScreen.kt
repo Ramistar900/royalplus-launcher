@@ -621,6 +621,7 @@ private fun HomeDashboard(
                 focusedAppPackage = focusedAppPackage,
                 onAppFocused = onAppFocused,
                 onLaunchApp = onLaunchApp,
+                iconStyle = iconStyle,
                 initialHighlight = false
             )
         }
