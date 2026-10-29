@@ -852,6 +852,7 @@ private fun AppCatalog(
             focusedAppPackage = focusedAppPackage,
             onAppFocused = onAppFocused,
             onLaunchApp = onLaunchApp,
+            iconStyle = iconStyle,
             initialHighlight = initialHighlight
         )
     }
@@ -866,6 +867,7 @@ private fun AppGrid(
     focusedAppPackage: String?,
     onAppFocused: (String) -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
+    iconStyle: String,
     initialHighlight: Boolean
 ) {
     if (apps.isEmpty()) {
