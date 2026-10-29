@@ -1039,72 +1039,12 @@ private fun RoyalSidePanel(
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 1.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = weatherIcon(weather.description),
-                contentDescription = "الطقس",
-                tint = RoyalColors.Gold,
-                modifier = Modifier.size(34.dp)
-            )
-            Spacer(Modifier.width(5.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.Start
-            ) {
-                Text(
-                    text = weather.temperatureC?.let { it.toString() + "°C" } ?: "—°C",
-                    color = RoyalColors.Pearl,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
-                Text(
-                    text = weather.city,
-                    color = RoyalColors.Pearl.copy(alpha = 0.88f),
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        Text(
-            text = if (weather.isLoading) "جارٍ تحديث الطقس" else weather.description,
-            color = RoyalColors.Muted,
-            fontSize = 9.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(top = 3.dp)
+        WeatherGlassCard(
+            weather = weather,
+            onRequestLocation = onRequestLocation,
+            onRefreshWeather = onRefreshWeather,
+            modifier = Modifier.fillMaxWidth()
         )
-        if (weather.needsPermission) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable(onClick = onRequestLocation)
-                    .focusable()
-                    .padding(horizontal = 5.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.LocationOn, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(13.dp))
-                Text("تفعيل الموقع", color = RoyalColors.Gold, fontSize = 9.sp)
-            }
-        } else if (!weather.isLoading && weather.temperatureC == null) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable(onClick = onRefreshWeather)
-                    .focusable()
-                    .padding(horizontal = 5.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.Refresh, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(13.dp))
-                Text("تحديث الطقس", color = RoyalColors.Gold, fontSize = 9.sp)
-            }
-        }
 
         Spacer(Modifier.height(9.dp))
         GoldDivider(Modifier.fillMaxWidth())
