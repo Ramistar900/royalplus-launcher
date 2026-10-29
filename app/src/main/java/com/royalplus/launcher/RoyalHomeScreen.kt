@@ -963,7 +963,7 @@ private fun AppTile(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Rounded.Apps,
+                        imageVector = fallbackAppIcon(app.label),
                         contentDescription = app.label,
                         tint = if (iconStyle == "neon") Color(0xFF42E8E0) else RoyalColors.Gold,
                         modifier = Modifier.size(38.dp)
@@ -980,6 +980,20 @@ private fun AppTile(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+private fun fallbackAppIcon(label: String): ImageVector {
+    val name = label.lowercase(Locale.ROOT)
+    return when {
+        "setting" in name || "إعداد" in label -> Icons.Rounded.Settings
+        "home" in name || "منزل" in label || "الرئيسية" in label -> Icons.Rounded.Home
+        "search" in name || "بحث" in label -> Icons.Rounded.Search
+        "weather" in name || "طقس" in label || "الطقس" in label -> Icons.Rounded.Cloud
+        "wifi" in name || "واي فاي" in label || "شبكة" in label -> Icons.Rounded.Wifi
+        "favorite" in name || "مفضلة" in label || "المفضلة" in label -> Icons.Rounded.Favorite
+        "star" in name || "نجمة" in label -> Icons.Rounded.Star
+        else -> Icons.Rounded.Apps
     }
 }
 
