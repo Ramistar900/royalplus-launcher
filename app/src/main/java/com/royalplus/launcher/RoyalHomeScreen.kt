@@ -90,7 +90,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, FAVORITES, MORE
+    HOME, APPS, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -112,6 +112,9 @@ internal fun RoyalHomeScreen(
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
+    var selectedShortcutPackages by remember {
+        mutableStateOf(wallpaperPreferences.getStringSet("launcher_shortcut_packages", emptySet())?.toSet() ?: emptySet())
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -243,6 +246,24 @@ internal fun RoyalHomeScreen(
                                         onLaunchApp = onLaunchApp,
                                         iconStyle = selectedIconStyle,
                                         initialHighlight = true
+                                    )
+                                }
+                                LauncherDestination.SHORTCUTS -> {
+                                    ShortcutManagerScreen(
+                                        apps = filteredApps,
+                                        selectedPackages = selectedShortcutPackages,
+                                        columns = columns,
+                                        iconStyle = selectedIconStyle,
+                                        onToggleShortcut = { app ->
+                                            val updated = selectedShortcutPackages.toMutableSet().apply {
+                                                if (!add(app.packageName)) remove(app.packageName)
+                                            }.toSet()
+                                            selectedShortcutPackages = updated
+                                            wallpaperPreferences.edit()
+                                                .putStringSet("launcher_shortcut_packages", updated)
+                                                .apply()
+                                        },
+                                        onLaunchApp = onLaunchApp
                                     )
                                 }
                                 LauncherDestination.MORE -> {
@@ -554,6 +575,71 @@ private fun RoyalBrandHeader(
                 fontSize = 9.sp,
                 letterSpacing = 2.1.sp
             )
+        }
+    }
+}
+
+
+@Composable
+private fun ShortcutManagerScreen(
+    apps: List<LauncherApp>,
+    selectedPackages: Set<String>,
+    columns: Int,
+    iconStyle: String,
+    onToggleShortcut: (LauncherApp) -> Unit,
+    onLaunchApp: (LauncherApp) -> Unit
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "اختصاراتي",
+                    color = RoyalColors.Gold,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "اضغط على التطبيق لإضافته أو إزالته من الاختصارات",
+                    color = RoyalColors.Pearl.copy(alpha = 0.82f),
+                    fontSize = 11.sp
+                )
+            }
+            Text(
+                text = "${selectedPackages.size} محدد",
+                color = RoyalColors.Gold,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        if (apps.isEmpty()) {
+            EmptyAppsMessage(
+                message = "لا توجد تطبيقات متاحة للاختصار",
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 12.dp, end = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                items(apps, key = { it.packageName }) { app ->
+                    val selected = app.packageName in selectedPackages
+                    AppTile(
+                        app = app,
+                        modifier = Modifier.height(88.dp),
+                        highlighted = selected,
+                        iconStyle = iconStyle,
+                        onFocused = {},
+                        onLaunch = { onToggleShortcut(app) }
+                    )
+                }
+            }
         }
     }
 }
@@ -1021,6 +1107,13 @@ private fun RoyalSidePanel(
             icon = Icons.Rounded.Favorite,
             selected = selectedDestination == LauncherDestination.FAVORITES,
             onClick = { onNavigate(LauncherDestination.FAVORITES) }
+        )
+        Spacer(Modifier.height(5.dp))
+        SidebarNavItem(
+            title = "الاختصارات",
+            icon = Icons.Rounded.Star,
+            selected = selectedDestination == LauncherDestination.SHORTCUTS,
+            onClick = { onNavigate(LauncherDestination.SHORTCUTS) }
         )
         Spacer(Modifier.height(5.dp))
         SidebarNavItem(
