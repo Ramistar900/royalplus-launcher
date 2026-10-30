@@ -632,21 +632,21 @@ private fun HomeDashboard(
     onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val heroHeight = (maxHeight * 0.31f).coerceIn(120.dp, 165.dp)
-        val favoriteHeight = (maxHeight * 0.19f).coerceIn(82.dp, 102.dp)
+        val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp)
+        val favoriteHeight = (maxHeight * 0.24f).coerceIn(104.dp, 126.dp)
         Column(Modifier.fillMaxSize()) {
             RoyalScenicBanner(Modifier.fillMaxWidth().height(heroHeight), onExploreApps = { onNavigate(LauncherDestination.APPS) })
-            Spacer(Modifier.height(13.dp))
-            Row(Modifier.fillMaxWidth().height(23.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("التطبيقات المثبتة", color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(21.dp))
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(10.dp))
             if (favorites.isEmpty()) EmptyAppsMessage("لا توجد تطبيقات قابلة للتشغيل على هذا الجهاز", Modifier.fillMaxWidth().height(favoriteHeight))
             else LazyRow(
                 modifier = Modifier.fillMaxWidth().height(favoriteHeight),
                 contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 rowItems(favorites, key = { it.packageName }) { app ->
                     val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
@@ -654,8 +654,8 @@ private fun HomeDashboard(
                         highlighted, iconStyle, onAppFocused, { onLaunchApp(app) })
                 }
             }
-            Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "التطبيقات", "جميع تطبيقاتك في مكان واحد", Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "مسلم", "مواقيت الصلاة والتاريخ الهجري", Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الوقت والتاريخ", if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
@@ -826,7 +826,7 @@ private fun AppTile(
             }
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(68.dp)
                     .clip(shape)
                     .background(iconBackground)
                     .border(if (iconStyle == "rounded" ) 1.dp else 1.5.dp, iconBorder, shape)
@@ -854,7 +854,7 @@ private fun AppTile(
             Text(
                 text = app.label,
                 color = RoyalColors.Pearl,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
