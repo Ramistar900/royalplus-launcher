@@ -98,7 +98,7 @@ internal fun MuslimScreen(
     }
     val countdown = remember(nextPrayer, now, prayerTimeZone) {
         if (nextPrayer == null) "" else {
-            val current = SimpleDateFormat("HH:mm:ss", Locale.US).apply { timeZone = timeZone }.format(Date(now)).split(":")
+            val current = SimpleDateFormat("HH:mm:ss", Locale.US).apply { this.timeZone = prayerTimeZone }.format(Date(now)).split(":")
             val currentSeconds = current[0].toInt() * 3600 + current[1].toInt() * 60 + current[2].toInt()
             val parts = nextPrayer.second.split(":")
             var remaining = parts[0].toInt() * 3600 + parts[1].toInt() * 60 - currentSeconds
