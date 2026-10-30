@@ -668,15 +668,15 @@ private fun HomeDashboard(
 private fun HomeFeatureCard(
     modifier: Modifier, title: String, subtitle: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(15.dp)
+    val shape = RoundedCornerShape(18.dp)
     Column(
         modifier.clip(shape)
             .background(if (selected) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
-            .border(if (selected) 2.dp else 1.dp, if (selected) Color(0xFFFFD56D) else Color(0xFF39465A), shape)
-            .clickable(onClick = onClick).focusable().padding(horizontal = 12.dp, vertical = 10.dp),
+            .border(if (selected) 2.dp else 1.dp, if (selected) Color(0xFFFFD56D) else RoyalColors.Gold.copy(alpha = 0.32f), shape)
+            .clickable(onClick = onClick).focusable().padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, title, tint = RoyalColors.Gold, modifier = Modifier.size(34.dp))
+        Icon(icon, title, tint = RoyalColors.Gold, modifier = Modifier.size(38.dp))
         Spacer(Modifier.height(7.dp))
         Text(title, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
