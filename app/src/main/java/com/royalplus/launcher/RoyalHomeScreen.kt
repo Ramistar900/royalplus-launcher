@@ -206,7 +206,7 @@ internal fun RoyalHomeScreen(
                 Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
-                        currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
+                        currentTime = timeText, dateText = dateText, showDate = showDateOnHome,
                         onQueryChanged = { searchQuery = it },
                         onCloseSearch = { searchActive = false; searchQuery = ""; selectedDestination = LauncherDestination.HOME },
                         onOpenSettings = { showWallpaperSettings = true },
@@ -235,6 +235,7 @@ internal fun RoyalHomeScreen(
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle,
                                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
+                                        onRequestLocation = onRequestLocation,
                                         onNavigate = { selectedDestination = it },
                                         onToggleDate = {
                                             showDateOnHome = !showDateOnHome
@@ -535,7 +536,7 @@ private fun WallpaperChoice(
 @Composable
 private fun RoyalBrandHeader(
     searchActive: Boolean, searchQuery: String, currentTime: String, dateText: String,
-    showDate: Boolean, weather: WeatherUiState, onQueryChanged: (String) -> Unit,
+    showDate: Boolean, onQueryChanged: (String) -> Unit,
     onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit,
     onInstallApk: () -> Unit
 ) {
@@ -571,12 +572,6 @@ private fun RoyalBrandHeader(
             }
             Spacer(Modifier.width(9.dp))
         }
-        GlassWeatherTile(
-            weather = weather,
-            currentTime = currentTime,
-            modifier = Modifier.width(112.dp).height(48.dp)
-        )
-        Spacer(Modifier.width(10.dp))
         StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
         Spacer(Modifier.width(5.dp))
         StatusIcon(Icons.Rounded.Apps, "تثبيت ملف APK", onInstallApk)
@@ -724,6 +719,7 @@ private fun HomeDashboard(
     onAppFocused: (String) -> Unit, onLaunchApp: (LauncherApp) -> Unit,
     onManageApp: (LauncherApp) -> Unit,
     currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
+    onRequestLocation: () -> Unit,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
     onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit
 ) {
@@ -755,7 +751,12 @@ private fun HomeDashboard(
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "التطبيقات", "جميع تطبيقاتك في مكان واحد", Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "مسلم", "مواقيت الصلاة والتاريخ الهجري", Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الوقت والتاريخ", if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الطقس", weather.temperatureC?.toString()?.plus("° · ")?.plus(weather.city) ?: weather.city, weatherIcon(weather.description), false, onRefreshWeather)
+                WeatherGlassCard(
+                    weather = weather,
+                    onRequestLocation = onRequestLocation,
+                    onRefreshWeather = onRefreshWeather,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
             }
         }
     }
