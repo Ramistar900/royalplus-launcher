@@ -38,11 +38,11 @@ internal object PrayerTimesRepository {
     )
 
     /** On-device calculation: MWL angles (Fajr 18°, Isha 17°), standard Asr shadow. */
-    fun fetch(latitude: Double, longitude: Double, city: String, hijriDayOffset: Int = 0, onResult: (PrayerTimesData) -> Unit) {
+    fun fetch(latitude: Double, longitude: Double, city: String, hijriDayOffset: Int = 0, timeZoneId: String? = null, onResult: (PrayerTimesData) -> Unit) {
         executor.execute {
             val result = try {
                 require(latitude in -90.0..90.0 && longitude in -180.0..180.0)
-                val zone = timeZoneFor(city)
+                val zone = timeZoneId?.takeIf { it.isNotBlank() }?.let { TimeZone.getTimeZone(it) } ?: timeZoneFor(city)
                 val calendar = GregorianCalendar(zone, Locale.US).apply { timeInMillis = System.currentTimeMillis() }
                 val year = calendar.get(Calendar.YEAR)
                 val month = calendar.get(Calendar.MONTH) + 1
