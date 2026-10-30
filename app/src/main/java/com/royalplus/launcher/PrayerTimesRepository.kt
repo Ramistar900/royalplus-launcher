@@ -115,7 +115,11 @@ internal object PrayerTimesRepository {
             clear()
             set(year, month - 1, day, 12, 0, 0)
         }
-        val julianDay = floor(gregorian.timeInMillis / 86_400_000.0 + 2440587.5 + 0.5).toInt() + dayOffset
+        val adjustedMonth = month - 1
+        val a = (14 - adjustedMonth) / 12
+        val y = year + 4800 - a
+        val m = adjustedMonth + 12 * a - 3
+        val julianDay = day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045 + dayOffset
         fun islamicToJulian(y: Int, m: Int, d: Int): Int =
             d + kotlin.math.ceil(29.5 * (m - 1)).toInt() + (y - 1) * 354 +
                 floor((3.0 + 11.0 * y) / 30.0).toInt() + 1948439 - 1
