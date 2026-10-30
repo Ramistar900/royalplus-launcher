@@ -11,8 +11,6 @@ import kotlin.math.acos
 import kotlin.math.atan
 import kotlin.math.cos
 import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.tan
 
@@ -118,12 +116,18 @@ internal object PrayerTimesRepository {
             set(year, month - 1, day, 12, 0, 0)
         }
         val julianDay = floor(gregorian.timeInMillis / 86_400_000.0 + 2440587.5 + 0.5).toInt()
-        val hijriYear = floor((30.0 * (julianDay - 1948439) + 10646.0) / 10631.0).toInt()
         fun islamicToJulian(y: Int, m: Int, d: Int): Int =
             d + kotlin.math.ceil(29.5 * (m - 1)).toInt() + (y - 1) * 354 +
                 floor((3.0 + 11.0 * y) / 30.0).toInt() + 1948439 - 1
-        val monthEstimate = kotlin.math.ceil((julianDay - 29.0 - islamicToJulian(hijriYear, 1, 1)) / 29.5).toInt() + 1
-        val hijriMonth = min(12, max(1, monthEstimate))
+
+        var hijriYear = floor((30.0 * (julianDay - 1948439) + 10646.0) / 10631.0).toInt()
+        while (julianDay < islamicToJulian(hijriYear, 1, 1)) hijriYear--
+        while (julianDay >= islamicToJulian(hijriYear + 1, 1, 1)) hijriYear++
+
+        var hijriMonth = 1
+        while (hijriMonth < 12 && julianDay >= islamicToJulian(hijriYear, hijriMonth + 1, 1)) {
+            hijriMonth++
+        }
         val hijriDay = julianDay - islamicToJulian(hijriYear, hijriMonth, 1) + 1
         return "$hijriDay ${hijriMonths[hijriMonth - 1]} $hijriYear هـ"
     }
