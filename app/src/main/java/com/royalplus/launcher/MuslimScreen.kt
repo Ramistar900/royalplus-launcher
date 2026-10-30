@@ -44,15 +44,15 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-private data class PrayerCity(val name: String, val latitude: Double, val longitude: Double)
+private data class PrayerCity(val name: String, val latitude: Double, val longitude: Double, val timeZoneId: String)
 
 private val prayerCities = listOf(
-    PrayerCity("الموقع الحالي", 0.0, 0.0),
-    PrayerCity("إسطنبول", 41.0082, 28.9784),
-    PrayerCity("دمشق", 33.5138, 36.2765),
-    PrayerCity("مكة المكرمة", 21.3891, 39.8579),
-    PrayerCity("الرياض", 24.7136, 46.6753),
-    PrayerCity("بغداد", 33.3152, 44.3661)
+    PrayerCity("الموقع الحالي", 0.0, 0.0, TimeZone.getDefault().id),
+    PrayerCity("إسطنبول", 41.0082, 28.9784, "Europe/Istanbul"),
+    PrayerCity("دمشق", 33.5138, 36.2765, "Asia/Damascus"),
+    PrayerCity("مكة المكرمة", 21.3891, 39.8579, "Asia/Riyadh"),
+    PrayerCity("الرياض", 24.7136, 46.6753, "Asia/Riyadh"),
+    PrayerCity("بغداد", 33.3152, 44.3661, "Asia/Baghdad")
 )
 
 @Composable
@@ -60,7 +60,17 @@ internal fun MuslimScreen(
     weather: WeatherUiState,
     onRequestLocation: () -> Unit
 ) {
-    var selectedCityIndex by remember { mutableStateOf(0) }
+    var selectedCityIndex by remember {
+        mutableStateOf(
+            when (TimeZone.getDefault().id) {
+                "Europe/Istanbul" -> 1
+                "Asia/Damascus" -> 2
+                "Asia/Riyadh", "Asia/Aden", "Asia/Kuwait", "Asia/Qatar", "Asia/Bahrain" -> 3
+                "Asia/Baghdad" -> 5
+                else -> 1
+            }
+        )
+    }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val selectedCity = prayerCities[selectedCityIndex]
@@ -82,8 +92,20 @@ internal fun MuslimScreen(
         }
     }
 
-    val prayerTimeZone = remember(weather.timeZoneId) {
-        TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
+    LaunchedEffect(weather.latitude, weather.longitude) {
+        if (weather.latitude != null && weather.longitude != null) {
+            selectedCityIndex = 0
+        }
+    }
+
+    val prayerTimeZone = remember(weather.timeZoneId, selectedCityIndex) {
+        TimeZone.getTimeZone(
+            if (selectedCityIndex == 0) {
+                weather.timeZoneId ?: TimeZone.getDefault().id
+            } else {
+                selectedCity.timeZoneId
+            }
+        )
     }
     val nextPrayer = remember(data, now, prayerTimeZone) {
         val current = SimpleDateFormat("HH:mm", Locale.US).apply { this.timeZone = prayerTimeZone }.format(Date(now))
@@ -142,7 +164,7 @@ internal fun MuslimScreen(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(cityName, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text("طريقة الحساب: أم القرى/افتراضي MWL", color = RoyalColors.Muted, fontSize = 9.sp)
+                Text("حساب المواقيت حسب المدينة المختارة", color = RoyalColors.Muted, fontSize = 9.sp)
             }
         }
 
@@ -218,7 +240,7 @@ internal fun MuslimScreen(
             }
         }
         if (!hasCoordinates && selectedCityIndex == 0) {
-            Text("لإظهار مواقيت موقعك، فعّل صلاحية الموقع؛ أو اختر مدينة من الأسفل.", color = RoyalColors.Muted, fontSize = 11.sp)
+            Text("تعذّر تحديد موقعك؛ اختر مدينتك من الأسفل لعرض مواقيت الصلاة والتاريخ الهجري. المدينة المحددة ظاهرة أعلى البطاقة.", color = RoyalColors.Muted, fontSize = 11.sp)
         }
     }
 }
