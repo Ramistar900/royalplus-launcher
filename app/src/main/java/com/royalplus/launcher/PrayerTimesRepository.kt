@@ -38,7 +38,7 @@ internal object PrayerTimesRepository {
     )
 
     /** On-device calculation: MWL angles (Fajr 18°, Isha 17°), standard Asr shadow. */
-    fun fetch(latitude: Double, longitude: Double, city: String, onResult: (PrayerTimesData) -> Unit) {
+    fun fetch(latitude: Double, longitude: Double, city: String, hijriDayOffset: Int = 0, onResult: (PrayerTimesData) -> Unit) {
         executor.execute {
             val result = try {
                 require(latitude in -90.0..90.0 && longitude in -180.0..180.0)
@@ -90,7 +90,7 @@ internal object PrayerTimesRepository {
                 )
                 val gregorianDate = SimpleDateFormat("d MMMM yyyy", Locale.ENGLISH).apply { timeZone = zone }
                     .format(calendar.time)
-                val hijriDate = calculateHijriDate(year, month, day, zone)
+                val hijriDate = calculateHijriDate(year, month, day, zone, hijriDayOffset)
                 PrayerTimesData(hijriDate, gregorianDate, city, times)
             } catch (_: Exception) {
                 PrayerTimesData("", "", city, emptyMap(), "تعذّر حساب المواقيت محليًا. اختر مدينة صحيحة وحاول مجددًا.")
@@ -110,12 +110,12 @@ internal object PrayerTimesRepository {
         return TimeZone.getTimeZone(zoneId)
     }
 
-    private fun calculateHijriDate(year: Int, month: Int, day: Int, zone: TimeZone): String {
+    private fun calculateHijriDate(year: Int, month: Int, day: Int, zone: TimeZone, dayOffset: Int): String {
         val gregorian = GregorianCalendar(zone, Locale.US).apply {
             clear()
             set(year, month - 1, day, 12, 0, 0)
         }
-        val julianDay = floor(gregorian.timeInMillis / 86_400_000.0 + 2440587.5 + 0.5).toInt()
+        val julianDay = floor(gregorian.timeInMillis / 86_400_000.0 + 2440587.5 + 0.5).toInt() + dayOffset
         fun islamicToJulian(y: Int, m: Int, d: Int): Int =
             d + kotlin.math.ceil(29.5 * (m - 1)).toInt() + (y - 1) * 354 +
                 floor((3.0 + 11.0 * y) / 30.0).toInt() + 1948439 - 1
