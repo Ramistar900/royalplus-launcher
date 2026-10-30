@@ -121,7 +121,7 @@ internal fun MuslimScreen(
     }
     val nextPrayer = remember(data, now, prayerTimeZone) {
         val current = SimpleDateFormat("HH:mm", Locale.US).apply { this.timeZone = prayerTimeZone }.format(Date(now))
-        val candidates = data?.times.orEmpty().mapNotNull { (key, value) ->
+        val candidates = data?.times.orEmpty().filterKeys { it != "Sunrise" }.mapNotNull { (key, value) ->
             val parts = value.split(":")
             val mins = parts.getOrNull(0)?.toIntOrNull()?.times(60)?.plus(parts.getOrNull(1)?.toIntOrNull() ?: 0)
             if (mins != null && mins >= 0) Triple(key, value, mins) else null
