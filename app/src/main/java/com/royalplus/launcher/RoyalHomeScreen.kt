@@ -584,24 +584,24 @@ private fun RoyalBrandHeader(
     onCloseSearch: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(42.dp),
+        modifier = Modifier.fillMaxWidth().height(46.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CrownMark(Modifier.size(width = 34.dp, height = 27.dp))
+        CrownMark(Modifier.size(width = 40.dp, height = 31.dp))
         Spacer(Modifier.width(9.dp))
         Text(
             text = "ROYAL+",
             color = RoyalColors.Gold,
-            fontSize = 27.sp,
+            fontSize = 29.sp,
             fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 2.2.sp,
+            letterSpacing = 2.4.sp,
             maxLines = 1
         )
         Spacer(Modifier.width(11.dp))
         Text(
             text = "Launcher",
             color = RoyalColors.Pearl,
-            fontSize = 15.sp,
+            fontSize = 16.sp,
             maxLines = 1
         )
         if (searchActive) {
