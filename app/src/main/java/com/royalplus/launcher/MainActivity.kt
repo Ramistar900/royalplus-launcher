@@ -2,6 +2,9 @@ package com.royalplus.launcher
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
@@ -16,6 +19,11 @@ import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
     private var weatherState by mutableStateOf(WeatherUiState())
+
+    private val apkPicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) installSelectedApk(uri)
+        }
 
     private val locationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -69,7 +77,8 @@ class MainActivity : ComponentActivity() {
                             // The device may not expose a system settings activity.
                         }
                     },
-                    onChooseDefaultHome = { openDefaultHomeSettings() }
+                    onChooseDefaultHome = { openDefaultHomeSettings() },
+                    onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) }
                 )
             }
         }
@@ -78,6 +87,27 @@ class MainActivity : ComponentActivity() {
             refreshWeather()
         } else {
             requestLocationPermission()
+        }
+    }
+
+    private fun installSelectedApk(uri: Uri) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                Toast.makeText(this, "فعّل السماح بالتثبيت لهذا التطبيق، ثم اختر ملف APK مرة أخرى", Toast.LENGTH_LONG).show()
+            } catch (_: Exception) {
+                Toast.makeText(this, "هذا الجهاز لا يتيح إعداد السماح بالتثبيت من هنا", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        try {
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(installIntent)
+        } catch (_: Exception) {
+            Toast.makeText(this, "تعذر فتح مُثبّت أندرويد لهذا الملف", Toast.LENGTH_LONG).show()
         }
     }
 
