@@ -105,7 +105,8 @@ internal fun RoyalHomeScreen(
     onRefreshWeather: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
     onOpenSettings: () -> Unit,
-    onChooseDefaultHome: () -> Unit
+    onChooseDefaultHome: () -> Unit,
+    onInstallApk: () -> Unit
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var selectedDestination by remember { mutableStateOf(LauncherDestination.HOME) }
@@ -206,7 +207,8 @@ internal fun RoyalHomeScreen(
                         onQueryChanged = { searchQuery = it },
                         onCloseSearch = { searchActive = false; searchQuery = ""; selectedDestination = LauncherDestination.HOME },
                         onOpenSettings = { showWallpaperSettings = true },
-                        onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS }
+                        onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS },
+                        onInstallApk = onInstallApk
                     )
                     Spacer(Modifier.height(9.dp))
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -531,7 +533,8 @@ private fun WallpaperChoice(
 private fun RoyalBrandHeader(
     searchActive: Boolean, searchQuery: String, currentTime: String, dateText: String,
     showDate: Boolean, weather: WeatherUiState, onQueryChanged: (String) -> Unit,
-    onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit
+    onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit,
+    onInstallApk: () -> Unit
 ) {
     Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
         CrownMark(Modifier.size(width = 45.dp, height = 34.dp))
@@ -572,6 +575,9 @@ private fun RoyalBrandHeader(
         )
         Spacer(Modifier.width(10.dp))
         StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
+        Spacer(Modifier.width(5.dp))
+        StatusIcon(Icons.Rounded.Apps, "تثبيت ملف APK", onInstallApk)
+        Spacer(Modifier.width(5.dp))
         StatusIcon(Icons.Rounded.Settings, "الإعدادات", onOpenSettings)
     }
 }
