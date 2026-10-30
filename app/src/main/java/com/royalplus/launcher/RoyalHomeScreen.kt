@@ -104,7 +104,8 @@ internal fun RoyalHomeScreen(
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onChooseDefaultHome: () -> Unit
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var selectedDestination by remember { mutableStateOf(LauncherDestination.HOME) }
@@ -338,6 +339,25 @@ internal fun RoyalHomeScreen(
                                 selectedIconStyle = "neon"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "neon").apply()
                             }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(RoyalColors.Gold.copy(alpha = 0.14f))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                                .clickable { onChooseDefaultHome() }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("واجهة التلفاز الافتراضية", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text("اختر ROYAL+ من إعدادات أندرويد، أو ارجع إلى واجهة النظام لإيقافه", color = RoyalColors.Pearl, fontSize = 11.sp)
+                            }
+                            Text("إدارة", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Row(
