@@ -753,17 +753,22 @@ private fun HomeDashboard(
 private fun HomeFeatureCard(
     modifier: Modifier, title: String, subtitle: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val emphasized = selected || focused
     val shape = RoundedCornerShape(18.dp)
     Column(
         modifier.clip(shape)
-            .background(if (selected) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
-            .border(if (selected) 2.dp else 1.dp, if (selected) Color(0xFFFFD56D) else RoyalColors.Gold.copy(alpha = 0.32f), shape)
-            .clickable(onClick = onClick).focusable().padding(horizontal = 14.dp, vertical = 12.dp),
+            .background(if (emphasized) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
+            .border(if (focused) 2.5.dp else if (selected) 2.dp else 1.dp, if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold.copy(alpha = 0.32f), shape)
+            .clickable(onClick = onClick)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, title, tint = RoyalColors.Gold, modifier = Modifier.size(38.dp))
+        Icon(icon, title, tint = if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold, modifier = Modifier.size(38.dp))
         Spacer(Modifier.height(7.dp))
-        Text(title, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, color = if (emphasized) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
         Text(subtitle, color = RoyalColors.Pearl.copy(alpha = 0.78f), fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
@@ -772,14 +777,15 @@ private fun HomeFeatureCard(
 
 @Composable
 private fun RoyalScenicBanner(modifier: Modifier = Modifier, onExploreApps: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
-    Box(modifier.clip(shape).border(BorderStroke(1.dp, RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
+    Box(modifier.clip(shape).border(BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
         Image(painterResource(R.drawable.royal_nature_wallpaper), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
         Row(Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(0.4f))
-            Column(Modifier.weight(1.4f).clickable(onClick = onExploreApps).focusable(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Column(Modifier.weight(1.4f).clickable(onClick = onExploreApps).onFocusChanged { focused = it.isFocused }.focusable(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("مرحباً بك في", color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text("ROYAL+", color = Color(0xFFFFD76D), fontSize = 43.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp, maxLines = 1)
                 Text("عالم الترفيه بين يديك", color = RoyalColors.Pearl, fontSize = 16.sp, maxLines = 1)
