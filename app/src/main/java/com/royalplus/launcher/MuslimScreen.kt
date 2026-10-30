@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -71,8 +72,14 @@ internal fun MuslimScreen(
             }
         )
     }
+    val context = LocalContext.current
+    val hijriPreferences = remember(context) {
+        context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
+    }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
-    var hijriDayAdjustment by remember { mutableStateOf(0) }
+    var hijriDayAdjustment by remember {
+        mutableStateOf(hijriPreferences.getInt("hijri_day_adjustment", 0).coerceIn(-30, 30))
+    }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val selectedCity = prayerCities[selectedCityIndex]
     val hasCoordinates = selectedCityIndex == 0 && weather.latitude != null && weather.longitude != null
@@ -86,6 +93,10 @@ internal fun MuslimScreen(
             delay(1_000L)
         }
     }
+    LaunchedEffect(hijriDayAdjustment) {
+        hijriPreferences.edit().putInt("hijri_day_adjustment", hijriDayAdjustment).apply()
+    }
+
     LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment) {
         data = null
         if (latitude != null && longitude != null) {
