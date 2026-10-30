@@ -150,8 +150,18 @@ internal fun MuslimScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("مسلم", color = RoyalColors.Gold, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-                Text("التقويم الهجري ومواقيت الصلاة", color = RoyalColors.Pearl.copy(alpha = 0.82f), fontSize = 12.sp)
+                val ramadanDecorated = data?.hijriDate?.contains("رمضان") == true
+                Text(
+                    if (ramadanDecorated) "☾ ✦ مسلم ✦ ☾" else "مسلم",
+                    color = RoyalColors.Gold,
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (ramadanDecorated) "رمضان كريم • التقويم الهجري ومواقيت الصلاة" else "التقويم الهجري ومواقيت الصلاة",
+                    color = RoyalColors.Pearl.copy(alpha = 0.82f),
+                    fontSize = 12.sp
+                )
             }
             SmallPrayerAction("تحديث", Icons.Rounded.Refresh) {
                 if (latitude != null && longitude != null) {
@@ -233,6 +243,47 @@ internal fun MuslimScreen(
             }
         }
 
+        if (data?.hijriDate?.contains("رمضان") == true) {
+            val fajrMinutes = timesafeMinutes(data?.times?.get("Fajr"))
+            val maghribMinutes = timesafeMinutes(data?.times?.get("Maghrib"))
+            val imsakTime = fajrMinutes?.let { minutes ->
+                val adjusted = (minutes - 10 + 1440) % 1440
+                String.format(Locale.US, "%02d:%02d", adjusted / 60, adjusted % 60)
+            }
+            val iftarTime = data?.times?.get("Maghrib")
+            val iftarCountdown = maghribMinutes?.let { target ->
+                val current = SimpleDateFormat("HH:mm:ss", Locale.US).apply { timeZone = prayerTimeZone }.format(Date(now)).split(":")
+                val currentSeconds = current[0].toInt() * 3600 + current[1].toInt() * 60 + current[2].toInt()
+                var remaining = target * 60 - currentSeconds
+                if (remaining <= 0) remaining += 24 * 3600
+                String.format(Locale.US, "%02d:%02d:%02d", remaining / 3600, (remaining % 3600) / 60, remaining % 60)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(15.dp))
+                        .background(Color(0xFF14271F))
+                        .border(1.dp, Color(0xFF6DAA80), RoundedCornerShape(15.dp))
+                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🌙 الإمساك", color = Color(0xFFD8E9B8), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(imsakTime ?: "--:--", color = RoyalColors.Pearl, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("قبل الفجر بـ10 دقائق احتياطًا", color = RoyalColors.Muted, fontSize = 9.sp, textAlign = TextAlign.Center)
+                }
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(15.dp))
+                        .background(Color(0xFF30240F))
+                        .border(1.dp, RoyalColors.Gold, RoundedCornerShape(15.dp))
+                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("✨ الإفطار", color = RoyalColors.Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(iftarTime ?: "--:--", color = RoyalColors.Pearl, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("المتبقي ${iftarCountdown ?: "--:--:--"}", color = RoyalColors.Gold, fontSize = 10.sp, textAlign = TextAlign.Center)
+                }
+            }
+        }
+
         Text("مواقيت اليوم", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         val times = data?.times.orEmpty()
         val order = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
@@ -283,6 +334,14 @@ internal fun MuslimScreen(
             Text("تعذّر تحديد موقعك؛ اختر مدينتك من الأسفل لعرض مواقيت الصلاة والتاريخ الهجري. المدينة المحددة ظاهرة أعلى البطاقة.", color = RoyalColors.Muted, fontSize = 11.sp)
         }
     }
+}
+
+private fun timesafeMinutes(value: String?): Int? {
+    val parts = value?.split(":") ?: return null
+    val hour = parts.getOrNull(0)?.toIntOrNull() ?: return null
+    val minute = parts.getOrNull(1)?.toIntOrNull() ?: return null
+    if (hour !in 0..23 || minute !in 0..59) return null
+    return hour * 60 + minute
 }
 
 @Composable
