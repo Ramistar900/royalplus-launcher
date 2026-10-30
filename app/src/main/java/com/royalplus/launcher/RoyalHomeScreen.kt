@@ -2,6 +2,7 @@ package com.royalplus.launcher
 
 import androidx.activity.compose.BackHandler
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -882,6 +883,7 @@ private fun AppGrid(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AppTile(
     app: LauncherApp,
