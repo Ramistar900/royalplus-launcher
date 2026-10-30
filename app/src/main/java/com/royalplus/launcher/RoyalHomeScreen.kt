@@ -545,18 +545,82 @@ private fun RoyalBrandHeader(
             }
             Spacer(Modifier.width(9.dp))
         }
-        Icon(weatherIcon(weather.description), "الطقس", tint = RoyalColors.Gold, modifier = Modifier.size(27.dp))
-        Spacer(Modifier.width(4.dp))
-        Column {
-            Text(weather.temperatureC?.toString()?.plus("°C") ?: "--°C", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            Text(weather.city, color = RoyalColors.Muted, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Spacer(Modifier.width(8.dp))
+        GlassWeatherTile(
+            weather = weather,
+            currentTime = currentTime,
+            modifier = Modifier.width(112.dp).height(48.dp)
+        )
+        Spacer(Modifier.width(10.dp))
         StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
         StatusIcon(Icons.Rounded.Settings, "الإعدادات", onOpenSettings)
     }
 }
 
+
+@Composable
+private fun GlassWeatherTile(
+    weather: WeatherUiState,
+    currentTime: String,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(15.dp)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0x55DDF4FF),
+                        Color(0x222D6E91),
+                        Color(0x443A526F)
+                    )
+                )
+            )
+            .border(1.dp, Color(0x99E5F6FF), shape)
+            .padding(horizontal = 9.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Text(
+            text = weatherEmoji(weather.description, currentTime),
+            fontSize = 27.sp,
+            maxLines = 1
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = weather.temperatureC?.toString()?.plus("°") ?: "--°",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Text(
+                text = weather.city.ifBlank { "الطقس" },
+                color = Color(0xFFE0F3FF),
+                fontSize = 8.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun weatherEmoji(description: String, currentTime: String): String {
+    val value = description.lowercase(Locale.getDefault())
+    val hour = currentTime.substringBefore(":").toIntOrNull()
+    val night = hour != null && (hour >= 19 || hour < 6)
+    return when {
+        "thunder" in value || "رعد" in value -> "⛈️"
+        "snow" in value || "ثلج" in value -> "❄️"
+        "rain" in value || "مطر" in value || "drizzle" in value -> "🌧️"
+        "cloud" in value || "غائم" in value || "سحب" in value -> if (night) "☁️" else "🌤️"
+        night -> "🌙"
+        else -> "☀️"
+    }
+}
 
 @Composable
 private fun ShortcutManagerScreen(
