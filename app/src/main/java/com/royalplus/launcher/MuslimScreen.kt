@@ -72,6 +72,7 @@ internal fun MuslimScreen(
         )
     }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
+    var hijriDayAdjustment by remember { mutableStateOf(0) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val selectedCity = prayerCities[selectedCityIndex]
     val hasCoordinates = selectedCityIndex == 0 && weather.latitude != null && weather.longitude != null
@@ -85,10 +86,10 @@ internal fun MuslimScreen(
             delay(1_000L)
         }
     }
-    LaunchedEffect(latitude, longitude, cityName) {
+    LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment) {
         data = null
         if (latitude != null && longitude != null) {
-            PrayerTimesRepository.fetch(latitude, longitude, cityName) { data = it }
+            PrayerTimesRepository.fetch(latitude, longitude, cityName, hijriDayOffset = hijriDayAdjustment) { data = it }
         }
     }
 
@@ -161,6 +162,34 @@ internal fun MuslimScreen(
                 Text("التاريخ الهجري", color = RoyalColors.Gold, fontSize = 12.sp)
                 Text(data?.hijriDate?.takeIf { it.isNotBlank() } ?: "جارٍ تحميل التاريخ الهجري", color = RoyalColors.Pearl, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(data?.gregorianDate.orEmpty(), color = RoyalColors.Muted, fontSize = 11.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.clip(RoundedCornerShape(7.dp))
+                            .background(Color(0xFF24202A))
+                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.45f), RoundedCornerShape(7.dp))
+                            .clickable { hijriDayAdjustment = (hijriDayAdjustment - 1).coerceAtLeast(-30) }
+                            .focusable()
+                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) { Text("− يوم", color = RoyalColors.Pearl, fontSize = 11.sp) }
+                    Text(
+                        if (hijriDayAdjustment == 0) "ضبط: 0" else "ضبط: ${if (hijriDayAdjustment > 0) "+" else ""}$hijriDayAdjustment",
+                        color = RoyalColors.Muted,
+                        fontSize = 10.sp
+                    )
+                    Box(
+                        Modifier.clip(RoundedCornerShape(7.dp))
+                            .background(Color(0xFF24202A))
+                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.45f), RoundedCornerShape(7.dp))
+                            .clickable { hijriDayAdjustment = (hijriDayAdjustment + 1).coerceAtMost(30) }
+                            .focusable()
+                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) { Text("+ يوم", color = RoyalColors.Pearl, fontSize = 11.sp) }
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(cityName, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
