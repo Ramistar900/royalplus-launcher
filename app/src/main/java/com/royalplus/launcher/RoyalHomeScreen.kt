@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Thunderstorm
@@ -194,152 +195,81 @@ internal fun RoyalHomeScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
-
             val sidebarWidth = if (maxWidth >= 900.dp) 188.dp else (maxWidth * 0.205f).coerceIn(148.dp, 188.dp)
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 22.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
+                Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     RoyalBrandHeader(
-                        searchActive = searchActive,
-                        searchQuery = searchQuery,
+                        searchActive = searchActive, searchQuery = searchQuery,
+                        currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
                         onQueryChanged = { searchQuery = it },
-                        onCloseSearch = {
-                            searchActive = false
-                            searchQuery = ""
-                            selectedDestination = LauncherDestination.HOME
-                        }
+                        onCloseSearch = { searchActive = false; searchQuery = ""; selectedDestination = LauncherDestination.HOME },
+                        onOpenSettings = { showWallpaperSettings = true },
+                        onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS }
                     )
-                    Spacer(Modifier.height(8.dp))
-
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        BoxWithConstraints(Modifier.fillMaxSize()) {
-                            val columns = when {
-                                maxWidth >= 700.dp -> 6
-                                maxWidth >= 570.dp -> 5
-                                maxWidth >= 440.dp -> 4
-                                else -> 3
-                            }
-                            val favoriteTileWidth = ((maxWidth - 50.dp) / 6).coerceIn(82.dp, 124.dp)
-
-                            when (selectedDestination) {
-                                LauncherDestination.HOME -> {
-                                    HomeDashboard(
-                                        favorites = favorites,
-                                        shortcuts = apps.filter { it.packageName in selectedShortcutPackages },
-                                        otherApps = otherApps,
-                                        columns = columns,
-                                        favoriteTileWidth = favoriteTileWidth,
-                                        focusedAppPackage = focusedAppPackage,
-                                        onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp,
-                                        iconStyle = selectedIconStyle,
-                                        onExploreApps = { selectedDestination = LauncherDestination.APPS }
+                    Spacer(Modifier.height(9.dp))
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        RoyalSidePanel(
+                            modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
+                            selectedDestination = selectedDestination,
+                            onNavigate = { destination ->
+                                selectedDestination = destination
+                                if (destination == LauncherDestination.HOME) { searchActive = false; searchQuery = "" }
+                            },
+                            onOpenSettings = { showWallpaperSettings = true }
+                        )
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            BoxWithConstraints(Modifier.fillMaxSize()) {
+                                val columns = when { maxWidth >= 700.dp -> 6; maxWidth >= 570.dp -> 5; maxWidth >= 440.dp -> 4; else -> 3 }
+                                val favoriteTileWidth = ((maxWidth - 50.dp) / 6).coerceIn(82.dp, 124.dp)
+                                when (selectedDestination) {
+                                    LauncherDestination.HOME -> HomeDashboard(
+                                        favorites = favorites, shortcuts = apps.filter { it.packageName in selectedShortcutPackages },
+                                        otherApps = otherApps, columns = columns, favoriteTileWidth = favoriteTileWidth,
+                                        focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
+                                        onLaunchApp = onLaunchApp, iconStyle = selectedIconStyle,
+                                        currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
+                                        onNavigate = { selectedDestination = it },
+                                        onToggleDate = {
+                                            showDateOnHome = !showDateOnHome
+                                            wallpaperPreferences.edit().putBoolean("launcher_show_date", showDateOnHome).apply()
+                                        },
+                                        onRefreshWeather = onRefreshWeather,
+                                        onOpenSettings = { showWallpaperSettings = true }
                                     )
-                                }
-                                LauncherDestination.APPS -> {
-                                    AppCatalog(
+                                    LauncherDestination.APPS -> AppCatalog(
                                         title = if (searchQuery.isBlank()) "جميع التطبيقات" else "نتائج البحث",
-                                        apps = filteredApps,
-                                        columns = columns,
-                                        focusedAppPackage = focusedAppPackage,
-                                        onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp,
-                                        iconStyle = selectedIconStyle,
-                                        initialHighlight = true
+                                        apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
+                                        onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
+                                        iconStyle = selectedIconStyle, initialHighlight = true
                                     )
-                                }
-                                LauncherDestination.MUSLIM -> {
-                                    MuslimScreen(
-                                        weather = weather,
-                                        onRequestLocation = onRequestLocation
+                                    LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation)
+                                    LauncherDestination.FAVORITES -> AppCatalog(
+                                        title = "التطبيقات المفضلة", apps = filteredFavorites, columns = columns,
+                                        focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
+                                        onLaunchApp = onLaunchApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
-                                }
-                                LauncherDestination.FAVORITES -> {
-                                    AppCatalog(
-                                        title = "التطبيقات المفضلة",
-                                        apps = filteredFavorites,
-                                        columns = columns,
-                                        focusedAppPackage = focusedAppPackage,
-                                        onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp,
-                                        iconStyle = selectedIconStyle,
-                                        initialHighlight = true
-                                    )
-                                }
-                                LauncherDestination.SHORTCUTS -> {
-                                    ShortcutManagerScreen(
-                                        apps = filteredApps,
-                                        selectedPackages = selectedShortcutPackages,
-                                        columns = columns,
+                                    LauncherDestination.SHORTCUTS -> ShortcutManagerScreen(
+                                        apps = filteredApps, selectedPackages = selectedShortcutPackages, columns = columns,
                                         iconStyle = selectedIconStyle,
                                         onToggleShortcut = { app ->
-                                            val updated = selectedShortcutPackages.toMutableSet().apply {
-                                                if (!add(app.packageName)) remove(app.packageName)
-                                            }.toSet()
+                                            val updated = selectedShortcutPackages.toMutableSet().apply { if (!add(app.packageName)) remove(app.packageName) }.toSet()
                                             selectedShortcutPackages = updated
-                                            wallpaperPreferences.edit()
-                                                .putStringSet("launcher_shortcut_packages", updated)
-                                                .apply()
+                                            wallpaperPreferences.edit().putStringSet("launcher_shortcut_packages", updated).apply()
                                         },
                                         onLaunchApp = onLaunchApp
                                     )
-                                }
-                                LauncherDestination.MORE -> {
-                                    AppCatalog(
-                                        title = "المزيد من التطبيقات",
-                                        apps = otherApps,
-                                        columns = columns,
-                                        focusedAppPackage = focusedAppPackage,
-                                        onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp,
-                                        iconStyle = selectedIconStyle,
-                                        initialHighlight = true
+                                    LauncherDestination.MORE -> AppCatalog(
+                                        title = "المزيد من التطبيقات", apps = otherApps, columns = columns,
+                                        focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
+                                        onLaunchApp = onLaunchApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                 }
                             }
                         }
                     }
-
-                    Spacer(Modifier.height(7.dp))
-                    RoyalFooter(Modifier.fillMaxWidth().height(24.dp))
+                    Spacer(Modifier.height(8.dp))
+                    RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
                 }
-
-                RoyalSidePanel(
-                    modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
-                    currentTime = timeText,
-                    dateText = dateText,
-                    showDateOnHome = showDateOnHome,
-                    weather = weather,
-                    selectedDestination = selectedDestination,
-                    onNavigate = { destination ->
-                        if (destination == LauncherDestination.APPS) {
-                            selectedDestination = LauncherDestination.APPS
-                        } else {
-                            selectedDestination = destination
-                            if (destination == LauncherDestination.HOME) {
-                                searchActive = false
-                                searchQuery = ""
-                            }
-                        }
-                    },
-                    onOpenSettings = { showWallpaperSettings = true },
-                    onSearch = {
-                        searchActive = true
-                        selectedDestination = LauncherDestination.APPS
-                    },
-                    onRequestLocation = onRequestLocation,
-                    onRefreshWeather = onRefreshWeather
-                )
-            }
             }
 
             if (showWallpaperSettings) {
@@ -578,76 +508,51 @@ private fun WallpaperChoice(
 
 @Composable
 private fun RoyalBrandHeader(
-    searchActive: Boolean,
-    searchQuery: String,
-    onQueryChanged: (String) -> Unit,
-    onCloseSearch: () -> Unit
+    searchActive: Boolean, searchQuery: String, currentTime: String, dateText: String,
+    showDate: Boolean, weather: WeatherUiState, onQueryChanged: (String) -> Unit,
+    onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(46.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CrownMark(Modifier.size(width = 40.dp, height = 31.dp))
-        Spacer(Modifier.width(9.dp))
-        Text(
-            text = "ROYAL+",
-            color = RoyalColors.Gold,
-            fontSize = 29.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 2.4.sp,
-            maxLines = 1
-        )
-        Spacer(Modifier.width(11.dp))
-        Text(
-            text = "Launcher",
-            color = RoyalColors.Pearl,
-            fontSize = 16.sp,
-            maxLines = 1
-        )
-        if (searchActive) {
-            Spacer(Modifier.width(18.dp))
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(RoyalColors.Panel.copy(alpha = 0.92f))
-                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), RoundedCornerShape(13.dp))
-                    .padding(horizontal = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.Search, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(19.dp))
-                Spacer(Modifier.width(8.dp))
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (searchQuery.isBlank()) {
-                        Text("ابحث عن تطبيق", color = RoyalColors.Muted, fontSize = 13.sp)
-                    }
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = onQueryChanged,
-                        singleLine = true,
-                        cursorBrush = SolidColor(RoyalColors.Gold),
-                        textStyle = TextStyle(color = RoyalColors.Pearl, fontSize = 13.sp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                Spacer(Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = "إغلاق البحث",
-                    tint = RoyalColors.Pearl,
-                    modifier = Modifier.size(20.dp).clickable(onClick = onCloseSearch).focusable()
-                )
-            }
-        } else {
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = "MORE THAN JUST TV",
-                color = RoyalColors.Muted.copy(alpha = 0.78f),
-                fontSize = 9.sp,
-                letterSpacing = 2.1.sp
-            )
+    Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
+        CrownMark(Modifier.size(width = 45.dp, height = 34.dp))
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text("ROYAL+", color = RoyalColors.Gold, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.1.sp, maxLines = 1)
+            Text("SMART TV LAUNCHER", color = RoyalColors.Pearl.copy(alpha = 0.85f), fontSize = 8.sp, letterSpacing = 2.sp, maxLines = 1)
         }
+        Spacer(Modifier.weight(1f))
+        if (searchActive) {
+            Row(Modifier.width(175.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(RoyalColors.Panel)
+                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), RoundedCornerShape(10.dp)).padding(horizontal = 9.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Search, null, tint = RoyalColors.Gold, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    if (searchQuery.isBlank()) Text("ابحث عن تطبيق", color = RoyalColors.Muted, fontSize = 12.sp)
+                    BasicTextField(searchQuery, onQueryChanged, singleLine = true, cursorBrush = SolidColor(RoyalColors.Gold),
+                        textStyle = TextStyle(color = RoyalColors.Pearl, fontSize = 12.sp), modifier = Modifier.fillMaxWidth())
+                }
+                Icon(Icons.Rounded.Close, "إغلاق البحث", tint = RoyalColors.Pearl, modifier = Modifier.size(17.dp).clickable(onClick = onCloseSearch).focusable())
+            }
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(currentTime, color = RoyalColors.Gold, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Spacer(Modifier.width(9.dp))
+        if (showDate) {
+            Column(modifier = Modifier.widthIn(max = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(dateText, color = RoyalColors.Pearl, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("التاريخ المحلي", color = RoyalColors.Muted, fontSize = 8.sp, maxLines = 1)
+            }
+            Spacer(Modifier.width(9.dp))
+        }
+        Icon(weatherIcon(weather.description), "الطقس", tint = RoyalColors.Gold, modifier = Modifier.size(27.dp))
+        Spacer(Modifier.width(4.dp))
+        Column {
+            Text(weather.temperatureC?.toString()?.plus("°C") ?: "--°C", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(weather.city, color = RoyalColors.Muted, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.width(8.dp))
+        StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
+        StatusIcon(Icons.Rounded.Settings, "الإعدادات", onOpenSettings)
     }
 }
 
@@ -718,230 +623,89 @@ private fun ShortcutManagerScreen(
 
 @Composable
 private fun HomeDashboard(
-    favorites: List<LauncherApp>,
-    shortcuts: List<LauncherApp>,
-    otherApps: List<LauncherApp>,
-    columns: Int,
-    favoriteTileWidth: Dp,
-    iconStyle: String,
-    focusedAppPackage: String?,
-    onAppFocused: (String) -> Unit,
-    onLaunchApp: (LauncherApp) -> Unit,
-    onExploreApps: () -> Unit
+    favorites: List<LauncherApp>, shortcuts: List<LauncherApp>, otherApps: List<LauncherApp>,
+    columns: Int, favoriteTileWidth: Dp, iconStyle: String, focusedAppPackage: String?,
+    onAppFocused: (String) -> Unit, onLaunchApp: (LauncherApp) -> Unit,
+    currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
+    onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
+    onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val heroHeight = (maxHeight * 0.325f).coerceIn(112.dp, 151.dp)
-        val favoriteHeight = 91.dp
-        val gridTileHeight = if (maxWidth >= 680.dp) 82.dp else 76.dp
-
+        val heroHeight = (maxHeight * 0.31f).coerceIn(120.dp, 165.dp)
+        val favoriteHeight = (maxHeight * 0.19f).coerceIn(82.dp, 102.dp)
         Column(Modifier.fillMaxSize()) {
-            RoyalScenicBanner(
-                modifier = Modifier.fillMaxWidth().height(heroHeight),
-                onExploreApps = onExploreApps
-            )
-            Spacer(Modifier.height(9.dp))
-            SectionHeading(
-                title = "التطبيقات المفضلة",
-                icon = Icons.Rounded.Star
-            )
+            RoyalScenicBanner(Modifier.fillMaxWidth().height(heroHeight), onExploreApps = { onNavigate(LauncherDestination.APPS) })
+            Spacer(Modifier.height(13.dp))
+            Row(Modifier.fillMaxWidth().height(23.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("التطبيقات المثبتة", color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(21.dp))
+            }
             Spacer(Modifier.height(6.dp))
-            if (favorites.isEmpty()) {
-                EmptyAppsMessage(
-                    message = "لا توجد تطبيقات قابلة للتشغيل على هذا الجهاز",
-                    modifier = Modifier.fillMaxWidth().height(favoriteHeight)
-                )
-            } else {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().height(favoriteHeight),
-                    contentPadding = PaddingValues(end = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    rowItems(favorites, key = { it.packageName }) { app ->
-                        val highlighted = focusedAppPackage == app.packageName ||
-                            (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
-                        AppTile(
-                            app = app,
-                            modifier = Modifier.width(favoriteTileWidth).height(favoriteHeight),
-                            highlighted = highlighted,
-                            iconStyle = iconStyle,
-                            onFocused = onAppFocused,
-                            onLaunch = { onLaunchApp(app) }
-                        )
-                    }
+            if (favorites.isEmpty()) EmptyAppsMessage("لا توجد تطبيقات قابلة للتشغيل على هذا الجهاز", Modifier.fillMaxWidth().height(favoriteHeight))
+            else LazyRow(
+                modifier = Modifier.fillMaxWidth().height(favoriteHeight),
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically
+            ) {
+                rowItems(favorites, key = { it.packageName }) { app ->
+                    val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
+                    AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
+                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) })
                 }
             }
-            if (shortcuts.isNotEmpty()) {
-                Spacer(Modifier.height(7.dp))
-                SectionHeading(
-                    title = "اختصاراتي",
-                    icon = Icons.Rounded.ArrowForward
-                )
-                Spacer(Modifier.height(5.dp))
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().height(72.dp),
-                    contentPadding = PaddingValues(end = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    rowItems(shortcuts, key = { it.packageName }) { app ->
-                        AppTile(
-                            app = app,
-                            modifier = Modifier.width(favoriteTileWidth).height(72.dp),
-                            highlighted = focusedAppPackage == app.packageName,
-                            iconStyle = iconStyle,
-                            onFocused = onAppFocused,
-                            onLaunch = { onLaunchApp(app) }
-                        )
-                    }
-                }
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "التطبيقات", "جميع تطبيقاتك في مكان واحد", Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "مسلم", "مواقيت الصلاة والتاريخ الهجري", Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الوقت والتاريخ", if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الطقس", weather.temperatureC?.toString()?.plus("° · ")?.plus(weather.city) ?: weather.city, weatherIcon(weather.description), false, onRefreshWeather)
             }
-            Spacer(Modifier.height(7.dp))
-            SectionHeading(
-                title = "جميع التطبيقات",
-                icon = Icons.Rounded.Apps
-            )
-            Spacer(Modifier.height(5.dp))
-            AppGrid(
-                apps = otherApps,
-                columns = columns,
-                tileHeight = gridTileHeight,
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                focusedAppPackage = focusedAppPackage,
-                onAppFocused = onAppFocused,
-                onLaunchApp = onLaunchApp,
-                iconStyle = iconStyle,
-                initialHighlight = false
-            )
         }
     }
 }
 
 @Composable
-private fun RoyalScenicBanner(
-    modifier: Modifier = Modifier,
-    onExploreApps: () -> Unit
+private fun HomeFeatureCard(
+    modifier: Modifier, title: String, subtitle: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(17.dp)
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .border(BorderStroke(1.dp, RoyalColors.Gold.copy(alpha = 0.85f)), shape)
+    val shape = RoundedCornerShape(15.dp)
+    Column(
+        modifier.clip(shape)
+            .background(if (selected) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
+            .border(if (selected) 2.dp else 1.dp, if (selected) Color(0xFFFFD56D) else Color(0xFF39465A), shape)
+            .clickable(onClick = onClick).focusable().padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.royal_nature_wallpaper),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize()
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xD900050A),
-                            Color(0x5500050A),
-                            Color(0xC900050A)
-                        )
-                    )
-                )
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x22000000),
-                            Color(0x12000000),
-                            Color(0xD900050A)
-                        )
-                    )
-                )
-        )
+        Icon(icon, title, tint = RoyalColors.Gold, modifier = Modifier.size(34.dp))
+        Spacer(Modifier.height(7.dp))
+        Text(title, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(3.dp))
+        Text(subtitle, color = RoyalColors.Pearl.copy(alpha = 0.78f), fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
 
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "مرحباً بك",
-                    color = RoyalColors.Gold,
-                    fontSize = 27.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 1
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = "عالمك من الترفيه أصبح أقرب إليك",
-                    color = RoyalColors.Pearl,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.Black.copy(alpha = 0.30f))
-                        .border(1.4.dp, RoyalColors.Gold, RoundedCornerShape(50))
-                        .clickable(onClick = onExploreApps)
-                        .focusable()
-                        .padding(horizontal = 11.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(Icons.Rounded.ArrowForward, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(17.dp))
-                    Text("استكشف التطبيقات", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
 
-            Spacer(Modifier.width(8.dp))
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                CrownMark(Modifier.size(width = 43.dp, height = 31.dp))
-                Text(
-                    text = "ROYAL+",
-                    color = RoyalColors.Gold,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp,
-                    maxLines = 1
-                )
-                Text(
-                    text = "MORE THAN JUST TV",
-                    color = RoyalColors.Pearl,
-                    fontSize = 7.sp,
-                    letterSpacing = 1.7.sp,
-                    maxLines = 1
-                )
+@Composable
+private fun RoyalScenicBanner(modifier: Modifier = Modifier, onExploreApps: () -> Unit) {
+    val shape = RoundedCornerShape(17.dp)
+    Box(modifier.clip(shape).border(BorderStroke(1.dp, RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
+        Image(painterResource(R.drawable.royal_nature_wallpaper), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
+        Row(Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.weight(0.4f))
+            Column(Modifier.weight(1.4f).clickable(onClick = onExploreApps).focusable(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("مرحباً بك في", color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text("ROYAL+", color = Color(0xFFFFD76D), fontSize = 43.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp, maxLines = 1)
+                Text("عالم الترفيه بين يديك", color = RoyalColors.Pearl, fontSize = 16.sp, maxLines = 1)
             }
-        }
-
-        Row(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            repeat(5) { index ->
-                Box(
-                    Modifier
-                        .width(if (index == 0) 16.dp else 6.dp)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (index == 0) RoyalColors.Gold else RoyalColors.Muted.copy(alpha = 0.58f))
-                )
-            }
+            Spacer(Modifier.width(18.dp))
+            CrownMark(Modifier.size(width = 100.dp, height = 76.dp))
+            Spacer(Modifier.weight(0.35f))
         }
     }
 }
+
 
 @Composable
 private fun AppCatalog(
@@ -1114,143 +878,39 @@ private fun fallbackAppIcon(label: String): ImageVector {
 
 @Composable
 private fun RoyalSidePanel(
-    modifier: Modifier,
-    currentTime: String,
-    dateText: String,
-    showDateOnHome: Boolean,
-    weather: WeatherUiState,
-    selectedDestination: LauncherDestination,
-    onNavigate: (LauncherDestination) -> Unit,
-    onOpenSettings: () -> Unit,
-    onSearch: () -> Unit,
-    onRequestLocation: () -> Unit,
-    onRefreshWeather: () -> Unit
+    modifier: Modifier, selectedDestination: LauncherDestination,
+    onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
 ) {
-    val panelShape = RoundedCornerShape(23.dp)
+    val shape = RoundedCornerShape(19.dp)
     Column(
-        modifier = modifier
-            .clip(panelShape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xDA080A0F), Color(0xC9080A0F), Color(0xF507090D))
-                ),
-                panelShape
-            )
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.16f), panelShape)
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+        modifier.clip(shape).background(Brush.verticalGradient(listOf(Color(0xE8080A0F), Color(0xF7080A0F))))
+            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = 9.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(29.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StatusIcon(Icons.Rounded.Wifi, "Wi-Fi")
-            StatusIcon(Icons.Rounded.Bluetooth, "Bluetooth")
-            StatusIcon(Icons.Rounded.Settings, "الإعدادات", onOpenSettings)
-            StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
-        }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text = currentTime,
-            color = RoyalColors.Pearl,
-            fontSize = 31.sp,
-            fontWeight = FontWeight.Light,
-            letterSpacing = 0.4.sp,
-            maxLines = 1
-        )
-        if (showDateOnHome) {
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = dateText,
-                color = RoyalColors.Pearl.copy(alpha = 0.92f),
-                fontSize = 10.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(Modifier.height(12.dp))
-        } else {
-            Spacer(Modifier.height(5.dp))
-        }
-        GoldDivider(Modifier.fillMaxWidth())
-        Spacer(Modifier.height(10.dp))
-
-        WeatherGlassCard(
-            weather = weather,
-            onRequestLocation = onRequestLocation,
-            onRefreshWeather = onRefreshWeather,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(9.dp))
-        GoldDivider(Modifier.fillMaxWidth())
+        Spacer(Modifier.height(5.dp))
+        SidebarNavItem("الرئيسية", Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(8.dp))
-
-        SidebarNavItem(
-            title = "الرئيسية",
-            icon = Icons.Rounded.Home,
-            selected = selectedDestination == LauncherDestination.HOME,
-            onClick = { onNavigate(LauncherDestination.HOME) }
-        )
-        Spacer(Modifier.height(5.dp))
-        SidebarNavItem(
-            title = "التطبيقات",
-            icon = Icons.Rounded.Apps,
-            selected = selectedDestination == LauncherDestination.APPS,
-            onClick = { onNavigate(LauncherDestination.APPS) }
-        )
-        Spacer(Modifier.height(5.dp))
-        SidebarNavItem(
-            title = "مسلم",
-            icon = Icons.Rounded.Star,
-            selected = selectedDestination == LauncherDestination.MUSLIM,
-            onClick = { onNavigate(LauncherDestination.MUSLIM) }
-        )
-        Spacer(Modifier.height(5.dp))
-        SidebarNavItem(
-            title = "الإعدادات",
-            icon = Icons.Rounded.Settings,
-            selected = false,
-            onClick = onOpenSettings
-        )
-        Spacer(Modifier.height(5.dp))
-        SidebarNavItem(
-            title = "المفضلة",
-            icon = Icons.Rounded.Favorite,
-            selected = selectedDestination == LauncherDestination.FAVORITES,
-            onClick = { onNavigate(LauncherDestination.FAVORITES) }
-        )
-        Spacer(Modifier.height(5.dp))
-        SidebarNavItem(
-            title = "الاختصارات",
-            icon = Icons.Rounded.Star,
-            selected = selectedDestination == LauncherDestination.SHORTCUTS,
-            onClick = { onNavigate(LauncherDestination.SHORTCUTS) }
-        )
-        Spacer(Modifier.height(5.dp))
-        SidebarNavItem(
-            title = "المزيد",
-            icon = Icons.Rounded.MoreHoriz,
-            selected = selectedDestination == LauncherDestination.MORE,
-            onClick = { onNavigate(LauncherDestination.MORE) }
-        )
-
+        SidebarNavItem("التطبيقات", Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS) { onNavigate(LauncherDestination.APPS) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem("مسلم", Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem("القنوات", Icons.Rounded.Wifi, false) { onNavigate(LauncherDestination.APPS) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem("أفلام ومسلسلات", Icons.Rounded.ArrowForward, false) { onNavigate(LauncherDestination.APPS) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem("موسيقى", Icons.Rounded.MoreHoriz, false) { onNavigate(LauncherDestination.APPS) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem("الإعدادات", Icons.Rounded.Settings, false, onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
-        Spacer(Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            CrownMark(Modifier.size(width = 20.dp, height = 15.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("ROYAL+", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        }
-        Text("MORE THAN JUST TV", color = RoyalColors.Muted, fontSize = 7.sp, letterSpacing = 1.1.sp)
+        Spacer(Modifier.height(12.dp))
+        CrownMark(Modifier.size(width = 30.dp, height = 22.dp))
+        Spacer(Modifier.height(4.dp))
+        Text("ROYAL+", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Text("SMART TV", color = RoyalColors.Muted, fontSize = 7.sp, letterSpacing = 1.5.sp)
     }
 }
+
 
 @Composable
 private fun StatusIcon(
@@ -1342,33 +1002,31 @@ private fun SectionHeading(
 }
 
 @Composable
-private fun RoyalFooter(modifier: Modifier = Modifier) {
+private fun RoyalFooter(
+    modifier: Modifier = Modifier, currentTime: String = "", dateText: String = "", weather: WeatherUiState = WeatherUiState()
+) {
+    val shape = RoundedCornerShape(50)
     Row(
-        modifier = modifier,
+        modifier.clip(shape).background(Color(0xE807090D)).border(1.dp, RoyalColors.Gold.copy(alpha = 0.68f), shape)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CrownMark(Modifier.size(width = 21.dp, height = 16.dp))
-        Spacer(Modifier.width(4.dp))
-        Text("ROYAL+", color = RoyalColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-        Spacer(Modifier.width(11.dp))
-        Box(Modifier.width(1.dp).height(14.dp).background(RoyalColors.Gold.copy(alpha = 0.55f)))
-        Spacer(Modifier.width(11.dp))
-        Text(
-            text = "استمتع بتجربة مشاهدة استثنائية",
-            color = RoyalColors.Pearl.copy(alpha = 0.92f),
-            fontSize = 10.sp,
-            maxLines = 1
-        )
+        CrownMark(Modifier.size(width = 24.dp, height = 18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("ROYAL+", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+        Spacer(Modifier.width(16.dp))
+        Text("أهلاً وسهلاً بكم في ROYAL+ ... كل ما تحتاجه في مكان واحد", color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.weight(1f))
-        Box(
-            Modifier.weight(0.35f).height(1.dp).background(
-                Brush.horizontalGradient(listOf(RoyalColors.Gold.copy(alpha = 0.1f), RoyalColors.Gold.copy(alpha = 0.65f)))
-            )
-        )
-        Spacer(Modifier.width(9.dp))
-        Text("ROYAL+ Launcher", color = RoyalColors.Muted, fontSize = 9.sp, maxLines = 1)
+        Icon(weatherIcon(weather.description), null, tint = RoyalColors.Gold, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(currentTime, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        if (dateText.isNotBlank()) {
+            Spacer(Modifier.width(10.dp))
+            Text(dateText, color = RoyalColors.Pearl.copy(alpha = 0.85f), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
+
 
 @Composable
 private fun GoldDivider(modifier: Modifier = Modifier) {
