@@ -267,7 +267,7 @@ internal fun RoyalHomeScreen(
                                     LauncherDestination.MORE -> AppCatalog(
                                         title = "المزيد من التطبيقات", apps = otherApps, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                 }
                             }
