@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
     private var weatherState by mutableStateOf(WeatherUiState())
+    private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
 
     private val apkPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -54,12 +55,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 RoyalHomeScreen(
-                    apps = androidx.compose.runtime.remember {
-                        LauncherAppsRepository.load(
-                            packageManager = packageManager,
-                            ownPackageName = packageName
-                        )
-                    },
+                    apps = installedApps,
                     weather = weatherState,
                     onRequestLocation = { requestLocationPermission() },
                     onRefreshWeather = { refreshWeather() },
@@ -78,7 +74,8 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onChooseDefaultHome = { openDefaultHomeSettings() },
-                    onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) }
+                    onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) },
+                    onManageApp = { app -> openAppDetails(app) }
                 )
             }
         }
@@ -87,6 +84,27 @@ class MainActivity : ComponentActivity() {
             refreshWeather()
         } else {
             requestLocationPermission()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        installedApps = LauncherAppsRepository.load(
+            packageManager = packageManager,
+            ownPackageName = packageName
+        )
+    }
+
+    private fun openAppDetails(app: LauncherApp) {
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:${app.packageName}")
+                )
+            )
+        } catch (_: Exception) {
+            Toast.makeText(this, "تعذر فتح إعدادات هذا التطبيق على الجهاز", Toast.LENGTH_LONG).show()
         }
     }
 
