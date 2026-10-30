@@ -1,13 +1,20 @@
 package com.royalplus.launcher
 
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.Calendar
+import java.util.GregorianCalendar
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.Executors
+import kotlin.math.PI
+import kotlin.math.acos
+import kotlin.math.atan
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.tan
 
 internal data class PrayerTimesData(
     val hijriDate: String,
@@ -27,55 +34,98 @@ internal object PrayerTimesRepository {
         "Maghrib" to "المغرب",
         "Isha" to "العشاء"
     )
+    private val hijriMonths = listOf(
+        "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
+        "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
+    )
 
+    /** On-device calculation: MWL angles (Fajr 18°, Isha 17°), standard Asr shadow. */
     fun fetch(latitude: Double, longitude: Double, city: String, onResult: (PrayerTimesData) -> Unit) {
         executor.execute {
             val result = try {
-                val timestamp = System.currentTimeMillis() / 1000L
-                val endpoint = URL(
-                    "https://api.aladhan.com/v1/timings/$timestamp" +
-                        "?latitude=$latitude&longitude=$longitude&method=3"
+                require(latitude in -90.0..90.0 && longitude in -180.0..180.0)
+                val zone = timeZoneFor(city)
+                val calendar = GregorianCalendar(zone, Locale.US).apply { timeInMillis = System.currentTimeMillis() }
+                val year = calendar.get(Calendar.YEAR)
+                val month = calendar.get(Calendar.MONTH) + 1
+                val day = calendar.get(Calendar.DAY_OF_MONTH)
+                val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
+                val daysInYear = if (calendar.isLeapYear(year)) 366.0 else 365.0
+                val gamma = 2.0 * PI / daysInYear * (dayOfYear - 1.0)
+                val equationOfTime = 229.18 * (
+                    0.000075 + 0.001868 * cos(gamma) - 0.032077 * sin(gamma) -
+                        0.014615 * cos(2 * gamma) - 0.040849 * sin(2 * gamma)
+                    )
+                val declination = 0.006918 - 0.399912 * cos(gamma) + 0.070257 * sin(gamma) -
+                    0.006758 * cos(2 * gamma) + 0.000907 * sin(2 * gamma) -
+                    0.002697 * cos(3 * gamma) + 0.00148 * sin(3 * gamma)
+                val offsetMinutes = zone.getOffset(calendar.timeInMillis) / 60_000.0
+                val solarNoon = 720.0 - 4.0 * longitude - equationOfTime + offsetMinutes
+                val latRad = Math.toRadians(latitude)
+                fun hourAngleForAltitude(altitudeDegrees: Double): Double? {
+                    val altitude = Math.toRadians(altitudeDegrees)
+                    val denominator = cos(latRad) * cos(declination)
+                    if (kotlin.math.abs(denominator) < 1e-9) return null
+                    val cosine = (sin(altitude) - sin(latRad) * sin(declination)) / denominator
+                    if (cosine !in -1.0..1.0) return null
+                    return Math.toDegrees(acos(cosine))
+                }
+                fun minutesAtAngle(altitude: Double, morning: Boolean): Double? {
+                    val angle = hourAngleForAltitude(altitude) ?: return null
+                    return solarNoon + (if (morning) -1.0 else 1.0) * angle * 4.0
+                }
+                val asrAltitude = Math.toDegrees(
+                    atan(1.0 / (1.0 + tan(kotlin.math.abs(latRad - declination))))
                 )
-                val connection = (endpoint.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 10_000
-                    readTimeout = 10_000
-                    setRequestProperty("Accept", "application/json")
+                val asrAngle = hourAngleForAltitude(asrAltitude)
+                fun formatMinutes(value: Double): String {
+                    val rounded = ((floor(value + 0.5).toInt() % 1440) + 1440) % 1440
+                    return String.format(Locale.US, "%02d:%02d", rounded / 60, rounded % 60)
                 }
-                try {
-                    val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                    val root = JSONObject(body)
-                    if (root.optInt("code", -1) != 200) throw IllegalStateException("Prayer service unavailable")
-                    val data = root.getJSONObject("data")
-                    val timings = data.getJSONObject("timings")
-                    val date = data.getJSONObject("date")
-                    val hijri = date.getJSONObject("hijri")
-                    val hijriDate = listOf(
-                        hijri.optString("day"),
-                        hijri.getJSONObject("month").optString("ar"),
-                        hijri.getJSONObject("year").optString("ar")
-                    ).filter { it.isNotBlank() }.joinToString(" ")
-                    val gregorian = date.getJSONObject("gregorian")
-                    val gregorianDate = listOf(
-                        gregorian.optString("day"),
-                        gregorian.getJSONObject("month").optString("en"),
-                        gregorian.optString("year")
-                    ).filter { it.isNotBlank() }.joinToString(" ")
-                    val values = prayerNames.mapValues { (apiName, _) ->
-                        timings.optString(apiName).substringBefore(" ").trim()
-                    }
-                    if (values.values.any { !it.matches(Regex("\\d{1,2}:\\d{2}")) }) {
-                        throw IllegalStateException("Invalid prayer time data")
-                    }
-                    PrayerTimesData(hijriDate, gregorianDate, city, values)
-                } finally {
-                    connection.disconnect()
-                }
+                val times = linkedMapOf(
+                    "Fajr" to formatMinutes(minutesAtAngle(-18.0, true) ?: solarNoon - 90.0),
+                    "Sunrise" to formatMinutes(minutesAtAngle(-0.833, true) ?: solarNoon - 360.0),
+                    "Dhuhr" to formatMinutes(solarNoon + 1.0),
+                    "Asr" to formatMinutes((asrAngle?.let { solarNoon + it * 4.0 }) ?: solarNoon + 180.0),
+                    "Maghrib" to formatMinutes(minutesAtAngle(-0.833, false) ?: solarNoon + 360.0),
+                    "Isha" to formatMinutes(minutesAtAngle(-17.0, false) ?: solarNoon + 90.0)
+                )
+                val gregorianDate = SimpleDateFormat("d MMMM yyyy", Locale.ENGLISH).apply { timeZone = zone }
+                    .format(calendar.time)
+                val hijriDate = calculateHijriDate(year, month, day, zone)
+                PrayerTimesData(hijriDate, gregorianDate, city, times)
             } catch (_: Exception) {
-                PrayerTimesData("", "", city, emptyMap(), "تعذّر تحميل المواقيت. تحقق من الإنترنت ثم حدّث الصفحة.")
+                PrayerTimesData("", "", city, emptyMap(), "تعذّر حساب المواقيت محليًا. اختر مدينة صحيحة وحاول مجددًا.")
             }
             onResult(result)
         }
+    }
+
+    private fun timeZoneFor(city: String): TimeZone {
+        val zoneId = when (city.trim().lowercase(Locale.ROOT)) {
+            "إسطنبول", "istanbul", "istanbul, türkiye", "istanbul, turkey" -> "Europe/Istanbul"
+            "دمشق", "damascus" -> "Asia/Damascus"
+            "مكة المكرمة", "مكة", "mecca", "makkah", "الرياض", "riyadh" -> "Asia/Riyadh"
+            "بغداد", "baghdad" -> "Asia/Baghdad"
+            else -> TimeZone.getDefault().id
+        }
+        return TimeZone.getTimeZone(zoneId)
+    }
+
+    private fun calculateHijriDate(year: Int, month: Int, day: Int, zone: TimeZone): String {
+        val gregorian = GregorianCalendar(zone, Locale.US).apply {
+            clear()
+            set(year, month - 1, day, 12, 0, 0)
+        }
+        val julianDay = floor(gregorian.timeInMillis / 86_400_000.0 + 2440587.5 + 0.5).toInt()
+        val hijriYear = floor((30.0 * (julianDay - 1948439) + 10646.0) / 10631.0).toInt()
+        fun islamicToJulian(y: Int, m: Int, d: Int): Int =
+            d + kotlin.math.ceil(29.5 * (m - 1)).toInt() + (y - 1) * 354 +
+                floor((3.0 + 11.0 * y) / 30.0).toInt() + 1948439 - 1
+        val monthEstimate = kotlin.math.ceil((julianDay - 29.0 - islamicToJulian(hijriYear, 1, 1)) / 29.5).toInt() + 1
+        val hijriMonth = min(12, max(1, monthEstimate))
+        val hijriDay = julianDay - islamicToJulian(hijriYear, hijriMonth, 1) + 1
+        return "$hijriDay ${hijriMonths[hijriMonth - 1]} $hijriYear هـ"
     }
 
     fun displayNames(): Map<String, String> = prayerNames
