@@ -100,7 +100,7 @@ internal fun MuslimScreen(
     LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment) {
         data = null
         if (latitude != null && longitude != null) {
-            PrayerTimesRepository.fetch(latitude, longitude, cityName, hijriDayOffset = hijriDayAdjustment) { data = it }
+            PrayerTimesRepository.fetch(latitude, longitude, cityName, hijriDayOffset = hijriDayAdjustment, timeZoneId = if (selectedCityIndex == 0) weather.timeZoneId else selectedCity.timeZoneId) { data = it }
         }
     }
 
@@ -155,7 +155,7 @@ internal fun MuslimScreen(
             }
             SmallPrayerAction("تحديث", Icons.Rounded.Refresh) {
                 if (latitude != null && longitude != null) {
-                    PrayerTimesRepository.fetch(latitude, longitude, cityName) { data = it }
+                    PrayerTimesRepository.fetch(latitude, longitude, cityName, hijriDayOffset = hijriDayAdjustment, timeZoneId = if (selectedCityIndex == 0) weather.timeZoneId else selectedCity.timeZoneId) { data = it }
                 } else onRequestLocation()
             }
             Spacer(Modifier.width(8.dp))
