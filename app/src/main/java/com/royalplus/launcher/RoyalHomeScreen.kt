@@ -983,9 +983,25 @@ private fun StatusIcon(
     description: String,
     onClick: (() -> Unit)? = null
 ) {
-    val clickModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick).focusable()
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(50)
+    val clickModifier = if (onClick == null) {
+        Modifier
+    } else {
+        Modifier
+            .clip(shape)
+            .background(if (focused) RoyalColors.Gold.copy(alpha = 0.18f) else Color.Transparent)
+            .border(
+                width = if (focused) 1.5.dp else 0.dp,
+                color = if (focused) Color(0xFFFFD36A) else Color.Transparent,
+                shape = shape
+            )
+            .clickable(onClick = onClick)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+    }
     Box(
-        modifier = Modifier.size(28.dp).then(clickModifier),
+        modifier = Modifier.size(32.dp).then(clickModifier),
         contentAlignment = Alignment.Center
     ) {
         Icon(
