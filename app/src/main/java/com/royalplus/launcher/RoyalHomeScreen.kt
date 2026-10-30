@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -106,7 +107,8 @@ internal fun RoyalHomeScreen(
     onLaunchApp: (LauncherApp) -> Unit,
     onOpenSettings: () -> Unit,
     onChooseDefaultHome: () -> Unit,
-    onInstallApk: () -> Unit
+    onInstallApk: () -> Unit,
+    onManageApp: (LauncherApp) -> Unit
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var selectedDestination by remember { mutableStateOf(LauncherDestination.HOME) }
@@ -230,7 +232,7 @@ internal fun RoyalHomeScreen(
                                         favorites = favorites, shortcuts = apps.filter { it.packageName in selectedShortcutPackages },
                                         otherApps = otherApps, columns = columns, favoriteTileWidth = favoriteTileWidth,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp, iconStyle = selectedIconStyle,
+                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle,
                                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
                                         onNavigate = { selectedDestination = it },
                                         onToggleDate = {
@@ -244,13 +246,13 @@ internal fun RoyalHomeScreen(
                                         title = if (searchQuery.isBlank()) "جميع التطبيقات" else "نتائج البحث",
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
-                                        iconStyle = selectedIconStyle, initialHighlight = true
+                                        onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation)
                                     LauncherDestination.FAVORITES -> AppCatalog(
                                         title = "التطبيقات المفضلة", apps = filteredFavorites, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                     LauncherDestination.SHORTCUTS -> ShortcutManagerScreen(
                                         apps = filteredApps, selectedPackages = selectedShortcutPackages, columns = columns,
@@ -260,7 +262,7 @@ internal fun RoyalHomeScreen(
                                             selectedShortcutPackages = updated
                                             wallpaperPreferences.edit().putStringSet("launcher_shortcut_packages", updated).apply()
                                         },
-                                        onLaunchApp = onLaunchApp
+                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp
                                     )
                                     LauncherDestination.MORE -> AppCatalog(
                                         title = "المزيد من التطبيقات", apps = otherApps, columns = columns,
@@ -655,7 +657,8 @@ private fun ShortcutManagerScreen(
     columns: Int,
     iconStyle: String,
     onToggleShortcut: (LauncherApp) -> Unit,
-    onLaunchApp: (LauncherApp) -> Unit
+    onLaunchApp: (LauncherApp) -> Unit,
+    onManageApp: (LauncherApp) -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -704,7 +707,8 @@ private fun ShortcutManagerScreen(
                         highlighted = selected,
                         iconStyle = iconStyle,
                         onFocused = {},
-                        onLaunch = { onToggleShortcut(app) }
+                        onLaunch = { onToggleShortcut(app) },
+                        onManage = { onManageApp(app) }
                     )
                 }
             }
@@ -717,6 +721,7 @@ private fun HomeDashboard(
     favorites: List<LauncherApp>, shortcuts: List<LauncherApp>, otherApps: List<LauncherApp>,
     columns: Int, favoriteTileWidth: Dp, iconStyle: String, focusedAppPackage: String?,
     onAppFocused: (String) -> Unit, onLaunchApp: (LauncherApp) -> Unit,
+    onManageApp: (LauncherApp) -> Unit,
     currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
     onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit
@@ -741,7 +746,7 @@ private fun HomeDashboard(
                 rowItems(favorites, key = { it.packageName }) { app ->
                     val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
                     AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
-                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) })
+                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { onManageApp(app) })
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -812,6 +817,7 @@ private fun AppCatalog(
     focusedAppPackage: String?,
     onAppFocused: (String) -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
+    onManageApp: (LauncherApp) -> Unit,
     iconStyle: String,
     initialHighlight: Boolean
 ) {
@@ -826,6 +832,7 @@ private fun AppCatalog(
             focusedAppPackage = focusedAppPackage,
             onAppFocused = onAppFocused,
             onLaunchApp = onLaunchApp,
+            onManageApp = onManageApp,
             iconStyle = iconStyle,
             initialHighlight = initialHighlight
         )
@@ -841,6 +848,7 @@ private fun AppGrid(
     focusedAppPackage: String?,
     onAppFocused: (String) -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
+    onManageApp: (LauncherApp) -> Unit,
     iconStyle: String,
     initialHighlight: Boolean
 ) {
@@ -866,7 +874,8 @@ private fun AppGrid(
                     highlighted = highlighted,
                     iconStyle = iconStyle,
                     onFocused = onAppFocused,
-                    onLaunch = { onLaunchApp(app) }
+                    onLaunch = { onLaunchApp(app) },
+                    onManage = { onManageApp(app) }
                 )
             }
         }
@@ -880,7 +889,8 @@ private fun AppTile(
     highlighted: Boolean,
     iconStyle: String,
     onFocused: (String) -> Unit,
-    onLaunch: () -> Unit
+    onLaunch: () -> Unit,
+    onManage: (() -> Unit)? = null
 ) {
     val shape = when (iconStyle) {
         "circle" -> RoundedCornerShape(50)
@@ -889,8 +899,10 @@ private fun AppTile(
         else -> RoundedCornerShape(14.dp)
     }
     Card(
-        onClick = onLaunch,
-        modifier = modifier.onFocusChanged { state ->
+        modifier = modifier.combinedClickable(
+            onClick = onLaunch,
+            onLongClick = onManage
+        ).onFocusChanged { state ->
             if (state.isFocused) onFocused(app.packageName)
         },
         shape = shape,
