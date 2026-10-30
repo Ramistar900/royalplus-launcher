@@ -68,7 +68,8 @@ class MainActivity : ComponentActivity() {
                         } catch (_: Exception) {
                             // The device may not expose a system settings activity.
                         }
-                    }
+                    },
+                    onChooseDefaultHome = { openDefaultHomeSettings() }
                 )
             }
         }
@@ -77,6 +78,24 @@ class MainActivity : ComponentActivity() {
             refreshWeather()
         } else {
             requestLocationPermission()
+        }
+    }
+
+    private fun openDefaultHomeSettings() {
+        val actions = listOf(
+            Settings.ACTION_HOME_SETTINGS,
+            Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS,
+            Settings.ACTION_SETTINGS
+        )
+        for (action in actions) {
+            try {
+                startActivity(Intent(action))
+                return
+            } catch (_: android.content.ActivityNotFoundException) {
+                // Try the next supported system settings screen.
+            } catch (_: SecurityException) {
+                // Try the next supported system settings screen.
+            }
         }
     }
 
