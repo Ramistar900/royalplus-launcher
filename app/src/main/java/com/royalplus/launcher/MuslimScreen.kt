@@ -311,8 +311,14 @@ internal fun MuslimScreen(
             }
         }
 
+        Text(
+            "التاريخ الهجري اليوم: ${data?.hijriDate?.takeIf { it.isNotBlank() } ?: "جارٍ تحميل التاريخ الهجري"}",
+            color = RoyalColors.Gold,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
         Text("جدول مواقيت الصلاة للأيام السبعة", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Text("يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت على الجهاز", color = RoyalColors.Muted, fontSize = 10.sp)
+        Text("يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت حسب المدينة المختارة", color = RoyalColors.Muted, fontSize = 10.sp)
         val prayerColumns = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -339,7 +345,7 @@ internal fun MuslimScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         PrayerTableCell((index + 1).toString(), Modifier.weight(0.55f), isToday)
-                        PrayerTableCell(schedule.dayName + "\n" + schedule.gregorianDate, Modifier.weight(1.55f), isToday)
+                        PrayerTableCell(schedule.dayName, Modifier.weight(1.55f), isToday)
                         prayerColumns.forEach { key ->
                             PrayerTableCell(schedule.times[key] ?: "--:--", Modifier.weight(1f), isToday)
                         }
