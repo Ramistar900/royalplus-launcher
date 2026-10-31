@@ -752,7 +752,14 @@ private fun HomeDashboard(
             }
         }
         Column(Modifier.fillMaxSize()) {
-            RoyalScenicBanner(Modifier.fillMaxWidth().height(heroHeight), onExploreApps = { onNavigate(LauncherDestination.APPS) })
+            RoyalScenicBanner(
+                modifier = Modifier.fillMaxWidth().height(heroHeight),
+                weather = weather,
+                currentTime = currentTime,
+                onRequestLocation = onRequestLocation,
+                onRefreshWeather = onRefreshWeather,
+                onExploreApps = { onNavigate(LauncherDestination.APPS) }
+            )
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("التطبيقات المثبتة", color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -776,12 +783,6 @@ private fun HomeDashboard(
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "التطبيقات", "جميع تطبيقاتك في مكان واحد", Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "مسلم", "مواقيت الصلاة والتاريخ الهجري", Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الوقت والتاريخ", if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
-                WeatherGlassCard(
-                    weather = weather,
-                    onRequestLocation = onRequestLocation,
-                    onRefreshWeather = onRefreshWeather,
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                )
             }
         }
     }
@@ -814,23 +815,46 @@ private fun HomeFeatureCard(
 
 
 @Composable
-private fun RoyalScenicBanner(modifier: Modifier = Modifier, onExploreApps: () -> Unit) {
+private fun RoyalScenicBanner(
+    modifier: Modifier = Modifier,
+    weather: WeatherUiState,
+    currentTime: String,
+    onRequestLocation: () -> Unit,
+    onRefreshWeather: () -> Unit,
+    onExploreApps: () -> Unit
+) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
     Box(modifier.clip(shape).border(BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
         Image(painterResource(R.drawable.royal_nature_wallpaper), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
-        Row(Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.weight(0.4f))
-            Column(Modifier.weight(1.4f).clickable(onClick = onExploreApps).onFocusChanged { focused = it.isFocused }.focusable(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(
+                Modifier.weight(1f).fillMaxHeight()
+                    .clip(RoundedCornerShape(15.dp))
+                    .clickable(onClick = onExploreApps)
+                    .onFocusChanged { focused = it.isFocused }
+                    .focusable()
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text("مرحباً بك في", color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text("ROYAL+", color = Color(0xFFFFD76D), fontSize = 43.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp, maxLines = 1)
                 Text("عالم الترفيه بين يديك", color = RoyalColors.Pearl, fontSize = 16.sp, maxLines = 1)
             }
-            Spacer(Modifier.width(18.dp))
-            CrownMark(Modifier.size(width = 100.dp, height = 76.dp))
-            Spacer(Modifier.weight(0.35f))
+            WeatherGlassCard(
+                weather = weather,
+                currentTime = currentTime,
+                onRequestLocation = onRequestLocation,
+                onRefreshWeather = onRefreshWeather,
+                modifier = Modifier.weight(1.05f).fillMaxHeight()
+            )
         }
     }
 }
