@@ -759,6 +759,14 @@ private fun HomeDashboard(
                 )
             }
         }
+        // Decorative transparent Ramadan overlay; kept non-interactive and subtle.
+        Image(
+            painter = painterResource(R.drawable.ramadan_overlay),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            alpha = 0.42f,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
