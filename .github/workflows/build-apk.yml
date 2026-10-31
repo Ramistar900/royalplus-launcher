@@ -22,6 +22,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Fetch Royal Arabic fonts
+        run: |
+          mkdir -p app/src/main/res/font
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/cairo.ttf --output app/src/main/res/font/cairo.ttf
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/tajawal_regular.ttf --output app/src/main/res/font/tajawal_regular.ttf
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/noto_kufi_arabic.ttf --output app/src/main/res/font/noto_kufi_arabic.ttf
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/amiri_regular.ttf --output app/src/main/res/font/amiri_regular.ttf
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
+
       - name: Download Gradle 8.9
         run: |
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
