@@ -77,7 +77,8 @@ internal fun MuslimScreen(
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
-    var weekSchedules by remember { mutableStateOf<List<PrayerTimesData>>(emptyList()) }
+    val weekSchedulesState = remember { mutableStateOf<List<PrayerTimesData>>(emptyList()) }
+    val weekSchedules = weekSchedulesState.value
     var hijriDayAdjustment by remember {
         mutableStateOf(hijriPreferences.getInt("hijri_day_adjustment", 0).coerceIn(-30, 30))
     }
@@ -104,7 +105,7 @@ internal fun MuslimScreen(
 
     LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment, todayKey) {
         data = null
-        weekSchedules = emptyList()
+        weekSchedulesState.value = emptyList()
         if (latitude != null && longitude != null) {
             val zoneId = if (selectedCityIndex == 0) weather.timeZoneId else selectedCity.timeZoneId
             PrayerTimesRepository.fetch(
@@ -118,7 +119,7 @@ internal fun MuslimScreen(
                     timeZoneId = zoneId,
                     calendarDayOffset = dayOffset
                 ) { dayData ->
-                    weekSchedules = weekSchedules.filterNot {
+                    weekSchedulesState.value = weekSchedulesState.value.filterNot {
                         it.gregorianDate == dayData.gregorianDate
                     } + dayData
                 }
