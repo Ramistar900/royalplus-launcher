@@ -67,11 +67,14 @@ private fun weatherVisual(weather: WeatherUiState): WeatherVisual {
 @Composable
 internal fun WeatherGlassCard(
     weather: WeatherUiState,
+    currentTime: String,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val visual = weatherVisual(weather)
+    val hour = currentTime.substringBefore(":").toIntOrNull()
+    val isNight = hour != null && (hour >= 19 || hour < 6)
     val transition = rememberInfiniteTransition(label = "weather-motion")
     val drift by transition.animateFloat(
         initialValue = -1f,
@@ -129,32 +132,80 @@ internal fun WeatherGlassCard(
                 val sunRadius = h * 0.19f
 
                 if (visual == WeatherVisual.SUNNY || visual == WeatherVisual.CLOUDY || visual == WeatherVisual.UNKNOWN) {
-                    for (i in 0 until 8) {
-                        val angle = i * (Math.PI / 4.0)
-                        val start = Offset(
-                            sunCenter.x + kotlin.math.cos(angle).toFloat() * sunRadius * 1.35f,
-                            sunCenter.y + kotlin.math.sin(angle).toFloat() * sunRadius * 1.35f
+                    if (isNight) {
+                        val moonCenter = Offset(w * (0.73f + drift * 0.018f), h * 0.34f)
+                        val moonRadius = h * 0.19f
+                        drawCircle(Color(0xFFB9D8F4).copy(alpha = 0.14f), moonRadius * 1.8f, moonCenter)
+                        drawCircle(Color(0xFFFFF1C4), moonRadius, moonCenter)
+                        drawCircle(Color(0xFF24364E), moonRadius * 0.86f, Offset(moonCenter.x + moonRadius * 0.42f, moonCenter.y - moonRadius * 0.20f))
+                        val stars = listOf(
+                            Offset(0.13f, 0.20f), Offset(0.28f, 0.34f), Offset(0.43f, 0.13f),
+                            Offset(0.57f, 0.27f), Offset(0.88f, 0.17f), Offset(0.91f, 0.54f),
+                            Offset(0.20f, 0.60f), Offset(0.67f, 0.12f), Offset(0.38f, 0.66f)
                         )
-                        val end = Offset(
-                            sunCenter.x + kotlin.math.cos(angle).toFloat() * sunRadius * 1.75f,
-                            sunCenter.y + kotlin.math.sin(angle).toFloat() * sunRadius * 1.75f
-                        )
-                        drawLine(sunColor.copy(alpha = if (visual == WeatherVisual.CLOUDY) 0.55f else 0.95f), start, end, strokeWidth = 2.dp.toPx())
+                        stars.forEachIndexed { index, point ->
+                            val radius = if (index % 3 == 0) 1.7.dp.toPx() else 1.0.dp.toPx()
+                            val center = Offset(w * point.x, h * point.y)
+                            drawCircle(Color(0xFFFFF4D2).copy(alpha = if (index % 2 == 0) 0.95f else 0.62f), radius, center)
+                            if (index % 3 == 0) {
+                                drawLine(Color(0xFFFFF4D2).copy(alpha = 0.70f), Offset(center.x - radius * 1.8f, center.y), Offset(center.x + radius * 1.8f, center.y), 0.7.dp.toPx())
+                                drawLine(Color(0xFFFFF4D2).copy(alpha = 0.70f), Offset(center.x, center.y - radius * 1.8f), Offset(center.x, center.y + radius * 1.8f), 0.7.dp.toPx())
+                            }
+                        }
+                    } else {
+                        drawCircle(Color(0xFFFFD36B).copy(alpha = 0.16f), sunRadius * 2.0f, sunCenter)
+                        drawCircle(Color(0xFFFFC65C).copy(alpha = 0.20f), sunRadius * 1.55f, sunCenter)
+                        for (i in 0 until 12) {
+                            val angle = i * (Math.PI / 6.0)
+                            val start = Offset(
+                                sunCenter.x + kotlin.math.cos(angle).toFloat() * sunRadius * 1.30f,
+                                sunCenter.y + kotlin.math.sin(angle).toFloat() * sunRadius * 1.30f
+                            )
+                            val end = Offset(
+                                sunCenter.x + kotlin.math.cos(angle).toFloat() * sunRadius * 1.62f,
+                                sunCenter.y + kotlin.math.sin(angle).toFloat() * sunRadius * 1.62f
+                            )
+                            drawLine(sunColor.copy(alpha = if (visual == WeatherVisual.CLOUDY) 0.45f else 0.82f), start, end, strokeWidth = 1.4.dp.toPx())
+                        }
+                        drawCircle(Brush.linearGradient(listOf(Color(0xFFFFF5C4), Color(0xFFFFB938)), sunCenter, Offset(sunCenter.x + sunRadius, sunCenter.y + sunRadius)), sunRadius, sunCenter)
+                        drawCircle(Color.White.copy(alpha = 0.44f), sunRadius * 0.48f, Offset(sunCenter.x - sunRadius * 0.25f, sunCenter.y - sunRadius * 0.28f))
                     }
-                    drawCircle(sunColor.copy(alpha = 0.96f), sunRadius, sunCenter)
-                    drawCircle(Color.White.copy(alpha = 0.35f), sunRadius * 0.70f, Offset(sunCenter.x - sunRadius * 0.20f, sunCenter.y - sunRadius * 0.24f))
                 }
 
                 fun cloud(cx: Float, cy: Float, scale: Float, alpha: Float) {
-                    val cloudWidth = w * 0.31f * scale
-                    val cloudHeight = h * 0.29f * scale
+                    val cloudWidth = w * 0.34f * scale
+                    val cloudHeight = h * 0.34f * scale
                     val left = cx - cloudWidth * 0.5f
                     val top = cy - cloudHeight * 0.38f
-                    drawOval(cloudShade.copy(alpha = alpha * 0.75f), Offset(left, top + cloudHeight * 0.35f), Size(cloudWidth, cloudHeight * 0.72f))
-                    drawCircle(cloudColor.copy(alpha = alpha), cloudHeight * 0.47f, Offset(left + cloudWidth * 0.27f, top + cloudHeight * 0.42f))
-                    drawCircle(cloudColor.copy(alpha = alpha), cloudHeight * 0.67f, Offset(left + cloudWidth * 0.52f, top + cloudHeight * 0.18f))
-                    drawCircle(cloudColor.copy(alpha = alpha), cloudHeight * 0.43f, Offset(left + cloudWidth * 0.78f, top + cloudHeight * 0.43f))
-                    drawOval(cloudColor.copy(alpha = alpha), Offset(left + cloudWidth * 0.12f, top + cloudHeight * 0.42f), Size(cloudWidth * 0.76f, cloudHeight * 0.58f))
+                    val lowerShade = if (isNight) Color(0xFF34465C) else Color(0xFF7D93A8)
+                    val upperLight = if (isNight) Color(0xFFB8C9DC) else Color(0xFFF7FBFF)
+                    val shadowTop = Offset(left + cloudWidth * 0.04f, top + cloudHeight * 0.44f)
+                    drawOval(
+                        brush = Brush.verticalGradient(listOf(lowerShade.copy(alpha = alpha * 0.94f), Color(0xFF1E2A39).copy(alpha = alpha * 0.82f))),
+                        topLeft = Offset(left, top + cloudHeight * 0.38f),
+                        size = Size(cloudWidth, cloudHeight * 0.70f)
+                    )
+                    drawCircle(Color(0xFF172434).copy(alpha = alpha * 0.18f), cloudHeight * 0.43f, Offset(left + cloudWidth * 0.30f, top + cloudHeight * 0.52f))
+                    drawCircle(
+                        brush = Brush.linearGradient(listOf(upperLight.copy(alpha = alpha), cloudShade.copy(alpha = alpha * 0.98f)), shadowTop, Offset(shadowTop.x + cloudWidth * 0.5f, shadowTop.y + cloudHeight)),
+                        radius = cloudHeight * 0.48f,
+                        center = Offset(left + cloudWidth * 0.27f, top + cloudHeight * 0.43f)
+                    )
+                    drawCircle(
+                        brush = Brush.linearGradient(listOf(Color.White.copy(alpha = alpha), cloudShade.copy(alpha = alpha)), Offset(left + cloudWidth * 0.42f, top), Offset(left + cloudWidth * 0.65f, top + cloudHeight)),
+                        radius = cloudHeight * 0.67f,
+                        center = Offset(left + cloudWidth * 0.52f, top + cloudHeight * 0.22f)
+                    )
+                    drawCircle(
+                        brush = Brush.linearGradient(listOf(upperLight.copy(alpha = alpha), lowerShade.copy(alpha = alpha * 0.92f)), Offset(left + cloudWidth * 0.72f, top), Offset(left + cloudWidth * 0.82f, top + cloudHeight)),
+                        radius = cloudHeight * 0.44f,
+                        center = Offset(left + cloudWidth * 0.78f, top + cloudHeight * 0.43f)
+                    )
+                    drawOval(
+                        brush = Brush.verticalGradient(listOf(upperLight.copy(alpha = alpha), cloudShade.copy(alpha = alpha * 0.96f))),
+                        topLeft = Offset(left + cloudWidth * 0.10f, top + cloudHeight * 0.43f),
+                        size = Size(cloudWidth * 0.80f, cloudHeight * 0.54f)
+                    )
                 }
 
                 when (visual) {
