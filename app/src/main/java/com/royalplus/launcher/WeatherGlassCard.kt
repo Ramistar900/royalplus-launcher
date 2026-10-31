@@ -102,6 +102,7 @@ internal fun WeatherGlassCard(
     val tint = when (visual) {
         WeatherVisual.SUNNY -> Color(0xFFB77B25)
         WeatherVisual.CLOUDY -> Color(0xFF6D91B2)
+        WeatherVisual.OVERCAST -> Color(0xFF53677D)
         WeatherVisual.RAINY, WeatherVisual.STORMY -> Color(0xFF397DA7)
         WeatherVisual.FOGGY -> Color(0xFF9AAAB8)
         WeatherVisual.SNOWY -> Color(0xFF8ECBD9)
