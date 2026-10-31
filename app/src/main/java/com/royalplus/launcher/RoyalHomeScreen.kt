@@ -1,6 +1,8 @@
 package com.royalplus.launcher
 
 import androidx.activity.compose.BackHandler
+import android.icu.util.IslamicCalendar
+import android.os.Build
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Canvas
@@ -759,14 +761,20 @@ private fun HomeDashboard(
                 )
             }
         }
-        // Decorative transparent Ramadan overlay; kept non-interactive and subtle.
-        Image(
-            painter = painterResource(R.drawable.ramadan_overlay),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            alpha = 0.42f,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Show the decorative overlay only during Ramadan (Islamic month 9).
+        val isRamadan = remember(currentTime) {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                IslamicCalendar(Date(currentTime)).get(IslamicCalendar.MONTH) == 8
+        }
+        if (isRamadan) {
+            Image(
+                painter = painterResource(R.drawable.ramadan_overlay),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                alpha = 0.42f,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 
