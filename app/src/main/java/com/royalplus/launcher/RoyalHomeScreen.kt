@@ -728,6 +728,29 @@ private fun HomeDashboard(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp)
         val favoriteHeight = (maxHeight * 0.24f).coerceIn(104.dp, 126.dp)
+        // Ramadan artwork and greeting are rendered behind the interactive home content,
+        // and only while the device's Islamic calendar is in Ramadan.
+        val isRamadan = remember(currentTime) {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                IslamicCalendar(Date(currentTime)).get(IslamicCalendar.MONTH) == 8
+        }
+        if (isRamadan) {
+            Image(
+                painter = painterResource(R.drawable.ramadan_overlay),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                alpha = 0.30f,
+                modifier = Modifier.fillMaxSize()
+            )
+            Row(
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 22.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFD56D), modifier = Modifier.size(24.dp))
+                Text("رمضان كريم", color = Color(0xFFFFD56D), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+        }
         Column(Modifier.fillMaxSize()) {
             RoyalScenicBanner(Modifier.fillMaxWidth().height(heroHeight), onExploreApps = { onNavigate(LauncherDestination.APPS) })
             Spacer(Modifier.height(18.dp))
@@ -760,20 +783,6 @@ private fun HomeDashboard(
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
-        }
-        // Show the decorative overlay only during Ramadan (Islamic month 9).
-        val isRamadan = remember(currentTime) {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-                IslamicCalendar(Date(currentTime)).get(IslamicCalendar.MONTH) == 8
-        }
-        if (isRamadan) {
-            Image(
-                painter = painterResource(R.drawable.ramadan_overlay),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                alpha = 0.42f,
-                modifier = Modifier.fillMaxSize()
-            )
         }
     }
 }
