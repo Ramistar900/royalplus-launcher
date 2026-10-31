@@ -742,14 +742,6 @@ private fun HomeDashboard(
                 alpha = 0.30f,
                 modifier = Modifier.fillMaxSize()
             )
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 22.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFD56D), modifier = Modifier.size(24.dp))
-                Text("رمضان كريم", color = Color(0xFFFFD56D), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            }
         }
         Column(Modifier.fillMaxSize()) {
             RoyalScenicBanner(
@@ -783,6 +775,17 @@ private fun HomeDashboard(
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "التطبيقات", "جميع تطبيقاتك في مكان واحد", Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "مسلم", "مواقيت الصلاة والتاريخ الهجري", Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
                 HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الوقت والتاريخ", if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
+            }
+        }
+        // Draw the greeting last so it stays visible above the banner, only during Ramadan.
+        if (isRamadan) {
+            Row(
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 22.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFD56D), modifier = Modifier.size(24.dp))
+                Text("رمضان كريم", color = Color(0xFFFFD56D), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
