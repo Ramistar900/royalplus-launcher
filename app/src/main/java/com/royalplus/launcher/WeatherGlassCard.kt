@@ -44,13 +44,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
-private enum class WeatherVisual { SUNNY, CLOUDY, RAINY, FOGGY, SNOWY, STORMY, UNKNOWN }
+private enum class WeatherVisual { SUNNY, CLOUDY, OVERCAST, RAINY, FOGGY, SNOWY, STORMY, UNKNOWN }
 
 private fun weatherVisual(weather: WeatherUiState): WeatherVisual {
     val code = weather.weatherCode
     return when {
         code == 0 || code == 1 -> WeatherVisual.SUNNY
-        code == 2 || code == 3 -> WeatherVisual.CLOUDY
+        code == 2 -> WeatherVisual.CLOUDY
+        code == 3 -> WeatherVisual.OVERCAST
         code == 45 || code == 48 -> WeatherVisual.FOGGY
         code in 51..67 || code in 80..82 -> WeatherVisual.RAINY
         code in 71..77 || code in 85..86 -> WeatherVisual.SNOWY
@@ -59,7 +60,10 @@ private fun weatherVisual(weather: WeatherUiState): WeatherVisual {
         weather.description.contains("ضباب") -> WeatherVisual.FOGGY
         weather.description.contains("مطر") || weather.description.contains("أمطار") || weather.description.contains("رذاذ") -> WeatherVisual.RAINY
         weather.description.contains("ثلج") -> WeatherVisual.SNOWY
-        weather.description.contains("غائم") || weather.description.contains("غيوم") -> WeatherVisual.CLOUDY
+        weather.description.contains("غائم كليا") || weather.description.contains("غائم كلياً") ||
+            weather.description.contains("غائم بالكامل") || weather.description.contains("overcast") -> WeatherVisual.OVERCAST
+        weather.description.contains("غائم جزئيا") || weather.description.contains("غائم جزئياً") ||
+            weather.description.contains("غائم") || weather.description.contains("غيوم") -> WeatherVisual.CLOUDY
         else -> WeatherVisual.UNKNOWN
     }
 }
@@ -104,6 +108,8 @@ internal fun WeatherGlassCard(
         WeatherVisual.UNKNOWN -> Color(0xFF777E9B)
     }
     val shape = RoundedCornerShape(19.dp)
+    val nightOverlay = if (isNight) Color(0xD900050D) else Color.Transparent
+    val nightTint = if (isNight) tint.copy(alpha = 0.15f) else tint.copy(alpha = 0.32f)
 
     Column(
         modifier = modifier
@@ -111,7 +117,7 @@ internal fun WeatherGlassCard(
             .clip(shape)
             .background(
                 Brush.verticalGradient(
-                    listOf(tint.copy(alpha = 0.32f), Color(0xC9141B29), Color(0xD9080D17))
+                    listOf(nightTint, nightOverlay.copy(alpha = if (isNight) 0.88f else 0f), Color(0xF0060A12))
                 )
             )
             .border(1.dp, Color.White.copy(alpha = 0.30f), shape)
@@ -210,8 +216,14 @@ internal fun WeatherGlassCard(
 
                 when (visual) {
                     WeatherVisual.CLOUDY -> {
+                        // Partly cloudy: keep the sun/moon visible behind layered clouds.
                         cloud(w * (0.48f + drift * 0.04f), h * 0.55f, 1.25f, 0.94f)
                         cloud(w * 0.73f, h * 0.31f, 0.62f, 0.56f)
+                    }
+                    WeatherVisual.OVERCAST -> {
+                        // Fully overcast: no sun or moon; use a dense, shaded cloud layer.
+                        cloud(w * (0.43f + drift * 0.025f), h * 0.48f, 1.42f, if (isNight) 0.78f else 0.96f)
+                        cloud(w * 0.73f, h * 0.31f, 0.90f, if (isNight) 0.58f else 0.72f)
                     }
                     WeatherVisual.RAINY, WeatherVisual.STORMY -> {
                         cloud(w * (0.48f + drift * 0.035f), h * 0.43f, 1.28f, 0.96f)
