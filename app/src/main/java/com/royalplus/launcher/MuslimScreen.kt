@@ -77,6 +77,7 @@ internal fun MuslimScreen(
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
+    var weekSchedules by remember { mutableStateOf<List<PrayerTimesData>>(emptyList()) }
     var hijriDayAdjustment by remember {
         mutableStateOf(hijriPreferences.getInt("hijri_day_adjustment", 0).coerceIn(-30, 30))
     }
@@ -86,6 +87,10 @@ internal fun MuslimScreen(
     val latitude = if (selectedCityIndex == 0) weather.latitude else selectedCity.latitude.takeIf { it != 0.0 }
     val longitude = if (selectedCityIndex == 0) weather.longitude else selectedCity.longitude.takeIf { it != 0.0 }
     val cityName = if (selectedCityIndex == 0) weather.city else selectedCity.name
+    val zoneForKey = if (selectedCityIndex == 0) weather.timeZoneId ?: TimeZone.getDefault().id else selectedCity.timeZoneId
+    val todayKey = remember(now, zoneForKey) {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone(zoneForKey) }.format(Date(now))
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -97,10 +102,27 @@ internal fun MuslimScreen(
         hijriPreferences.edit().putInt("hijri_day_adjustment", hijriDayAdjustment).apply()
     }
 
-    LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment) {
+    LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment, todayKey) {
         data = null
+        weekSchedules = emptyList()
         if (latitude != null && longitude != null) {
-            PrayerTimesRepository.fetch(latitude, longitude, cityName, hijriDayOffset = hijriDayAdjustment, timeZoneId = if (selectedCityIndex == 0) weather.timeZoneId else selectedCity.timeZoneId) { data = it }
+            val zoneId = if (selectedCityIndex == 0) weather.timeZoneId else selectedCity.timeZoneId
+            PrayerTimesRepository.fetch(
+                latitude, longitude, cityName,
+                hijriDayOffset = hijriDayAdjustment, timeZoneId = zoneId
+            ) { data = it }
+            (0..6).forEach { dayOffset ->
+                PrayerTimesRepository.fetch(
+                    latitude, longitude, cityName,
+                    hijriDayOffset = hijriDayAdjustment,
+                    timeZoneId = zoneId,
+                    calendarDayOffset = dayOffset
+                ) { dayData ->
+                    weekSchedules = weekSchedules.filterNot {
+                        it.gregorianDate == dayData.gregorianDate
+                    } + dayData
+                }
+            }
         }
     }
 
@@ -284,27 +306,41 @@ internal fun MuslimScreen(
             }
         }
 
-        Text("مواقيت اليوم", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        val times = data?.times.orEmpty()
-        val order = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
-        Column(verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
-            order.chunked(3).forEach { group ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    group.forEach { key ->
-                        val selected = nextPrayer?.first == key
-                        Column(
-                            Modifier.weight(1f).height(77.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (selected) Color(0xFF30240F) else Color(0xD910131A))
-                                .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.23f), RoundedCornerShape(14.dp))
-                                .padding(horizontal = 8.dp, vertical = 9.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(PrayerTimesRepository.displayNames()[key] ?: key, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(5.dp))
-                            Text(times[key] ?: "--:--", color = RoyalColors.Pearl, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text("جدول مواقيت الصلاة للأيام السبعة", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text("يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت على الجهاز", color = RoyalColors.Muted, fontSize = 10.sp)
+        val prayerColumns = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+                .background(Color(0xD910131A)).padding(5.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(Modifier.fillMaxWidth().background(Color(0xFF30240F), RoundedCornerShape(7.dp)).padding(vertical = 7.dp, horizontal = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                PrayerTableCell("الفهرس", Modifier.weight(0.55f), true)
+                PrayerTableCell("اليوم والتاريخ", Modifier.weight(1.55f), true)
+                prayerColumns.forEach { key ->
+                    PrayerTableCell(PrayerTimesRepository.displayNames()[key] ?: key, Modifier.weight(1f), true)
+                }
+            }
+            if (weekSchedules.isEmpty()) {
+                Text("جارٍ حساب جدول المواقيت…", color = RoyalColors.Muted, fontSize = 12.sp, modifier = Modifier.padding(12.dp))
+            } else {
+                weekSchedules.forEachIndexed { index, schedule ->
+                    val isToday = schedule.gregorianDate == data?.gregorianDate
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .background(if (isToday) RoyalColors.Gold.copy(alpha = 0.12f) else Color.Transparent, RoundedCornerShape(5.dp))
+                            .padding(vertical = 6.dp, horizontal = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PrayerTableCell((index + 1).toString(), Modifier.weight(0.55f), isToday)
+                        PrayerTableCell(schedule.dayName + "\n" + schedule.gregorianDate, Modifier.weight(1.55f), isToday)
+                        prayerColumns.forEach { key ->
+                            PrayerTableCell(schedule.times[key] ?: "--:--", Modifier.weight(1f), isToday)
                         }
+                    }
+                    if (index < weekSchedules.lastIndex) {
+                        Spacer(Modifier.fillMaxWidth().height(1.dp).background(RoyalColors.Gold.copy(alpha = 0.12f)))
                     }
                 }
             }
@@ -334,6 +370,20 @@ internal fun MuslimScreen(
             Text("تعذّر تحديد موقعك؛ اختر مدينتك من الأسفل لعرض مواقيت الصلاة والتاريخ الهجري. المدينة المحددة ظاهرة أعلى البطاقة.", color = RoyalColors.Muted, fontSize = 11.sp)
         }
     }
+}
+
+@Composable
+private fun PrayerTableCell(value: String, modifier: Modifier, highlighted: Boolean) {
+    Text(
+        value = value,
+        modifier = modifier.padding(horizontal = 1.dp),
+        color = if (highlighted) RoyalColors.Gold else RoyalColors.Pearl,
+        fontSize = 9.sp,
+        fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Medium,
+        textAlign = TextAlign.Center,
+        lineHeight = 11.sp,
+        maxLines = 2
+    )
 }
 
 private fun timesafeMinutes(value: String?): Int? {
