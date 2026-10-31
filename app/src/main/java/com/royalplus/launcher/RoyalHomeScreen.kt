@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -82,6 +83,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
@@ -1021,6 +1023,11 @@ private fun AppTile(
     onLaunch: () -> Unit,
     onManage: (() -> Unit)? = null
 ) {
+    var hasFocus by remember(app.packageName) { mutableStateOf(false) }
+    val focusScale by animateFloatAsState(
+        targetValue = if (hasFocus) 1.07f else 1f,
+        label = "app_tile_focus_scale"
+    )
     val shape = when (iconStyle) {
         "circle" -> RoundedCornerShape(50)
         "gold" -> RoundedCornerShape(9.dp)
@@ -1028,10 +1035,14 @@ private fun AppTile(
         else -> RoundedCornerShape(14.dp)
     }
     Card(
-        modifier = modifier.combinedClickable(
+        modifier = modifier.graphicsLayer {
+            scaleX = focusScale
+            scaleY = focusScale
+        }.combinedClickable(
             onClick = onLaunch,
             onLongClick = onManage
         ).onFocusChanged { state ->
+            hasFocus = state.isFocused
             if (state.isFocused) onFocused(app.packageName)
         },
         shape = shape,
