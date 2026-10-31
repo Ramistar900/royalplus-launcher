@@ -111,7 +111,6 @@ internal fun WeatherGlassCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0x26000610))
                 .padding(horizontal = 9.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
