@@ -109,6 +109,7 @@ internal fun RoyalHomeScreen(
     onRefreshWeather: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
     onOpenSettings: () -> Unit,
+    isDefaultHome: Boolean,
     onChooseDefaultHome: () -> Unit,
     onInstallApk: () -> Unit,
     onManageApp: (LauncherApp) -> Unit
@@ -427,9 +428,18 @@ internal fun RoyalHomeScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("واجهة التلفاز الافتراضية", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                Text("اختر ROYAL+ من إعدادات أندرويد، أو ارجع إلى واجهة النظام لإيقافه", color = RoyalColors.Pearl, fontSize = 11.sp)
+                                Text(
+                                    if (isDefaultHome) "ROYAL+ هو اللانشر الافتراضي لهذا الجهاز" else "فعّل ROYAL+ ليظهر عند الضغط على زر الرئيسية",
+                                    color = RoyalColors.Pearl,
+                                    fontSize = 11.sp
+                                )
                             }
-                            Text("إدارة", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (isDefaultHome) "مفعّل • إدارة" else "تفعيل اللانشر",
+                                color = RoyalColors.Gold,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         Spacer(Modifier.height(14.dp))
                         Row(
