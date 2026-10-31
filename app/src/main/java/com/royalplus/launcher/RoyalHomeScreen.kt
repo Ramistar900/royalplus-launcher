@@ -732,7 +732,7 @@ private fun HomeDashboard(
         // and only while the device's Islamic calendar is in Ramadan.
         val isRamadan = remember(currentTime) {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-                IslamicCalendar(Date(currentTime)).get(IslamicCalendar.MONTH) == 8
+                IslamicCalendar(Date(System.currentTimeMillis())).get(IslamicCalendar.MONTH) == 8
         }
         if (isRamadan) {
             Image(
