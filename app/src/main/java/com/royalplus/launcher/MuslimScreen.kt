@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -171,6 +172,7 @@ internal fun MuslimScreen(
 
     Column(
         modifier = Modifier.fillMaxSize()
+            .background(Color(0xFFFFF3D8))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -180,13 +182,13 @@ internal fun MuslimScreen(
                 val ramadanDecorated = data?.hijriDate?.contains("رمضان") == true
                 Text(
                     if (ramadanDecorated) "☾ ✦ مسلم ✦ ☾" else "مسلم",
-                    color = RoyalColors.Gold,
+                    color = Color.Black,
                     fontSize = 27.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     if (ramadanDecorated) "رمضان كريم • التقويم الهجري ومواقيت الصلاة" else "التقويم الهجري ومواقيت الصلاة",
-                    color = RoyalColors.Pearl.copy(alpha = 0.82f),
+                    color = Color(0xFF333333),
                     fontSize = 12.sp
                 )
             }
@@ -201,14 +203,14 @@ internal fun MuslimScreen(
 
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
-                .background(Color(0xD912151D))
-                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.5f), RoundedCornerShape(17.dp))
+                .background(Color(0xFF8C641A))
+                .border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(17.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("التاريخ الهجري", color = RoyalColors.Gold, fontSize = 12.sp)
-                Text(data?.hijriDate?.takeIf { it.isNotBlank() } ?: "جارٍ تحميل التاريخ الهجري", color = RoyalColors.Pearl, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("التاريخ الهجري", color = Color.Black, fontSize = 12.sp)
+                Text(data?.hijriDate?.takeIf { it.isNotBlank() } ?: "جارٍ تحميل التاريخ الهجري", color = Color.Black, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(data?.gregorianDate.orEmpty(), color = RoyalColors.Muted, fontSize = 11.sp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -216,13 +218,13 @@ internal fun MuslimScreen(
                 ) {
                     Box(
                         Modifier.clip(RoundedCornerShape(7.dp))
-                            .background(Color(0xFF24202A))
-                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.45f), RoundedCornerShape(7.dp))
+                            .background(Color(0xFFFFE7A8))
+                            .border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(7.dp))
                             .clickable { hijriDayAdjustment = (hijriDayAdjustment - 1).coerceAtLeast(-30) }
                             .focusable()
                             .padding(horizontal = 10.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
-                    ) { Text("− يوم", color = RoyalColors.Pearl, fontSize = 11.sp) }
+                    ) { Text("− يوم", color = Color.Black, fontSize = 11.sp) }
                     Text(
                         if (hijriDayAdjustment == 0) "ضبط: 0" else "ضبط: ${if (hijriDayAdjustment > 0) "+" else ""}$hijriDayAdjustment",
                         color = RoyalColors.Muted,
@@ -236,7 +238,7 @@ internal fun MuslimScreen(
                             .focusable()
                             .padding(horizontal = 10.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
-                    ) { Text("+ يوم", color = RoyalColors.Pearl, fontSize = 11.sp) }
+                    ) { Text("+ يوم", color = Color.Black, fontSize = 11.sp) }
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -252,20 +254,20 @@ internal fun MuslimScreen(
         if (nextPrayer != null) {
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
-                    .background(Color(0xFF30240F))
-                    .border(1.dp, RoyalColors.Gold, RoundedCornerShape(17.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF111111), Color(0xFF174D43), Color(0xFF48204F), Color(0xFF111111))))
+                    .border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(17.dp))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("الصلاة القادمة", color = RoyalColors.Pearl.copy(alpha = 0.85f), fontSize = 11.sp)
+                    Text("الصلاة القادمة", color = Color.White, fontSize = 11.sp)
                     Text(PrayerTimesRepository.displayNames()[nextPrayer.first] ?: nextPrayer.first, color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(nextPrayer.second, color = RoyalColors.Pearl, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("المتبقي $countdown", color = RoyalColors.Gold, fontSize = 11.sp)
+                    Text(nextPrayer.second, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("المتبقي $countdown", color = Color.White, fontSize = 11.sp)
                 }
             }
         }
@@ -311,22 +313,19 @@ internal fun MuslimScreen(
             }
         }
 
-        Text(
-            "التاريخ الهجري اليوم: ${data?.hijriDate?.takeIf { it.isNotBlank() } ?: "جارٍ تحميل التاريخ الهجري"}",
-            color = RoyalColors.Gold,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text("جدول مواقيت الصلاة للأيام السبعة", color = RoyalColors.Pearl, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFF8C641A)).border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Text("التاريخ الهجري اليوم: ${data?.hijriDate?.takeIf { it.isNotBlank() } ?: "جارٍ تحميل التاريخ الهجري"}", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Text("جدول مواقيت الصلاة للأيام السبعة", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text("يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت حسب المدينة المختارة", color = RoyalColors.Muted, fontSize = 10.sp)
         val prayerColumns = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
-                .background(Color(0xD910131A)).padding(5.dp),
+                .border(1.dp, Color(0xFFB68A2C), RoundedCornerShape(12.dp))
+                .background(Color(0xFFFFF3D8)).padding(5.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Row(Modifier.fillMaxWidth().background(Color(0xFF30240F), RoundedCornerShape(7.dp)).padding(vertical = 7.dp, horizontal = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().background(Color(0xFFFFE7A8), RoundedCornerShape(7.dp)).padding(vertical = 7.dp, horizontal = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 PrayerTableCell("الفهرس", Modifier.weight(0.55f), true)
                 PrayerTableCell("اليوم والتاريخ", Modifier.weight(1.55f), true)
                 prayerColumns.forEach { key ->
@@ -347,11 +346,13 @@ internal fun MuslimScreen(
                         PrayerTableCell((index + 1).toString(), Modifier.weight(0.55f), isToday)
                         PrayerTableCell(schedule.dayName, Modifier.weight(1.55f), isToday)
                         prayerColumns.forEach { key ->
-                            PrayerTableCell(schedule.times[key] ?: "--:--", Modifier.weight(1f), isToday)
+                            val timeValue = schedule.times[key] ?: "--:--"
+                            val expired = isToday && key != "Sunrise" && (timesafeMinutes(timeValue)?.let { it <= currentMinutesForZone(now, prayerTimeZone) } == true)
+                            PrayerTableCell(timeValue, Modifier.weight(1f), isToday, expired)
                         }
                     }
                     if (index < weekSchedules.lastIndex) {
-                        Spacer(Modifier.fillMaxWidth().height(1.dp).background(RoyalColors.Gold.copy(alpha = 0.12f)))
+                        Spacer(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFB68A2C)))
                     }
                 }
             }
@@ -384,17 +385,15 @@ internal fun MuslimScreen(
 }
 
 @Composable
-private fun PrayerTableCell(value: String, modifier: Modifier, highlighted: Boolean) {
-    Text(
-        text = value,
-        modifier = modifier.padding(horizontal = 1.dp),
-        color = if (highlighted) RoyalColors.Gold else RoyalColors.Pearl,
-        fontSize = 9.sp,
-        fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Medium,
-        textAlign = TextAlign.Center,
-        lineHeight = 11.sp,
-        maxLines = 2
-    )
+private fun PrayerTableCell(value: String, modifier: Modifier, highlighted: Boolean, expired: Boolean = false) {
+    Box(modifier = modifier.padding(horizontal = 1.dp).clip(RoundedCornerShape(4.dp)).then(if (expired) Modifier.background(Color(0xFFD62828)) else Modifier).padding(vertical = if (expired) 4.dp else 2.dp, horizontal = 1.dp), contentAlignment = Alignment.Center) {
+        Text(text = value, color = if (expired) Color.White else Color.Black, fontSize = 9.sp, fontWeight = if (highlighted || expired) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2)
+    }
+}
+
+private fun currentMinutesForZone(now: Long, zone: TimeZone): Int {
+    val current = SimpleDateFormat("HH:mm", Locale.US).apply { timeZone = zone }.format(Date(now)).split(":")
+    return current[0].toInt() * 60 + current[1].toInt()
 }
 
 private fun timesafeMinutes(value: String?): Int? {
@@ -409,14 +408,14 @@ private fun timesafeMinutes(value: String?): Int? {
 private fun SmallPrayerAction(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Row(
         Modifier.clip(RoundedCornerShape(11.dp))
-            .background(Color(0xFF181B24))
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.45f), RoundedCornerShape(11.dp))
+            .background(Color(0xFFFFE7A8))
+            .border(1.dp, Color(0xFFB68A2C), RoundedCornerShape(11.dp))
             .clickable(onClick = onClick).focusable()
             .padding(horizontal = 9.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(4.dp))
-        Text(title, color = RoyalColors.Pearl, fontSize = 11.sp)
+        Text(title, color = Color.Black, fontSize = 11.sp)
     }
 }
