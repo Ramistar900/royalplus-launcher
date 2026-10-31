@@ -1217,30 +1217,13 @@ private fun GoldDivider(modifier: Modifier = Modifier) {
 
 @Composable
 private fun CrownMark(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val crown = Path().apply {
-            moveTo(size.width * 0.08f, size.height * 0.22f)
-            lineTo(size.width * 0.29f, size.height * 0.46f)
-            lineTo(size.width * 0.43f, size.height * 0.08f)
-            lineTo(size.width * 0.57f, size.height * 0.44f)
-            lineTo(size.width * 0.78f, size.height * 0.15f)
-            lineTo(size.width * 0.92f, size.height * 0.22f)
-            lineTo(size.width * 0.84f, size.height * 0.76f)
-            lineTo(size.width * 0.16f, size.height * 0.76f)
-            close()
-        }
-        drawPath(crown, RoyalColors.Gold)
-        drawRect(
-            color = Color(0xFFFFE7A6),
-            topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.16f, size.height * 0.78f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.68f, size.height * 0.12f)
-        )
-        drawCircle(RoyalColors.Pearl, radius = size.minDimension * 0.035f, center = androidx.compose.ui.geometry.Offset(size.width * 0.08f, size.height * 0.16f))
-        drawCircle(RoyalColors.Pearl, radius = size.minDimension * 0.035f, center = androidx.compose.ui.geometry.Offset(size.width * 0.43f, size.height * 0.04f))
-        drawCircle(RoyalColors.Pearl, radius = size.minDimension * 0.035f, center = androidx.compose.ui.geometry.Offset(size.width * 0.92f, size.height * 0.16f))
-    }
+    Image(
+        painter = painterResource(R.drawable.royalplus_home_logo),
+        contentDescription = "ROYAL+",
+        contentScale = ContentScale.Fit,
+        modifier = modifier
+    )
 }
-
 @Composable
 private fun EmptyAppsMessage(
     message: String,
