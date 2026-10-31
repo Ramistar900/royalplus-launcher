@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -82,11 +84,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalTextStyle
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -132,6 +137,17 @@ internal fun RoyalHomeScreen(
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
+    var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
+    var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
+    val selectedFontFamily = remember(selectedFont) {
+        when (selectedFont) {
+            "tajawal" -> FontFamily(Font(R.font.tajawal_regular))
+            "kufi" -> FontFamily(Font(R.font.noto_kufi_arabic))
+            "amiri" -> FontFamily(Font(R.font.amiri_regular))
+            "ruqaa" -> FontFamily(Font(R.font.aref_ruqaa_regular))
+            else -> FontFamily(Font(R.font.cairo))
+        }
+    }
     var selectedShortcutPackages by remember {
         mutableStateOf(wallpaperPreferences.getStringSet("launcher_shortcut_packages", emptySet())?.toSet() ?: emptySet())
     }
@@ -206,13 +222,14 @@ internal fun RoyalHomeScreen(
     val displayTimeZone = remember(weather.timeZoneId) {
         TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
     }
-    val dateText = remember(currentTime, weather.timeZoneId) {
-        SimpleDateFormat("EEEE، d MMMM yyyy", Locale("ar")).apply {
+    val displayLocale = remember(selectedLanguage) { Locale.forLanguageTag(selectedLanguage) }
+    val dateText = remember(currentTime, weather.timeZoneId, selectedLanguage) {
+        SimpleDateFormat(if (selectedLanguage == "en") "EEEE, d MMMM yyyy" else "EEEE، d MMMM yyyy", displayLocale).apply {
             timeZone = displayTimeZone
         }.format(Date(currentTime))
     }
-    val timeText = remember(currentTime, weather.timeZoneId, use24HourClock) {
-        SimpleDateFormat(if (use24HourClock) "HH:mm" else "h:mm a", Locale.getDefault()).apply {
+    val timeText = remember(currentTime, weather.timeZoneId, use24HourClock, selectedLanguage) {
+        SimpleDateFormat(if (use24HourClock) "HH:mm" else "h:mm a", displayLocale).apply {
             timeZone = displayTimeZone
         }.format(Date(currentTime))
     }
@@ -244,6 +261,7 @@ internal fun RoyalHomeScreen(
         filteredApps.filterNot { it.packageName in favoritePackages }
     }
 
+    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)) {
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
@@ -363,7 +381,8 @@ internal fun RoyalHomeScreen(
                             .clip(RoundedCornerShape(24.dp))
                             .background(Color(0xFF10131B))
                             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
-                            .padding(22.dp),
+                            .padding(22.dp)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("تخصيص الواجهة", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -488,6 +507,79 @@ internal fun RoyalHomeScreen(
                             Text(if (showDateOnHome) "ON" else "OFF", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
+                        Text(if (selectedLanguage == "en") "Interface language" else "لغة الواجهة", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            IconStyleChoice(Modifier.weight(1f), "العربية", "rounded", if (selectedLanguage == "ar") "rounded" else "") {
+                                selectedLanguage = "ar"
+                                wallpaperPreferences.edit().putString("launcher_language", "ar").apply()
+                            }
+                            IconStyleChoice(Modifier.weight(1f), "English", "rounded", if (selectedLanguage == "en") "rounded" else "") {
+                                selectedLanguage = "en"
+                                wallpaperPreferences.edit().putString("launcher_language", "en").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(if (selectedLanguage == "en") "Font family" else "نوع الخط", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconStyleChoice(Modifier.weight(1f), "Cairo", "rounded", if (selectedFont == "cairo") "rounded" else "") {
+                                selectedFont = "cairo"
+                                wallpaperPreferences.edit().putString("launcher_font", "cairo").apply()
+                            }
+                            IconStyleChoice(Modifier.weight(1f), "Tajawal", "rounded", if (selectedFont == "tajawal") "rounded" else "") {
+                                selectedFont = "tajawal"
+                                wallpaperPreferences.edit().putString("launcher_font", "tajawal").apply()
+                            }
+                            IconStyleChoice(Modifier.weight(1f), "Kufi", "rounded", if (selectedFont == "kufi") "rounded" else "") {
+                                selectedFont = "kufi"
+                                wallpaperPreferences.edit().putString("launcher_font", "kufi").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconStyleChoice(Modifier.weight(1f), "Amiri", "rounded", if (selectedFont == "amiri") "rounded" else "") {
+                                selectedFont = "amiri"
+                                wallpaperPreferences.edit().putString("launcher_font", "amiri").apply()
+                            }
+                            IconStyleChoice(Modifier.weight(1f), "Ruqaa", "rounded", if (selectedFont == "ruqaa") "rounded" else "") {
+                                selectedFont = "ruqaa"
+                                wallpaperPreferences.edit().putString("launcher_font", "ruqaa").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(if (selectedLanguage == "en") "Network & device settings" else "الشبكة وإعدادات الجهاز", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "") {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات Wi-Fi", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Bluetooth" else "بلوتوث", "rounded", "") {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات البلوتوث", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Network" else "الشبكة", "rounded", "") {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Location" else "الموقع", "rounded", "") {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الموقع", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "App info" else "معلومات التطبيق", "rounded", "") {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح معلومات التطبيق", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "All settings" else "كل الإعدادات", "rounded", "") {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
@@ -504,6 +596,7 @@ internal fun RoyalHomeScreen(
                 }
             }
         }
+    }
     }
 }
 
