@@ -17,6 +17,7 @@ import kotlin.math.tan
 internal data class PrayerTimesData(
     val hijriDate: String,
     val gregorianDate: String,
+    val dayName: String,
     val city: String,
     val times: Map<String, String>,
     val error: String? = null
@@ -38,12 +39,15 @@ internal object PrayerTimesRepository {
     )
 
     /** On-device calculation: MWL angles (Fajr 18°, Isha 17°), standard Asr shadow. */
-    fun fetch(latitude: Double, longitude: Double, city: String, hijriDayOffset: Int = 0, timeZoneId: String? = null, onResult: (PrayerTimesData) -> Unit) {
+    fun fetch(latitude: Double, longitude: Double, city: String, hijriDayOffset: Int = 0, timeZoneId: String? = null, calendarDayOffset: Int = 0, onResult: (PrayerTimesData) -> Unit) {
         executor.execute {
             val result = try {
                 require(latitude in -90.0..90.0 && longitude in -180.0..180.0)
                 val zone = timeZoneId?.takeIf { it.isNotBlank() }?.let { TimeZone.getTimeZone(it) } ?: timeZoneFor(city)
-                val calendar = GregorianCalendar(zone, Locale.US).apply { timeInMillis = System.currentTimeMillis() }
+                val calendar = GregorianCalendar(zone, Locale.US).apply {
+                    timeInMillis = System.currentTimeMillis()
+                    add(Calendar.DAY_OF_YEAR, calendarDayOffset)
+                }
                 val year = calendar.get(Calendar.YEAR)
                 val month = calendar.get(Calendar.MONTH) + 1
                 val day = calendar.get(Calendar.DAY_OF_MONTH)
@@ -88,12 +92,14 @@ internal object PrayerTimesRepository {
                     "Maghrib" to formatMinutes(minutesAtAngle(-0.833, false) ?: solarNoon + 360.0),
                     "Isha" to formatMinutes(minutesAtAngle(-17.0, false) ?: solarNoon + 90.0)
                 )
-                val gregorianDate = SimpleDateFormat("d MMMM yyyy", Locale.ENGLISH).apply { timeZone = zone }
+                val gregorianDate = SimpleDateFormat("d MMMM yyyy", Locale("ar")).apply { timeZone = zone }
                     .format(calendar.time)
-                val hijriDate = calculateHijriDate(year, month, day, hijriDayOffset)
-                PrayerTimesData(hijriDate, gregorianDate, city, times)
+                val dayName = SimpleDateFormat("EEEE", Locale("ar")).apply { timeZone = zone }
+                    .format(calendar.time)
+                val hijriDate = calculateHijriDate(year, month, day, hijriDayOffset + calendarDayOffset)
+                PrayerTimesData(hijriDate, gregorianDate, dayName, city, times)
             } catch (_: Exception) {
-                PrayerTimesData("", "", city, emptyMap(), "تعذّر حساب المواقيت محليًا. اختر مدينة صحيحة وحاول مجددًا.")
+                PrayerTimesData("", "", "", city, emptyMap(), "تعذّر حساب المواقيت محليًا. اختر مدينة صحيحة وحاول مجددًا.")
             }
             onResult(result)
         }
