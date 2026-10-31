@@ -92,7 +92,13 @@ internal fun WeatherGlassCard(
         WeatherVisual.UNKNOWN -> if (isNight) R.drawable.weather_overcast_night else R.drawable.weather_overcast
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    val weatherFrame = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(weatherFrame)
+            .border(1.dp, Color(0xBFFFD76D), weatherFrame)
+    ) {
         Image(
             painter = painterResource(imageRes),
             contentDescription = null,
