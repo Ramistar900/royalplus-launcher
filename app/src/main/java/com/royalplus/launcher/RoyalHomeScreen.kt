@@ -1197,11 +1197,7 @@ private fun RoyalFooter(
         Spacer(Modifier.width(16.dp))
         Text("أهلاً وسهلاً بكم في ROYAL+ ... كل ما تحتاجه في مكان واحد", color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.weight(1f))
-        Icon(weatherIcon(weather.description), null, tint = RoyalColors.Gold, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(currentTime, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         if (dateText.isNotBlank()) {
-            Spacer(Modifier.width(10.dp))
             Text(dateText, color = RoyalColors.Pearl.copy(alpha = 0.85f), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
