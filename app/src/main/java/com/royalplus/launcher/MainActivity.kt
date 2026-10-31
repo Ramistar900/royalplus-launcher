@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.app.role.RoleManager
 import android.widget.Toast
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -20,6 +21,7 @@ import androidx.compose.runtime.setValue
 class MainActivity : ComponentActivity() {
     private var weatherState by mutableStateOf(WeatherUiState())
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
+    private var isDefaultHome by mutableStateOf(false)
 
     private val apkPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -73,6 +75,7 @@ class MainActivity : ComponentActivity() {
                             // The device may not expose a system settings activity.
                         }
                     },
+                    isDefaultHome = isDefaultHome,
                     onChooseDefaultHome = { openDefaultHomeSettings() },
                     onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) },
                     onManageApp = { app -> openAppDetails(app) }
@@ -89,6 +92,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        isDefaultHome = isRoyalPlusDefaultHome()
         installedApps = LauncherAppsRepository.load(
             packageManager = packageManager,
             ownPackageName = packageName
@@ -130,6 +134,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openDefaultHomeSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val roleManager = getSystemService(RoleManager::class.java)
+                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                    if (roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
+                        startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+                    } else {
+                        startActivity(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
+                    }
+                    return
+                }
+            } catch (_: Exception) {
+                // Fall back to the device's supported Home settings screen.
+            }
+        }
+
         val actions = listOf(
             Settings.ACTION_HOME_SETTINGS,
             Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS,
@@ -145,6 +165,23 @@ class MainActivity : ComponentActivity() {
                 // Try the next supported system settings screen.
             }
         }
+        Toast.makeText(this, "لم يعثر أندرويد على شاشة اختيار الواجهة الرئيسية", Toast.LENGTH_LONG).show()
+    }
+
+    private fun isRoyalPlusDefaultHome(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val roleManager = getSystemService(RoleManager::class.java)
+                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                    return roleManager.isRoleHeld(RoleManager.ROLE_HOME)
+                }
+            } catch (_: Exception) {
+                // Use the standard Home intent check below as a fallback.
+            }
+        }
+        val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val resolved = packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        return resolved?.activityInfo?.packageName == packageName
     }
 
     private fun hasLocationPermission(): Boolean =
