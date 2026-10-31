@@ -826,9 +826,7 @@ private fun RoyalScenicBanner(
     onRefreshWeather: () -> Unit,
     onExploreApps: () -> Unit
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(17.dp)
-    Box(modifier.clip(shape).border(BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
+    Box(modifier) {
         Image(painterResource(R.drawable.royal_nature_wallpaper), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
@@ -841,7 +839,6 @@ private fun RoyalScenicBanner(
                 Modifier.weight(1f).fillMaxHeight()
                     .clip(RoundedCornerShape(15.dp))
                     .clickable(onClick = onExploreApps)
-                    .onFocusChanged { focused = it.isFocused }
                     .focusable()
                     .padding(horizontal = 12.dp, vertical = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
