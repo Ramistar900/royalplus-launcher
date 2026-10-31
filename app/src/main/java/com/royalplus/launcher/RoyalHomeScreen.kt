@@ -114,6 +114,10 @@ internal fun RoyalHomeScreen(
     onManageApp: (LauncherApp) -> Unit
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var prayerTimesForHome by remember { mutableStateOf<PrayerTimesData?>(null) }
+    var prayerTimeBanner by remember { mutableStateOf<String?>(null) }
+    var prayerBannerUntil by remember { mutableLongStateOf(0L) }
+    var lastPrayerAlertKey by remember { mutableStateOf<String?>(null) }
     var selectedDestination by remember { mutableStateOf(LauncherDestination.HOME) }
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
     var searchActive by remember { mutableStateOf(false) }
@@ -150,6 +154,43 @@ internal fun RoyalHomeScreen(
             currentTime = System.currentTimeMillis()
             delay(1_000L)
         }
+    }
+
+    LaunchedEffect(weather.latitude, weather.longitude, weather.city, weather.timeZoneId) {
+        prayerTimesForHome = null
+        val latitude = weather.latitude
+        val longitude = weather.longitude
+        if (latitude != null && longitude != null) {
+            PrayerTimesRepository.fetch(
+                latitude = latitude,
+                longitude = longitude,
+                city = weather.city,
+                timeZoneId = weather.timeZoneId
+            ) { result ->
+                prayerTimesForHome = result.takeIf { it.error == null && it.times.isNotEmpty() }
+            }
+        }
+    }
+
+    LaunchedEffect(currentTime, prayerTimesForHome, weather.timeZoneId, weather.city) {
+        val prayerData = prayerTimesForHome
+        if (prayerData != null) {
+            val zone = TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
+            val clock = SimpleDateFormat("HH:mm", Locale.US).apply { timeZone = zone }.format(Date(currentTime))
+            val dateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = zone }.format(Date(currentTime))
+            val prayer = prayerData.times.entries.firstOrNull { (key, value) ->
+                key != "Sunrise" && value == clock
+            }
+            if (prayer != null) {
+                val alertKey = dateKey + ":" + prayer.key + ":" + weather.city
+                if (lastPrayerAlertKey != alertKey) {
+                    lastPrayerAlertKey = alertKey
+                    prayerTimeBanner = "حان وقت صلاة " + (PrayerTimesRepository.displayNames()[prayer.key] ?: prayer.key) + " حسب التوقيت المحلي لمدينة " + weather.city
+                    prayerBannerUntil = currentTime + 3 * 60 * 1_000L
+                }
+            }
+        }
+        if (currentTime >= prayerBannerUntil) prayerTimeBanner = null
     }
 
     LaunchedEffect(Unit) {
@@ -215,6 +256,29 @@ internal fun RoyalHomeScreen(
                         onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS },
                         onInstallApk = onInstallApk
                     )
+                    if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF30240F))
+                                .border(1.dp, RoyalColors.Gold, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 16.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(22.dp))
+                            Text(
+                                prayerTimeBanner.orEmpty(),
+                                color = RoyalColors.Pearl,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                    }
                     Spacer(Modifier.height(9.dp))
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         RoyalSidePanel(
