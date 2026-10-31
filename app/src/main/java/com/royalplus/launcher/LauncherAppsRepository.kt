@@ -1,5 +1,6 @@
 package com.royalplus.launcher
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -12,15 +13,30 @@ internal object LauncherAppsRepository {
         packageManager: PackageManager,
         ownPackageName: String
     ): List<LauncherApp> {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val leanbackIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
 
-        return packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+        // Some TV apps expose only LEANBACK_LAUNCHER, while phone/tablet apps
+        // commonly expose LAUNCHER. Merge both lists and keep the actual activity.
+        val activities = (
+            packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL) +
+                packageManager.queryIntentActivities(leanbackIntent, PackageManager.MATCH_ALL)
+            )
+            .distinctBy { info ->
+                val activity = info.activityInfo
+                "${activity.packageName}/${activity.name}"
+            }
+
+        return activities
             .mapNotNull { info ->
-                val appPackageName = info.activityInfo.packageName
+                val activity = info.activityInfo ?: return@mapNotNull null
+                val appPackageName = activity.packageName
                 if (appPackageName == ownPackageName) return@mapNotNull null
 
-                val launchIntent = packageManager.getLaunchIntentForPackage(appPackageName)
-                    ?: return@mapNotNull null
+                val launchIntent = Intent(Intent.ACTION_MAIN).apply {
+                    component = ComponentName(appPackageName, activity.name)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
 
                 LauncherApp(
                     label = info.loadLabel(packageManager).toString(),
