@@ -81,7 +81,10 @@ internal object RoyalWeatherRepository {
             emptyList()
         }
 
-        val cached = providers.mapNotNull { provider ->
+        // Include Android's passive provider for devices that receive location
+        // from another system component even when GPS/network providers are disabled.
+        val cachedProviders = (providers + LocationManager.PASSIVE_PROVIDER).distinct()
+        val cached = cachedProviders.mapNotNull { provider ->
             try {
                 manager.getLastKnownLocation(provider)
             } catch (_: Exception) {
