@@ -376,7 +376,7 @@ internal fun MuslimScreen(
 @Composable
 private fun PrayerTableCell(value: String, modifier: Modifier, highlighted: Boolean) {
     Text(
-        value = value,
+        text = value,
         modifier = modifier.padding(horizontal = 1.dp),
         color = if (highlighted) RoyalColors.Gold else RoyalColors.Pearl,
         fontSize = 9.sp,
