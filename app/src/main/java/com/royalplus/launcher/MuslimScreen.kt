@@ -267,7 +267,16 @@ internal fun MuslimScreen(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(nextPrayer.second, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("المتبقي $countdown", color = Color.White, fontSize = 11.sp)
+                    Row(
+                        Modifier.clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF101010))
+                            .border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("بعد ", color = Color.White, fontSize = 10.sp)
+                        Text(countdown.ifBlank { "00:00:00" }, color = Color(0xFF20C9B5), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
