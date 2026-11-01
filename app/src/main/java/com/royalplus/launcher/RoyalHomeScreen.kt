@@ -159,6 +159,7 @@ internal fun RoyalHomeScreen(
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
+    var selectedScreensaverWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default") }
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
@@ -423,6 +424,7 @@ internal fun RoyalHomeScreen(
                     dateText = dateText,
                     weather = weather,
                     language = selectedLanguage,
+                    selectedWallpaper = selectedScreensaverWallpaper,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -475,6 +477,46 @@ internal fun RoyalHomeScreen(
                                     wallpaperPreferences.edit().putString("launcher_wallpaper", "nature").apply()
                                 }
                             )
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(when (selectedLanguage) { "en" -> "Smart screensaver background"; "tr" -> "Akıllı ekran koruyucu arka planı"; else -> "خلفية الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            WallpaperChoice(Modifier.weight(1f), "الملكي", selectedScreensaverWallpaper == "default", painterResource(R.drawable.royal_smart_screensaver)) {
+                                selectedScreensaverWallpaper = "default"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "default").apply()
+                            }
+                            WallpaperChoice(Modifier.weight(1f), "الغابة", selectedScreensaverWallpaper == "forest", painterResource(R.drawable.royal_wallpaper_forest_04)) {
+                                selectedScreensaverWallpaper = "forest"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "forest").apply()
+                            }
+                            WallpaperChoice(Modifier.weight(1f), "الخضراء", selectedScreensaverWallpaper == "green", painterResource(R.drawable.royal_wallpaper_grreen_07)) {
+                                selectedScreensaverWallpaper = "green"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "green").apply()
+                            }
+                            WallpaperChoice(Modifier.weight(1f), "البحيرة", selectedScreensaverWallpaper == "lake", painterResource(R.drawable.royal_wallpaper_lake_03)) {
+                                selectedScreensaverWallpaper = "lake"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "lake").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            WallpaperChoice(Modifier.weight(1f), "الجبال", selectedScreensaverWallpaper == "mountains", painterResource(R.drawable.royal_wallpaper_mountains_02)) {
+                                selectedScreensaverWallpaper = "mountains"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "mountains").apply()
+                            }
+                            WallpaperChoice(Modifier.weight(1f), "الطبيعة", selectedScreensaverWallpaper == "nature", painterResource(R.drawable.royal_wallpaper_nature_01)) {
+                                selectedScreensaverWallpaper = "nature"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "nature").apply()
+                            }
+                            WallpaperChoice(Modifier.weight(1f), "الغروب", selectedScreensaverWallpaper == "sunset", painterResource(R.drawable.royal_wallpaper_sunset_05)) {
+                                selectedScreensaverWallpaper = "sunset"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "sunset").apply()
+                            }
+                            WallpaperChoice(Modifier.weight(1f), "الشلال", selectedScreensaverWallpaper == "waterfall", painterResource(R.drawable.royal_wallpaper_waterfall_06)) {
+                                selectedScreensaverWallpaper = "waterfall"
+                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "waterfall").apply()
+                            }
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
