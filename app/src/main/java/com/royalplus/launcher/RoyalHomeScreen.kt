@@ -45,6 +45,13 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Circle
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -79,6 +86,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -417,19 +425,19 @@ internal fun RoyalHomeScreen(
                         Text("أشكال الأيقونات", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "ناعم", "rounded", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "ناعم", "rounded", selectedIconStyle, icon = Icons.Rounded.Palette) {
                                 selectedIconStyle = "rounded"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "rounded").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "دائري", "circle", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "دائري", "circle", selectedIconStyle, icon = Icons.Rounded.Circle) {
                                 selectedIconStyle = "circle"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "circle").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "ذهبي", "gold", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "ذهبي", "gold", selectedIconStyle, icon = Icons.Rounded.Star) {
                                 selectedIconStyle = "gold"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "gold").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "نيون", "neon", selectedIconStyle) {
+                            IconStyleChoice(Modifier.weight(1f), "نيون", "neon", selectedIconStyle, icon = Icons.Rounded.Bolt) {
                                 selectedIconStyle = "neon"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "neon").apply()
                             }
@@ -510,11 +518,11 @@ internal fun RoyalHomeScreen(
                         Text(if (selectedLanguage == "en") "Interface language" else "لغة الواجهة", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "العربية", "rounded", if (selectedLanguage == "ar") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "العربية", "rounded", if (selectedLanguage == "ar") "rounded" else "", icon = Icons.Rounded.Language) {
                                 selectedLanguage = "ar"
                                 wallpaperPreferences.edit().putString("launcher_language", "ar").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "English", "rounded", if (selectedLanguage == "en") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "English", "rounded", if (selectedLanguage == "en") "rounded" else "", icon = Icons.Rounded.Language) {
                                 selectedLanguage = "en"
                                 wallpaperPreferences.edit().putString("launcher_language", "en").apply()
                             }
@@ -523,26 +531,26 @@ internal fun RoyalHomeScreen(
                         Text(if (selectedLanguage == "en") "Font family" else "نوع الخط", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "Cairo", "rounded", if (selectedFont == "cairo") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "Cairo", "rounded", if (selectedFont == "cairo") "rounded" else "", icon = Icons.Rounded.TextFields) {
                                 selectedFont = "cairo"
                                 wallpaperPreferences.edit().putString("launcher_font", "cairo").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "Tajawal", "rounded", if (selectedFont == "tajawal") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "Tajawal", "rounded", if (selectedFont == "tajawal") "rounded" else "", icon = Icons.Rounded.TextFields) {
                                 selectedFont = "tajawal"
                                 wallpaperPreferences.edit().putString("launcher_font", "tajawal").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "Kufi", "rounded", if (selectedFont == "kufi") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "Kufi", "rounded", if (selectedFont == "kufi") "rounded" else "", icon = Icons.Rounded.TextFields) {
                                 selectedFont = "kufi"
                                 wallpaperPreferences.edit().putString("launcher_font", "kufi").apply()
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "Amiri", "rounded", if (selectedFont == "amiri") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "Amiri", "rounded", if (selectedFont == "amiri") "rounded" else "", icon = Icons.Rounded.TextFields) {
                                 selectedFont = "amiri"
                                 wallpaperPreferences.edit().putString("launcher_font", "amiri").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "Ruqaa", "rounded", if (selectedFont == "ruqaa") "rounded" else "") {
+                            IconStyleChoice(Modifier.weight(1f), "Ruqaa", "rounded", if (selectedFont == "ruqaa") "rounded" else "", icon = Icons.Rounded.TextFields) {
                                 selectedFont = "ruqaa"
                                 wallpaperPreferences.edit().putString("launcher_font", "ruqaa").apply()
                             }
@@ -551,30 +559,30 @@ internal fun RoyalHomeScreen(
                         Text(if (selectedLanguage == "en") "Network & device settings" else "الشبكة وإعدادات الجهاز", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "") {
+                            IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "", icon = Icons.Rounded.Wifi) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات Wi-Fi", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Bluetooth" else "بلوتوث", "rounded", "") {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Bluetooth" else "بلوتوث", "rounded", "", icon = Icons.Rounded.Bluetooth) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات البلوتوث", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Network" else "الشبكة", "rounded", "") {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Network" else "الشبكة", "rounded", "", icon = Icons.Rounded.Settings) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Location" else "الموقع", "rounded", "") {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Location" else "الموقع", "rounded", "", icon = Icons.Rounded.LocationOn) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الموقع", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "App info" else "معلومات التطبيق", "rounded", "") {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "App info" else "معلومات التطبيق", "rounded", "", icon = Icons.Rounded.Info) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح معلومات التطبيق", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "All settings" else "كل الإعدادات", "rounded", "") {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "All settings" else "كل الإعدادات", "rounded", "", icon = Icons.Rounded.Tune) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
@@ -620,6 +628,7 @@ private fun IconStyleChoice(
     title: String,
     style: String,
     selectedStyle: String,
+    icon: ImageVector = Icons.Rounded.Apps,
     onClick: () -> Unit
 ) {
     val selected = style == selectedStyle
@@ -652,7 +661,7 @@ private fun IconStyleChoice(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Rounded.Apps,
+                imageVector = icon,
                 contentDescription = null,
                 tint = accent,
                 modifier = Modifier.size(25.dp)
