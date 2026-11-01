@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocationOn
@@ -97,7 +98,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -128,7 +128,10 @@ internal fun RoyalHomeScreen(
     isDefaultHome: Boolean,
     onChooseDefaultHome: () -> Unit,
     onInstallApk: () -> Unit,
-    onManageApp: (LauncherApp) -> Unit
+    onManageApp: (LauncherApp) -> Unit,
+    onVoiceSearch: () -> Unit,
+    voiceSearchAvailable: Boolean,
+    voiceSearchResult: String
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var prayerTimesForHome by remember { mutableStateOf<PrayerTimesData?>(null) }
@@ -746,8 +749,7 @@ private fun RoyalBrandHeader(
     onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit,
     onInstallApk: () -> Unit,
     onVoiceSearch: () -> Unit,
-    voiceSearchAvailable: Boolean,
-    voiceSearchResult: String
+    voiceSearchAvailable: Boolean
 ) {
     Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
         CrownMark(Modifier.size(width = 45.dp, height = 34.dp))
