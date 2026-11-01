@@ -408,7 +408,8 @@ internal fun RoyalHomeScreen(
                                         title = when (selectedLanguage) { "en" -> "Manage apps"; "tr" -> "Uygulamaları yönet"; else -> "إدارة التطبيقات" },
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
-                                        onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                        onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true,
+                                        headingIcon = Icons.Rounded.Settings
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.FAVORITES -> AppCatalog(
@@ -1207,10 +1208,11 @@ private fun AppCatalog(
     onLaunchApp: (LauncherApp) -> Unit,
     onManageApp: (LauncherApp) -> Unit,
     iconStyle: String,
-    initialHighlight: Boolean
+    initialHighlight: Boolean,
+    headingIcon: ImageVector = Icons.Rounded.Apps
 ) {
     Column(Modifier.fillMaxSize()) {
-        SectionHeading(title = title, icon = Icons.Rounded.Apps)
+        SectionHeading(title = title, icon = headingIcon)
         Spacer(Modifier.height(8.dp))
         AppGrid(
             apps = apps,
