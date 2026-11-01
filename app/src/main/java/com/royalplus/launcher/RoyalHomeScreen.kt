@@ -1336,7 +1336,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("القنوات", Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem("أفلام ومسلسلات", Icons.Rounded.ArrowForward, false) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem("أفلام ومسلسلات", Icons.Rounded.ArrowForward, false, iconRes = R.drawable.royal_smart_tv, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("موسيقى", Icons.Rounded.MoreHoriz, false) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(8.dp))
