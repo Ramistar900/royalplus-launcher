@@ -43,11 +43,7 @@ internal fun RoyalSmartScreensaver(
 ) {
     val isEnglish = language == "en"
     val isTurkish = language == "tr"
-    val headline = when {
-        isEnglish -> "A MOMENT OF CALM"
-        isTurkish -> "HUZURLU BİR AN"
-        else -> "لحظة من الهدوء"
-    }
+    val headline = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
     val hint = when {
         isEnglish -> "Press any button to return"
         isTurkish -> "Dönmek için herhangi bir tuşa basın"
@@ -145,7 +141,15 @@ internal fun RoyalSmartScreensaver(
                 }
             }
             Spacer(Modifier.height(34.dp))
-            Text(headline, color = RoyalColors.Gold.copy(alpha = 0.72f), fontSize = 10.sp, letterSpacing = 3.sp)
+            Text(
+                headline,
+                color = RoyalColors.Gold,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                lineHeight = 34.sp,
+                maxLines = 2
+            )
             Spacer(Modifier.height(18.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Rounded.Schedule, contentDescription = null, tint = Color.White.copy(alpha = 0.55f), modifier = Modifier.size(15.dp))
