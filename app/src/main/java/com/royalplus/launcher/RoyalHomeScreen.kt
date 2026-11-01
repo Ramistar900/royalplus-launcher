@@ -118,7 +118,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MUSLIM, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -400,6 +400,12 @@ internal fun RoyalHomeScreen(
                                     )
                                     LauncherDestination.APPS -> AppCatalog(
                                         title = if (searchQuery.isBlank()) when (selectedLanguage) { "en" -> "All apps"; "tr" -> "Tüm uygulamalar"; else -> "جميع التطبيقات" } else when (selectedLanguage) { "en" -> "Search results"; "tr" -> "Arama sonuçları"; else -> "نتائج البحث" },
+                                        apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
+                                        onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
+                                        onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                    )
+                                    LauncherDestination.MANAGE_APPS -> AppCatalog(
+                                        title = when (selectedLanguage) { "en" -> "Manage apps"; "tr" -> "Uygulamaları yönet"; else -> "إدارة التطبيقات" },
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
                                         onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
@@ -1383,9 +1389,9 @@ private fun RoyalSidePanel(
     onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
 ) {
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Muslim", "Channels", "Movies & series", "Music", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Müslüman", "Kanallar", "Film ve diziler", "Müzik", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "مسلم", "القنوات", "أفلام ومسلسلات", "موسيقى", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "Muslim", "Channels", "Movies & series", "Music", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Müslüman", "Kanallar", "Film ve diziler", "Müzik", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "مسلم", "القنوات", "أفلام ومسلسلات", "موسيقى", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
@@ -1398,15 +1404,17 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[2], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
+        SidebarNavItem(labels[2], Icons.Rounded.Settings, selectedDestination == LauncherDestination.MANAGE_APPS, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[3], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[4], Icons.Rounded.ArrowForward, false, iconRes = R.drawable.royal_smart_tv, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[4], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[5], Icons.Rounded.MoreHoriz, false) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem(labels[5], Icons.Rounded.ArrowForward, false, iconRes = R.drawable.royal_smart_tv, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[6], Icons.Rounded.Settings, false, onClick = onOpenSettings)
+        SidebarNavItem(labels[6], Icons.Rounded.MoreHoriz, false) { onNavigate(LauncherDestination.APPS) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem(labels[7], Icons.Rounded.Settings, false, onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
