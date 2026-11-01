@@ -76,9 +76,22 @@ internal fun WeatherGlassCard(
     currentTime: String,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    language: String = "ar"
 ) {
     val visual = weatherVisual(weather)
+    val localizedDescription = when (weather.weatherCode) {
+        0 -> when (language) { "en" -> "Clear sky"; "tr" -> "Açık hava"; else -> "سماء صافية" }
+        1 -> when (language) { "en" -> "Mainly clear"; "tr" -> "Az bulutlu"; else -> "صحو غالباً" }
+        2 -> when (language) { "en" -> "Partly cloudy"; "tr" -> "Parçalı bulutlu"; else -> "غائم جزئياً" }
+        3 -> when (language) { "en" -> "Overcast"; "tr" -> "Kapalı"; else -> "غائم كلياً" }
+        45, 48 -> when (language) { "en" -> "Fog"; "tr" -> "Sis"; else -> "ضباب" }
+        in 51..57 -> when (language) { "en" -> "Drizzle"; "tr" -> "Çisenti"; else -> "رذاذ" }
+        in 61..67, in 80..82 -> when (language) { "en" -> "Rain"; "tr" -> "Yağmur"; else -> "مطر" }
+        in 71..77, 85, 86 -> when (language) { "en" -> "Snow"; "tr" -> "Kar"; else -> "ثلج" }
+        in 95..99 -> when (language) { "en" -> "Thunderstorm"; "tr" -> "Gök gürültülü fırtına"; else -> "عاصفة رعدية" }
+        else -> localizedDescription
+    }
     val hour = currentTime.substringBefore(":").toIntOrNull()
     val isNight = hour != null && (hour >= 19 || hour < 6)
     val imageRes = when (visual) {
@@ -130,8 +143,8 @@ internal fun WeatherGlassCard(
             )
             Text(
                 text = when {
-                    weather.isLoading -> "جارٍ تحديث الطقس"
-                    weather.needsPermission -> "الموقع مطلوب لعرض الطقس"
+                    weather.isLoading -> when (language) { "en" -> "Updating weather"; "tr" -> "Hava durumu güncelleniyor"; else -> "جارٍ تحديث الطقس" }
+                    weather.needsPermission -> when (language) { "en" -> "Location required for weather"; "tr" -> "Hava durumu için konum gerekli"; else -> "الموقع مطلوب لعرض الطقس" }
                     else -> weather.description
                 },
                 color = Color.White.copy(alpha = 0.96f),
@@ -168,7 +181,7 @@ internal fun WeatherGlassCard(
                         modifier = Modifier.size(12.dp)
                     )
                     Text(
-                        text = if (weather.needsPermission) "تفعيل الموقع" else "إعادة المحاولة",
+                        text = if (weather.needsPermission) when (language) { "en" -> "Enable location"; "tr" -> "Konumu etkinleştir"; else -> "تفعيل الموقع" } else when (language) { "en" -> "Retry"; "tr" -> "Tekrar dene"; else -> "إعادة المحاولة" },
                         color = Color.White,
                         fontSize = 9.sp
                     )
