@@ -51,13 +51,23 @@ import java.util.TimeZone
 private data class PrayerCity(val name: String, val latitude: Double, val longitude: Double, val timeZoneId: String)
 
 private val prayerCities = listOf(
-    PrayerCity(if (language == "en") "Current location" else if (language == "tr") "Mevcut konum" else "الموقع الحالي", 0.0, 0.0, TimeZone.getDefault().id),
-    PrayerCity(if (language == "en") "Istanbul" else if (language == "tr") "İstanbul" else "إسطنبول", 41.0082, 28.9784, "Europe/Istanbul"),
-    PrayerCity(if (language == "en") "Damascus" else if (language == "tr") "Şam" else "دمشق", 33.5138, 36.2765, "Asia/Damascus"),
-    PrayerCity(if (language == "en") "Mecca" else if (language == "tr") "Mekke" else "مكة المكرمة", 21.3891, 39.8579, "Asia/Riyadh"),
-    PrayerCity(if (language == "en") "Riyadh" else if (language == "tr") "Riyad" else "الرياض", 24.7136, 46.6753, "Asia/Riyadh"),
-    PrayerCity(if (language == "en") "Baghdad" else if (language == "tr") "Bağdat" else "بغداد", 33.3152, 44.3661, "Asia/Baghdad")
+    PrayerCity("الموقع الحالي", 0.0, 0.0, TimeZone.getDefault().id),
+    PrayerCity("إسطنبول", 41.0082, 28.9784, "Europe/Istanbul"),
+    PrayerCity("دمشق", 33.5138, 36.2765, "Asia/Damascus"),
+    PrayerCity("مكة المكرمة", 21.3891, 39.8579, "Asia/Riyadh"),
+    PrayerCity("الرياض", 24.7136, 46.6753, "Asia/Riyadh"),
+    PrayerCity("بغداد", 33.3152, 44.3661, "Asia/Baghdad")
 )
+
+private fun localizedPrayerCityName(index: Int, language: String): String = when (index) {
+    0 -> when (language) { "en" -> "Current location"; "tr" -> "Mevcut konum"; else -> "الموقع الحالي" }
+    1 -> when (language) { "en" -> "Istanbul"; "tr" -> "İstanbul"; else -> "إسطنبول" }
+    2 -> when (language) { "en" -> "Damascus"; "tr" -> "Şam"; else -> "دمشق" }
+    3 -> when (language) { "en" -> "Mecca"; "tr" -> "Mekke"; else -> "مكة المكرمة" }
+    4 -> when (language) { "en" -> "Riyadh"; "tr" -> "Riyad"; else -> "الرياض" }
+    5 -> when (language) { "en" -> "Baghdad"; "tr" -> "Bağdat"; else -> "بغداد" }
+    else -> prayerCities.getOrNull(index)?.name.orEmpty()
+}
 
 @Composable
 internal fun MuslimScreen(
@@ -91,7 +101,7 @@ internal fun MuslimScreen(
     val hasCoordinates = selectedCityIndex == 0 && weather.latitude != null && weather.longitude != null
     val latitude = if (selectedCityIndex == 0) weather.latitude else selectedCity.latitude.takeIf { it != 0.0 }
     val longitude = if (selectedCityIndex == 0) weather.longitude else selectedCity.longitude.takeIf { it != 0.0 }
-    val cityName = if (selectedCityIndex == 0) weather.city else selectedCity.name
+    val cityName = if (selectedCityIndex == 0) weather.city else localizedPrayerCityName(selectedCityIndex, language)
     val zoneForKey = if (selectedCityIndex == 0) weather.timeZoneId ?: TimeZone.getDefault().id else selectedCity.timeZoneId
     val todayKey = remember(now, zoneForKey) {
         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone(zoneForKey) }.format(Date(now))
@@ -384,7 +394,7 @@ internal fun MuslimScreen(
                         .padding(vertical = 8.dp, horizontal = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(city.name, color = if (chosen) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 10.sp, textAlign = TextAlign.Center, maxLines = 1)
+                    Text(localizedPrayerCityName(index + 1, language), color = if (chosen) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 10.sp, textAlign = TextAlign.Center, maxLines = 1)
                 }
             }
         }
