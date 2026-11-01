@@ -387,7 +387,7 @@ internal fun RoyalHomeScreen(
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
                                         onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
-                                    LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation)
+                                    LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.FAVORITES -> AppCatalog(
                                         title = when (selectedLanguage) { "en" -> "Favorite apps"; "tr" -> "Favori uygulamalar"; else -> "التطبيقات المفضلة" }, apps = filteredFavorites, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
