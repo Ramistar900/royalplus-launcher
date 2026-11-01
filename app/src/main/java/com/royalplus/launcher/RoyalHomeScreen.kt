@@ -409,7 +409,7 @@ internal fun RoyalHomeScreen(
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
                                         onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true,
-                                        headingIcon = Icons.Rounded.Settings
+                                        headingIcon = Icons.Rounded.Apps
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.FAVORITES -> AppCatalog(
@@ -1406,7 +1406,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[2], Icons.Rounded.Settings, selectedDestination == LauncherDestination.MANAGE_APPS, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
+        SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(8.dp))
