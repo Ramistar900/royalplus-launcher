@@ -99,7 +99,7 @@ class MainActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     onChooseDefaultHome = { openDefaultHomeSettings() },
                     onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) },
-                    onManageApp = { app -> openAppDetails(app) },
+                    onManageApp = { app -> requestAppUninstall(app) },
                     onVoiceSearch = { startVoiceSearch() },
                     voiceSearchAvailable = voiceSearchAvailable,
                     voiceSearchResult = voiceSearchResult
@@ -140,6 +140,24 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             voiceSearchAvailable = false
             Toast.makeText(this, "تعذر تشغيل خدمة الصوت؛ يمكنك استخدام البحث الكتابي", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun requestAppUninstall(app: LauncherApp) {
+        if (app.packageName == packageName) {
+            Toast.makeText(this, "لا يمكن إزالة ROYAL+ Launcher من داخل نفسه؛ استخدم إعدادات أندرويد", Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            // Android owns the confirmation and decides whether this package can be removed.
+            startActivity(
+                Intent(
+                    Intent.ACTION_DELETE,
+                    Uri.parse("package:${app.packageName}")
+                )
+            )
+        } catch (_: Exception) {
+            openAppDetails(app)
         }
     }
 
