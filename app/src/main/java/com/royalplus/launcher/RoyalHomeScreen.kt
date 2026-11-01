@@ -610,6 +610,13 @@ internal fun RoyalHomeScreen(
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Developer options"; "tr" -> "Geliştirici seçenekleri"; else -> "خيارات المطوّر" }, "rounded", "", iconRes = R.drawable.royal_developer_mode) {
+                                try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }
+                                catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح خيارات المطوّر", android.widget.Toast.LENGTH_SHORT).show() }
+                            }
+                        }
                         Spacer(Modifier.height(14.dp))
                         Row(
                             modifier = Modifier
@@ -1280,11 +1287,11 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(5.dp))
         SidebarNavItem("الرئيسية", Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem("التطبيقات", Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem("التطبيقات", Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("مسلم", Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem("القنوات", Icons.Rounded.Wifi, false) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem("القنوات", Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("أفلام ومسلسلات", Icons.Rounded.ArrowForward, false) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(8.dp))
@@ -1343,6 +1350,7 @@ private fun SidebarNavItem(
     title: String,
     icon: ImageVector,
     selected: Boolean,
+    iconRes: Int? = null,
     onClick: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -1377,12 +1385,21 @@ private fun SidebarNavItem(
             fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
-            modifier = Modifier.size(20.dp)
-        )
+        if (iconRes == null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
+                modifier = Modifier.size(20.dp)
+            )
+        } else {
+            Image(
+                painter = painterResource(iconRes),
+                contentDescription = title,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
