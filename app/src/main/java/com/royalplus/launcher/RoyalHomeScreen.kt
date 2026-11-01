@@ -1056,6 +1056,7 @@ private fun HomeDashboard(
             RoyalScenicBanner(
                 modifier = Modifier.fillMaxWidth().height(heroHeight),
                 weather = weather,
+                language = selectedLanguage,
                 currentTime = currentTime,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
@@ -1081,9 +1082,9 @@ private fun HomeDashboard(
             }
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "التطبيقات", "جميع تطبيقاتك في مكان واحد", Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "مسلم", "مواقيت الصلاة والتاريخ الهجري", Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), "الوقت والتاريخ", if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), when (selectedLanguage) { "en" -> "Apps"; "tr" -> "Uygulamalar"; else -> "التطبيقات" }, when (selectedLanguage) { "en" -> "All your apps in one place"; "tr" -> "Tüm uygulamalarınız tek yerde"; else -> "جميع تطبيقاتك في مكان واحد" }, Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), when (selectedLanguage) { "en" -> "Muslim"; "tr" -> "Müslüman"; else -> "مسلم" }, when (selectedLanguage) { "en" -> "Prayer times and Hijri calendar"; "tr" -> "Namaz vakitleri ve Hicri takvim"; else -> "مواقيت الصلاة والتاريخ الهجري" }, Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
+                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), when (selectedLanguage) { "en" -> "Time & date"; "tr" -> "Saat ve tarih"; else -> "الوقت والتاريخ" }, if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
             }
         }
         // Draw the greeting last so it stays visible above the banner, only during Ramadan.
@@ -1094,7 +1095,7 @@ private fun HomeDashboard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFD56D), modifier = Modifier.size(24.dp))
-                Text("رمضان كريم", color = Color(0xFFFFD56D), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(when (selectedLanguage) { "en" -> "Ramadan Kareem"; "tr" -> "Ramazanınız mübarek olsun"; else -> "رمضان كريم" }, color = Color(0xFFFFD56D), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1130,6 +1131,7 @@ private fun HomeFeatureCard(
 private fun RoyalScenicBanner(
     modifier: Modifier = Modifier,
     weather: WeatherUiState,
+    language: String = "ar",
     currentTime: String,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
@@ -1156,16 +1158,17 @@ private fun RoyalScenicBanner(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("مرحباً بك في", color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(when (language) { "en" -> "Welcome to"; "tr" -> "Hoş geldiniz"; else -> "مرحباً بك في" }, color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text("ROYAL+", color = Color(0xFFFFD76D), fontSize = 43.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp, maxLines = 1)
-                Text("عالم الترفيه بين يديك", color = RoyalColors.Pearl, fontSize = 16.sp, maxLines = 1)
+                Text(when (language) { "en" -> "Entertainment at your fingertips"; "tr" -> "Eğlence parmaklarınızın ucunda"; else -> "عالم الترفيه بين يديك" }, color = RoyalColors.Pearl, fontSize = 16.sp, maxLines = 1)
             }
             WeatherGlassCard(
                 weather = weather,
                 currentTime = currentTime,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
-                modifier = Modifier.weight(1.05f).fillMaxHeight()
+                modifier = Modifier.weight(1.05f).fillMaxHeight(),
+                language = language
             )
         }
     }
