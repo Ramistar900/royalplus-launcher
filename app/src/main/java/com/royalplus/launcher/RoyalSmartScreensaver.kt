@@ -48,6 +48,18 @@ internal fun RoyalSmartScreensaver(
     val isEnglish = language == "en"
     val isTurkish = language == "tr"
     val headline = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
+    val localizedWeatherDescription = when (weather.weatherCode) {
+        0 -> if (isEnglish) "Clear sky" else if (isTurkish) "Açık hava" else "سماء صافية"
+        1 -> if (isEnglish) "Mainly clear" else if (isTurkish) "Az bulutlu" else "صحو غالباً"
+        2 -> if (isEnglish) "Partly cloudy" else if (isTurkish) "Parçalı bulutlu" else "غائم جزئياً"
+        3 -> if (isEnglish) "Overcast" else if (isTurkish) "Kapalı" else "غائم كلياً"
+        45, 48 -> if (isEnglish) "Fog" else if (isTurkish) "Sis" else "ضباب"
+        in 51..57 -> if (isEnglish) "Drizzle" else if (isTurkish) "Çisenti" else "رذاذ"
+        in 61..67, in 80..82 -> if (isEnglish) "Rain" else if (isTurkish) "Yağmur" else "مطر"
+        in 71..77, 85, 86 -> if (isEnglish) "Snow" else if (isTurkish) "Kar" else "ثلج"
+        in 95..99 -> if (isEnglish) "Thunderstorm" else if (isTurkish) "Gök gürültülü fırtına" else "عاصفة رعدية"
+        else -> weather.description
+    }
     val hint = when {
         isEnglish -> "Press any button to return"
         isTurkish -> "Dönmek için herhangi bir tuşa basın"
@@ -158,7 +170,7 @@ internal fun RoyalSmartScreensaver(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        weather.description.ifBlank { if (isEnglish) "Weather unavailable" else if (isTurkish) "Hava durumu kullanılamıyor" else "الطقس غير متاح" },
+                        localizedWeatherDescription.ifBlank { if (isEnglish) "Weather unavailable" else if (isTurkish) "Hava durumu kullanılamıyor" else "الطقس غير متاح" },
                         color = Color(0xFFD6D9E0),
                         fontSize = 12.sp
                     )
