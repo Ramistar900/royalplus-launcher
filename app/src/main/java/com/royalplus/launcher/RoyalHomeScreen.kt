@@ -661,8 +661,8 @@ private fun IconStyleChoice(
     style: String,
     selectedStyle: String,
     icon: ImageVector = Icons.Rounded.Apps,
-    onClick: () -> Unit,
-    iconRes: Int? = null
+    iconRes: Int? = null,
+    onClick: () -> Unit
 ) {
     val selected = style == selectedStyle
     val shape = when (style) {
