@@ -81,7 +81,12 @@ class MainActivity : ComponentActivity() {
                         try {
                             startActivity(app.launchIntent)
                         } catch (_: Exception) {
-                            // The app may have been removed after the launcher list was loaded.
+                            // The app may have been removed or blocked after the launcher list was loaded.
+                            Toast.makeText(
+                                this,
+                                "تعذر فتح ${app.label}. حدّث قائمة التطبيقات أو تحقق من تثبيته.",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     },
                     onOpenSettings = {
