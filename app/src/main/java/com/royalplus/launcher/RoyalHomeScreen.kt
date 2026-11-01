@@ -405,7 +405,7 @@ internal fun RoyalHomeScreen(
                                         onLaunchApp = onLaunchApp, onManageApp = onManageApp
                                     )
                                     LauncherDestination.MORE -> AppCatalog(
-                                        title = "المزيد من التطبيقات", apps = otherApps, columns = columns,
+                                        title = when (selectedLanguage) { "en" -> "More apps"; "tr" -> "Daha fazla uygulama"; else -> "المزيد من التطبيقات" }, apps = otherApps, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
@@ -459,7 +459,7 @@ internal fun RoyalHomeScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             WallpaperChoice(
                                 modifier = Modifier.weight(1f),
-                                title = "الخلفية الملونة",
+                                title = when (selectedLanguage) { "en" -> "Colorful wallpaper"; "tr" -> "Renkli duvar kâğıdı"; else -> "الخلفية الملونة" },
                                 selected = selectedWallpaper == "color",
                                 image = painterResource(R.drawable.royal_color_wallpaper),
                                 onClick = {
@@ -469,7 +469,7 @@ internal fun RoyalHomeScreen(
                             )
                             WallpaperChoice(
                                 modifier = Modifier.weight(1f),
-                                title = "الخلفية الطبيعية",
+                                title = when (selectedLanguage) { "en" -> "Nature wallpaper"; "tr" -> "Doğa duvar kâğıdı"; else -> "الخلفية الطبيعية" },
                                 selected = selectedWallpaper == "nature",
                                 image = painterResource(R.drawable.royal_nature_wallpaper),
                                 onClick = {
@@ -482,38 +482,38 @@ internal fun RoyalHomeScreen(
                         Text(when (selectedLanguage) { "en" -> "Smart screensaver background"; "tr" -> "Akıllı ekran koruyucu arka planı"; else -> "خلفية الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WallpaperChoice(Modifier.weight(1f), "الملكي", selectedScreensaverWallpaper == "default", painterResource(R.drawable.royal_smart_screensaver)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Royal"; "tr" -> "Kraliyet"; else -> "الملكي" }, selectedScreensaverWallpaper == "default", painterResource(R.drawable.royal_smart_screensaver)) {
                                 selectedScreensaverWallpaper = "default"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "default").apply()
                             }
-                            WallpaperChoice(Modifier.weight(1f), "الغابة", selectedScreensaverWallpaper == "forest", painterResource(R.drawable.royal_wallpaper_forest_04)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Forest"; "tr" -> "Orman"; else -> "الغابة" }, selectedScreensaverWallpaper == "forest", painterResource(R.drawable.royal_wallpaper_forest_04)) {
                                 selectedScreensaverWallpaper = "forest"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "forest").apply()
                             }
-                            WallpaperChoice(Modifier.weight(1f), "الخضراء", selectedScreensaverWallpaper == "green", painterResource(R.drawable.royal_wallpaper_grreen_07)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Green"; "tr" -> "Yeşil"; else -> "الخضراء" }, selectedScreensaverWallpaper == "green", painterResource(R.drawable.royal_wallpaper_grreen_07)) {
                                 selectedScreensaverWallpaper = "green"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "green").apply()
                             }
-                            WallpaperChoice(Modifier.weight(1f), "البحيرة", selectedScreensaverWallpaper == "lake", painterResource(R.drawable.royal_wallpaper_lake_03)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Lake"; "tr" -> "Göl"; else -> "البحيرة" }, selectedScreensaverWallpaper == "lake", painterResource(R.drawable.royal_wallpaper_lake_03)) {
                                 selectedScreensaverWallpaper = "lake"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "lake").apply()
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WallpaperChoice(Modifier.weight(1f), "الجبال", selectedScreensaverWallpaper == "mountains", painterResource(R.drawable.royal_wallpaper_mountains_02)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Mountains"; "tr" -> "Dağlar"; else -> "الجبال" }, selectedScreensaverWallpaper == "mountains", painterResource(R.drawable.royal_wallpaper_mountains_02)) {
                                 selectedScreensaverWallpaper = "mountains"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "mountains").apply()
                             }
-                            WallpaperChoice(Modifier.weight(1f), "الطبيعة", selectedScreensaverWallpaper == "nature", painterResource(R.drawable.royal_wallpaper_nature_01)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Nature"; "tr" -> "Doğa"; else -> "الطبيعة" }, selectedScreensaverWallpaper == "nature", painterResource(R.drawable.royal_wallpaper_nature_01)) {
                                 selectedScreensaverWallpaper = "nature"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "nature").apply()
                             }
-                            WallpaperChoice(Modifier.weight(1f), "الغروب", selectedScreensaverWallpaper == "sunset", painterResource(R.drawable.royal_wallpaper_sunset_05)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Sunset"; "tr" -> "Gün batımı"; else -> "الغروب" }, selectedScreensaverWallpaper == "sunset", painterResource(R.drawable.royal_wallpaper_sunset_05)) {
                                 selectedScreensaverWallpaper = "sunset"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "sunset").apply()
                             }
-                            WallpaperChoice(Modifier.weight(1f), "الشلال", selectedScreensaverWallpaper == "waterfall", painterResource(R.drawable.royal_wallpaper_waterfall_06)) {
+                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Waterfall"; "tr" -> "Şelale"; else -> "الشلال" }, selectedScreensaverWallpaper == "waterfall", painterResource(R.drawable.royal_wallpaper_waterfall_06)) {
                                 selectedScreensaverWallpaper = "waterfall"
                                 wallpaperPreferences.edit().putString("screensaver_wallpaper", "waterfall").apply()
                             }
@@ -522,19 +522,19 @@ internal fun RoyalHomeScreen(
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "ناعم", "rounded", selectedIconStyle, icon = Icons.Rounded.Palette) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Rounded"; "tr" -> "Yuvarlak"; else -> "ناعم" }, "rounded", selectedIconStyle, icon = Icons.Rounded.Palette) {
                                 selectedIconStyle = "rounded"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "rounded").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "دائري", "circle", selectedIconStyle, icon = Icons.Rounded.Circle) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Circle"; "tr" -> "Daire"; else -> "دائري" }, "circle", selectedIconStyle, icon = Icons.Rounded.Circle) {
                                 selectedIconStyle = "circle"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "circle").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "ذهبي", "gold", selectedIconStyle, icon = Icons.Rounded.Star) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Gold"; "tr" -> "Altın"; else -> "ذهبي" }, "gold", selectedIconStyle, icon = Icons.Rounded.Star) {
                                 selectedIconStyle = "gold"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "gold").apply()
                             }
-                            IconStyleChoice(Modifier.weight(1f), "نيون", "neon", selectedIconStyle, icon = Icons.Rounded.Bolt) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Neon"; "tr" -> "Neon"; else -> "نيون" }, "neon", selectedIconStyle, icon = Icons.Rounded.Bolt) {
                                 selectedIconStyle = "neon"
                                 wallpaperPreferences.edit().putString("launcher_icon_style", "neon").apply()
                             }
@@ -557,13 +557,13 @@ internal fun RoyalHomeScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(when (selectedLanguage) { "en" -> "Default TV launcher"; "tr" -> "Varsayılan TV başlatıcısı"; else -> "واجهة التلفاز الافتراضية" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                 Text(
-                                    if (isDefaultHome) "ROYAL+ هو اللانشر الافتراضي لهذا الجهاز" else "فعّل ROYAL+ ليظهر عند الضغط على زر الرئيسية",
+                                    if (isDefaultHome) when (selectedLanguage) { "en" -> "ROYAL+ is the default launcher"; "tr" -> "ROYAL+ varsayılan başlatıcı"; else -> "ROYAL+ هو اللانشر الافتراضي لهذا الجهاز" } else when (selectedLanguage) { "en" -> "Enable ROYAL+ for the Home button"; "tr" -> "Ana ekran düğmesi için ROYAL+’ı etkinleştirin"; else -> "فعّل ROYAL+ ليظهر عند الضغط على زر الرئيسية" },
                                     color = RoyalColors.Pearl,
                                     fontSize = 11.sp
                                 )
                             }
                             Text(
-                                if (isDefaultHome) "مفعّل • إدارة" else "تفعيل اللانشر",
+                                if (isDefaultHome) when (selectedLanguage) { "en" -> "Enabled • Manage"; "tr" -> "Etkin • Yönet"; else -> "مفعّل • إدارة" } else when (selectedLanguage) { "en" -> "Enable launcher"; "tr" -> "Başlatıcıyı etkinleştir"; else -> "تفعيل اللانشر" },
                                 color = RoyalColors.Gold,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
@@ -589,7 +589,7 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(when (selectedLanguage) { "en" -> "Clock format"; "tr" -> "Saat biçimi"; else -> "تنسيق الساعة" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                Text(if (use24HourClock) "24 ساعة" else "12 ساعة", color = RoyalColors.Gold, fontSize = 12.sp)
+                                Text(if (use24HourClock) "24 h" else "12 h", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
                             Text(if (use24HourClock) "24H" else "12H", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
@@ -613,7 +613,7 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(when (selectedLanguage) { "en" -> "Show date"; "tr" -> "Tarihi göster"; else -> "عرض التاريخ" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                Text(if (showDateOnHome) "ظاهر" else "مخفي", color = RoyalColors.Gold, fontSize = 12.sp)
+                                Text(if (showDateOnHome) when (selectedLanguage) { "en" -> "Visible"; "tr" -> "Görünür"; else -> "ظاهر" } else when (selectedLanguage) { "en" -> "Hidden"; "tr" -> "Gizli"; else -> "مخفي" }, color = RoyalColors.Gold, fontSize = 12.sp)
                             }
                             Text(if (showDateOnHome) "ON" else "OFF", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
@@ -866,7 +866,7 @@ private fun RoyalBrandHeader(
                     BasicTextField(searchQuery, onQueryChanged, singleLine = true, cursorBrush = SolidColor(RoyalColors.Gold),
                         textStyle = TextStyle(color = RoyalColors.Pearl, fontSize = 12.sp), modifier = Modifier.fillMaxWidth())
                 }
-                Icon(Icons.Rounded.Close, "إغلاق البحث", tint = RoyalColors.Pearl, modifier = Modifier.size(17.dp).clickable(onClick = onCloseSearch).focusable())
+                Icon(Icons.Rounded.Close, when (selectedLanguage) { "en" -> "Close search"; "tr" -> "Aramayı kapat"; else -> "إغلاق البحث" }, tint = RoyalColors.Pearl, modifier = Modifier.size(17.dp).clickable(onClick = onCloseSearch).focusable())
             }
             Spacer(Modifier.width(10.dp))
         }
@@ -879,15 +879,15 @@ private fun RoyalBrandHeader(
             }
             Spacer(Modifier.width(9.dp))
         }
-        StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
+        StatusIcon(Icons.Rounded.Search, when (selectedLanguage) { "en" -> "Search"; "tr" -> "Ara"; else -> "البحث" }, onSearch)
         if (voiceSearchAvailable) {
             Spacer(Modifier.width(5.dp))
-            StatusIcon(Icons.Rounded.Mic, "البحث الصوتي", onVoiceSearch)
+            StatusIcon(Icons.Rounded.Mic, when (selectedLanguage) { "en" -> "Voice search"; "tr" -> "Sesli arama"; else -> "البحث الصوتي" }, onVoiceSearch)
         }
         Spacer(Modifier.width(5.dp))
-        StatusIcon(Icons.Rounded.Apps, "تثبيت ملف APK", onInstallApk)
+        StatusIcon(Icons.Rounded.Apps, when (selectedLanguage) { "en" -> "Install APK"; "tr" -> "APK yükle"; else -> "تثبيت ملف APK" }, onInstallApk)
         Spacer(Modifier.width(5.dp))
-        StatusIcon(Icons.Rounded.Settings, "الإعدادات", onOpenSettings)
+        StatusIcon(Icons.Rounded.Settings, when (selectedLanguage) { "en" -> "Settings"; "tr" -> "Ayarlar"; else -> "الإعدادات" }, onOpenSettings)
     }
 }
 
