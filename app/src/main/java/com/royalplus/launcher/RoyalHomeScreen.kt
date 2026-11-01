@@ -12,6 +12,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -142,6 +146,8 @@ internal fun RoyalHomeScreen(
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showSmartScreensaver by remember { mutableStateOf(false) }
+    var lastUserInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(voiceSearchResult) {
         if (voiceSearchResult.isNotBlank()) {
             searchQuery = voiceSearchResult
@@ -191,6 +197,13 @@ internal fun RoyalHomeScreen(
         while (true) {
             currentTime = System.currentTimeMillis()
             delay(1_000L)
+        }
+    }
+
+    LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination) {
+        if (!showSmartScreensaver && !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME) {
+            delay(120_000L)
+            if (System.currentTimeMillis() - lastUserInteraction >= 120_000L) showSmartScreensaver = true
         }
     }
 
@@ -282,7 +295,21 @@ internal fun RoyalHomeScreen(
 
     CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)) {
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        lastUserInteraction = System.currentTimeMillis()
+                        showSmartScreensaver = false
+                    }
+                }
+                .onPreviewKeyEvent {
+                    lastUserInteraction = System.currentTimeMillis()
+                    showSmartScreensaver = false
+                    false
+                }
+        ) {
             RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
             val sidebarWidth = if (maxWidth >= 900.dp) 188.dp else (maxWidth * 0.205f).coerceIn(148.dp, 188.dp)
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
@@ -388,6 +415,19 @@ internal fun RoyalHomeScreen(
                     Spacer(Modifier.height(8.dp))
                     RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
                 }
+            }
+
+            if (showSmartScreensaver && !showWallpaperSettings) {
+                RoyalSmartScreensaver(
+                    timeText = timeText,
+                    dateText = dateText,
+                    weather = weather,
+                    language = selectedLanguage,
+                    onDismiss = {
+                        showSmartScreensaver = false
+                        lastUserInteraction = System.currentTimeMillis()
+                    }
+                )
             }
 
             if (showWallpaperSettings) {
