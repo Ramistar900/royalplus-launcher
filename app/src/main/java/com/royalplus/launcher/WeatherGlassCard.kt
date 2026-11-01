@@ -90,7 +90,7 @@ internal fun WeatherGlassCard(
         in 61..67, in 80..82 -> when (language) { "en" -> "Rain"; "tr" -> "Yağmur"; else -> "مطر" }
         in 71..77, 85, 86 -> when (language) { "en" -> "Snow"; "tr" -> "Kar"; else -> "ثلج" }
         in 95..99 -> when (language) { "en" -> "Thunderstorm"; "tr" -> "Gök gürültülü fırtına"; else -> "عاصفة رعدية" }
-        else -> localizedDescription
+        else -> weather.description
     }
     val hour = currentTime.substringBefore(":").toIntOrNull()
     val isNight = hour != null && (hour >= 19 || hour < 6)
