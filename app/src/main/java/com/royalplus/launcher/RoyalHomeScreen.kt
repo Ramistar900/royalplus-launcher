@@ -296,7 +296,8 @@ internal fun RoyalHomeScreen(
                         onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS },
                         onInstallApk = onInstallApk,
                         onVoiceSearch = onVoiceSearch,
-                        voiceSearchAvailable = voiceSearchAvailable
+                        voiceSearchAvailable = voiceSearchAvailable,
+                        selectedLanguage = selectedLanguage
                     )
                     if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
                         Row(
@@ -350,7 +351,8 @@ internal fun RoyalHomeScreen(
                                             wallpaperPreferences.edit().putBoolean("launcher_show_date", showDateOnHome).apply()
                                         },
                                         onRefreshWeather = onRefreshWeather,
-                                        onOpenSettings = { showWallpaperSettings = true }
+                                        onOpenSettings = { showWallpaperSettings = true },
+                                        selectedLanguage = selectedLanguage
                                     )
                                     LauncherDestination.APPS -> AppCatalog(
                                         title = if (searchQuery.isBlank()) when (selectedLanguage) { "en" -> "All apps"; "tr" -> "Tüm uygulamalar"; else -> "جميع التطبيقات" } else when (selectedLanguage) { "en" -> "Search results"; "tr" -> "Arama sonuçları"; else -> "نتائج البحث" },
@@ -760,7 +762,8 @@ private fun RoyalBrandHeader(
     onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit,
     onInstallApk: () -> Unit,
     onVoiceSearch: () -> Unit,
-    voiceSearchAvailable: Boolean
+    voiceSearchAvailable: Boolean,
+    selectedLanguage: String
 ) {
     Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
         CrownMark(Modifier.size(width = 45.dp, height = 34.dp))
@@ -947,7 +950,7 @@ private fun HomeDashboard(
     currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
     onRequestLocation: () -> Unit,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
-    onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit
+    onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp)
@@ -1297,7 +1300,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("موسيقى", Icons.Rounded.MoreHoriz, false) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem("الإعدادات", Icons.Rounded.Settings, false, onOpenSettings)
+        SidebarNavItem("الإعدادات", Icons.Rounded.Settings, false, onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
