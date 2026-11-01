@@ -1,5 +1,6 @@
 package com.royalplus.launcher
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
@@ -52,13 +55,24 @@ internal fun RoyalSmartScreensaver(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF030509), Color(0xFF10131B), Color(0xFF05070B))))
+            .background(Color(0xFF030509))
             .clickable(onClick = onDismiss)
             .onPreviewKeyEvent { onDismiss(); true }
             .focusable()
             .focusTarget(),
         contentAlignment = Alignment.Center
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.royal_smart_screensaver),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(Color(0x44030509), Color(0x2210131B), Color(0x6605070B))))
+        )
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
