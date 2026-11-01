@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.Circle
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
@@ -138,6 +139,13 @@ internal fun RoyalHomeScreen(
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    LaunchedEffect(voiceSearchResult) {
+        if (voiceSearchResult.isNotBlank()) {
+            searchQuery = voiceSearchResult
+            searchActive = true
+            selectedDestination = LauncherDestination.APPS
+        }
+    }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
@@ -283,7 +291,9 @@ internal fun RoyalHomeScreen(
                         onCloseSearch = { searchActive = false; searchQuery = ""; selectedDestination = LauncherDestination.HOME },
                         onOpenSettings = { showWallpaperSettings = true },
                         onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS },
-                        onInstallApk = onInstallApk
+                        onInstallApk = onInstallApk,
+                        onVoiceSearch = onVoiceSearch,
+                        voiceSearchAvailable = voiceSearchAvailable
                     )
                     if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
                         Row(
@@ -734,7 +744,10 @@ private fun RoyalBrandHeader(
     searchActive: Boolean, searchQuery: String, currentTime: String, dateText: String,
     showDate: Boolean, onQueryChanged: (String) -> Unit,
     onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit,
-    onInstallApk: () -> Unit
+    onInstallApk: () -> Unit,
+    onVoiceSearch: () -> Unit,
+    voiceSearchAvailable: Boolean,
+    voiceSearchResult: String
 ) {
     Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
         CrownMark(Modifier.size(width = 45.dp, height = 34.dp))
@@ -769,6 +782,10 @@ private fun RoyalBrandHeader(
             Spacer(Modifier.width(9.dp))
         }
         StatusIcon(Icons.Rounded.Search, "البحث", onSearch)
+        if (voiceSearchAvailable) {
+            Spacer(Modifier.width(5.dp))
+            StatusIcon(Icons.Rounded.Mic, "البحث الصوتي", onVoiceSearch)
+        }
         Spacer(Modifier.width(5.dp))
         StatusIcon(Icons.Rounded.Apps, "تثبيت ملف APK", onInstallApk)
         Spacer(Modifier.width(5.dp))
