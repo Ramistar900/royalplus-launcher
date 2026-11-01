@@ -42,6 +42,7 @@ internal fun RoyalSmartScreensaver(
     dateText: String,
     weather: WeatherUiState,
     language: String,
+    selectedWallpaper: String,
     onDismiss: () -> Unit
 ) {
     val isEnglish = language == "en"
@@ -63,7 +64,16 @@ internal fun RoyalSmartScreensaver(
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.royal_smart_screensaver),
+            painter = painterResource(id = when (selectedWallpaper) {
+                "forest" -> R.drawable.royal_wallpaper_forest_04
+                "green" -> R.drawable.royal_wallpaper_grreen_07
+                "lake" -> R.drawable.royal_wallpaper_lake_03
+                "mountains" -> R.drawable.royal_wallpaper_mountains_02
+                "nature" -> R.drawable.royal_wallpaper_nature_01
+                "sunset" -> R.drawable.royal_wallpaper_sunset_05
+                "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                else -> R.drawable.royal_smart_screensaver
+            }),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
