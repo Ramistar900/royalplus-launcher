@@ -243,7 +243,7 @@ internal fun RoyalHomeScreen(
     }
     val displayLocale = remember(selectedLanguage) { Locale.forLanguageTag(selectedLanguage) }
     val dateText = remember(currentTime, weather.timeZoneId, selectedLanguage) {
-        SimpleDateFormat(if (selectedLanguage == "en") "EEEE, d MMMM yyyy" else "EEEE، d MMMM yyyy", displayLocale).apply {
+        SimpleDateFormat(if (selectedLanguage == "ar") "EEEE، d MMMM yyyy" else "EEEE, d MMMM yyyy", displayLocale).apply {
             timeZone = displayTimeZone
         }.format(Date(currentTime))
     }
@@ -285,7 +285,7 @@ internal fun RoyalHomeScreen(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
             val sidebarWidth = if (maxWidth >= 900.dp) 188.dp else (maxWidth * 0.205f).coerceIn(148.dp, 188.dp)
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
                 Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
@@ -353,14 +353,14 @@ internal fun RoyalHomeScreen(
                                         onOpenSettings = { showWallpaperSettings = true }
                                     )
                                     LauncherDestination.APPS -> AppCatalog(
-                                        title = if (searchQuery.isBlank()) "جميع التطبيقات" else "نتائج البحث",
+                                        title = if (searchQuery.isBlank()) when (selectedLanguage) { "en" -> "All apps"; "tr" -> "Tüm uygulamalar"; else -> "جميع التطبيقات" } else when (selectedLanguage) { "en" -> "Search results"; "tr" -> "Arama sonuçları"; else -> "نتائج البحث" },
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
                                         onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation)
                                     LauncherDestination.FAVORITES -> AppCatalog(
-                                        title = "التطبيقات المفضلة", apps = filteredFavorites, columns = columns,
+                                        title = when (selectedLanguage) { "en" -> "Favorite apps"; "tr" -> "Favori uygulamalar"; else -> "التطبيقات المفضلة" }, apps = filteredFavorites, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
@@ -406,11 +406,11 @@ internal fun RoyalHomeScreen(
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("تخصيص الواجهة", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                        Text(when (selectedLanguage) { "en" -> "Customize interface"; "tr" -> "Arayüzü özelleştir"; else -> "تخصيص الواجهة" }, color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
-                        Text("اختر الخلفية وشكل أيقونات التطبيقات", color = RoyalColors.Pearl, fontSize = 14.sp)
+                        Text(when (selectedLanguage) { "en" -> "Choose wallpaper and app icon style"; "tr" -> "Duvar kâğıdını ve uygulama simgelerini seçin"; else -> "اختر الخلفية وشكل أيقونات التطبيقات" }, color = RoyalColors.Pearl, fontSize = 14.sp)
                         Spacer(Modifier.height(14.dp))
-                        Text("الخلفيات", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Wallpapers"; "tr" -> "Duvar kâğıtları"; else -> "الخلفيات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             WallpaperChoice(
@@ -435,7 +435,7 @@ internal fun RoyalHomeScreen(
                             )
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text("أشكال الأيقونات", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconStyleChoice(Modifier.weight(1f), "ناعم", "rounded", selectedIconStyle, icon = Icons.Rounded.Palette) {
@@ -471,7 +471,7 @@ internal fun RoyalHomeScreen(
                             Icon(painter = painterResource(R.drawable.royal_smart_tv), contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(26.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("واجهة التلفاز الافتراضية", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text(when (selectedLanguage) { "en" -> "Default TV launcher"; "tr" -> "Varsayılan TV başlatıcısı"; else -> "واجهة التلفاز الافتراضية" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                 Text(
                                     if (isDefaultHome) "ROYAL+ هو اللانشر الافتراضي لهذا الجهاز" else "فعّل ROYAL+ ليظهر عند الضغط على زر الرئيسية",
                                     color = RoyalColors.Pearl,
@@ -504,7 +504,7 @@ internal fun RoyalHomeScreen(
                             Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("تنسيق الساعة", color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(when (selectedLanguage) { "en" -> "Clock format"; "tr" -> "Saat biçimi"; else -> "تنسيق الساعة" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 Text(if (use24HourClock) "24 ساعة" else "12 ساعة", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
                             Text(if (use24HourClock) "24H" else "12H", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -528,13 +528,13 @@ internal fun RoyalHomeScreen(
                             Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("عرض التاريخ", color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(when (selectedLanguage) { "en" -> "Show date"; "tr" -> "Tarihi göster"; else -> "عرض التاريخ" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 Text(if (showDateOnHome) "ظاهر" else "مخفي", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
                             Text(if (showDateOnHome) "ON" else "OFF", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(if (selectedLanguage == "en") "Interface language" else "لغة الواجهة", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Interface language"; "tr" -> "Arayüz dili"; else -> "لغة الواجهة" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             IconStyleChoice(Modifier.weight(1f), "العربية", "rounded", if (selectedLanguage == "ar") "rounded" else "", icon = Icons.Rounded.Language) {
@@ -545,9 +545,13 @@ internal fun RoyalHomeScreen(
                                 selectedLanguage = "en"
                                 wallpaperPreferences.edit().putString("launcher_language", "en").apply()
                             }
+                            IconStyleChoice(Modifier.weight(1f), "Türkçe", "rounded", if (selectedLanguage == "tr") "rounded" else "", icon = Icons.Rounded.Language) {
+                                selectedLanguage = "tr"
+                                wallpaperPreferences.edit().putString("launcher_language", "tr").apply()
+                            }
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(if (selectedLanguage == "en") "Font family" else "نوع الخط", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Font family"; "tr" -> "Yazı tipi"; else -> "نوع الخط" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconStyleChoice(Modifier.weight(1f), "Cairo", "rounded", if (selectedFont == "cairo") "rounded" else "", icon = Icons.Rounded.TextFields) {
@@ -575,33 +579,33 @@ internal fun RoyalHomeScreen(
                             }
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(if (selectedLanguage == "en") "Network & device settings" else "الشبكة وإعدادات الجهاز", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Network & device settings"; "tr" -> "Ağ ve cihaz ayarları"; else -> "الشبكة وإعدادات الجهاز" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "", iconRes = R.drawable.royal_wifi) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات Wi-Fi", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Bluetooth" else "بلوتوث", "rounded", "", icon = Icons.Rounded.Bluetooth) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Bluetooth"; "tr" -> "Bluetooth"; else -> "بلوتوث" }, "rounded", "", icon = Icons.Rounded.Bluetooth) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات البلوتوث", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Network" else "الشبكة", "rounded", "", iconRes = R.drawable.royal_cloud_sync) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Network"; "tr" -> "Ağ"; else -> "الشبكة" }, "rounded", "", iconRes = R.drawable.royal_cloud_sync) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Location" else "الموقع", "rounded", "", icon = Icons.Rounded.LocationOn) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Location"; "tr" -> "Konum"; else -> "الموقع" }, "rounded", "", icon = Icons.Rounded.LocationOn) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الموقع", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "App info" else "معلومات التطبيق", "rounded", "", iconRes = R.drawable.royal_security) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "App info"; "tr" -> "Uygulama bilgisi"; else -> "معلومات التطبيق" }, "rounded", "", iconRes = R.drawable.royal_security) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح معلومات التطبيق", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "All settings" else "كل الإعدادات", "rounded", "", iconRes = R.drawable.royal_dashboard) {
+                            IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "All settings"; "tr" -> "Tüm ayarlar"; else -> "كل الإعدادات" }, "rounded", "", iconRes = R.drawable.royal_dashboard) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
@@ -617,7 +621,7 @@ internal fun RoyalHomeScreen(
                                 .padding(horizontal = 24.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("تم", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(when (selectedLanguage) { "en" -> "Done"; "tr" -> "Tamam"; else -> "تم" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -766,7 +770,7 @@ private fun RoyalBrandHeader(
                 Icon(Icons.Rounded.Search, null, tint = RoyalColors.Gold, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (searchQuery.isBlank()) Text("ابحث عن تطبيق", color = RoyalColors.Muted, fontSize = 12.sp)
+                    if (searchQuery.isBlank()) Text(when (selectedLanguage) { "en" -> "Search apps"; "tr" -> "Uygulama ara"; else -> "ابحث عن تطبيق" }, color = RoyalColors.Muted, fontSize = 12.sp)
                     BasicTextField(searchQuery, onQueryChanged, singleLine = true, cursorBrush = SolidColor(RoyalColors.Gold),
                         textStyle = TextStyle(color = RoyalColors.Pearl, fontSize = 12.sp), modifier = Modifier.fillMaxWidth())
                 }
@@ -779,7 +783,7 @@ private fun RoyalBrandHeader(
         if (showDate) {
             Column(modifier = Modifier.widthIn(max = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(dateText, color = RoyalColors.Pearl, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("التاريخ المحلي", color = RoyalColors.Muted, fontSize = 8.sp, maxLines = 1)
+                Text(when (selectedLanguage) { "en" -> "Local date"; "tr" -> "Yerel tarih"; else -> "التاريخ المحلي" }, color = RoyalColors.Muted, fontSize = 8.sp, maxLines = 1)
             }
             Spacer(Modifier.width(9.dp))
         }
@@ -967,7 +971,7 @@ private fun HomeDashboard(
             )
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("التطبيقات المثبتة", color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(when (selectedLanguage) { "en" -> "Installed apps"; "tr" -> "Yüklü uygulamalar"; else -> "التطبيقات المثبتة" }, color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(21.dp))
             }
             Spacer(Modifier.height(10.dp))
