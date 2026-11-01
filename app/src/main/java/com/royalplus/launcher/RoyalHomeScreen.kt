@@ -455,7 +455,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Rounded.Home, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(26.dp))
+                            Icon(painter = painterResource(R.drawable.royal_smart_tv), contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(26.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("واجهة التلفاز الافتراضية", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -565,7 +565,7 @@ internal fun RoyalHomeScreen(
                         Text(if (selectedLanguage == "en") "Network & device settings" else "الشبكة وإعدادات الجهاز", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "", icon = Icons.Rounded.Wifi) {
+                            IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "", iconRes = R.drawable.royal_wifi) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات Wi-Fi", android.widget.Toast.LENGTH_SHORT).show() }
                             }
@@ -573,7 +573,7 @@ internal fun RoyalHomeScreen(
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات البلوتوث", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Network" else "الشبكة", "rounded", "", icon = Icons.Rounded.Settings) {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "Network" else "الشبكة", "rounded", "", iconRes = R.drawable.royal_cloud_sync) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
@@ -584,11 +584,11 @@ internal fun RoyalHomeScreen(
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الموقع", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "App info" else "معلومات التطبيق", "rounded", "", icon = Icons.Rounded.Info) {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "App info" else "معلومات التطبيق", "rounded", "", iconRes = R.drawable.royal_security) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح معلومات التطبيق", android.widget.Toast.LENGTH_SHORT).show() }
                             }
-                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "All settings" else "كل الإعدادات", "rounded", "", icon = Icons.Rounded.Tune) {
+                            IconStyleChoice(Modifier.weight(1f), if (selectedLanguage == "en") "All settings" else "كل الإعدادات", "rounded", "", iconRes = R.drawable.royal_dashboard) {
                                 try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)) }
                                 catch (_: Exception) { android.widget.Toast.makeText(context, "تعذر فتح إعدادات الجهاز", android.widget.Toast.LENGTH_SHORT).show() }
                             }
@@ -635,6 +635,7 @@ private fun IconStyleChoice(
     style: String,
     selectedStyle: String,
     icon: ImageVector = Icons.Rounded.Apps,
+    iconRes: Int? = null,
     onClick: () -> Unit
 ) {
     val selected = style == selectedStyle
@@ -666,12 +667,21 @@ private fun IconStyleChoice(
                 .border(1.5.dp, accent, shape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = accent,
-                modifier = Modifier.size(25.dp)
-            )
+            if (iconRes == null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(25.dp)
+                )
+            } else {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(25.dp)
+                )
+            }
         }
         Spacer(Modifier.height(5.dp))
         Text(title, color = if (selected) accent else RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1)
