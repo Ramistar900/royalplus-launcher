@@ -661,8 +661,8 @@ private fun IconStyleChoice(
     style: String,
     selectedStyle: String,
     icon: ImageVector = Icons.Rounded.Apps,
-    iconRes: Int? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    iconRes: Int? = null
 ) {
     val selected = style == selectedStyle
     val shape = when (style) {
@@ -1290,11 +1290,11 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(5.dp))
         SidebarNavItem("الرئيسية", Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem("التطبيقات", Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem("التطبيقات", Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("مسلم", Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem("القنوات", Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem("القنوات", Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
         SidebarNavItem("أفلام ومسلسلات", Icons.Rounded.ArrowForward, false) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(8.dp))
