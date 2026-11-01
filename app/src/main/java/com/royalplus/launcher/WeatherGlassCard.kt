@@ -145,7 +145,7 @@ internal fun WeatherGlassCard(
                 text = when {
                     weather.isLoading -> when (language) { "en" -> "Updating weather"; "tr" -> "Hava durumu güncelleniyor"; else -> "جارٍ تحديث الطقس" }
                     weather.needsPermission -> when (language) { "en" -> "Location required for weather"; "tr" -> "Hava durumu için konum gerekli"; else -> "الموقع مطلوب لعرض الطقس" }
-                    else -> weather.description
+                    else -> localizedDescription
                 },
                 color = Color.White.copy(alpha = 0.96f),
                 fontSize = 10.sp,
