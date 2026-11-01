@@ -224,7 +224,7 @@ internal fun RoyalHomeScreen(
         }
     }
 
-    LaunchedEffect(currentTime, prayerTimesForHome, weather.timeZoneId, weather.city) {
+    LaunchedEffect(currentTime, prayerTimesForHome, weather.timeZoneId, weather.city, selectedLanguage) {
         val prayerData = prayerTimesForHome
         if (prayerData != null) {
             val zone = TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
@@ -237,7 +237,22 @@ internal fun RoyalHomeScreen(
                 val alertKey = dateKey + ":" + prayer.key + ":" + weather.city
                 if (lastPrayerAlertKey != alertKey) {
                     lastPrayerAlertKey = alertKey
-                    prayerTimeBanner = "حان وقت صلاة " + (PrayerTimesRepository.displayNames()[prayer.key] ?: prayer.key) + " حسب التوقيت المحلي لمدينة " + weather.city
+                    val prayerName = when (selectedLanguage) {
+                        "en" -> when (prayer.key) {
+                            "Fajr" -> "Fajr"; "Dhuhr" -> "Dhuhr"; "Asr" -> "Asr"
+                            "Maghrib" -> "Maghrib"; "Isha" -> "Isha"; else -> prayer.key
+                        }
+                        "tr" -> when (prayer.key) {
+                            "Fajr" -> "Sabah"; "Dhuhr" -> "Öğle"; "Asr" -> "İkindi"
+                            "Maghrib" -> "Akşam"; "Isha" -> "Yatsı"; else -> prayer.key
+                        }
+                        else -> PrayerTimesRepository.displayNames()[prayer.key] ?: prayer.key
+                    }
+                    prayerTimeBanner = when (selectedLanguage) {
+                        "en" -> "It's time for $prayerName prayer in ${weather.city}"
+                        "tr" -> "${weather.city} için $prayerName namazı vakti"
+                        else -> "حان وقت صلاة $prayerName حسب التوقيت المحلي لمدينة ${weather.city}"
+                    }
                     prayerBannerUntil = currentTime + 3 * 60 * 1_000L
                 }
             }
