@@ -9,6 +9,8 @@ import android.widget.Toast
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,6 +24,19 @@ class MainActivity : ComponentActivity() {
     private var weatherState by mutableStateOf(WeatherUiState())
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
     private var isDefaultHome by mutableStateOf(false)
+    private var voiceSearchAvailable by mutableStateOf(false)
+    private var voiceSearchResult by mutableStateOf("")
+
+    private val voiceSearchLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                voiceSearchResult = matches?.firstOrNull().orEmpty()
+                if (voiceSearchResult.isBlank()) {
+                    Toast.makeText(this, "لم يتم التعرف على الكلام؛ يمكنك استخدام البحث الكتابي", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
 
     private val apkPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -44,6 +59,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        voiceSearchAvailable = SpeechRecognizer.isRecognitionAvailable(this)
         window.statusBarColor = android.graphics.Color.rgb(8, 10, 18)
         window.navigationBarColor = android.graphics.Color.rgb(8, 10, 18)
         window.decorView.systemUiVisibility =
@@ -78,7 +94,10 @@ class MainActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     onChooseDefaultHome = { openDefaultHomeSettings() },
                     onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) },
-                    onManageApp = { app -> openAppDetails(app) }
+                    onManageApp = { app -> openAppDetails(app) },
+                    onVoiceSearch = { startVoiceSearch() },
+                    voiceSearchAvailable = voiceSearchAvailable,
+                    voiceSearchResult = voiceSearchResult
                 )
             }
         }
@@ -97,6 +116,26 @@ class MainActivity : ComponentActivity() {
             packageManager = packageManager,
             ownPackageName = packageName
         )
+    }
+
+    private fun startVoiceSearch() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            voiceSearchAvailable = false
+            Toast.makeText(this, "البحث الصوتي غير مدعوم على هذا الجهاز؛ استخدم البحث الكتابي", Toast.LENGTH_LONG).show()
+            return
+        }
+        voiceSearchResult = ""
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "قل اسم التطبيق الذي تريد البحث عنه")
+        }
+        try {
+            voiceSearchLauncher.launch(intent)
+        } catch (_: Exception) {
+            voiceSearchAvailable = false
+            Toast.makeText(this, "تعذر تشغيل خدمة الصوت؛ يمكنك استخدام البحث الكتابي", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun openAppDetails(app: LauncherApp) {
