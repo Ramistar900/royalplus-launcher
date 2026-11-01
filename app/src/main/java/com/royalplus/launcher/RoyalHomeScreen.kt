@@ -455,6 +455,8 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            Icon(Icons.Rounded.Home, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(26.dp))
+                            Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("واجهة التلفاز الافتراضية", color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                 Text(
@@ -486,7 +488,9 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
+                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text("تنسيق الساعة", color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 Text(if (use24HourClock) "24 ساعة" else "12 ساعة", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
@@ -508,7 +512,9 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
+                            Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text("عرض التاريخ", color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                                 Text(if (showDateOnHome) "ظاهر" else "مخفي", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
