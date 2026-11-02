@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
                     onChooseDefaultHome = { openDefaultHomeSettings() },
                     onInstallApk = { apkPicker.launch(arrayOf("application/vnd.android.package-archive")) },
                     onManageApp = { app -> openAppDetails(app) },
+                    onUninstallApp = { app -> requestAppUninstall(app) },
                     onVoiceSearch = { startVoiceSearch() },
                     voiceSearchAvailable = voiceSearchAvailable,
                     voiceSearchResult = voiceSearchResult
