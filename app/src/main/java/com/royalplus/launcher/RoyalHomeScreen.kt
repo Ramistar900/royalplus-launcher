@@ -1140,7 +1140,7 @@ private fun HomeDashboard(
                 rowItems(favorites, key = { it.packageName }) { app ->
                     val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
                     AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
-                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { onManageApp(app) })
+                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { appForManagement = app })
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -1305,7 +1305,7 @@ private fun AppGrid(
                     iconStyle = iconStyle,
                     onFocused = onAppFocused,
                     onLaunch = { onLaunchApp(app) },
-                    onManage = { onManageApp(app) }
+                    onManage = { appForManagement = app }
                 )
             }
         }
