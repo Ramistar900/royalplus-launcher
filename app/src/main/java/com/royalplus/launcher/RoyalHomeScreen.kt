@@ -70,6 +70,8 @@ import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -133,6 +135,7 @@ internal fun RoyalHomeScreen(
     onChooseDefaultHome: () -> Unit,
     onInstallApk: () -> Unit,
     onManageApp: (LauncherApp) -> Unit,
+    onUninstallApp: (LauncherApp) -> Unit,
     onVoiceSearch: () -> Unit,
     voiceSearchAvailable: Boolean,
     voiceSearchResult: String
@@ -143,6 +146,7 @@ internal fun RoyalHomeScreen(
     var prayerBannerUntil by remember { mutableLongStateOf(0L) }
     var lastPrayerAlertKey by remember { mutableStateOf<String?>(null) }
     var selectedDestination by remember { mutableStateOf(LauncherDestination.HOME) }
+    var appForManagement by remember { mutableStateOf<LauncherApp?>(null) }
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -327,6 +331,42 @@ internal fun RoyalHomeScreen(
                 }
         ) {
             RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
+            appForManagement?.let { app ->
+                val title = when (selectedLanguage) {
+                    "en" -> "Manage ${app.label}"
+                    "tr" -> "${app.label} uygulamasını yönet"
+                    else -> "إدارة ${app.label}"
+                }
+                val infoLabel = when (selectedLanguage) { "en" -> "App info"; "tr" -> "Uygulama bilgileri"; else -> "معلومات التطبيق" }
+                val uninstallLabel = when (selectedLanguage) { "en" -> "Uninstall"; "tr" -> "Kaldır"; else -> "إلغاء التثبيت" }
+                val cancelLabel = when (selectedLanguage) { "en" -> "Cancel"; "tr" -> "İptal"; else -> "إلغاء" }
+                AlertDialog(
+                    onDismissRequest = { appForManagement = null },
+                    title = { Text(title, color = RoyalColors.Pearl) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(infoLabel, color = RoyalColors.Gold, modifier = Modifier
+                                .fillMaxWidth().clickable {
+                                    appForManagement = null
+                                    onManageApp(app)
+                                }.padding(vertical = 10.dp))
+                            Text(uninstallLabel, color = Color(0xFFFF8A80), modifier = Modifier
+                                .fillMaxWidth().clickable {
+                                    appForManagement = null
+                                    onUninstallApp(app)
+                                }.padding(vertical = 10.dp))
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { appForManagement = null }) {
+                            Text(cancelLabel, color = RoyalColors.Gold)
+                        }
+                    },
+                    containerColor = Color(0xFF11151D),
+                    titleContentColor = RoyalColors.Pearl,
+                    textContentColor = RoyalColors.Pearl
+                )
+            }
             val sidebarWidth = if (maxWidth >= 900.dp) 188.dp else (maxWidth * 0.205f).coerceIn(148.dp, 188.dp)
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
                 Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -1038,7 +1078,7 @@ private fun ShortcutManagerScreen(
                         iconStyle = iconStyle,
                         onFocused = {},
                         onLaunch = { onToggleShortcut(app) },
-                        onManage = { onManageApp(app) }
+                        onManage = { appForManagement = app }
                     )
                 }
             }
