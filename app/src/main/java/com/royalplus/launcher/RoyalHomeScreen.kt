@@ -147,6 +147,8 @@ internal fun RoyalHomeScreen(
     var prayerTimeBanner by remember { mutableStateOf<String?>(null) }
     var prayerBannerUntil by remember { mutableLongStateOf(0L) }
     var lastPrayerAlertKey by remember { mutableStateOf<String?>(null) }
+    var activeAdhanPrayer by remember { mutableStateOf<String?>(null) }
+    var activeAdhanCity by remember { mutableStateOf("") }
     var selectedDestination by remember { mutableStateOf(LauncherDestination.HOME) }
     var appForManagement by remember { mutableStateOf<LauncherApp?>(null) }
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
@@ -260,6 +262,8 @@ internal fun RoyalHomeScreen(
                         else -> "حان وقت صلاة $prayerName حسب التوقيت المحلي لمدينة ${weather.city}"
                     }
                     prayerBannerUntil = currentTime + 3 * 60 * 1_000L
+                    activeAdhanPrayer = prayerName
+                    activeAdhanCity = weather.city
                 }
             }
         }
@@ -761,6 +765,17 @@ internal fun RoyalHomeScreen(
                         }
                     }
                 }
+            }
+            activeAdhanPrayer?.let { prayerName ->
+                AdhanOverlay(
+                    prayerName = prayerName,
+                    cityName = activeAdhanCity,
+                    language = selectedLanguage,
+                    onDismiss = {
+                        activeAdhanPrayer = null
+                        prayerTimeBanner = null
+                    }
+                )
             }
         }
     }
