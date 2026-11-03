@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Circle
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Mic
@@ -121,7 +122,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, GALLERY, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -454,6 +455,7 @@ internal fun RoyalHomeScreen(
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
+                                    LauncherDestination.SONGS -> RoyalSongsScreen()
                                     LauncherDestination.FAVORITES -> AppCatalog(
                                         title = when (selectedLanguage) { "en" -> "Favorite apps"; "tr" -> "Favori uygulamalar"; else -> "التطبيقات المفضلة" }, apps = filteredFavorites, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
@@ -1419,9 +1421,9 @@ private fun RoyalSidePanel(
     onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
 ) {
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "Muslim", "Channels", "Gallery", "Music", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Müslüman", "Kanallar", "Galeri", "Müzik", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "مسلم", "القنوات", "المعرض", "موسيقى", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "Muslim", "Channels", "Gallery", "Songs", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Müslüman", "Kanallar", "Galeri", "Şarkılar", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "مسلم", "القنوات", "المعرض", "الأغاني", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
@@ -1442,7 +1444,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[5], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[6], Icons.Rounded.MoreHoriz, false) { onNavigate(LauncherDestination.APPS) }
+        SidebarNavItem(labels[6], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[7], Icons.Rounded.Settings, false, onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
