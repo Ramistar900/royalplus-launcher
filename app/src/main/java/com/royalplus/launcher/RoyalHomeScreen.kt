@@ -1078,7 +1078,7 @@ private fun ShortcutManagerScreen(
                         iconStyle = iconStyle,
                         onFocused = {},
                         onLaunch = { onToggleShortcut(app) },
-                        onManage = { appForManagement = app }
+                        onManage = { onManageApp(app) }
                     )
                 }
             }
@@ -1140,7 +1140,7 @@ private fun HomeDashboard(
                 rowItems(favorites, key = { it.packageName }) { app ->
                     val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
                     AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
-                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { appForManagement = app })
+                        highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { onManageApp(app) })
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -1305,7 +1305,7 @@ private fun AppGrid(
                     iconStyle = iconStyle,
                     onFocused = onAppFocused,
                     onLaunch = { onLaunchApp(app) },
-                    onManage = { appForManagement = app }
+                    onManage = { onManageApp(app) }
                 )
             }
         }
