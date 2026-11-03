@@ -2,6 +2,7 @@ package com.royalplus.launcher
 
 import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -29,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,6 +47,7 @@ internal fun AdhanOverlay(
     prayerName: String,
     cityName: String,
     language: String,
+    isDaytime: Boolean,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -80,14 +84,27 @@ internal fun AdhanOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF050811), Color(0xFF101A2A), Color(0xFF05070D))
-                )
-            )
-            .padding(28.dp),
-        contentAlignment = Alignment.Center
+            .background(Color(0xFF050811))
     ) {
+        Image(
+            painter = painterResource(
+                id = if (isDaytime) R.drawable.royal_adhan_day else R.drawable.royal_adhan_night
+            ),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x77050811))
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
         Box(
             Modifier
                 .align(Alignment.TopEnd)
@@ -165,6 +182,7 @@ internal fun AdhanOverlay(
                 onFocusChanged = { focused = it },
                 onClick = onDismiss
             )
+        }
         }
     }
 }
