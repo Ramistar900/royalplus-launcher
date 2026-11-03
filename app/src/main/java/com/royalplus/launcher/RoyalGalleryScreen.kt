@@ -158,6 +158,10 @@ private fun RoyalMediaTile(item: RoyalMediaItem, onClick: () -> Unit) {
         Box(Modifier.fillMaxWidth().aspectRatio(1.35f).clip(RoundedCornerShape(10.dp)).background(Color(0xFF242A34)), contentAlignment = Alignment.Center) {
             if (bitmap != null) Image(bitmap!!.asImageBitmap(), contentDescription = item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             else Icon(if (item.video) Icons.Rounded.Movie else Icons.Rounded.Image, contentDescription = null, tint = RoyalColors.Gold)
+            if (item.video) {
+                Icon(Icons.Rounded.Movie, contentDescription = "فيديو", tint = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp))
+            }
         }
         Text(item.name.ifBlank { if (item.video) "فيديو" else "صورة" }, color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 7.dp))
