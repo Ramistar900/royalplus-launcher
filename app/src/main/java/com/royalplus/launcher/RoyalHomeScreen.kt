@@ -60,6 +60,7 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Circle
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Mic
@@ -171,6 +172,7 @@ internal fun RoyalHomeScreen(
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
+    var isAdhanEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("adhan_enabled", true)) }
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
     val selectedFontFamily = remember(selectedFont) {
@@ -245,25 +247,27 @@ internal fun RoyalHomeScreen(
                 val alertKey = dateKey + ":" + prayer.key + ":" + weather.city
                 if (lastPrayerAlertKey != alertKey) {
                     lastPrayerAlertKey = alertKey
-                    val prayerName = when (selectedLanguage) {
-                        "en" -> when (prayer.key) {
-                            "Fajr" -> "Fajr"; "Dhuhr" -> "Dhuhr"; "Asr" -> "Asr"
-                            "Maghrib" -> "Maghrib"; "Isha" -> "Isha"; else -> prayer.key
+                    if (isAdhanEnabled) {
+                        val prayerName = when (selectedLanguage) {
+                            "en" -> when (prayer.key) {
+                                "Fajr" -> "Fajr"; "Dhuhr" -> "Dhuhr"; "Asr" -> "Asr"
+                                "Maghrib" -> "Maghrib"; "Isha" -> "Isha"; else -> prayer.key
+                            }
+                            "tr" -> when (prayer.key) {
+                                "Fajr" -> "Sabah"; "Dhuhr" -> "Öğle"; "Asr" -> "İkindi"
+                                "Maghrib" -> "Akşam"; "Isha" -> "Yatsı"; else -> prayer.key
+                            }
+                            else -> PrayerTimesRepository.displayNames()[prayer.key] ?: prayer.key
                         }
-                        "tr" -> when (prayer.key) {
-                            "Fajr" -> "Sabah"; "Dhuhr" -> "Öğle"; "Asr" -> "İkindi"
-                            "Maghrib" -> "Akşam"; "Isha" -> "Yatsı"; else -> prayer.key
+                        prayerTimeBanner = when (selectedLanguage) {
+                            "en" -> "It's time for $prayerName prayer in ${weather.city}"
+                            "tr" -> "${weather.city} için $prayerName namazı vakti"
+                            else -> "حان وقت صلاة $prayerName حسب التوقيت المحلي لمدينة ${weather.city}"
                         }
-                        else -> PrayerTimesRepository.displayNames()[prayer.key] ?: prayer.key
+                        prayerBannerUntil = currentTime + 3 * 60 * 1_000L
+                        activeAdhanPrayer = prayerName
+                        activeAdhanCity = weather.city
                     }
-                    prayerTimeBanner = when (selectedLanguage) {
-                        "en" -> "It's time for $prayerName prayer in ${weather.city}"
-                        "tr" -> "${weather.city} için $prayerName namazı vakti"
-                        else -> "حان وقت صلاة $prayerName حسب التوقيت المحلي لمدينة ${weather.city}"
-                    }
-                    prayerBannerUntil = currentTime + 3 * 60 * 1_000L
-                    activeAdhanPrayer = prayerName
-                    activeAdhanCity = weather.city
                 }
             }
         }
@@ -524,6 +528,46 @@ internal fun RoyalHomeScreen(
                         Text(when (selectedLanguage) { "en" -> "Customize interface"; "tr" -> "Arayüzü özelleştir"; else -> "تخصيص الواجهة" }, color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
                         Text(when (selectedLanguage) { "en" -> "Choose wallpaper and app icon style"; "tr" -> "Duvar kâğıdını ve uygulama simgelerini seçin"; else -> "اختر الخلفية وشكل أيقونات التطبيقات" }, color = RoyalColors.Pearl, fontSize = 14.sp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    isAdhanEnabled = !isAdhanEnabled
+                                    wallpaperPreferences.edit().putBoolean("adhan_enabled", isAdhanEnabled).apply()
+                                    if (!isAdhanEnabled) {
+                                        activeAdhanPrayer = null
+                                        prayerTimeBanner = null
+                                        prayerBannerUntil = 0L
+                                    }
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Adhan notifications"; "tr" -> "Ezan bildirimi"; else -> "ميزة الأذان" },
+                                    color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (isAdhanEnabled) when (selectedLanguage) { "en" -> "Adhan is enabled"; "tr" -> "Ezan etkin"; else -> "الأذان مفعّل" }
+                                    else when (selectedLanguage) { "en" -> "Adhan is disabled"; "tr" -> "Ezan devre dışı"; else -> "الأذان متوقف" },
+                                    color = RoyalColors.Gold, fontSize = 12.sp
+                                )
+                            }
+                            Text(
+                                if (isAdhanEnabled) "ON" else "OFF",
+                                color = if (isAdhanEnabled) RoyalColors.Gold else RoyalColors.Muted,
+                                fontSize = 16.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(14.dp))
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
