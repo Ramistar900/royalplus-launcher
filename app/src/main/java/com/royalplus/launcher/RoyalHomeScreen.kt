@@ -426,7 +426,7 @@ internal fun RoyalHomeScreen(
                                         favorites = favorites, shortcuts = apps.filter { it.packageName in selectedShortcutPackages },
                                         otherApps = otherApps, columns = columns, favoriteTileWidth = favoriteTileWidth,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle,
+                                        onLaunchApp = onLaunchApp, onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle,
                                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
                                         onRequestLocation = onRequestLocation,
                                         onNavigate = { selectedDestination = it },
@@ -442,20 +442,20 @@ internal fun RoyalHomeScreen(
                                         title = if (searchQuery.isBlank()) when (selectedLanguage) { "en" -> "All apps"; "tr" -> "Tüm uygulamalar"; else -> "جميع التطبيقات" } else when (selectedLanguage) { "en" -> "Search results"; "tr" -> "Arama sonuçları"; else -> "نتائج البحث" },
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
-                                        onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                        onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                     LauncherDestination.MANAGE_APPS -> AppCatalog(
                                         title = when (selectedLanguage) { "en" -> "Manage apps"; "tr" -> "Uygulamaları yönet"; else -> "إدارة التطبيقات" },
                                         apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
-                                        onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true,
+                                        onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle, initialHighlight = true,
                                         headingIcon = Icons.Rounded.Apps
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.FAVORITES -> AppCatalog(
                                         title = when (selectedLanguage) { "en" -> "Favorite apps"; "tr" -> "Favori uygulamalar"; else -> "التطبيقات المفضلة" }, apps = filteredFavorites, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                        onLaunchApp = onLaunchApp, onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                     LauncherDestination.SHORTCUTS -> ShortcutManagerScreen(
                                         apps = filteredApps, selectedPackages = selectedShortcutPackages, columns = columns,
@@ -465,12 +465,12 @@ internal fun RoyalHomeScreen(
                                             selectedShortcutPackages = updated
                                             wallpaperPreferences.edit().putStringSet("launcher_shortcut_packages", updated).apply()
                                         },
-                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp
+                                        onLaunchApp = onLaunchApp, onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MORE -> AppCatalog(
                                         title = when (selectedLanguage) { "en" -> "More apps"; "tr" -> "Daha fazla uygulama"; else -> "المزيد من التطبيقات" }, apps = otherApps, columns = columns,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
-                                        onLaunchApp = onLaunchApp, onManageApp = onManageApp, iconStyle = selectedIconStyle, initialHighlight = true
+                                        onLaunchApp = onLaunchApp, onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
                                 }
                             }
@@ -1262,7 +1262,7 @@ private fun AppCatalog(
             focusedAppPackage = focusedAppPackage,
             onAppFocused = onAppFocused,
             onLaunchApp = onLaunchApp,
-            onManageApp = onManageApp,
+            onManageApp = { appForManagement = it },
             iconStyle = iconStyle,
             initialHighlight = initialHighlight
         )
