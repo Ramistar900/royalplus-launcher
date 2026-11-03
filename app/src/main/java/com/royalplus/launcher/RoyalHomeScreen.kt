@@ -771,6 +771,11 @@ internal fun RoyalHomeScreen(
                     prayerName = prayerName,
                     cityName = activeAdhanCity,
                     language = selectedLanguage,
+                    isDaytime = java.util.Calendar.getInstance(
+                        TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
+                    ).apply {
+                        timeInMillis = currentTime
+                    }.get(java.util.Calendar.HOUR_OF_DAY) in 6..17,
                     onDismiss = {
                         activeAdhanPrayer = null
                         prayerTimeBanner = null
