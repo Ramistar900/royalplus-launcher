@@ -552,7 +552,7 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    when (selectedLanguage) { "en" -> "Adhan notifications"; "tr" -> "Ezan bildirimi"; else -> "ميزة الأذان" },
+                                    when (selectedLanguage) { "en" -> "Adhan feature"; "tr" -> "Ezan özelliği"; else -> "ميزة الأذان" },
                                     color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
@@ -567,7 +567,6 @@ internal fun RoyalHomeScreen(
                                 fontSize = 16.sp, fontWeight = FontWeight.Bold
                             )
                         }
-                        Spacer(Modifier.height(14.dp))
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
