@@ -53,9 +53,18 @@ internal fun RoyalGalleryScreen() {
         granted = hasRoyalMediaPermission(context)
     }
     fun requestAccess() {
-        val requested = if (Build.VERSION.SDK_INT >= 33) arrayOf(
-            android.Manifest.permission.READ_MEDIA_IMAGES, android.Manifest.permission.READ_MEDIA_VIDEO
-        ) else arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        val requested = when {
+            Build.VERSION.SDK_INT >= 34 -> arrayOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO,
+                android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+            )
+            Build.VERSION.SDK_INT >= 33 -> arrayOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO
+            )
+            else -> arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
         permissionRequest.launch(requested)
     }
     LaunchedEffect(granted) {
@@ -94,9 +103,17 @@ internal fun RoyalGalleryScreen() {
 }
 
 private fun hasRoyalMediaPermission(context: android.content.Context): Boolean {
-    val permissions = if (Build.VERSION.SDK_INT >= 33) listOf(
-        android.Manifest.permission.READ_MEDIA_IMAGES, android.Manifest.permission.READ_MEDIA_VIDEO
-    ) else listOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+    val permissions = when {
+        Build.VERSION.SDK_INT >= 34 -> listOf(
+            android.Manifest.permission.READ_MEDIA_IMAGES,
+            android.Manifest.permission.READ_MEDIA_VIDEO,
+            android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+        )
+        Build.VERSION.SDK_INT >= 33 -> listOf(
+            android.Manifest.permission.READ_MEDIA_IMAGES, android.Manifest.permission.READ_MEDIA_VIDEO
+        )
+        else -> listOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
     return permissions.any { context.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
 }
 
