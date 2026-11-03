@@ -591,6 +591,9 @@ private fun DuasSection(language: String) {
             DuaItem("دعاء جامع", "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى.", "صحيح مسلم • 2721")
         )
     )
+    var expandedCategories by remember {
+        mutableStateOf(setOf("أذكار الصباح والمساء"))
+    }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             when (language) { "en" -> "Duas & daily adhkar"; "tr" -> "Dualar ve günlük zikirler"; else -> "الأدعية والأذكار" },
@@ -601,26 +604,76 @@ private fun DuasSection(language: String) {
             color = RoyalColors.Muted, fontSize = 10.sp
         )
         categories.forEach { (category, items) ->
+            val isExpanded = category in expandedCategories
+            var categoryFocused by remember(category) { mutableStateOf(false) }
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
                     .background(Color(0xFFFFE7A8).copy(alpha = 0.68f))
                     .border(1.dp, Color(0xFFB68A2C), RoundedCornerShape(13.dp))
-                    .padding(9.dp),
+                    .padding(7.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(category, color = Color(0xFF5A3B0B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                items.forEach { dua ->
-                    Column(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
-                            .background(Color(0xFFFFFAEC))
-                            .border(1.dp, Color(0xFFD8BD7B), RoundedCornerShape(9.dp))
-                            .focusable()
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(dua.title, color = Color(0xFF805A16), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Text(dua.text, color = Color(0xFF171717), fontSize = 15.sp, lineHeight = 25.sp, textAlign = TextAlign.Right)
-                        Text(dua.source, color = Color(0xFF6A6252), fontSize = 9.sp)
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                        .background(if (categoryFocused) Color(0xFFFFD66E) else Color.Transparent)
+                        .border(
+                            if (categoryFocused) 2.dp else 1.dp,
+                            if (categoryFocused) Color(0xFF138F83) else Color(0xFFD4B66F),
+                            RoundedCornerShape(9.dp)
+                        )
+                        .clickable {
+                            expandedCategories = if (isExpanded) {
+                                expandedCategories - category
+                            } else {
+                                expandedCategories + category
+                            }
+                        }
+                        .onFocusChanged { categoryFocused = it.isFocused }
+                        .focusable()
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        category,
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFF5A3B0B),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        items.size.toString(),
+                        color = Color(0xFF6A5123),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.width(9.dp))
+                    Text(
+                        if (isExpanded) "−" else "+",
+                        color = if (categoryFocused) Color(0xFF075B53) else Color(0xFF805A16),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (isExpanded) {
+                    items.forEach { dua ->
+                        var duaFocused by remember(dua.title) { mutableStateOf(false) }
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(if (duaFocused) Color(0xFFFFF0C2) else Color(0xFFFFFAEC))
+                                .border(
+                                    if (duaFocused) 2.dp else 1.dp,
+                                    if (duaFocused) Color(0xFF138F83) else Color(0xFFD8BD7B),
+                                    RoundedCornerShape(9.dp)
+                                )
+                                .onFocusChanged { duaFocused = it.isFocused }
+                                .focusable()
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(dua.title, color = Color(0xFF805A16), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(dua.text, color = Color(0xFF171717), fontSize = 15.sp, lineHeight = 25.sp, textAlign = TextAlign.Right)
+                            Text(dua.source, color = Color(0xFF6A6252), fontSize = 9.sp)
+                        }
                     }
                 }
             }
@@ -652,30 +705,62 @@ private fun HadithsSection(language: String) {
         HadithItem("الكلمة الطيبة", "الْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ.", "أبو هريرة رضي الله عنه", "صحيح البخاري • 2989، وصحيح مسلم • 1009", "الكلام الحسن من أبواب الصدقة."),
         HadithItem("الوصية بضبط النفس", "لَا تَغْضَبْ.", "أبو هريرة رضي الله عنه", "صحيح البخاري • 6116", "ابتعد عن أسباب الغضب واضبط نفسك.")
     )
+    var showHadiths by remember { mutableStateOf(false) }
+    var headerFocused by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            when (language) { "en" -> "Authentic Prophetic hadiths"; "tr" -> "Sahih Peygamber hadisleri"; else -> "أحاديث نبوية صحيحة" },
-            color = Color.Black, fontSize = 18.sp, fontWeight = FontWeight.Bold
-        )
-        Text(
-            when (language) { "en" -> "Selected authentic narrations with narrator and source references"; "tr" -> "Ravi ve kaynak bilgileriyle seçilmiş sahih rivayetler"; else -> "أحاديث ثابتة مع اسم الراوي والمصدر وشرح موجز" },
-            color = RoyalColors.Muted, fontSize = 10.sp
-        )
-        hadiths.forEachIndexed { index, hadith ->
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF17231D))
-                    .border(1.dp, Color(0xFFB68A2C), RoundedCornerShape(12.dp))
-                    .focusable()
-                    .padding(horizontal = 11.dp, vertical = 9.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text((index + 1).toString() + ". " + hadith.title, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text(hadith.text, color = Color.White, fontSize = 16.sp, lineHeight = 27.sp, textAlign = TextAlign.Right)
-                Text("الراوي: " + hadith.narrator, color = Color(0xFFE7D6B1), fontSize = 10.sp)
-                Text(hadith.source, color = Color(0xFFB9D7C3), fontSize = 10.sp)
-                Text("الفائدة: " + hadith.lesson, color = Color.White.copy(alpha = 0.82f), fontSize = 10.sp)
-                Text("الدرجة: صحيح", color = Color(0xFF8ED6A5), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+                .background(if (headerFocused) Color(0xFFFFD66E) else Color(0xFFFFE7A8))
+                .border(
+                    if (headerFocused) 2.dp else 1.dp,
+                    if (headerFocused) Color(0xFF138F83) else Color(0xFFB68A2C),
+                    RoundedCornerShape(11.dp)
+                )
+                .clickable { showHadiths = !showHadiths }
+                .onFocusChanged { headerFocused = it.isFocused }
+                .focusable()
+                .padding(horizontal = 12.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    when (language) { "en" -> "Authentic Prophetic hadiths"; "tr" -> "Sahih Peygamber hadisleri"; else -> "أحاديث نبوية صحيحة" },
+                    color = Color(0xFF5A3B0B), fontSize = 16.sp, fontWeight = FontWeight.Bold
+                )
+                Text(
+                    when (language) { "en" -> "12 sourced narrations"; "tr" -> "Kaynaklı 12 rivayet"; else -> "12 حديثاً مع الراوي والمصدر" },
+                    color = Color(0xFF6A6252), fontSize = 10.sp
+                )
+            }
+            Text(if (showHadiths) "−" else "+", color = Color(0xFF805A16), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        if (showHadiths) {
+            Text(
+                when (language) { "en" -> "Selected authentic narrations with narrator and source references"; "tr" -> "Ravi ve kaynak bilgileriyle seçilmiş sahih rivayetler"; else -> "أحاديث ثابتة مع اسم الراوي والمصدر وشرح موجز" },
+                color = RoyalColors.Muted, fontSize = 10.sp
+            )
+            hadiths.forEachIndexed { index, hadith ->
+                var hadithFocused by remember(hadith.title) { mutableStateOf(false) }
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(if (hadithFocused) Color(0xFF244638) else Color(0xFF17231D))
+                        .border(
+                            if (hadithFocused) 2.dp else 1.dp,
+                            if (hadithFocused) Color(0xFF20C9B5) else Color(0xFFB68A2C),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .onFocusChanged { hadithFocused = it.isFocused }
+                        .focusable()
+                        .padding(horizontal = 11.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text((index + 1).toString() + ". " + hadith.title, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(hadith.text, color = Color.White, fontSize = 16.sp, lineHeight = 27.sp, textAlign = TextAlign.Right)
+                    Text("الراوي: " + hadith.narrator, color = Color(0xFFE7D6B1), fontSize = 10.sp)
+                    Text(hadith.source, color = Color(0xFFB9D7C3), fontSize = 10.sp)
+                    Text("الفائدة: " + hadith.lesson, color = Color.White.copy(alpha = 0.82f), fontSize = 10.sp)
+                    Text("الدرجة: صحيح", color = Color(0xFF8ED6A5), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
