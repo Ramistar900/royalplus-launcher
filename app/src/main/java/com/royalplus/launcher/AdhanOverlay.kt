@@ -1,0 +1,203 @@
+package com.royalplus.launcher
+
+import android.media.MediaPlayer
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+
+@Composable
+internal fun AdhanOverlay(
+    prayerName: String,
+    cityName: String,
+    language: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var audioError by remember(prayerName) { mutableStateOf(false) }
+
+    BackHandler(onBack = onDismiss)
+
+    DisposableEffect(prayerName) {
+        val player = try {
+            MediaPlayer.create(context, R.raw.royal_adhan)
+        } catch (_: Exception) {
+            null
+        }
+        if (player == null) {
+            audioError = true
+        } else {
+            try {
+                player.setOnCompletionListener { onDismiss() }
+                player.start()
+            } catch (_: Exception) {
+                audioError = true
+            }
+        }
+        onDispose {
+            try {
+                if (player?.isPlaying == true) player.stop()
+            } catch (_: Exception) {
+                // The player may already have completed or failed.
+            }
+            player?.release()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF050811), Color(0xFF101A2A), Color(0xFF05070D))
+                )
+            )
+            .padding(28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .size(190.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0x337FC7E8), Color(0x007FC7E8))
+                    )
+                )
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("☾", color = Color(0xFFE5C46B), fontSize = 72.sp, fontWeight = FontWeight.Light)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                when (language) {
+                    "en" -> "ROYAL+ • CALL TO PRAYER"
+                    "tr" -> "ROYAL+ • EZAN VAKTİ"
+                    else -> "ROYAL+ • نداء الصلاة"
+                },
+                color = Color(0xFFE5C46B),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(28.dp))
+            Text(
+                when (language) {
+                    "en" -> "It's time for $prayerName prayer"
+                    "tr" -> "$prayerName namazı vakti"
+                    else -> "حان الآن موعد أذان $prayerName"
+                },
+                color = Color(0xFFFFF4D6),
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                lineHeight = 46.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                cityName,
+                color = Color(0xFFE5C46B),
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(30.dp))
+            Text(
+                if (audioError) {
+                    when (language) {
+                        "en" -> "Audio could not be played. Check the royal_adhan.mp4 recording."
+                        "tr" -> "Ses çalınamadı. royal_adhan.mp4 kaydını kontrol edin."
+                        else -> "تعذّر تشغيل الصوت. تحقق من تسجيل royal_adhan.mp4"
+                    }
+                } else {
+                    when (language) {
+                        "en" -> "The adhan is playing"
+                        "tr" -> "Ezan çalınıyor"
+                        else -> "يجري تشغيل تسجيل الأذان"
+                    }
+                },
+                color = Color(0xFFC7CED9),
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(42.dp))
+            var focused by remember { mutableStateOf(false) }
+            RowDismissButton(
+                language = language,
+                focused = focused,
+                onFocusChanged = { focused = it },
+                onClick = onDismiss
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowDismissButton(
+    language: String,
+    focused: Boolean,
+    onFocusChanged: (Boolean) -> Unit,
+    onClick: () -> Unit
+) {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (focused) Color(0xFF5A4618) else Color(0xFF17202D))
+            .border(1.dp, Color(0xFFE5C46B), RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
+            .focusable()
+            .padding(horizontal = 28.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Rounded.Close, contentDescription = null, tint = Color(0xFFFFE7A3), modifier = Modifier.size(20.dp))
+        Spacer(Modifier.size(10.dp))
+        Text(
+            when (language) {
+                "en" -> "Stop adhan / Close"
+                "tr" -> "Ezanı durdur / Kapat"
+                else -> "إيقاف الأذان وإغلاق الشاشة"
+            },
+            color = Color(0xFFFFE7A3),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
