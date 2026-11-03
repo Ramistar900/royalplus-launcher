@@ -1262,7 +1262,7 @@ private fun AppCatalog(
             focusedAppPackage = focusedAppPackage,
             onAppFocused = onAppFocused,
             onLaunchApp = onLaunchApp,
-            onManageApp = { appForManagement = it },
+            onManageApp = onManageApp,
             iconStyle = iconStyle,
             initialHighlight = initialHighlight
         )
