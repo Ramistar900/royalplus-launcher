@@ -59,7 +59,7 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             if (language == "en") "Clear ROYAL+ cache" else if (language == "tr") "ROYAL+ önbelleğini temizle" else "تنظيف الذاكرة المؤقتة",
             if (language == "en") "Clears temporary files owned by this app only" else if (language == "tr") "Yalnızca bu uygulamanın geçici dosyalarını temizler" else "يحذف الملفات المؤقتة الخاصة باللانشر فقط") {
             runCatching {
-                context.cacheDir.listFiles()?.forEach { file -> if (file.isFile) file.delete() }
+                context.cacheDir.walkTopDown().filter { it.isFile }.forEach { file -> file.delete() }
             }
             android.widget.Toast.makeText(context,
                 if (language == "en") "ROYAL+ temporary files cleared" else if (language == "tr") "ROYAL+ geçici dosyaları temizlendi" else "تم تنظيف الملفات المؤقتة للانشر",
