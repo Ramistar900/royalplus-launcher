@@ -108,7 +108,7 @@ internal fun RoyalSongsScreen() {
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(player) {
         onDispose {
             player?.release()
             player = null
