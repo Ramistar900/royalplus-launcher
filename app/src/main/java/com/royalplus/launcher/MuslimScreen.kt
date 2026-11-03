@@ -446,7 +446,8 @@ private fun SmallPrayerAction(title: String, icon: androidx.compose.ui.graphics.
         Spacer(Modifier.width(4.dp))
         Text(title, color = Color.Black, fontSize = 11.sp)
     }
- 
+}
+
 private data class DuaItem(val title: String, val text: String, val source: String)
 
 @Composable
@@ -587,4 +588,3 @@ private fun DuasSection(language: String) {
     }
 }
 
-}
