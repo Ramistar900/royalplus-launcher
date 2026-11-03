@@ -164,7 +164,7 @@ internal fun RoyalHomeScreen(
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
-    var selectedScreensaverWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default") }
+    val selectedScreensaverWallpaper = "default"
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
@@ -519,70 +519,46 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(when (selectedLanguage) { "en" -> "Choose wallpaper and app icon style"; "tr" -> "Duvar kâğıdını ve uygulama simgelerini seçin"; else -> "اختر الخلفية وشكل أيقونات التطبيقات" }, color = RoyalColors.Pearl, fontSize = 14.sp)
                         Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "Wallpapers"; "tr" -> "Duvar kâğıtları"; else -> "الخلفيات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            WallpaperChoice(
-                                modifier = Modifier.weight(1f),
-                                title = when (selectedLanguage) { "en" -> "Colorful wallpaper"; "tr" -> "Renkli duvar kâğıdı"; else -> "الخلفية الملونة" },
-                                selected = selectedWallpaper == "color",
-                                image = painterResource(R.drawable.royal_color_wallpaper),
-                                onClick = {
-                                    selectedWallpaper = "color"
-                                    wallpaperPreferences.edit().putString("launcher_wallpaper", "color").apply()
+                        val homeWallpapers = listOf(
+                            Triple("color", if (selectedLanguage == "en") "Colorful" else if (selectedLanguage == "tr") "Renkli" else "ملونة", R.drawable.royal_color_wallpaper),
+                            Triple("nature", if (selectedLanguage == "en") "Nature" else if (selectedLanguage == "tr") "Doğa" else "طبيعة", R.drawable.royal_nature_wallpaper),
+                            Triple("forest", if (selectedLanguage == "en") "Forest" else if (selectedLanguage == "tr") "Orman" else "غابة", R.drawable.royal_wallpaper_forest_04),
+                            Triple("green", if (selectedLanguage == "en") "Green" else if (selectedLanguage == "tr") "Yeşil" else "خضراء", R.drawable.royal_wallpaper_grreen_07),
+                            Triple("lake", if (selectedLanguage == "en") "Lake" else if (selectedLanguage == "tr") "Göl" else "بحيرة", R.drawable.royal_wallpaper_lake_03),
+                            Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
+                            Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
+                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06)
+                        )
+                        homeWallpapers.chunked(4).forEach { wallpaperRow ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                wallpaperRow.forEach { (key, title, imageRes) ->
+                                    WallpaperChoice(
+                                        modifier = Modifier.weight(1f),
+                                        title = title,
+                                        selected = selectedWallpaper == key,
+                                        image = painterResource(imageRes),
+                                        onClick = {
+                                            selectedWallpaper = key
+                                            wallpaperPreferences.edit().putString("launcher_wallpaper", key).apply()
+                                        }
+                                    )
                                 }
-                            )
-                            WallpaperChoice(
-                                modifier = Modifier.weight(1f),
-                                title = when (selectedLanguage) { "en" -> "Nature wallpaper"; "tr" -> "Doğa duvar kâğıdı"; else -> "الخلفية الطبيعية" },
-                                selected = selectedWallpaper == "nature",
-                                image = painterResource(R.drawable.royal_nature_wallpaper),
-                                onClick = {
-                                    selectedWallpaper = "nature"
-                                    wallpaperPreferences.edit().putString("launcher_wallpaper", "nature").apply()
-                                }
-                            )
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "Smart screensaver background"; "tr" -> "Akıllı ekran koruyucu arka planı"; else -> "خلفية الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Royal"; "tr" -> "Kraliyet"; else -> "الملكي" }, selectedScreensaverWallpaper == "default", painterResource(R.drawable.royal_smart_screensaver)) {
-                                selectedScreensaverWallpaper = "default"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "default").apply()
+                                repeat(4 - wallpaperRow.size) { Spacer(Modifier.weight(1f)) }
                             }
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Forest"; "tr" -> "Orman"; else -> "الغابة" }, selectedScreensaverWallpaper == "forest", painterResource(R.drawable.royal_wallpaper_forest_04)) {
-                                selectedScreensaverWallpaper = "forest"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "forest").apply()
-                            }
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Green"; "tr" -> "Yeşil"; else -> "الخضراء" }, selectedScreensaverWallpaper == "green", painterResource(R.drawable.royal_wallpaper_grreen_07)) {
-                                selectedScreensaverWallpaper = "green"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "green").apply()
-                            }
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Lake"; "tr" -> "Göl"; else -> "البحيرة" }, selectedScreensaverWallpaper == "lake", painterResource(R.drawable.royal_wallpaper_lake_03)) {
-                                selectedScreensaverWallpaper = "lake"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "lake").apply()
-                            }
+                            Spacer(Modifier.height(8.dp))
                         }
                         Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Mountains"; "tr" -> "Dağlar"; else -> "الجبال" }, selectedScreensaverWallpaper == "mountains", painterResource(R.drawable.royal_wallpaper_mountains_02)) {
-                                selectedScreensaverWallpaper = "mountains"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "mountains").apply()
-                            }
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Nature"; "tr" -> "Doğa"; else -> "الطبيعة" }, selectedScreensaverWallpaper == "nature", painterResource(R.drawable.royal_wallpaper_nature_01)) {
-                                selectedScreensaverWallpaper = "nature"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "nature").apply()
-                            }
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Sunset"; "tr" -> "Gün batımı"; else -> "الغروب" }, selectedScreensaverWallpaper == "sunset", painterResource(R.drawable.royal_wallpaper_sunset_05)) {
-                                selectedScreensaverWallpaper = "sunset"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "sunset").apply()
-                            }
-                            WallpaperChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Waterfall"; "tr" -> "Şelale"; else -> "الشلال" }, selectedScreensaverWallpaper == "waterfall", painterResource(R.drawable.royal_wallpaper_waterfall_06)) {
-                                selectedScreensaverWallpaper = "waterfall"
-                                wallpaperPreferences.edit().putString("screensaver_wallpaper", "waterfall").apply()
-                            }
-                        }
+                        Text(when (selectedLanguage) { "en" -> "Smart screensaver"; "tr" -> "Akıllı ekran koruyucu"; else -> "الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        WallpaperChoice(
+                            modifier = Modifier.width(190.dp),
+                            title = when (selectedLanguage) { "en" -> "Royal (fixed)"; "tr" -> "Kraliyet (sabit)"; else -> "الملكي (ثابت)" },
+                            selected = true,
+                            image = painterResource(R.drawable.royal_smart_screensaver),
+                            onClick = { }
+                        )
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
@@ -793,8 +769,16 @@ internal fun RoyalHomeScreen(
 private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String) {
     Image(
         painter = painterResource(
-            if (selectedWallpaper == "nature") R.drawable.royal_nature_wallpaper
-            else R.drawable.royal_color_wallpaper
+            when (selectedWallpaper) {
+                "nature" -> R.drawable.royal_nature_wallpaper
+                "forest" -> R.drawable.royal_wallpaper_forest_04
+                "green" -> R.drawable.royal_wallpaper_grreen_07
+                "lake" -> R.drawable.royal_wallpaper_lake_03
+                "mountains" -> R.drawable.royal_wallpaper_mountains_02
+                "sunset" -> R.drawable.royal_wallpaper_sunset_05
+                "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                else -> R.drawable.royal_color_wallpaper
+            }
         ),
         contentDescription = null,
         contentScale = ContentScale.Crop,
