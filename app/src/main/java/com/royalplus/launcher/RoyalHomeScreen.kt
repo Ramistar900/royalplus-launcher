@@ -208,8 +208,8 @@ internal fun RoyalHomeScreen(
 
     LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination) {
         if (!showSmartScreensaver && !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME) {
-            delay(120_000L)
-            if (System.currentTimeMillis() - lastUserInteraction >= 120_000L) showSmartScreensaver = true
+            delay(30_000L)
+            if (System.currentTimeMillis() - lastUserInteraction >= 30_000L) showSmartScreensaver = true
         }
     }
 
