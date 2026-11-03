@@ -42,8 +42,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 internal fun RoyalDeviceSettingsSection(language: String) {
     val context = LocalContext.current
-    val storage = storageSummary()
-    val connection = connectionSummary(context)
+    val storage = storageSummary(language)
+    val connection = connectionSummary(context, language)
     val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
     val androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -58,12 +58,19 @@ internal fun RoyalDeviceSettingsSection(language: String) {
         SettingsInfoRow(Icons.Rounded.CleaningServices,
             if (language == "en") "Clear ROYAL+ cache" else if (language == "tr") "ROYAL+ önbelleğini temizle" else "تنظيف الذاكرة المؤقتة",
             if (language == "en") "Clears temporary files owned by this app only" else if (language == "tr") "Yalnızca bu uygulamanın geçici dosyalarını temizler" else "يحذف الملفات المؤقتة الخاصة باللانشر فقط") {
-            runCatching {
-                context.cacheDir.walkTopDown().filter { it.isFile }.forEach { file -> file.delete() }
+            val cleared = runCatching {
+                var success = true
+                context.cacheDir.walkTopDown().filter { it.isFile }.forEach { file ->
+                    if (file.exists() && !file.delete()) success = false
+                }
+                success
+            }.getOrDefault(false)
+            val message = if (cleared) {
+                if (language == "en") "ROYAL+ temporary files cleared" else if (language == "tr") "ROYAL+ geçici dosyaları temizlendi" else "تم تنظيف الملفات المؤقتة للانشر"
+            } else {
+                if (language == "en") "Some temporary files could not be cleared" else if (language == "tr") "Bazı geçici dosyalar temizlenemedi" else "تعذر حذف بعض الملفات المؤقتة"
             }
-            android.widget.Toast.makeText(context,
-                if (language == "en") "ROYAL+ temporary files cleared" else if (language == "tr") "ROYAL+ geçici dosyaları temizlendi" else "تم تنظيف الملفات المؤقتة للانشر",
-                android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
         }
         SettingsInfoRow(Icons.Rounded.Tv,
             if (language == "en") "Display settings" else if (language == "tr") "Ekran ayarları" else "إعدادات الشاشة",
@@ -103,26 +110,34 @@ private fun SettingsInfoRow(
     }
 }
 
-private fun storageSummary(): String {
+private fun storageSummary(language: String): String {
     val stat = StatFs(Environment.getDataDirectory().path)
     val total = stat.totalBytes
     val free = stat.availableBytes
-    return "${formatStorage(total - free)} مستخدم • ${formatStorage(total)} إجمالي"
+    val used = formatStorage(total - free)
+    val capacity = formatStorage(total)
+    return when (language) {
+        "en" -> "$used used • $capacity total"
+        "tr" -> "$used kullanılıyor • $capacity toplam"
+        else -> "$used مستخدم • $capacity إجمالي"
+    }
 }
 
 private fun formatStorage(bytes: Long): String =
     String.format(java.util.Locale.US, "%.1f GB", bytes.coerceAtLeast(0L) / (1024.0 * 1024.0 * 1024.0))
 
-private fun connectionSummary(context: Context): String {
+private fun connectionSummary(context: Context, language: String): String {
     val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
     val network = manager?.activeNetwork
     val capabilities = if (network != null) manager?.getNetworkCapabilities(network) else null
+    val en = language == "en"
+    val tr = language == "tr"
     return when {
-        capabilities == null -> "غير متصل"
-        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "متصل عبر Wi-Fi"
-        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "متصل عبر Ethernet"
-        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "متصل عبر شبكة الهاتف"
-        else -> "متصل بالشبكة"
+        capabilities == null -> if (en) "Not connected" else if (tr) "Bağlı değil" else "غير متصل"
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> if (en) "Connected via Wi-Fi" else if (tr) "Wi-Fi üzerinden bağlı" else "متصل عبر Wi-Fi"
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> if (en) "Connected via Ethernet" else if (tr) "Ethernet üzerinden bağlı" else "متصل عبر Ethernet"
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> if (en) "Connected via mobile network" else if (tr) "Mobil ağ üzerinden bağlı" else "متصل عبر شبكة الهاتف"
+        else -> if (en) "Connected to network" else if (tr) "Ağa bağlı" else "متصل بالشبكة"
     }
 }
 
