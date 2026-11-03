@@ -137,5 +137,47 @@ internal object PrayerTimesRepository {
         return "$hijriDay ${hijriMonths[hijriMonth - 1]} $hijriYear هـ"
     }
 
+    internal data class RamadanTarget(val targetMillis: Long, val isRamadan: Boolean, val hijriYear: Int)
+
+    /**
+     * Uses the same tabular Hijri calculation as the displayed Hijri date so the
+     * countdown remains consistent and works offline. Local moon sighting may differ by a day.
+     */
+    fun nextRamadanTarget(nowMillis: Long, timeZoneId: String): RamadanTarget {
+        val zone = TimeZone.getTimeZone(timeZoneId)
+        val gregorian = GregorianCalendar(zone, Locale.US).apply { timeInMillis = nowMillis }
+        val year = gregorian.get(Calendar.YEAR)
+        val month = gregorian.get(Calendar.MONTH) + 1
+        val day = gregorian.get(Calendar.DAY_OF_MONTH)
+        val a = (14 - month) / 12
+        val gy = year + 4800 - a
+        val gm = month + 12 * a - 3
+        val julianDay = day + (153 * gm + 2) / 5 + 365 * gy + gy / 4 - gy / 100 + gy / 400 - 32045
+
+        fun islamicToJulian(hijriYear: Int, hijriMonth: Int, hijriDay: Int): Int =
+            hijriDay + kotlin.math.ceil(29.5 * (hijriMonth - 1)).toInt() +
+                (hijriYear - 1) * 354 + floor((3.0 + 11.0 * hijriYear) / 30.0).toInt() + 1948439 - 1
+
+        var hijriYear = floor((30.0 * (julianDay - 1948439) + 10646.0) / 10631.0).toInt()
+        while (julianDay < islamicToJulian(hijriYear, 1, 1)) hijriYear--
+        while (julianDay >= islamicToJulian(hijriYear + 1, 1, 1)) hijriYear++
+        var hijriMonth = 1
+        while (hijriMonth < 12 && julianDay >= islamicToJulian(hijriYear, hijriMonth + 1, 1)) hijriMonth++
+
+        if (hijriMonth == 9) return RamadanTarget(0L, true, hijriYear)
+
+        val targetHijriYear = if (hijriMonth < 9) hijriYear else hijriYear + 1
+        val daysUntilRamadan = (islamicToJulian(targetHijriYear, 9, 1) - julianDay).coerceAtLeast(0)
+        val target = GregorianCalendar(zone, Locale.US).apply {
+            timeInMillis = nowMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            add(Calendar.DAY_OF_YEAR, daysUntilRamadan)
+        }
+        return RamadanTarget(target.timeInMillis, false, targetHijriYear)
+    }
+
     fun displayNames(): Map<String, String> = prayerNames
 }
