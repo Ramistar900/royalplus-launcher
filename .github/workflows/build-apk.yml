@@ -3,8 +3,6 @@ name: ROYAL+ Launcher Android Build
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
