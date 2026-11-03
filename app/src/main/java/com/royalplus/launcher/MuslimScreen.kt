@@ -292,6 +292,12 @@ internal fun MuslimScreen(
             }
         }
 
+        RamadanCountdownCard(
+            now = now,
+            timeZoneId = zoneForKey,
+            language = language
+        )
+
         if (data?.hijriDate?.contains("رمضان") == true) {
             val fajrMinutes = timesafeMinutes(data?.times?.get("Fajr"))
             val maghribMinutes = timesafeMinutes(data?.times?.get("Maghrib"))
@@ -332,6 +338,8 @@ internal fun MuslimScreen(
                 }
             }
         }
+
+        DuasSection(language = language)
 
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFF8C641A)).border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
             Text("${when (language) { "en" -> "Today’s Hijri date"; "tr" -> "Bugünün Hicri tarihi"; else -> "التاريخ الهجري اليوم" }}: ${data?.hijriDate?.takeIf { it.isNotBlank() } ?: when (language) { "en" -> "Loading Hijri date"; "tr" -> "Hicri tarih yükleniyor"; else -> "جارٍ تحميل التاريخ الهجري" }}", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -438,4 +446,145 @@ private fun SmallPrayerAction(title: String, icon: androidx.compose.ui.graphics.
         Spacer(Modifier.width(4.dp))
         Text(title, color = Color.Black, fontSize = 11.sp)
     }
+ 
+private data class DuaItem(val title: String, val text: String, val source: String)
+
+@Composable
+private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String) {
+    val target = remember(now / 1000L, timeZoneId) {
+        PrayerTimesRepository.nextRamadanTarget(now, timeZoneId)
+    }
+    val parts = remember(now / 1000L, target, timeZoneId) {
+        if (target.isRamadan) List(7) { 0L } else {
+            val zone = TimeZone.getTimeZone(timeZoneId)
+            val cursor = java.util.GregorianCalendar(zone, Locale.US).apply { timeInMillis = now }
+            val end = target.targetMillis
+            var years = 0L
+            while (true) {
+                val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.YEAR, 1) }
+                if (next.timeInMillis <= end) { cursor.add(java.util.Calendar.YEAR, 1); years++ } else break
+            }
+            var months = 0L
+            while (true) {
+                val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.MONTH, 1) }
+                if (next.timeInMillis <= end) { cursor.add(java.util.Calendar.MONTH, 1); months++ } else break
+            }
+            var remaining = (end - cursor.timeInMillis).coerceAtLeast(0L) / 1000L
+            val weeks = remaining / 604800L
+            remaining %= 604800L
+            val days = remaining / 86400L
+            remaining %= 86400L
+            val hours = remaining / 3600L
+            remaining %= 3600L
+            val minutes = remaining / 60L
+            val seconds = remaining % 60L
+            listOf(years, months, weeks, days, hours, minutes, seconds)
+        }
+    }
+    val labels = when (language) {
+        "en" -> listOf("Years", "Months", "Weeks", "Days", "Hours", "Minutes", "Seconds")
+        "tr" -> listOf("Yıl", "Ay", "Hafta", "Gün", "Saat", "Dakika", "Saniye")
+        else -> listOf("سنة", "شهر", "أسبوع", "يوم", "ساعة", "دقيقة", "ثانية")
+    }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF111111), Color(0xFF173C32), Color(0xFF30200D))))
+            .border(1.dp, RoyalColors.Gold, RoundedCornerShape(17.dp))
+            .padding(horizontal = 13.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            if (target.isRamadan) when (language) { "en" -> "🌙 Ramadan Mubarak"; "tr" -> "🌙 Ramazanınız mübarek olsun"; else -> "🌙 رمضان كريم" }
+            else when (language) { "en" -> "🌙 Time until Ramadan"; "tr" -> "🌙 Ramazan'a kalan süre"; else -> "🌙 العد التنازلي لرمضان" },
+            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold
+        )
+        Text(
+            if (target.isRamadan) when (language) { "en" -> "The countdown is complete"; "tr" -> "Geri sayım tamamlandı"; else -> "وصلنا إلى شهر رمضان المبارك" }
+            else when (language) { "en" -> "Updates every second • next Hijri Ramadan"; "tr" -> "Her saniye güncellenir • sonraki Hicri Ramazan"; else -> "يتجدد كل ثانية حتى بداية رمضان القادم" },
+            color = Color.White.copy(alpha = 0.86f), fontSize = 10.sp
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            labels.forEachIndexed { index, label ->
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF080D0C).copy(alpha = 0.78f))
+                        .padding(vertical = 7.dp, horizontal = 1.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(String.format(Locale.US, "%02d", parts[index]), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(label, color = RoyalColors.Gold, fontSize = 8.sp, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DuasSection(language: String) {
+    val categories = when (language) {
+        "en" -> listOf("Morning & evening", "Before sleep & upon waking", "After prayer", "Food & drink", "Distress & general supplication")
+        "tr" -> listOf("Sabah ve akşam", "Uyumadan önce ve uyanınca", "Namazdan sonra", "Yeme ve içme", "Sıkıntı ve genel dualar")
+        else -> listOf("أذكار الصباح والمساء", "أذكار النوم والاستيقاظ", "أذكار بعد الصلاة", "أدعية الطعام والشراب", "أدعية الكرب والدعاء العام")
+    }
+    val items = listOf(
+        listOf(
+            DuaItem("سيد الاستغفار", "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي، فَاغْفِرْ لِي؛ فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.", "صحيح البخاري"),
+            DuaItem("ذكر الصباح والمساء", "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ، وَهُوَ السَّمِيعُ الْعَلِيمُ.", "سنن أبي داود والترمذي • ثلاث مرات"),
+            DuaItem("رضيت بالله رباً", "رَضِيتُ بِاللَّهِ رَبًّا، وَبِالْإِسْلَامِ دِينًا، وَبِمُحَمَّدٍ ﷺ نَبِيًّا.", "سنن أبي داود • ثلاث مرات")
+        ),
+        listOf(
+            DuaItem("عند النوم", "بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا.", "صحيح البخاري"),
+            DuaItem("عند الاستيقاظ", "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا، وَإِلَيْهِ النُّشُورُ.", "صحيح البخاري")
+        ),
+        listOf(
+            DuaItem("الاستغفار بعد الصلاة", "أَسْتَغْفِرُ اللَّهَ، أَسْتَغْفِرُ اللَّهَ، أَسْتَغْفِرُ اللَّهَ.", "صحيح مسلم"),
+            DuaItem("دعاء السلام بعد الصلاة", "اللَّهُمَّ أَنْتَ السَّلَامُ، وَمِنْكَ السَّلَامُ، تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ.", "صحيح مسلم"),
+            DuaItem("التسبيح بعد الصلاة", "سُبْحَانَ اللَّهِ (٣٣)، وَالْحَمْدُ لِلَّهِ (٣٣)، وَاللَّهُ أَكْبَرُ (٣٣)، ثم تمام المئة: لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.", "صحيح مسلم")
+        ),
+        listOf(
+            DuaItem("قبل الطعام", "بِسْمِ اللَّهِ.", "سنن أبي داود والترمذي"),
+            DuaItem("بعد الطعام", "الْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنِي هَذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ.", "سنن أبي داود والترمذي")
+        ),
+        listOf(
+            DuaItem("دعاء الكرب", "لَا إِلَهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ السَّمَوَاتِ وَرَبُّ الْأَرْضِ وَرَبُّ الْعَرْشِ الْكَرِيمِ.", "صحيح البخاري وصحيح مسلم"),
+            DuaItem("دعاء جامع", "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى.", "صحيح مسلم")
+        )
+    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            when (language) { "en" -> "Daily duas & adhkar"; "tr" -> "Günlük dualar ve zikirler"; else -> "الأدعية والأذكار اليومية" },
+            color = Color.Black, fontSize = 18.sp, fontWeight = FontWeight.Bold
+        )
+        Text(
+            when (language) { "en" -> "A small offline collection with hadith references"; "tr" -> "Hadis kaynaklarıyla çevrimdışı dua koleksiyonu"; else -> "مجموعة تعمل دون إنترنت مع ذكر مصادر الأحاديث" },
+            color = RoyalColors.Muted, fontSize = 10.sp
+        )
+        categories.forEachIndexed { index, category ->
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                    .background(Color(0xFFFFE7A8).copy(alpha = 0.68f))
+                    .border(1.dp, Color(0xFFB68A2C), RoundedCornerShape(13.dp))
+                    .padding(9.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(category, color = Color(0xFF5A3B0B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                items[index].forEach { dua ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                            .background(Color(0xFFFFFAEC))
+                            .border(1.dp, Color(0xFFD8BD7B), RoundedCornerShape(9.dp))
+                            .focusable()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(dua.title, color = Color(0xFF805A16), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(dua.text, color = Color(0xFF171717), fontSize = 15.sp, lineHeight = 25.sp, textAlign = TextAlign.Right)
+                        Text(dua.source, color = Color(0xFF6A6252), fontSize = 9.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
 }
