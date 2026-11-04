@@ -24,6 +24,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 
+internal data class WeatherForecastDay(
+    val date: String,
+    val weatherCode: Int,
+    val maxTemperatureC: Int,
+    val minTemperatureC: Int
+)
+
 internal data class WeatherUiState(
     val city: String = "جارٍ تحديد الموقع",
     val temperatureC: Int? = null,
@@ -32,6 +39,7 @@ internal data class WeatherUiState(
     val timeZoneId: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val forecast: List<WeatherForecastDay> = emptyList(),
     val isLoading: Boolean = true,
     val needsPermission: Boolean = false
 )
@@ -204,6 +212,8 @@ internal object RoyalWeatherRepository {
                 "?latitude=${location.latitude}" +
                 "&longitude=${location.longitude}" +
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+                "&forecast_days=5" +
                 "&timezone=auto"
         )
         val connection = (url.openConnection() as HttpURLConnection).apply {
@@ -219,6 +229,21 @@ internal object RoyalWeatherRepository {
             val current = root.getJSONObject("current")
             val temperature = current.getDouble("temperature_2m").roundToInt()
             val weatherCode = current.getInt("weather_code")
+            val daily = root.optJSONObject("daily")
+            val dates = daily?.optJSONArray("time")
+            val codes = daily?.optJSONArray("weather_code")
+            val highs = daily?.optJSONArray("temperature_2m_max")
+            val lows = daily?.optJSONArray("temperature_2m_min")
+            val forecast = if (dates != null && codes != null && highs != null && lows != null) {
+                (0 until minOf(5, dates.length(), codes.length(), highs.length(), lows.length())).map { index ->
+                    WeatherForecastDay(
+                        date = dates.getString(index),
+                        weatherCode = codes.getInt(index),
+                        maxTemperatureC = highs.getDouble(index).roundToInt(),
+                        minTemperatureC = lows.getDouble(index).roundToInt()
+                    )
+                }
+            } else emptyList()
             val timeZone = root.optString("timezone")
                 .takeIf { it.isNotBlank() && TimeZone.getTimeZone(it).id == it }
 
@@ -230,6 +255,7 @@ internal object RoyalWeatherRepository {
                 timeZoneId = timeZone,
                 latitude = location.latitude,
                 longitude = location.longitude,
+                forecast = forecast,
                 isLoading = false
             )
         } finally {

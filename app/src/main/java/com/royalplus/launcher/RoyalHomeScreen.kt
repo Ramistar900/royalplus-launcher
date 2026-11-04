@@ -165,6 +165,7 @@ internal fun RoyalHomeScreen(
         }
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
+    var showWeatherDetails by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
@@ -189,10 +190,11 @@ internal fun RoyalHomeScreen(
     }
 
     BackHandler(
-        enabled = showWallpaperSettings || searchActive || selectedDestination != LauncherDestination.HOME
+        enabled = showWallpaperSettings || showWeatherDetails || searchActive || selectedDestination != LauncherDestination.HOME
     ) {
         when {
             showWallpaperSettings -> showWallpaperSettings = false
+            showWeatherDetails -> showWeatherDetails = false
             searchActive -> {
                 searchActive = false
                 searchQuery = ""
@@ -445,6 +447,7 @@ internal fun RoyalHomeScreen(
                                             wallpaperPreferences.edit().putBoolean("launcher_show_date", showDateOnHome).apply()
                                         },
                                         onRefreshWeather = onRefreshWeather,
+                                        onOpenWeather = { showWeatherDetails = true },
                                         onOpenSettings = { showWallpaperSettings = true },
                                         selectedLanguage = selectedLanguage
                                     )
@@ -493,7 +496,10 @@ internal fun RoyalHomeScreen(
                 }
             }
 
-            if (showSmartScreensaver && !showWallpaperSettings) {
+            if (showWeatherDetails) {
+                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation)
+            }
+            if (showSmartScreensaver && !showWallpaperSettings && !showWeatherDetails) {
                 RoyalSmartScreensaver(
                     timeText = timeText,
                     dateText = dateText,
@@ -1148,7 +1154,7 @@ private fun HomeDashboard(
     currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
     onRequestLocation: () -> Unit,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
-    onRefreshWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String
+    onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp)
@@ -1176,6 +1182,7 @@ private fun HomeDashboard(
                 currentTime = currentTime,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
+                onOpenWeather = onOpenWeather,
                 onExploreApps = { onNavigate(LauncherDestination.APPS) }
             )
             Spacer(Modifier.height(18.dp))
@@ -1251,6 +1258,7 @@ private fun RoyalScenicBanner(
     currentTime: String,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
+    onOpenWeather: () -> Unit,
     onExploreApps: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -1283,6 +1291,7 @@ private fun RoyalScenicBanner(
                 currentTime = currentTime,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
+                onOpenWeather = onOpenWeather,
                 modifier = Modifier.weight(1.05f).fillMaxHeight(),
                 language = language
             )
