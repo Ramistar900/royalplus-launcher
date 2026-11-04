@@ -180,7 +180,7 @@ internal fun WeatherDetailsScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             if (weather.forecast.isNotEmpty()) {
-                                weather.forecast.take(5).asReversed().forEach { day ->
+                                weather.forecast.take(5).forEach { day ->
                                     val dayLabel = remember(day.date, language) {
                                         try {
                                             val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(day.date)
