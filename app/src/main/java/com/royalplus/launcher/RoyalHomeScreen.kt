@@ -71,6 +71,7 @@ import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
@@ -174,6 +175,9 @@ internal fun RoyalHomeScreen(
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
     var isAdhanEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("adhan_enabled", true)) }
+    var homeMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_home", true)) }
+    var adhanMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_adhan", true)) }
+    var weatherMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_weather", true)) }
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
     val selectedFontFamily = remember(selectedFont) {
@@ -342,7 +346,7 @@ internal fun RoyalHomeScreen(
                     false
                 }
         ) {
-            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper)
+            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled)
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
                     "en" -> "Manage ${app.label}"
@@ -497,7 +501,7 @@ internal fun RoyalHomeScreen(
             }
 
             if (showWeatherDetails) {
-                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation)
+                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation, motionEnabled = weatherMotionEnabled)
             }
             if (showSmartScreensaver && !showWallpaperSettings && !showWeatherDetails) {
                 RoyalSmartScreensaver(
@@ -572,6 +576,31 @@ internal fun RoyalHomeScreen(
                                 color = if (isAdhanEnabled) RoyalColors.Gold else RoyalColors.Muted,
                                 fontSize = 16.sp, fontWeight = FontWeight.Bold
                             )
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(when (selectedLanguage) { "en" -> "ROYAL Motion • Background movement"; "tr" -> "ROYAL Motion • Arka plan hareketi"; else -> "حيوية الخلفيات • ROYAL Motion" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(when (selectedLanguage) { "en" -> "Enable or freeze each background independently"; "tr" -> "Her arka planı ayrı ayrı hareket ettirin veya sabitleyin"; else -> "شغّل الحركة أو ثبّت كل خلفية بشكل مستقل" }, color = RoyalColors.Muted, fontSize = 11.sp)
+                        listOf(
+                            Triple("home", if (selectedLanguage == "en") "Home background" else if (selectedLanguage == "tr") "Ana ekran" else "الخلفية الرئيسية", homeMotionEnabled),
+                            Triple("adhan", if (selectedLanguage == "en") "Adhan background" else if (selectedLanguage == "tr") "Ezan arka planı" else "خلفية الأذان", adhanMotionEnabled),
+                            Triple("weather", if (selectedLanguage == "en") "Weather background" else if (selectedLanguage == "tr") "Hava durumu" else "خلفية الطقس", weatherMotionEnabled)
+                        ).forEach { (key, label, enabled) ->
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F)).border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    val next = !enabled
+                                    when (key) {
+                                        "home" -> { homeMotionEnabled = next; wallpaperPreferences.edit().putBoolean("motion_home", next).apply() }
+                                        "adhan" -> { adhanMotionEnabled = next; wallpaperPreferences.edit().putBoolean("motion_adhan", next).apply() }
+                                        else -> { weatherMotionEnabled = next; wallpaperPreferences.edit().putBoolean("motion_weather", next).apply() }
+                                    }
+                                }.focusable().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(label, color = RoyalColors.Pearl, fontSize = 13.sp)
+                                Text(if (enabled) "MOTION ON" else "FIXED", color = if (enabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(6.dp))
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -820,6 +849,7 @@ internal fun RoyalHomeScreen(
                     prayerName = prayerName,
                     cityName = activeAdhanCity,
                     language = selectedLanguage,
+                    motionEnabled = adhanMotionEnabled,
                     isDaytime = java.util.Calendar.getInstance(
                         TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id)
                     ).apply {
@@ -837,27 +867,39 @@ internal fun RoyalHomeScreen(
 }
 
 @Composable
-private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String) {
-    Image(
-        painter = painterResource(
-            when (selectedWallpaper) {
-                "nature" -> R.drawable.royal_nature_wallpaper
-                "forest" -> R.drawable.royal_wallpaper_forest_04
-                "green" -> R.drawable.royal_wallpaper_grreen_07
-                "lake" -> R.drawable.royal_wallpaper_lake_03
-                "mountains" -> R.drawable.royal_wallpaper_mountains_02
-                "sunset" -> R.drawable.royal_wallpaper_sunset_05
-                "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
-                else -> R.drawable.royal_color_wallpaper
-            }
-        ),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = modifier.fillMaxSize()
+private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String, motionEnabled: Boolean = true) {
+    RoyalMotionImage(
+        image = painterResource(when (selectedWallpaper) {
+            "nature" -> R.drawable.royal_nature_wallpaper
+            "forest" -> R.drawable.royal_wallpaper_forest_04
+            "green" -> R.drawable.royal_wallpaper_grreen_07
+            "lake" -> R.drawable.royal_wallpaper_lake_03
+            "mountains" -> R.drawable.royal_wallpaper_mountains_02
+            "sunset" -> R.drawable.royal_wallpaper_sunset_05
+            "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+            else -> R.drawable.royal_color_wallpaper
+        }),
+        modifier = modifier, motionEnabled = motionEnabled
     )
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
 }
 
+@Composable
+internal fun RoyalMotionImage(image: androidx.compose.ui.graphics.painter.Painter, modifier: Modifier = Modifier, motionEnabled: Boolean = true) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition()
+    val drift by transition.animateFloat(-0.012f, 0.012f, animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+        animation = androidx.compose.animation.core.tween(18000, easing = androidx.compose.animation.core.LinearEasing),
+        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse))
+    val zoom by transition.animateFloat(1.015f, 1.055f, animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+        animation = androidx.compose.animation.core.tween(24000, easing = androidx.compose.animation.core.LinearEasing),
+        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse))
+    Image(painter = image, contentDescription = null, contentScale = ContentScale.Crop,
+        modifier = modifier.fillMaxSize().graphicsLayer {
+            scaleX = if (motionEnabled) zoom else 1f
+            scaleY = if (motionEnabled) zoom else 1f
+            translationX = if (motionEnabled) size.width * drift else 0f
+        })
+}
 @Composable
 private fun IconStyleChoice(
     modifier: Modifier,

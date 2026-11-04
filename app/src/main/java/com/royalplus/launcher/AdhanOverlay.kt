@@ -48,6 +48,7 @@ internal fun AdhanOverlay(
     cityName: String,
     language: String,
     isDaytime: Boolean,
+    motionEnabled: Boolean = true,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -86,13 +87,10 @@ internal fun AdhanOverlay(
             .fillMaxSize()
             .background(Color(0xFF050811))
     ) {
-        Image(
-            painter = painterResource(
-                id = if (isDaytime) R.drawable.royal_adhan_day else R.drawable.royal_adhan_night
-            ),
-            contentDescription = null,
+        RoyalMotionImage(
+            image = painterResource(if (isDaytime) R.drawable.royal_adhan_day else R.drawable.royal_adhan_night),
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            motionEnabled = motionEnabled
         )
         Box(
             modifier = Modifier
