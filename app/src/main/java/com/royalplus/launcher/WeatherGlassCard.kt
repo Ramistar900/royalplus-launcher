@@ -76,6 +76,7 @@ internal fun WeatherGlassCard(
     currentTime: String,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
+    onOpenWeather: () -> Unit,
     modifier: Modifier = Modifier,
     language: String = "ar"
 ) {
@@ -109,6 +110,8 @@ internal fun WeatherGlassCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onOpenWeather)
+            .focusable()
             .clip(weatherFrame)
             .border(1.dp, Color(0xBFFFD76D), weatherFrame)
     ) {
