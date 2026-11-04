@@ -500,7 +500,7 @@ internal fun RoyalHomeScreen(
             }
 
             if (showWeatherDetails) {
-                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation)
+                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation, motionEnabled = weatherMotionEnabled)
             }
             if (showSmartScreensaver && !showWallpaperSettings && !showWeatherDetails) {
                 RoyalSmartScreensaver(
