@@ -266,11 +266,9 @@ internal fun QuranReaderScreen(
                             )
                             .clickable {
                                 selectedSurah = surah
-                                preferences.edit()
-                                    .putInt("quran_last_surah", surah.number)
-                                    .apply {
-                                        if (surah.number != lastReadNumber) putInt("quran_last_verse", 1)
-                                    }
+                                val editor = preferences.edit().putInt("quran_last_surah", surah.number)
+                                if (surah.number != lastReadNumber) editor.putInt("quran_last_verse", 1)
+                                editor.apply()
                             }
                             .focusable()
                             .padding(horizontal = 12.dp, vertical = 10.dp),
