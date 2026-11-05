@@ -98,7 +98,7 @@ internal fun MuslimScreen(
         when (TimeZone.getDefault().id) {
             "Europe/Istanbul" -> 1
             "Asia/Damascus" -> 2
-            "Asia/Riyadh", "Asia/Aden", "Asia/Kuwait", "Asia/Qatar", "Asia/Bahrain" -> 3
+            "Asia/Riyadh", "Asia/Aden", "Asia/Kuwait", "Asia/Qatar", "Asia/Bahrain" -> 4
             "Asia/Baghdad" -> 5
             else -> 1
         }
@@ -469,7 +469,7 @@ internal fun MuslimScreen(
         if (selectedCityIndex != 0) {
             Text("${when (language) { "en" -> "Selected city"; "tr" -> "Seçilen şehir"; else -> "المدينة المختارة" }}: $cityName", color = RoyalColors.Muted, fontSize = 10.sp)
         }
-        listOf(prayerCities.drop(1).chunked(7)).flatten().forEachIndexed { rowIndex, cityRow ->
+        listOf(prayerCities.drop(1).chunked(6)).flatten().forEachIndexed { rowIndex, cityRow ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 if (rowIndex == 0) {
                     Box(
@@ -495,7 +495,7 @@ internal fun MuslimScreen(
                     }
                 }
                 cityRow.forEachIndexed { columnIndex, city ->
-                    val cityIndex = 1 + rowIndex * 7 + columnIndex
+                    val cityIndex = 1 + rowIndex * 6 + columnIndex
                     val chosen = selectedCityIndex == cityIndex
                     Box(
                         Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
@@ -518,7 +518,7 @@ internal fun MuslimScreen(
                         )
                     }
                 }
-                val missingCells = 7 - cityRow.size - if (rowIndex == 0) 1 else 0
+                val missingCells = 6 - cityRow.size - if (rowIndex == 0) 1 else 0
                 repeat(missingCells.coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
             }
             Spacer(Modifier.height(6.dp))
