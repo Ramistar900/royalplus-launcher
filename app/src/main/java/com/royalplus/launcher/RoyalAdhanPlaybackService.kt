@@ -16,13 +16,11 @@ internal class RoyalAdhanPlaybackService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            stopPlayback()
-            stopForegroundCompat()
-            stopSelf()
+            finishPlayback()
             return START_NOT_STICKY
         }
         if (!RoyalAdhanScheduler.isEnabled(this)) {
-            stopSelf()
+            finishPlayback()
             return START_NOT_STICKY
         }
 
@@ -39,41 +37,43 @@ internal class RoyalAdhanPlaybackService : Service() {
         stopPlayback()
         try {
             val descriptor = resources.openRawResourceFd(R.raw.royal_adhan) ?: run {
-                stopSelf()
+                finishPlayback()
                 return
             }
             val mediaPlayer = MediaPlayer()
-            mediaPlayer.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            mediaPlayer.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            descriptor.close()
+            try {
+                mediaPlayer.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                mediaPlayer.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            } finally {
+                descriptor.close()
+            }
             mediaPlayer.setOnPreparedListener { prepared ->
-                runCatching { prepared.start() }.onFailure { stopSelf() }
+                runCatching { prepared.start() }.onFailure { finishPlayback() }
             }
-            mediaPlayer.setOnCompletionListener {
-                stopPlayback()
-                sendBroadcast(Intent(ACTION_PLAYBACK_FINISHED).setPackage(packageName))
-                stopForegroundCompat()
-                stopSelf()
-            }
+            mediaPlayer.setOnCompletionListener { finishPlayback() }
             mediaPlayer.setOnErrorListener { _, _, _ ->
-                stopPlayback()
-                sendBroadcast(Intent(ACTION_PLAYBACK_FINISHED).setPackage(packageName))
-                stopForegroundCompat()
-                stopSelf()
+                finishPlayback()
                 true
             }
             player = mediaPlayer
             mediaPlayer.prepareAsync()
         } catch (_: Exception) {
-            stopPlayback()
-            stopForegroundCompat()
-            stopSelf()
+            finishPlayback()
         }
+    }
+
+    private fun finishPlayback() {
+        stopPlayback()
+        runCatching {
+            sendBroadcast(Intent(ACTION_PLAYBACK_FINISHED).setPackage(packageName))
+        }
+        stopForegroundCompat()
+        stopSelf()
     }
 
     private fun stopPlayback() {
