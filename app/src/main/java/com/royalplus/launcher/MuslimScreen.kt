@@ -48,25 +48,39 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-private data class PrayerCity(val name: String, val latitude: Double, val longitude: Double, val timeZoneId: String)
-
-private val prayerCities = listOf(
-    PrayerCity("الموقع الحالي", 0.0, 0.0, TimeZone.getDefault().id),
-    PrayerCity("إسطنبول", 41.0082, 28.9784, "Europe/Istanbul"),
-    PrayerCity("دمشق", 33.5138, 36.2765, "Asia/Damascus"),
-    PrayerCity("مكة المكرمة", 21.3891, 39.8579, "Asia/Riyadh"),
-    PrayerCity("الرياض", 24.7136, 46.6753, "Asia/Riyadh"),
-    PrayerCity("بغداد", 33.3152, 44.3661, "Asia/Baghdad")
+private data class PrayerCity(
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val timeZoneId: String,
+    val englishName: String = name,
+    val turkishName: String = name
 )
 
-private fun localizedPrayerCityName(index: Int, language: String): String = when (index) {
-    0 -> when (language) { "en" -> "Current location"; "tr" -> "Mevcut konum"; else -> "الموقع الحالي" }
-    1 -> when (language) { "en" -> "Istanbul"; "tr" -> "İstanbul"; else -> "إسطنبول" }
-    2 -> when (language) { "en" -> "Damascus"; "tr" -> "Şam"; else -> "دمشق" }
-    3 -> when (language) { "en" -> "Mecca"; "tr" -> "Mekke"; else -> "مكة المكرمة" }
-    4 -> when (language) { "en" -> "Riyadh"; "tr" -> "Riyad"; else -> "الرياض" }
-    5 -> when (language) { "en" -> "Baghdad"; "tr" -> "Bağdat"; else -> "بغداد" }
-    else -> prayerCities.getOrNull(index)?.name.orEmpty()
+private val prayerCities = listOf(
+    PrayerCity("الموقع الحالي", 0.0, 0.0, TimeZone.getDefault().id, "Current location", "Mevcut konum"),
+    PrayerCity("إسطنبول", 41.0082, 28.9784, "Europe/Istanbul", "Istanbul", "İstanbul"),
+    PrayerCity("دمشق", 33.5138, 36.2765, "Asia/Damascus", "Damascus", "Şam"),
+    PrayerCity("مكة المكرمة", 21.3891, 39.8579, "Asia/Riyadh", "Mecca", "Mekke"),
+    PrayerCity("الرياض", 24.7136, 46.6753, "Asia/Riyadh", "Riyadh", "Riyad"),
+    PrayerCity("بغداد", 33.3152, 44.3661, "Asia/Baghdad", "Baghdad", "Bağdat"),
+    PrayerCity("أنقرة", 39.9334, 32.8597, "Europe/Istanbul", "Ankara", "Ankara"),
+    PrayerCity("إزمير", 38.4237, 27.1428, "Europe/Istanbul", "Izmir", "İzmir"),
+    PrayerCity("غازي عنتاب", 37.0662, 37.3833, "Europe/Istanbul", "Gaziantep", "Gaziantep"),
+    PrayerCity("حلب", 36.2021, 37.1343, "Asia/Damascus", "Aleppo", "Halep"),
+    PrayerCity("جدة", 21.4858, 39.1925, "Asia/Riyadh", "Jeddah", "Cidde"),
+    PrayerCity("المدينة المنورة", 24.5247, 39.5692, "Asia/Riyadh", "Medina", "Medine"),
+    PrayerCity("أربيل", 36.1911, 44.0092, "Asia/Baghdad", "Erbil", "Erbil"),
+    PrayerCity("القاهرة", 30.0444, 31.2357, "Africa/Cairo", "Cairo", "Kahire")
+)
+
+private fun localizedPrayerCityName(index: Int, language: String): String {
+    val city = prayerCities.getOrNull(index) ?: return ""
+    return when (language) {
+        "en" -> city.englishName
+        "tr" -> city.turkishName
+        else -> city.name
+    }
 }
 
 @Composable
@@ -455,46 +469,59 @@ internal fun MuslimScreen(
         if (selectedCityIndex != 0) {
             Text("${when (language) { "en" -> "Selected city"; "tr" -> "Seçilen şehir"; else -> "المدينة المختارة" }}: $cityName", color = RoyalColors.Muted, fontSize = 10.sp)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            Box(
-                Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                    .background(if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
-                    .border(1.dp, if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                    .clickable {
-                        prayerCityManuallySelected = false
-                        selectedCityIndex = 0
-                        onRequestLocation()
+        listOf(prayerCities.drop(1).chunked(7)).flatten().forEachIndexed { rowIndex, cityRow ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                if (rowIndex == 0) {
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                            .background(if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
+                            .border(1.dp, if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                            .clickable {
+                                prayerCityManuallySelected = false
+                                selectedCityIndex = 0
+                                onRequestLocation()
+                            }
+                            .focusable()
+                            .padding(vertical = 8.dp, horizontal = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            when (language) { "en" -> "My location"; "tr" -> "Konumum"; else -> "موقعي" },
+                            color = if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Pearl,
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
                     }
-                    .focusable()
-                    .padding(vertical = 8.dp, horizontal = 3.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    when (language) { "en" -> "My location"; "tr" -> "Konumum"; else -> "موقعي" },
-                    color = if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Pearl,
-                    fontSize = 10.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
-            }
-            prayerCities.drop(1).forEachIndexed { index, city ->
-                val chosen = selectedCityIndex == index + 1
-                Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                        .background(if (chosen) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
-                        .border(1.dp, if (chosen) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                        .clickable {
-                            selectedCityIndex = index + 1
-                            prayerCityManuallySelected = true
-                        }
-                        .onFocusChanged { }
-                        .focusable()
-                        .padding(vertical = 8.dp, horizontal = 3.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(localizedPrayerCityName(index + 1, language), color = if (chosen) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 10.sp, textAlign = TextAlign.Center, maxLines = 1)
                 }
+                cityRow.forEachIndexed { columnIndex, city ->
+                    val cityIndex = 1 + rowIndex * 7 + columnIndex
+                    val chosen = selectedCityIndex == cityIndex
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                            .background(if (chosen) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
+                            .border(1.dp, if (chosen) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                            .clickable {
+                                selectedCityIndex = cityIndex
+                                prayerCityManuallySelected = true
+                            }
+                            .focusable()
+                            .padding(vertical = 8.dp, horizontal = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            localizedPrayerCityName(cityIndex, language),
+                            color = if (chosen) RoyalColors.Gold else RoyalColors.Pearl,
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
+                }
+                val missingCells = 7 - cityRow.size - if (rowIndex == 0) 1 else 0
+                repeat(missingCells.coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
             }
+            Spacer(Modifier.height(6.dp))
         }
         if (!hasCoordinates && selectedCityIndex == 0) {
             Text(when (language) { "en" -> "Could not detect your location. Choose a city below to view prayer times and the Hijri date; the selected city appears above."; "tr" -> "Konumunuz belirlenemedi. Namaz vakitlerini ve Hicri tarihi görmek için aşağıdan bir şehir seçin; seçilen şehir yukarıda gösterilir."; else -> "تعذّر تحديد موقعك؛ اختر مدينتك من الأسفل لعرض مواقيت الصلاة والتاريخ الهجري. المدينة المحددة ظاهرة أعلى البطاقة." }, color = RoyalColors.Muted, fontSize = 11.sp)
