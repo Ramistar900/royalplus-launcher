@@ -26,6 +26,8 @@ class MainActivity : ComponentActivity() {
     private var isDefaultHome by mutableStateOf(false)
     private var voiceSearchAvailable by mutableStateOf(false)
     private var voiceSearchResult by mutableStateOf("")
+    private var translationOverlayEnabled by mutableStateOf(false)
+    private var pendingTranslationOverlayStart = false
 
     private val voiceSearchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -103,7 +105,9 @@ class MainActivity : ComponentActivity() {
                     onUninstallApp = { app -> requestAppUninstall(app) },
                     onVoiceSearch = { startVoiceSearch() },
                     voiceSearchAvailable = voiceSearchAvailable,
-                    voiceSearchResult = voiceSearchResult
+                    voiceSearchResult = voiceSearchResult,
+                    translationOverlayEnabled = translationOverlayEnabled,
+                    onToggleTranslationOverlay = { toggleTranslationOverlay() }
                 )
             }
         }
@@ -117,11 +121,76 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (pendingTranslationOverlayStart) {
+            pendingTranslationOverlayStart = false
+            if (Settings.canDrawOverlays(this)) {
+                startTranslationOverlayService()
+            } else {
+                Toast.makeText(this, "لم يتم منح إذن الظهور فوق التطبيقات الأخرى", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            translationOverlayEnabled = getSharedPreferences(
+                FloatingTranslationOverlayService.PREFERENCES,
+                MODE_PRIVATE
+            ).getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
+        }
         isDefaultHome = isRoyalPlusDefaultHome()
         installedApps = LauncherAppsRepository.load(
             packageManager = packageManager,
             ownPackageName = packageName
         )
+    }
+
+    private fun toggleTranslationOverlay() {
+        if (translationOverlayEnabled) {
+            stopService(Intent(this, FloatingTranslationOverlayService::class.java))
+            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
+            translationOverlayEnabled = false
+            Toast.makeText(this, "تم إيقاف نافذة الترجمة العائمة", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (!Settings.canDrawOverlays(this)) {
+            pendingTranslationOverlayStart = true
+            try {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            } catch (_: Exception) {
+                pendingTranslationOverlayStart = false
+                Toast.makeText(this, "تعذر فتح إعداد إذن الظهور فوق التطبيقات", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        startTranslationOverlayService()
+    }
+
+    private fun startTranslationOverlayService() {
+        try {
+            val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+                action = FloatingTranslationOverlayService.ACTION_SHOW
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            translationOverlayEnabled = true
+            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, true).apply()
+            Toast.makeText(
+                this,
+                "تم تشغيل النافذة العائمة. محرك الترجمة سيُضاف في المرحلة التالية.",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (_: Exception) {
+            translationOverlayEnabled = false
+            Toast.makeText(this, "تعذر تشغيل النافذة العائمة على هذا الجهاز", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun startVoiceSearch() {
