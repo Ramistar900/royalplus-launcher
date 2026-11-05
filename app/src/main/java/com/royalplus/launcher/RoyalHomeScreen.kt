@@ -170,7 +170,15 @@ internal fun RoyalHomeScreen(
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
-    val selectedScreensaverWallpaper = "default"
+    var selectedScreensaverWallpaper by remember {
+        mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
+    }
+    var screensaverMotionEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
+    }
+    var screensaverDelaySeconds by remember {
+        mutableStateOf(wallpaperPreferences.getInt("screensaver_delay_seconds", 30).coerceIn(0, 300))
+    }
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
@@ -217,10 +225,17 @@ internal fun RoyalHomeScreen(
         }
     }
 
-    LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination) {
-        if (!showSmartScreensaver && !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME) {
-            delay(30_000L)
-            if (System.currentTimeMillis() - lastUserInteraction >= 30_000L) showSmartScreensaver = true
+    LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination, screensaverDelaySeconds) {
+        if (screensaverDelaySeconds > 0 && !showSmartScreensaver &&
+            !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME
+        ) {
+            val delayMillis = screensaverDelaySeconds * 1_000L
+            delay(delayMillis)
+            if (System.currentTimeMillis() - lastUserInteraction >= delayMillis &&
+                !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME
+            ) {
+                showSmartScreensaver = true
+            }
         }
     }
 
@@ -524,6 +539,7 @@ internal fun RoyalHomeScreen(
                     weather = weather,
                     language = selectedLanguage,
                     selectedWallpaper = selectedScreensaverWallpaper,
+                    motionEnabled = screensaverMotionEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -704,13 +720,83 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(when (selectedLanguage) { "en" -> "Smart screensaver"; "tr" -> "Akıllı ekran koruyucu"; else -> "الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
-                        WallpaperChoice(
-                            modifier = Modifier.width(190.dp),
-                            title = when (selectedLanguage) { "en" -> "Royal (fixed)"; "tr" -> "Kraliyet (sabit)"; else -> "الملكي (ثابت)" },
-                            selected = true,
-                            image = painterResource(R.drawable.royal_smart_screensaver),
-                            onClick = { }
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    screensaverMotionEnabled = !screensaverMotionEnabled
+                                    wallpaperPreferences.edit().putBoolean("motion_screensaver", screensaverMotionEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                when (selectedLanguage) { "en" -> "Screensaver movement"; "tr" -> "Ekran koruyucu hareketi"; else -> "حركة شاشة التوقف" },
+                                color = RoyalColors.Pearl, fontSize = 13.sp
+                            )
+                            Text(
+                                if (screensaverMotionEnabled) "MOTION ON" else "FIXED",
+                                color = if (screensaverMotionEnabled) RoyalColors.Gold else RoyalColors.Muted,
+                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Start after"; "tr" -> "Başlatma süresi"; else -> "بدء شاشة التوقف بعد" },
+                            color = RoyalColors.Pearl, fontSize = 12.sp
                         )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(30, 60, 120, 300, 0).forEach { seconds ->
+                                val selected = screensaverDelaySeconds == seconds
+                                val label = when (seconds) {
+                                    0 -> if (selectedLanguage == "en") "Off" else if (selectedLanguage == "tr") "Kapalı" else "إيقاف"
+                                    30 -> "30s"
+                                    60 -> "1m"
+                                    120 -> "2m"
+                                    else -> "5m"
+                                }
+                                Box(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
+                                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF080A0F))
+                                        .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f), RoundedCornerShape(9.dp))
+                                        .clickable {
+                                            screensaverDelaySeconds = seconds
+                                            wallpaperPreferences.edit().putInt("screensaver_delay_seconds", seconds).apply()
+                                            showSmartScreensaver = false
+                                        }
+                                        .focusable()
+                                        .padding(vertical = 9.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(label, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        val screensaverWallpapers = listOf(
+                            Triple("default", if (selectedLanguage == "en") "Royal" else if (selectedLanguage == "tr") "Kraliyet" else "الملكي", R.drawable.royal_smart_screensaver)
+                        ) + homeWallpapers.filter { it.first != "color" }
+                        screensaverWallpapers.chunked(4).forEach { wallpaperRow ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                wallpaperRow.forEach { (key, title, imageRes) ->
+                                    WallpaperChoice(
+                                        modifier = Modifier.weight(1f),
+                                        title = title,
+                                        selected = selectedScreensaverWallpaper == key,
+                                        image = painterResource(imageRes),
+                                        onClick = {
+                                            selectedScreensaverWallpaper = key
+                                            wallpaperPreferences.edit().putString("screensaver_wallpaper", key).apply()
+                                        }
+                                    )
+                                }
+                                repeat(4 - wallpaperRow.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
