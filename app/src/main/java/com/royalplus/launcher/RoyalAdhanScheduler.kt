@@ -9,6 +9,7 @@ import android.os.Build
 import java.util.GregorianCalendar
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal data class RoyalPrayerLocation(
     val latitude: Double,
@@ -114,44 +115,68 @@ internal object RoyalAdhanScheduler {
         return runCatching { manager.canScheduleExactAlarms() }.getOrDefault(false)
     }
 
-    fun scheduleNext(context: Context) {
-        val appContext = context.applicationContext
-        if (!isEnabled(appContext)) {
-            cancel(appContext)
-            return
+    fun scheduleNext(context: Context, onComplete: (() -> Unit)? = null) {
+        val completed = AtomicBoolean(false)
+        fun finish() {
+            if (completed.compareAndSet(false, true)) onComplete?.invoke()
         }
-        val location = getLocation(appContext) ?: return
 
-        PrayerTimesRepository.fetch(
-            latitude = location.latitude,
-            longitude = location.longitude,
-            city = location.city,
-            timeZoneId = location.timeZoneId
-        ) { today ->
-            if (today.error != null || today.times.isEmpty()) return@fetch
+        try {
+            val appContext = context.applicationContext
+            if (!isEnabled(appContext)) {
+                cancel(appContext)
+                finish()
+                return
+            }
+            val location = getLocation(appContext)
+            if (location == null) {
+                finish()
+                return
+            }
+
             PrayerTimesRepository.fetch(
                 latitude = location.latitude,
                 longitude = location.longitude,
                 city = location.city,
-                timeZoneId = location.timeZoneId,
-                calendarDayOffset = 1
-            ) { tomorrow ->
-                if (tomorrow.error != null || tomorrow.times.isEmpty()) return@fetch
-                val now = System.currentTimeMillis()
-                val zone = TimeZone.getTimeZone(location.timeZoneId)
-                val candidates = mutableListOf<AlarmCandidate>().apply {
-                    addCandidates(today.times, 0, zone, now)
-                    addCandidates(tomorrow.times, 1, zone, now)
+                timeZoneId = location.timeZoneId
+            ) { today ->
+                if (today.error != null || today.times.isEmpty()) {
+                    finish()
+                    return@fetch
                 }
-                val next = candidates.minByOrNull { it.triggerAtMillis } ?: return@fetch
-                if (!isEnabled(appContext)) return@fetch
-                setAlarm(
-                    appContext,
-                    next,
-                    location.city,
-                    preferences(appContext).getString(KEY_LANGUAGE, "ar") ?: "ar"
-                )
+                PrayerTimesRepository.fetch(
+                    latitude = location.latitude,
+                    longitude = location.longitude,
+                    city = location.city,
+                    timeZoneId = location.timeZoneId,
+                    calendarDayOffset = 1
+                ) { tomorrow ->
+                    if (tomorrow.error != null || tomorrow.times.isEmpty()) {
+                        finish()
+                        return@fetch
+                    }
+                    val now = System.currentTimeMillis()
+                    val zone = TimeZone.getTimeZone(location.timeZoneId)
+                    val candidates = mutableListOf<AlarmCandidate>().apply {
+                        addCandidates(today.times, 0, zone, now)
+                        addCandidates(tomorrow.times, 1, zone, now)
+                    }
+                    val next = candidates.minByOrNull { it.triggerAtMillis }
+                    if (next == null || !isEnabled(appContext)) {
+                        finish()
+                        return@fetch
+                    }
+                    setAlarm(
+                        appContext,
+                        next,
+                        location.city,
+                        preferences(appContext).getString(KEY_LANGUAGE, "ar") ?: "ar"
+                    )
+                    finish()
+                }
             }
+        } catch (_: Exception) {
+            finish()
         }
     }
 
@@ -257,9 +282,12 @@ internal class RoyalAdhanAlarmReceiver : android.content.BroadcastReceiver() {
                 context.startService(serviceIntent)
             }
         } catch (_: Exception) {
-            // The app's next launch can recover the schedule if the system blocks playback startup.
+            // Playback may be blocked by device policy; preserve the next prayer schedule.
         }
-        RoyalAdhanScheduler.scheduleNext(context)
+        val pending = goAsync()
+        RoyalAdhanScheduler.scheduleNext(context) {
+            runCatching { pending.finish() }
+        }
     }
 }
 
@@ -269,7 +297,12 @@ internal class RoyalAdhanRescheduleReceiver : android.content.BroadcastReceiver(
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
-            Intent.ACTION_MY_PACKAGE_REPLACED -> RoyalAdhanScheduler.scheduleNext(context)
+            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                val pending = goAsync()
+                RoyalAdhanScheduler.scheduleNext(context) {
+                    runCatching { pending.finish() }
+                }
+            }
         }
     }
 }
