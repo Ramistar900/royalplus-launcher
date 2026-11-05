@@ -31,11 +31,14 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -66,6 +69,8 @@ internal fun RoyalQuickControlCenter(
     onRefreshWeather: () -> Unit
 ) {
     val context = LocalContext.current
+    val firstTileFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { firstTileFocusRequester.requestFocus() }
     val controls = listOf(
         RoyalQuickControl("شبكة Wi-Fi", "Wi-Fi", "Wi-Fi", "إعدادات الاتصال", R.drawable.royal_wifi) {
             openQuickSystemSettings(context, Settings.ACTION_WIFI_SETTINGS, language)
@@ -148,6 +153,7 @@ internal fun RoyalQuickControlCenter(
                         title = when (language) { "en" -> control.titleEn; "tr" -> control.titleTr; else -> control.titleAr },
                         subtitle = if (language == "ar") control.subtitleAr else "",
                         icon = control.icon,
+                        focusRequester = if (control === controls.first()) firstTileFocusRequester else null,
                         onClick = {
                             onDismiss()
                             control.action()
@@ -174,6 +180,7 @@ private fun RoyalQuickControlTile(
     title: String,
     subtitle: String,
     icon: Int,
+    focusRequester: FocusRequester?,
     onClick: () -> Unit
 ) {
     var focused = remember { mutableStateOf(false) }
@@ -187,6 +194,7 @@ private fun RoyalQuickControlTile(
                 if (focused.value) Color(0xFFFFD36A) else Color(0x66D6B25E),
                 shape
             )
+            .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .clickable(onClick = onClick)
             .onFocusChanged { focused.value = it.isFocused }
             .focusable()
