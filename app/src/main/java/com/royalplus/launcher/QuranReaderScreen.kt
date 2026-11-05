@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @Composable
@@ -265,7 +266,11 @@ internal fun QuranReaderScreen(
                             )
                             .clickable {
                                 selectedSurah = surah
-                                preferences.edit().putInt("quran_last_surah", surah.number).apply()
+                                preferences.edit()
+                                    .putInt("quran_last_surah", surah.number)
+                                    .apply {
+                                        if (surah.number != lastReadNumber) putInt("quran_last_verse", 1)
+                                    }
                             }
                             .focusable()
                             .padding(horizontal = 12.dp, vertical = 10.dp),
