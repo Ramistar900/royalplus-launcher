@@ -10,6 +10,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 
 internal class RoyalAdhanPlaybackService : Service() {
     private var player: MediaPlayer? = null
@@ -41,6 +42,7 @@ internal class RoyalAdhanPlaybackService : Service() {
                 return
             }
             val mediaPlayer = MediaPlayer()
+            mediaPlayer.setWakeMode(this, PowerManager.PARTIAL_WAKE_LOCK)
             try {
                 mediaPlayer.setAudioAttributes(
                     AudioAttributes.Builder()
