@@ -77,33 +77,39 @@ internal object RoyalWeatherRepository {
         }
     }
 
-    @Suppress("DEPRECATION")
     fun fetchForCity(context: Context, cityQuery: String, onResult: (WeatherUiState) -> Unit) {
-        val appContext = context.applicationContext
         val requestedCity = cityQuery.trim()
         executor.execute {
             val result = try {
                 require(requestedCity.isNotBlank()) { "City name is blank" }
-                check(Geocoder.isPresent()) { "Geocoding is unavailable on this device" }
-                val address = Geocoder(appContext, Locale.getDefault())
-                    .getFromLocationName(requestedCity, 1)
-                    ?.firstOrNull()
-                    ?: throw IllegalArgumentException("City was not found")
-                val location = Location("royalplus-manual").apply {
-                    latitude = address.latitude
-                    longitude = address.longitude
+                val encodedCity = java.net.URLEncoder.encode(requestedCity, Charsets.UTF_8.name())
+                val geocodingUrl = URL(
+                    "https://geocoding-api.open-meteo.com/v1/search" +
+                        "?name=$encodedCity&count=1&language=${Locale.getDefault().language}&format=json"
+                )
+                val geocodingConnection = (geocodingUrl.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 10_000
+                    readTimeout = 10_000
+                    setRequestProperty("Accept", "application/json")
                 }
-                val resolvedCity = address.locality
-                    ?: address.subAdminArea
-                    ?: address.adminArea
-                    ?: requestedCity
-                val country = address.countryName
-                val displayCity = if (!country.isNullOrBlank() && !resolvedCity.contains(country)) {
-                    "$resolvedCity، $country"
-                } else {
-                    resolvedCity
+                val locationAndName = try {
+                    val body = geocodingConnection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    val first = JSONObject(body).optJSONArray("results")?.optJSONObject(0)
+                        ?: throw IllegalArgumentException("City was not found")
+                    val location = Location("royalplus-manual").apply {
+                        latitude = first.getDouble("latitude")
+                        longitude = first.getDouble("longitude")
+                    }
+                    val resolvedCity = first.optString("name").ifBlank { requestedCity }
+                    val country = first.optString("country")
+                    val displayCity = if (country.isNotBlank()) "$resolvedCity، $country" else resolvedCity
+                    location to displayCity
+                } finally {
+                    geocodingConnection.disconnect()
                 }
-                fetchCurrentWeather(location, displayCity).copy(isManualLocation = true)
+                fetchCurrentWeather(locationAndName.first, locationAndName.second)
+                    .copy(isManualLocation = true)
             } catch (_: Exception) {
                 WeatherUiState(
                     city = requestedCity.ifBlank { "مدينة غير محددة" },
