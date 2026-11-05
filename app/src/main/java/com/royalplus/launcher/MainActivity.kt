@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         voiceSearchAvailable = SpeechRecognizer.isRecognitionAvailable(this)
+        RoyalAdhanScheduler.scheduleNext(this)
         window.statusBarColor = android.graphics.Color.rgb(8, 10, 18)
         window.navigationBarColor = android.graphics.Color.rgb(8, 10, 18)
         window.decorView.systemUiVisibility =
@@ -122,6 +123,7 @@ class MainActivity : ComponentActivity() {
             packageManager = packageManager,
             ownPackageName = packageName
         )
+        RoyalAdhanScheduler.scheduleNext(this)
     }
 
     private fun startVoiceSearch() {

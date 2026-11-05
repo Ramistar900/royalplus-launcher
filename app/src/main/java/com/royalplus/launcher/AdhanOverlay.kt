@@ -1,6 +1,5 @@
 package com.royalplus.launcher
 
-import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,7 +34,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,36 +49,30 @@ internal fun AdhanOverlay(
     motionEnabled: Boolean = true,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    var audioError by remember(prayerName) { mutableStateOf(false) }
-
-    BackHandler(onBack = onDismiss)
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     DisposableEffect(prayerName) {
-        val player = try {
-            MediaPlayer.create(context, R.raw.royal_adhan)
-        } catch (_: Exception) {
-            null
-        }
-        if (player == null) {
-            audioError = true
-        } else {
-            try {
-                player.setOnCompletionListener { onDismiss() }
-                player.start()
-            } catch (_: Exception) {
-                audioError = true
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                onDismiss()
             }
+        }
+        val filter = android.content.IntentFilter(RoyalAdhanPlaybackService.ACTION_PLAYBACK_FINISHED)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
         }
         onDispose {
-            try {
-                if (player?.isPlaying == true) player.stop()
-            } catch (_: Exception) {
-                // The player may already have completed or failed.
-            }
-            player?.release()
+            runCatching { context.unregisterReceiver(receiver) }
         }
     }
+
+    BackHandler(onBack = {
+        context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
+        onDismiss()
+    })
 
     Box(
         modifier = Modifier
@@ -155,18 +147,10 @@ internal fun AdhanOverlay(
             )
             Spacer(Modifier.height(30.dp))
             Text(
-                if (audioError) {
-                    when (language) {
-                        "en" -> "Audio could not be played. Check the royal_adhan.mp4 recording."
-                        "tr" -> "Ses çalınamadı. royal_adhan.mp4 kaydını kontrol edin."
-                        else -> "تعذّر تشغيل الصوت. تحقق من تسجيل royal_adhan.mp4"
-                    }
-                } else {
-                    when (language) {
-                        "en" -> "The adhan is playing"
-                        "tr" -> "Ezan çalınıyor"
-                        else -> "يجري تشغيل تسجيل الأذان"
-                    }
+                when (language) {
+                    "en" -> "The scheduled adhan is playing"
+                    "tr" -> "Zamanlanan ezan çalıyor"
+                    else -> "يجري تشغيل الأذان المجدول"
                 },
                 color = Color(0xFFC7CED9),
                 fontSize = 15.sp,
@@ -178,7 +162,10 @@ internal fun AdhanOverlay(
                 language = language,
                 focused = focused,
                 onFocusChanged = { focused = it },
-                onClick = onDismiss
+                onClick = {
+                    context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
+                    onDismiss()
+                }
             )
         }
         }

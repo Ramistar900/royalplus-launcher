@@ -170,7 +170,15 @@ internal fun RoyalHomeScreen(
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
-    val selectedScreensaverWallpaper = "default"
+    var selectedScreensaverWallpaper by remember {
+        mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
+    }
+    var screensaverMotionEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
+    }
+    var screensaverDelaySeconds by remember {
+        mutableStateOf(wallpaperPreferences.getInt("screensaver_delay_seconds", 30).coerceIn(0, 300))
+    }
     var selectedIconStyle by remember { mutableStateOf(wallpaperPreferences.getString("launcher_icon_style", "rounded") ?: "rounded") }
     var use24HourClock by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_24_hour_clock", true)) }
     var showDateOnHome by remember { mutableStateOf(wallpaperPreferences.getBoolean("launcher_show_date", true)) }
@@ -217,27 +225,55 @@ internal fun RoyalHomeScreen(
         }
     }
 
-    LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination) {
-        if (!showSmartScreensaver && !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME) {
-            delay(30_000L)
-            if (System.currentTimeMillis() - lastUserInteraction >= 30_000L) showSmartScreensaver = true
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30L * 60L * 1_000L)
+            onRefreshWeather()
+        }
+    }
+
+    LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination, screensaverDelaySeconds) {
+        if (screensaverDelaySeconds > 0 && !showSmartScreensaver &&
+            !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME
+        ) {
+            val delayMillis = screensaverDelaySeconds * 1_000L
+            delay(delayMillis)
+            if (System.currentTimeMillis() - lastUserInteraction >= delayMillis &&
+                !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME
+            ) {
+                showSmartScreensaver = true
+            }
         }
     }
 
     LaunchedEffect(weather.latitude, weather.longitude, weather.city, weather.timeZoneId) {
         prayerTimesForHome = null
-        val latitude = weather.latitude
-        val longitude = weather.longitude
+        val savedPrayerLocation = RoyalAdhanScheduler.getLocation(context)
+        val latitude = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.latitude else weather.latitude
+        val longitude = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.longitude else weather.longitude
+        val city = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.city else weather.city
+        val timeZoneId = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.timeZoneId else weather.timeZoneId
         if (latitude != null && longitude != null) {
             PrayerTimesRepository.fetch(
                 latitude = latitude,
                 longitude = longitude,
-                city = weather.city,
-                timeZoneId = weather.timeZoneId
+                city = city,
+                timeZoneId = timeZoneId
             ) { result ->
                 prayerTimesForHome = result.takeIf { it.error == null && it.times.isNotEmpty() }
             }
         }
+    }
+
+    LaunchedEffect(isAdhanEnabled, weather.latitude, weather.longitude, weather.city, weather.timeZoneId, selectedLanguage) {
+        RoyalAdhanScheduler.setEnabled(context, isAdhanEnabled, selectedLanguage)
+        RoyalAdhanScheduler.ensureLocation(
+            context = context,
+            latitude = weather.latitude,
+            longitude = weather.longitude,
+            city = weather.city,
+            timeZoneId = weather.timeZoneId
+        )
     }
 
     LaunchedEffect(currentTime, prayerTimesForHome, weather.timeZoneId, weather.city, selectedLanguage) {
@@ -510,6 +546,7 @@ internal fun RoyalHomeScreen(
                     weather = weather,
                     language = selectedLanguage,
                     selectedWallpaper = selectedScreensaverWallpaper,
+                    motionEnabled = screensaverMotionEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -547,6 +584,7 @@ internal fun RoyalHomeScreen(
                                 .clickable {
                                     isAdhanEnabled = !isAdhanEnabled
                                     wallpaperPreferences.edit().putBoolean("adhan_enabled", isAdhanEnabled).apply()
+                                    RoyalAdhanScheduler.setEnabled(context, isAdhanEnabled, selectedLanguage)
                                     if (!isAdhanEnabled) {
                                         activeAdhanPrayer = null
                                         prayerTimeBanner = null
@@ -575,6 +613,59 @@ internal fun RoyalHomeScreen(
                                 if (isAdhanEnabled) "ON" else "OFF",
                                 color = if (isAdhanEnabled) RoyalColors.Gold else RoyalColors.Muted,
                                 fontSize = 16.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+                                        !RoyalAdhanScheduler.canScheduleExactAlarms(context)
+                                    ) {
+                                        runCatching {
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                                    android.net.Uri.parse("package:${context.packageName}")
+                                                )
+                                            )
+                                        }.onFailure {
+                                            android.widget.Toast.makeText(context, "افتح إعدادات التطبيقات ثم الوصول الخاص ثم المنبّهات الدقيقة", android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    } else {
+                                        RoyalAdhanScheduler.scheduleNext(context)
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (selectedLanguage == "en") "Prayer alarms are scheduled" else if (selectedLanguage == "tr") "Namaz alarmları zamanlandı" else "تمت جدولة مواقيت الصلاة",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(23.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Precise prayer alarms"; "tr" -> "Hassas namaz alarmları"; else -> "دقة تنبيهات الصلاة" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (RoyalAdhanScheduler.canScheduleExactAlarms(context))
+                                        when (selectedLanguage) { "en" -> "Exact alarm access is available"; "tr" -> "Hassas alarm izni açık"; else -> "صلاحية التنبيه الدقيق متاحة" }
+                                    else
+                                        when (selectedLanguage) { "en" -> "Tap to allow exact alarms; otherwise timing may vary"; "tr" -> "Kesin zamanlama için dokunun; aksi halde gecikme olabilir"; else -> "اضغط للسماح بالدقة العالية؛ وإلا قد يتأخر التنبيه" },
+                                    color = RoyalColors.Muted, fontSize = 10.sp
+                                )
+                            }
+                            Text(
+                                if (RoyalAdhanScheduler.canScheduleExactAlarms(context)) "✓" else "›",
+                                color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
                         }
                         Spacer(Modifier.height(14.dp))
@@ -636,13 +727,83 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(when (selectedLanguage) { "en" -> "Smart screensaver"; "tr" -> "Akıllı ekran koruyucu"; else -> "الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
-                        WallpaperChoice(
-                            modifier = Modifier.width(190.dp),
-                            title = when (selectedLanguage) { "en" -> "Royal (fixed)"; "tr" -> "Kraliyet (sabit)"; else -> "الملكي (ثابت)" },
-                            selected = true,
-                            image = painterResource(R.drawable.royal_smart_screensaver),
-                            onClick = { }
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    screensaverMotionEnabled = !screensaverMotionEnabled
+                                    wallpaperPreferences.edit().putBoolean("motion_screensaver", screensaverMotionEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                when (selectedLanguage) { "en" -> "Screensaver movement"; "tr" -> "Ekran koruyucu hareketi"; else -> "حركة شاشة التوقف" },
+                                color = RoyalColors.Pearl, fontSize = 13.sp
+                            )
+                            Text(
+                                if (screensaverMotionEnabled) "MOTION ON" else "FIXED",
+                                color = if (screensaverMotionEnabled) RoyalColors.Gold else RoyalColors.Muted,
+                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Start after"; "tr" -> "Başlatma süresi"; else -> "بدء شاشة التوقف بعد" },
+                            color = RoyalColors.Pearl, fontSize = 12.sp
                         )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(30, 60, 120, 300, 0).forEach { seconds ->
+                                val selected = screensaverDelaySeconds == seconds
+                                val label = when (seconds) {
+                                    0 -> if (selectedLanguage == "en") "Off" else if (selectedLanguage == "tr") "Kapalı" else "إيقاف"
+                                    30 -> "30s"
+                                    60 -> "1m"
+                                    120 -> "2m"
+                                    else -> "5m"
+                                }
+                                Box(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
+                                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF080A0F))
+                                        .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f), RoundedCornerShape(9.dp))
+                                        .clickable {
+                                            screensaverDelaySeconds = seconds
+                                            wallpaperPreferences.edit().putInt("screensaver_delay_seconds", seconds).apply()
+                                            showSmartScreensaver = false
+                                        }
+                                        .focusable()
+                                        .padding(vertical = 9.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(label, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        val screensaverWallpapers = listOf(
+                            Triple("default", if (selectedLanguage == "en") "Royal" else if (selectedLanguage == "tr") "Kraliyet" else "الملكي", R.drawable.royal_smart_screensaver)
+                        ) + homeWallpapers.filter { it.first != "color" }
+                        screensaverWallpapers.chunked(4).forEach { wallpaperRow ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                wallpaperRow.forEach { (key, title, imageRes) ->
+                                    WallpaperChoice(
+                                        modifier = Modifier.weight(1f),
+                                        title = title,
+                                        selected = selectedScreensaverWallpaper == key,
+                                        image = painterResource(imageRes),
+                                        onClick = {
+                                            selectedScreensaverWallpaper = key
+                                            wallpaperPreferences.edit().putString("screensaver_wallpaper", key).apply()
+                                        }
+                                    )
+                                }
+                                repeat(4 - wallpaperRow.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
@@ -856,6 +1017,7 @@ internal fun RoyalHomeScreen(
                         timeInMillis = currentTime
                     }.get(java.util.Calendar.HOUR_OF_DAY) in 6..17,
                     onDismiss = {
+                        context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
                         activeAdhanPrayer = null
                         prayerTimeBanner = null
                     }
