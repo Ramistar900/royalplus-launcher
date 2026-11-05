@@ -366,6 +366,12 @@ internal fun MuslimScreen(
             }
         }
 
+        RoyalWorshipToolsSection(
+            latitude = latitude,
+            longitude = longitude,
+            language = language,
+            onRequestLocation = onRequestLocation
+        )
         DuasSection(language = language)
         HadithsSection(language = language)
 
