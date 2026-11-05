@@ -557,7 +557,7 @@ internal fun RoyalHomeScreen(
             if (showWeatherDetails) {
                 WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation, onChooseCity = onChooseWeatherCity, onUseDeviceLocation = onUseDeviceLocation, motionEnabled = weatherMotionEnabled)
             }
-            if (showSmartScreensaver && !showWallpaperSettings && !showWeatherDetails) {
+            if (showSmartScreensaver && !showWallpaperSettings && !showWeatherDetails && !showQuickControls) {
                 RoyalSmartScreensaver(
                     timeText = timeText,
                     dateText = dateText,
