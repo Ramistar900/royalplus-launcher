@@ -152,7 +152,8 @@ class FloatingTranslationOverlayService : Service() {
                 params.x = initialX + (event.rawX - dragStartX).toInt()
                 params.y = initialY - (event.rawY - dragStartY).toInt()
                 try {
-                    manager.updateViewLayout(overlayView, params)
+                    val view = overlayView ?: return false
+                    manager.updateViewLayout(view, params)
                 } catch (_: Exception) {
                     stopSelf()
                 }
@@ -197,7 +198,7 @@ class FloatingTranslationOverlayService : Service() {
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(Notification.PRIORITY_LOW)
-            .addAction(Notification.Action.Builder(0, "إيقاف", stopPendingIntent).build())
+            .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "إيقاف", stopPendingIntent).build())
             .build()
     }
 
