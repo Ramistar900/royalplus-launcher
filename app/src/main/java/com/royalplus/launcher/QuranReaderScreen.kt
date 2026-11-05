@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun QuranReaderScreen(
@@ -65,6 +68,9 @@ internal fun QuranReaderScreen(
     var selectedSurah by remember { mutableStateOf<QuranSurah?>(null) }
     var query by remember { mutableStateOf("") }
     val lastReadNumber = preferences.getInt("quran_last_surah", 1)
+    val lastReadVerse = preferences.getInt("quran_last_verse", 1)
+    var bookmarkedSurah by remember { mutableStateOf(preferences.getInt("quran_bookmark_surah", 0)) }
+    var bookmarkedVerse by remember { mutableStateOf(preferences.getInt("quran_bookmark_verse", 0)) }
     val isArabic = language == "ar"
     val isTurkish = language == "tr"
 
@@ -185,6 +191,37 @@ internal fun QuranReaderScreen(
                 }
             }
 
+            if (bookmarkedSurah in 1..114 && query.isBlank()) {
+                val bookmarkedChapter = surahs.firstOrNull { it.number == bookmarkedSurah }
+                if (bookmarkedChapter != null) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF182438))
+                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                selectedSurah = bookmarkedChapter
+                                preferences.edit().putInt("quran_last_surah", bookmarkedChapter.number)
+                                    .putInt("quran_last_verse", bookmarkedVerse.coerceAtLeast(1)).apply()
+                            }
+                            .focusable()
+                            .padding(11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                when { isArabic -> "العلامة المرجعية"; isTurkish -> "Yer imi"; else -> "Bookmark" },
+                                color = RoyalColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "${bookmarkedChapter.name} • ${if (isArabic) "الآية" else if (isTurkish) "Ayet" else "Verse"} $bookmarkedVerse",
+                                color = RoyalColors.Pearl, fontSize = 14.sp
+                            )
+                        }
+                        Text("★", color = RoyalColors.Gold, fontSize = 20.sp)
+                    }
+                }
+            }
+
             if (lastReadNumber in 1..114 && query.isBlank()) {
                 val lastRead = surahs.firstOrNull { it.number == lastReadNumber }
                 if (lastRead != null) {
@@ -270,6 +307,41 @@ internal fun QuranReaderScreen(
             }
         } else {
             val surah = selectedSurah!!
+            val verseListState = rememberLazyListState()
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            var savedBookmarkForSurah by remember(surah.number) {
+                mutableStateOf(
+                    preferences.getInt("quran_bookmark_verse", 0)
+                        .takeIf { preferences.getInt("quran_bookmark_surah", 0) == surah.number } ?: 0
+                )
+            }
+            val currentVisibleVerse = remember(surah.number, verseListState.firstVisibleItemIndex) {
+                surah.verses.getOrNull(verseListState.firstVisibleItemIndex)
+                    ?.takeIf { it.number > 0 }?.number
+                    ?: surah.verses.drop(verseListState.firstVisibleItemIndex).firstOrNull { it.number > 0 }?.number
+                    ?: 1
+            }
+            LaunchedEffect(surah.number) {
+                val initialIndex = if (lastReadNumber == surah.number) {
+                    surah.verses.indexOfFirst { it.number == lastReadVerse }.coerceAtLeast(0)
+                } else 0
+                verseListState.scrollToItem(initialIndex)
+            }
+            LaunchedEffect(surah.number, verseListState) {
+                snapshotFlow { verseListState.firstVisibleItemIndex }
+                    .distinctUntilChanged()
+                    .collect { index ->
+                        val verse = surah.verses.getOrNull(index)
+                            ?.takeIf { it.number > 0 }
+                            ?: surah.verses.drop(index).firstOrNull { it.number > 0 }
+                        if (verse != null) {
+                            preferences.edit()
+                                .putInt("quran_last_surah", surah.number)
+                                .putInt("quran_last_verse", verse.number)
+                                .apply()
+                        }
+                    }
+            }
             Text(
                 surah.name,
                 modifier = Modifier.fillMaxWidth(),
@@ -286,9 +358,37 @@ internal fun QuranReaderScreen(
                 fontSize = 10.sp,
                 textAlign = TextAlign.Center
             )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                QuranReaderAction(
+                    label = when { isArabic -> "حفظ موضع القراءة"; isTurkish -> "Okuma yerini kaydet"; else -> "Bookmark position" },
+                    modifier = Modifier.weight(1f),
+                    selected = savedBookmarkForSurah == currentVisibleVerse
+                ) {
+                    bookmarkedSurah = surah.number
+                    bookmarkedVerse = currentVisibleVerse
+                    savedBookmarkForSurah = currentVisibleVerse
+                    preferences.edit()
+                        .putInt("quran_bookmark_surah", surah.number)
+                        .putInt("quran_bookmark_verse", currentVisibleVerse)
+                        .apply()
+                }
+                QuranReaderAction(
+                    label = when { isArabic -> "اذهب للعلامة"; isTurkish -> "Yer imine git"; else -> "Go to bookmark" },
+                    modifier = Modifier.weight(1f),
+                    selected = false,
+                    enabled = savedBookmarkForSurah > 0
+                ) {
+                    val target = surah.verses.indexOfFirst { it.number == savedBookmarkForSurah }
+                    if (target >= 0) scope.launch { verseListState.animateScrollToItem(target) }
+                }
+            }
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                state = rememberLazyListState(),
+                state = verseListState,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(surah.verses, key = { "${surah.number}-${it.number}" }) { verse ->
@@ -305,7 +405,12 @@ internal fun QuranReaderScreen(
                     } else {
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                .background(cardBackground)
+                                .background(if (verse.number == savedBookmarkForSurah) Color(0xFF2A2518) else cardBackground)
+                                .border(
+                                    if (verse.number == savedBookmarkForSurah) 1.dp else 0.dp,
+                                    if (verse.number == savedBookmarkForSurah) RoyalColors.Gold.copy(alpha = 0.8f) else Color.Transparent,
+                                    RoundedCornerShape(10.dp)
+                                )
                                 .padding(horizontal = 12.dp, vertical = 12.dp)
                                 .focusable(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -340,6 +445,37 @@ internal fun QuranReaderScreen(
             modifier = Modifier.fillMaxWidth().clickable { runCatching { uriHandler.openUri("https://tanzil.net/") } }.focusable(),
             color = RoyalColors.Muted,
             fontSize = 9.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun QuranReaderAction(
+    label: String,
+    modifier: Modifier = Modifier,
+    selected: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier.clip(RoundedCornerShape(10.dp))
+            .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF1B2735))
+            .border(
+                1.dp,
+                if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = if (enabled) 0.4f else 0.15f),
+                RoundedCornerShape(10.dp)
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .focusable(enabled = enabled)
+            .padding(horizontal = 9.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            color = if (enabled) RoyalColors.Pearl else RoyalColors.Muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         )
     }
