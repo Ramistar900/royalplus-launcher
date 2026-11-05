@@ -41,7 +41,9 @@ jobs:
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
+      # Keep the full APK build on PRs; skip only artifact storage.
       - name: Upload debug APK
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: royalplus-launcher-debug
