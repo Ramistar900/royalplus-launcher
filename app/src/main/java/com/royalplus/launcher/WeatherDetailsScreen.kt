@@ -252,3 +252,22 @@ private fun weatherDescriptionFor(code: Int, language: String): String = when (c
     in 95..99 -> if (language == "en") "Storm" else if (language == "tr") "Fırtına" else "عاصفة"
     else -> if (language == "en") "Weather" else if (language == "tr") "Hava" else "الطقس"
 }
+
+@Composable
+private fun WeatherMetricCard(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier.clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.14f))
+            .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 7.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(title, color = Color.White.copy(alpha = 0.82f), fontSize = 10.sp, maxLines = 1)
+        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
