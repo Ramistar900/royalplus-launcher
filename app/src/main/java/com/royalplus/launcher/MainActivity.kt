@@ -105,7 +105,9 @@ class MainActivity : ComponentActivity() {
                     onUninstallApp = { app -> requestAppUninstall(app) },
                     onVoiceSearch = { startVoiceSearch() },
                     voiceSearchAvailable = voiceSearchAvailable,
-                    voiceSearchResult = voiceSearchResult
+                    voiceSearchResult = voiceSearchResult,
+                    translationOverlayEnabled = translationOverlayEnabled,
+                    onToggleTranslationOverlay = { toggleTranslationOverlay() }
                 )
             }
         }
@@ -119,6 +121,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (pendingTranslationOverlayStart) {
+            pendingTranslationOverlayStart = false
+            if (Settings.canDrawOverlays(this)) {
+                startTranslationOverlayService()
+            } else {
+                Toast.makeText(this, "لم يتم منح إذن الظهور فوق التطبيقات الأخرى", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            translationOverlayEnabled = getSharedPreferences(
+                FloatingTranslationOverlayService.PREFERENCES,
+                MODE_PRIVATE
+            ).getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
+        }
         isDefaultHome = isRoyalPlusDefaultHome()
         installedApps = LauncherAppsRepository.load(
             packageManager = packageManager,
