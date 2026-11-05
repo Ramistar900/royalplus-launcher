@@ -94,6 +94,9 @@ internal fun MuslimScreen(
                 .coerceIn(0, prayerCities.lastIndex)
         )
     }
+    var prayerCityManuallySelected by remember(context) {
+        mutableStateOf(hijriPreferences.getBoolean("prayer_city_manually_selected", false))
+    }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
     val weekSchedulesState = remember { mutableStateOf<List<PrayerTimesData>>(emptyList()) }
     val weekSchedules = weekSchedulesState.value
@@ -120,8 +123,11 @@ internal fun MuslimScreen(
     LaunchedEffect(hijriDayAdjustment) {
         hijriPreferences.edit().putInt("hijri_day_adjustment", hijriDayAdjustment).apply()
     }
-    LaunchedEffect(selectedCityIndex) {
-        hijriPreferences.edit().putInt("selected_prayer_city_index", selectedCityIndex).apply()
+    LaunchedEffect(selectedCityIndex, prayerCityManuallySelected) {
+        hijriPreferences.edit()
+            .putInt("selected_prayer_city_index", selectedCityIndex)
+            .putBoolean("prayer_city_manually_selected", prayerCityManuallySelected)
+            .apply()
     }
     LaunchedEffect(selectedCityIndex, latitude, longitude, cityName, zoneForKey) {
         val selectedLatitude = latitude
@@ -133,7 +139,7 @@ internal fun MuslimScreen(
                 longitude = selectedLongitude,
                 city = cityName,
                 timeZoneId = zoneForKey,
-                manual = selectedCityIndex != 0
+                manual = prayerCityManuallySelected
             )
         }
     }
@@ -163,7 +169,7 @@ internal fun MuslimScreen(
     }
 
     LaunchedEffect(weather.latitude, weather.longitude) {
-        if (weather.latitude != null && weather.longitude != null) {
+        if (!prayerCityManuallySelected && weather.latitude != null && weather.longitude != null) {
             selectedCityIndex = 0
         }
     }
@@ -418,7 +424,10 @@ internal fun MuslimScreen(
                     Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
                         .background(if (chosen) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
                         .border(1.dp, if (chosen) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                        .clickable { selectedCityIndex = index + 1 }
+                        .clickable {
+                            selectedCityIndex = index + 1
+                            prayerCityManuallySelected = true
+                        }
                         .onFocusChanged { }
                         .focusable()
                         .padding(vertical = 8.dp, horizontal = 3.dp),
