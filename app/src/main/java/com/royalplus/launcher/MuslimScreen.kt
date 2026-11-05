@@ -76,6 +76,7 @@ internal fun MuslimScreen(
     language: String = "ar"
 ) {
     val context = LocalContext.current
+    var showQuranReader by remember { mutableStateOf(false) }
     val hijriPreferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
@@ -208,6 +209,11 @@ internal fun MuslimScreen(
         }
     }
 
+    if (showQuranReader) {
+        QuranReaderScreen(language = language, onClose = { showQuranReader = false })
+        return
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
             .background(Color(0xFFFFF3D8))
@@ -237,6 +243,32 @@ internal fun MuslimScreen(
             }
             Spacer(Modifier.width(8.dp))
             SmallPrayerAction(when (language) { "en" -> "My location"; "tr" -> "Konumum"; else -> "موقعي" }, Icons.Rounded.LocationOn, onRequestLocation)
+        }
+
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                .background(Color(0xFF111820))
+                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(13.dp))
+                .clickable { showQuranReader = true }
+                .focusable()
+                .padding(horizontal = 15.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    when (language) { "en" -> "The Holy Quran"; "tr" -> "Kur'an-ı Kerim"; else -> "القرآن الكريم" },
+                    color = RoyalColors.Gold,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    when (language) { "en" -> "Complete offline Uthmani text • 114 surahs"; "tr" -> "Tam çevrimdışı Osmanlı metni • 114 sure"; else -> "المصحف العثماني كاملاً دون إنترنت • 114 سورة" },
+                    color = RoyalColors.Muted,
+                    fontSize = 10.sp
+                )
+            }
+            Text("۞", color = RoyalColors.Gold, fontSize = 28.sp)
         }
 
         Row(
