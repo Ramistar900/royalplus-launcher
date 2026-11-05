@@ -226,14 +226,17 @@ internal fun RoyalHomeScreen(
 
     LaunchedEffect(weather.latitude, weather.longitude, weather.city, weather.timeZoneId) {
         prayerTimesForHome = null
-        val latitude = weather.latitude
-        val longitude = weather.longitude
+        val savedPrayerLocation = RoyalAdhanScheduler.getLocation(context)
+        val latitude = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.latitude else weather.latitude
+        val longitude = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.longitude else weather.longitude
+        val city = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.city else weather.city
+        val timeZoneId = if (savedPrayerLocation?.isManual == true) savedPrayerLocation.timeZoneId else weather.timeZoneId
         if (latitude != null && longitude != null) {
             PrayerTimesRepository.fetch(
                 latitude = latitude,
                 longitude = longitude,
-                city = weather.city,
-                timeZoneId = weather.timeZoneId
+                city = city,
+                timeZoneId = timeZoneId
             ) { result ->
                 prayerTimesForHome = result.takeIf { it.error == null && it.times.isNotEmpty() }
             }
