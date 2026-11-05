@@ -78,7 +78,8 @@ internal fun WeatherGlassCard(
     onRefreshWeather: () -> Unit,
     onOpenWeather: () -> Unit,
     modifier: Modifier = Modifier,
-    language: String = "ar"
+    language: String = "ar",
+    motionEnabled: Boolean = true
 ) {
     val visual = weatherVisual(weather)
     val localizedDescription = when (weather.weatherCode) {
@@ -115,11 +116,10 @@ internal fun WeatherGlassCard(
             .clip(weatherFrame)
             .border(1.dp, Color(0xBFFFD76D), weatherFrame)
     ) {
-        Image(
-            painter = painterResource(imageRes),
-            contentDescription = null,
+        RoyalMotionImage(
+            image = painterResource(imageRes),
             modifier = Modifier.matchParentSize(),
-            contentScale = ContentScale.Crop
+            motionEnabled = motionEnabled
         )
         Box(
             modifier = Modifier
@@ -129,6 +129,10 @@ internal fun WeatherGlassCard(
                         listOf(Color(0x33000610), Color(0x66000610), Color(0xF0060A12))
                     )
                 )
+        )
+        RoyalWeatherAtmosphereOverlay(
+            weatherCode = weather.weatherCode,
+            motionEnabled = motionEnabled
         )
         Column(
             modifier = Modifier
