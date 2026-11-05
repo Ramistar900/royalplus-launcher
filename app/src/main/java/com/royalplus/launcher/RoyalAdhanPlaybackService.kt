@@ -56,11 +56,13 @@ internal class RoyalAdhanPlaybackService : Service() {
             }
             mediaPlayer.setOnCompletionListener {
                 stopPlayback()
+                sendBroadcast(Intent(ACTION_PLAYBACK_FINISHED).setPackage(packageName))
                 stopForegroundCompat()
                 stopSelf()
             }
             mediaPlayer.setOnErrorListener { _, _, _ ->
                 stopPlayback()
+                sendBroadcast(Intent(ACTION_PLAYBACK_FINISHED).setPackage(packageName))
                 stopForegroundCompat()
                 stopSelf()
                 true
@@ -171,6 +173,7 @@ internal class RoyalAdhanPlaybackService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.royalplus.launcher.action.STOP_ADHAN"
+        const val ACTION_PLAYBACK_FINISHED = "com.royalplus.launcher.action.ADHAN_FINISHED"
         private const val CHANNEL_ID = "royalplus_adhan_playback"
         private const val NOTIFICATION_ID = 84125
         private const val STOP_REQUEST_CODE = 84126
