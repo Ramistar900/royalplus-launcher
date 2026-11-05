@@ -33,6 +33,32 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/amiri_regular.ttf --output app/src/main/res/font/amiri_regular.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
 
+      - name: Download and verify offline Quran text
+        run: |
+          mkdir -p app/src/main/assets
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/dotquran/corpus/c23f5cec2e95e253dc450bd0f34d09e37ba40fac/processed/quran-uthmani.json --output app/src/main/assets/quran-uthmani.json
+          test "$(git hash-object app/src/main/assets/quran-uthmani.json)" = "ce2c178c3555e0d80530f96d2328c8499df756c7"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("app/src/main/assets/quran-uthmani.json").read_text(encoding="utf-8"))
+          metadata = payload.get("metadata", {})
+          surahs = payload.get("surahs", [])
+          assert metadata.get("source") == "Tanzil Project", metadata
+          assert metadata.get("version") == "Uthmani, Version 1.1", metadata
+          assert len(surahs) == 114, len(surahs)
+          numbered_verses = sum(
+              1 for surah in surahs for ayah in surah.get("ayahs", [])
+              if int(ayah.get("number", -1)) > 0
+          )
+          assert numbered_verses == 6236, numbered_verses
+          assert all(
+              isinstance(ayah.get("text"), str) and ayah["text"].strip()
+              for surah in surahs for ayah in surah.get("ayahs", [])
+          ), "Quran contains a missing or blank verse"
+          print(f"Verified Tanzil Uthmani text: {len(surahs)} surahs, {numbered_verses} numbered verses.")
+          PY
+
       - name: Download Gradle 8.9
         run: |
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
