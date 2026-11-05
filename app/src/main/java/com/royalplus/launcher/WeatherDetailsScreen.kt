@@ -105,6 +105,7 @@ internal fun WeatherDetailsScreen(
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(image = painterResource(backgroundRes), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
+        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59)))))
         Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 18.dp)) {
             Row(Modifier.fillMaxWidth().weight(0.30f), verticalAlignment = Alignment.Top) {
@@ -125,6 +126,24 @@ internal fun WeatherDetailsScreen(
                     Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
                         Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        WeatherMetricCard(
+                            title = when (language) { "en" -> "Feels like"; "tr" -> "Hissedilen"; else -> "المحسوسة" },
+                            value = weather.apparentTemperatureC?.let { "$it°" } ?: "--",
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeatherMetricCard(
+                            title = when (language) { "en" -> "Humidity"; "tr" -> "Nem"; else -> "الرطوبة" },
+                            value = weather.humidityPercent?.let { "$it%" } ?: "--",
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeatherMetricCard(
+                            title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "الرياح" },
+                            value = weather.windSpeedKmh?.let { "$it km/h" } ?: "--",
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
@@ -233,4 +252,23 @@ private fun weatherDescriptionFor(code: Int, language: String): String = when (c
     in 71..77, 85, 86 -> if (language == "en") "Snow" else if (language == "tr") "Kar" else "ثلج"
     in 95..99 -> if (language == "en") "Storm" else if (language == "tr") "Fırtına" else "عاصفة"
     else -> if (language == "en") "Weather" else if (language == "tr") "Hava" else "الطقس"
+}
+
+@Composable
+private fun WeatherMetricCard(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier.clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.14f))
+            .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 7.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(title, color = Color.White.copy(alpha = 0.82f), fontSize = 10.sp, maxLines = 1)
+        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
 }

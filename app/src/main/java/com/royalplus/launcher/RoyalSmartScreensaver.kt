@@ -1,6 +1,5 @@
 package com.royalplus.launcher
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -43,7 +41,8 @@ internal fun RoyalSmartScreensaver(
     weather: WeatherUiState,
     language: String,
     selectedWallpaper: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    motionEnabled: Boolean = true
 ) {
     val isEnglish = language == "en"
     val isTurkish = language == "tr"
@@ -75,8 +74,8 @@ internal fun RoyalSmartScreensaver(
             .focusTarget(),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(id = when (selectedWallpaper) {
+        RoyalMotionImage(
+            image = painterResource(id = when (selectedWallpaper) {
                 "forest" -> R.drawable.royal_wallpaper_forest_04
                 "green" -> R.drawable.royal_wallpaper_grreen_07
                 "lake" -> R.drawable.royal_wallpaper_lake_03
@@ -86,10 +85,10 @@ internal fun RoyalSmartScreensaver(
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
                 else -> R.drawable.royal_smart_screensaver
             }),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            motionEnabled = motionEnabled
         )
+        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
         Box(
             modifier = Modifier
                 .fillMaxSize()

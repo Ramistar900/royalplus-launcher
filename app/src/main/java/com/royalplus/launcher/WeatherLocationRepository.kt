@@ -34,6 +34,9 @@ internal data class WeatherForecastDay(
 internal data class WeatherUiState(
     val city: String = "جارٍ تحديد الموقع",
     val temperatureC: Int? = null,
+    val apparentTemperatureC: Int? = null,
+    val humidityPercent: Int? = null,
+    val windSpeedKmh: Int? = null,
     val weatherCode: Int? = null,
     val description: String = "جارٍ تحميل الطقس",
     val timeZoneId: String? = null,
@@ -212,6 +215,7 @@ internal object RoyalWeatherRepository {
                 "?latitude=${location.latitude}" +
                 "&longitude=${location.longitude}" +
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+                "&wind_speed_unit=kmh" +
                 "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
                 "&forecast_days=5" +
                 "&timezone=auto"
@@ -228,6 +232,11 @@ internal object RoyalWeatherRepository {
             val root = JSONObject(body)
             val current = root.getJSONObject("current")
             val temperature = current.getDouble("temperature_2m").roundToInt()
+            val apparentTemperature = current.optDouble("apparent_temperature", Double.NaN)
+                .takeIf { it.isFinite() }?.roundToInt()
+            val humidity = current.optInt("relative_humidity_2m", -1).takeIf { it in 0..100 }
+            val windSpeed = current.optDouble("wind_speed_10m", Double.NaN)
+                .takeIf { it.isFinite() && it >= 0.0 }?.roundToInt()
             val weatherCode = current.getInt("weather_code")
             val daily = root.optJSONObject("daily")
             val dates = daily?.optJSONArray("time")
@@ -250,6 +259,9 @@ internal object RoyalWeatherRepository {
             return WeatherUiState(
                 city = city,
                 temperatureC = temperature,
+                apparentTemperatureC = apparentTemperature,
+                humidityPercent = humidity,
+                windSpeedKmh = windSpeed,
                 weatherCode = weatherCode,
                 description = weatherDescription(weatherCode),
                 timeZoneId = timeZone,
