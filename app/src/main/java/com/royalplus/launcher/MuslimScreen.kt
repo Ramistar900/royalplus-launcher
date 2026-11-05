@@ -573,43 +573,62 @@ private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String
         PrayerTimesRepository.nextRamadanTarget(now, timeZoneId)
     }
     val parts = remember(now / 1000L, target, timeZoneId) {
-        if (target.isRamadan) List(7) { 0L } else {
+        if (target.isRamadan) listOf(0L, 0L, 0L, 0L) else {
             val zone = TimeZone.getTimeZone(timeZoneId)
-            val cursor = java.util.GregorianCalendar(zone, Locale.US).apply { timeInMillis = now }
-            val end = target.targetMillis
+            val cursor = java.util.GregorianCalendar(zone, Locale.US).apply {
+                timeInMillis = now
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val end = java.util.GregorianCalendar(zone, Locale.US).apply {
+                timeInMillis = target.targetMillis
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
             var years = 0L
             while (true) {
                 val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.YEAR, 1) }
-                if (next.timeInMillis <= end) { cursor.add(java.util.Calendar.YEAR, 1); years++ } else break
+                if (next.timeInMillis <= end.timeInMillis) {
+                    cursor.add(java.util.Calendar.YEAR, 1)
+                    years++
+                } else break
             }
             var months = 0L
             while (true) {
                 val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.MONTH, 1) }
-                if (next.timeInMillis <= end) { cursor.add(java.util.Calendar.MONTH, 1); months++ } else break
+                if (next.timeInMillis <= end.timeInMillis) {
+                    cursor.add(java.util.Calendar.MONTH, 1)
+                    months++
+                } else break
             }
-            var remaining = (end - cursor.timeInMillis).coerceAtLeast(0L) / 1000L
-            val weeks = remaining / 604800L
-            remaining %= 604800L
-            val days = remaining / 86400L
-            remaining %= 86400L
-            val hours = remaining / 3600L
-            remaining %= 3600L
-            val minutes = remaining / 60L
-            val seconds = remaining % 60L
-            listOf(years, months, weeks, days, hours, minutes, seconds)
+            var remainingDays = 0L
+            while (true) {
+                val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.DAY_OF_MONTH, 1) }
+                if (next.timeInMillis <= end.timeInMillis) {
+                    cursor.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                    remainingDays++
+                } else break
+            }
+            val weeks = remainingDays / 7L
+            val days = remainingDays % 7L
+            listOf(years, months, weeks, days)
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Years", "Months", "Weeks", "Days", "Hours", "Minutes", "Seconds")
-        "tr" -> listOf("Yıl", "Ay", "Hafta", "Gün", "Saat", "Dakika", "Saniye")
-        else -> listOf("سنة", "شهر", "أسبوع", "يوم", "ساعة", "دقيقة", "ثانية")
+        "en" -> listOf("Years", "Months", "Weeks", "Days")
+        "tr" -> listOf("Yıl", "Ay", "Hafta", "Gün")
+        else -> listOf("سنة", "أشهر", "أسابيع", "أيام")
     }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
             .background(Brush.horizontalGradient(listOf(Color(0xFF111111), Color(0xFF173C32), Color(0xFF30200D))))
             .border(1.dp, RoyalColors.Gold, RoundedCornerShape(17.dp))
             .padding(horizontal = 13.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         Text(
             if (target.isRamadan) when (language) { "en" -> "🌙 Ramadan Mubarak"; "tr" -> "🌙 Ramazanınız mübarek olsun"; else -> "🌙 رمضان كريم" }
@@ -618,19 +637,27 @@ private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String
         )
         Text(
             if (target.isRamadan) when (language) { "en" -> "The countdown is complete"; "tr" -> "Geri sayım tamamlandı"; else -> "وصلنا إلى شهر رمضان المبارك" }
-            else when (language) { "en" -> "Updates every second • next Hijri Ramadan"; "tr" -> "Her saniye güncellenir • sonraki Hicri Ramazan"; else -> "يتجدد كل ثانية حتى بداية رمضان القادم" },
+            else when (language) { "en" -> "Years • months • weeks • days"; "tr" -> "Yıl • ay • hafta • gün"; else -> "المدة المتبقية بالسنوات والأشهر والأسابيع والأيام" },
             color = Color.White.copy(alpha = 0.86f), fontSize = 10.sp
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             labels.forEachIndexed { index, label ->
                 Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF080D0C).copy(alpha = 0.78f))
-                        .padding(vertical = 7.dp, horizontal = 1.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
+                        .background(Color(0xFF080D0C).copy(alpha = 0.82f))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.42f), RoundedCornerShape(9.dp))
+                        .padding(vertical = 11.dp, horizontal = 3.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text(String.format(Locale.US, "%02d", parts[index]), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Text(label, color = RoyalColors.Gold, fontSize = 8.sp, maxLines = 1)
+                    Text(
+                        parts[index].toString(),
+                        color = Color.White,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Text(label, color = RoyalColors.Gold, fontSize = 10.sp, maxLines = 1)
                 }
             }
         }
