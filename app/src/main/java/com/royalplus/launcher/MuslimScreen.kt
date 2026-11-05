@@ -531,7 +531,7 @@ private fun MuslimSubSectionScreen(
 @Composable
 private fun PrayerTableCell(value: String, modifier: Modifier, highlighted: Boolean, expired: Boolean = false) {
     Box(modifier = modifier.padding(horizontal = 1.dp).clip(RoundedCornerShape(4.dp)).then(if (expired) Modifier.background(Color(0xFFD62828)) else Modifier).padding(vertical = if (expired) 4.dp else 2.dp, horizontal = 1.dp), contentAlignment = Alignment.Center) {
-        Text(text = value, color = if (expired) Color.White else Color.Black, fontSize = 9.sp, fontWeight = if (highlighted || expired) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2)
+        Text(text = value, color = if (expired) Color.White else RoyalColors.Pearl, fontSize = 9.sp, fontWeight = if (highlighted || expired) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2)
     }
 }
 
