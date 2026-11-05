@@ -424,6 +424,27 @@ internal fun MuslimScreen(
             Text("${when (language) { "en" -> "Selected city"; "tr" -> "Seçilen şehir"; else -> "المدينة المختارة" }}: $cityName", color = RoyalColors.Muted, fontSize = 10.sp)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                    .background(if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
+                    .border(1.dp, if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                    .clickable {
+                        prayerCityManuallySelected = false
+                        selectedCityIndex = 0
+                        onRequestLocation()
+                    }
+                    .focusable()
+                    .padding(vertical = 8.dp, horizontal = 3.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    when (language) { "en" -> "My location"; "tr" -> "Konumum"; else -> "موقعي" },
+                    color = if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Pearl,
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+            }
             prayerCities.drop(1).forEachIndexed { index, city ->
                 val chosen = selectedCityIndex == index + 1
                 Box(
