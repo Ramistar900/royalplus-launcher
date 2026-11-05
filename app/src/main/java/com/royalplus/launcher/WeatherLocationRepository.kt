@@ -44,7 +44,8 @@ internal data class WeatherUiState(
     val longitude: Double? = null,
     val forecast: List<WeatherForecastDay> = emptyList(),
     val isLoading: Boolean = true,
-    val needsPermission: Boolean = false
+    val needsPermission: Boolean = false,
+    val isManualLocation: Boolean = false
 )
 
 internal object RoyalWeatherRepository {
@@ -70,6 +71,45 @@ internal object RoyalWeatherRepository {
                     city = "تعذّر تحديد المنطقة",
                     description = "تحقق من خدمات الموقع والإنترنت",
                     isLoading = false
+                )
+            }
+            onResult(result)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    fun fetchForCity(context: Context, cityQuery: String, onResult: (WeatherUiState) -> Unit) {
+        val appContext = context.applicationContext
+        val requestedCity = cityQuery.trim()
+        executor.execute {
+            val result = try {
+                require(requestedCity.isNotBlank()) { "City name is blank" }
+                check(Geocoder.isPresent()) { "Geocoding is unavailable on this device" }
+                val address = Geocoder(appContext, Locale.getDefault())
+                    .getFromLocationName(requestedCity, 1)
+                    ?.firstOrNull()
+                    ?: throw IllegalArgumentException("City was not found")
+                val location = Location("royalplus-manual").apply {
+                    latitude = address.latitude
+                    longitude = address.longitude
+                }
+                val resolvedCity = address.locality
+                    ?: address.subAdminArea
+                    ?: address.adminArea
+                    ?: requestedCity
+                val country = address.countryName
+                val displayCity = if (!country.isNullOrBlank() && !resolvedCity.contains(country)) {
+                    "$resolvedCity، $country"
+                } else {
+                    resolvedCity
+                }
+                fetchCurrentWeather(location, displayCity).copy(isManualLocation = true)
+            } catch (_: Exception) {
+                WeatherUiState(
+                    city = requestedCity.ifBlank { "مدينة غير محددة" },
+                    description = "تعذر العثور على المدينة أو تحميل الطقس؛ تحقق من الاسم والإنترنت",
+                    isLoading = false,
+                    isManualLocation = true
                 )
             }
             onResult(result)
