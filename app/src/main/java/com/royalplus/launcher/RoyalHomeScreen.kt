@@ -225,6 +225,13 @@ internal fun RoyalHomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30L * 60L * 1_000L)
+            onRefreshWeather()
+        }
+    }
+
     LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination, screensaverDelaySeconds) {
         if (screensaverDelaySeconds > 0 && !showSmartScreensaver &&
             !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME
