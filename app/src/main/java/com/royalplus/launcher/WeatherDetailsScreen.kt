@@ -105,6 +105,7 @@ internal fun WeatherDetailsScreen(
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(image = painterResource(backgroundRes), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
+        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59)))))
         Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 18.dp)) {
             Row(Modifier.fillMaxWidth().weight(0.30f), verticalAlignment = Alignment.Top) {
