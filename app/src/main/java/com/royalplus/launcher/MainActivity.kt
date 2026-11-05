@@ -78,6 +78,8 @@ class MainActivity : ComponentActivity() {
                     weather = weatherState,
                     onRequestLocation = { requestLocationPermission() },
                     onRefreshWeather = { refreshWeather() },
+                    onChooseWeatherCity = { city -> saveAndLoadManualWeatherCity(city) },
+                    onUseDeviceLocation = { clearManualWeatherCityAndUseDeviceLocation() },
                     onLaunchApp = { app ->
                         try {
                             startActivity(app.launchIntent)
@@ -109,7 +111,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (hasLocationPermission()) {
+        if (hasLocationPermission() || hasSavedManualWeatherCity()) {
             refreshWeather()
         } else {
             requestLocationPermission()
@@ -253,6 +255,32 @@ class MainActivity : ComponentActivity() {
         checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
+    private fun hasSavedManualWeatherCity(): Boolean =
+        !getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+            .getString("weather_manual_city", null).isNullOrBlank()
+
+    private fun saveAndLoadManualWeatherCity(city: String) {
+        val normalized = city.trim()
+        if (normalized.isBlank()) return
+        getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+            .edit().putString("weather_manual_city", normalized).apply()
+        weatherState = WeatherUiState(
+            city = normalized,
+            description = "جارٍ تحميل الطقس للمدينة المختارة",
+            isLoading = true,
+            isManualLocation = true
+        )
+        RoyalWeatherRepository.fetchForCity(this, normalized) { result ->
+            runOnUiThread { weatherState = result }
+        }
+    }
+
+    private fun clearManualWeatherCityAndUseDeviceLocation() {
+        getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+            .edit().remove("weather_manual_city").apply()
+        if (hasLocationPermission()) refreshWeather() else requestLocationPermission()
+    }
+
     private fun requestLocationPermission() {
         if (hasLocationPermission()) {
             refreshWeather()
@@ -262,6 +290,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshWeather() {
+        val manualCity = getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+            .getString("weather_manual_city", null)
+        if (!manualCity.isNullOrBlank()) {
+            weatherState = WeatherUiState(
+                city = manualCity,
+                description = "جارٍ تحميل الطقس للمدينة المختارة",
+                isLoading = true,
+                isManualLocation = true
+            )
+            RoyalWeatherRepository.fetchForCity(this, manualCity) { result ->
+                runOnUiThread { weatherState = result }
+            }
+            return
+        }
         if (!hasLocationPermission()) {
             weatherState = WeatherUiState(
                 city = "الموقع غير متاح",
