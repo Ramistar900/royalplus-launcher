@@ -75,20 +75,24 @@ internal fun MuslimScreen(
     onRequestLocation: () -> Unit,
     language: String = "ar"
 ) {
-    var selectedCityIndex by remember {
-        mutableStateOf(
-            when (TimeZone.getDefault().id) {
-                "Europe/Istanbul" -> 1
-                "Asia/Damascus" -> 2
-                "Asia/Riyadh", "Asia/Aden", "Asia/Kuwait", "Asia/Qatar", "Asia/Bahrain" -> 3
-                "Asia/Baghdad" -> 5
-                else -> 1
-            }
-        )
-    }
     val context = LocalContext.current
     val hijriPreferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
+    }
+    val defaultCityIndex = remember {
+        when (TimeZone.getDefault().id) {
+            "Europe/Istanbul" -> 1
+            "Asia/Damascus" -> 2
+            "Asia/Riyadh", "Asia/Aden", "Asia/Kuwait", "Asia/Qatar", "Asia/Bahrain" -> 3
+            "Asia/Baghdad" -> 5
+            else -> 1
+        }
+    }
+    var selectedCityIndex by remember(context) {
+        mutableStateOf(
+            hijriPreferences.getInt("selected_prayer_city_index", defaultCityIndex)
+                .coerceIn(0, prayerCities.lastIndex)
+        )
     }
     var data by remember { mutableStateOf<PrayerTimesData?>(null) }
     val weekSchedulesState = remember { mutableStateOf<List<PrayerTimesData>>(emptyList()) }
@@ -115,6 +119,23 @@ internal fun MuslimScreen(
     }
     LaunchedEffect(hijriDayAdjustment) {
         hijriPreferences.edit().putInt("hijri_day_adjustment", hijriDayAdjustment).apply()
+    }
+    LaunchedEffect(selectedCityIndex) {
+        hijriPreferences.edit().putInt("selected_prayer_city_index", selectedCityIndex).apply()
+    }
+    LaunchedEffect(selectedCityIndex, latitude, longitude, cityName, zoneForKey) {
+        val selectedLatitude = latitude
+        val selectedLongitude = longitude
+        if (selectedLatitude != null && selectedLongitude != null) {
+            RoyalAdhanScheduler.updateLocation(
+                context = context,
+                latitude = selectedLatitude,
+                longitude = selectedLongitude,
+                city = cityName,
+                timeZoneId = zoneForKey,
+                manual = selectedCityIndex != 0
+            )
+        }
     }
 
     LaunchedEffect(latitude, longitude, cityName, hijriDayAdjustment, todayKey) {
