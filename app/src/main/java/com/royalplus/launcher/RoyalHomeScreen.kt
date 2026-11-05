@@ -203,6 +203,16 @@ internal fun RoyalHomeScreen(
     var selectedShortcutPackages by remember {
         mutableStateOf(wallpaperPreferences.getStringSet("launcher_shortcut_packages", emptySet())?.toSet() ?: emptySet())
     }
+    var favoritePackageOrder by remember(apps) {
+        mutableStateOf(
+            wallpaperPreferences.getString("launcher_favorite_order", null)
+                ?.split("|")?.filter { it.isNotBlank() }
+                ?: buildFavoriteApps(apps).map { it.packageName }
+        )
+    }
+    var hiddenPackages by remember(wallpaperPreferences) {
+        mutableStateOf(wallpaperPreferences.getStringSet("launcher_hidden_packages", emptySet())?.toSet() ?: emptySet())
+    }
 
     BackHandler(
         enabled = showWallpaperSettings || showWeatherDetails || showQuickControls || searchActive || selectedDestination != LauncherDestination.HOME
@@ -341,14 +351,21 @@ internal fun RoyalHomeScreen(
             timeZone = displayTimeZone
         }.format(Date(currentTime))
     }
-    val favorites = remember(apps) { buildFavoriteApps(apps) }
+    val visibleApps = remember(apps, hiddenPackages) {
+        apps.filterNot { it.packageName in hiddenPackages }
+    }
+    val favorites = remember(visibleApps, favoritePackageOrder) {
+        favoritePackageOrder.mapNotNull { packageName ->
+            visibleApps.firstOrNull { it.packageName == packageName }
+        }
+    }
     val favoritePackages = remember(favorites) { favorites.map { it.packageName }.toSet() }
-    val filteredApps = remember(apps, searchQuery) {
+    val filteredApps = remember(visibleApps, searchQuery) {
         if (searchQuery.isBlank()) {
-            apps
+            visibleApps
         } else {
             val query = searchQuery.trim().lowercase(Locale.getDefault())
-            apps.filter {
+            visibleApps.filter {
                 it.label.lowercase(Locale.getDefault()).contains(query) ||
                     it.packageName.lowercase(Locale.getDefault()).contains(query)
             }
@@ -502,12 +519,37 @@ internal fun RoyalHomeScreen(
                                         onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
                                         onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle, initialHighlight = true
                                     )
-                                    LauncherDestination.MANAGE_APPS -> AppCatalog(
-                                        title = when (selectedLanguage) { "en" -> "Manage apps"; "tr" -> "Uygulamaları yönet"; else -> "إدارة التطبيقات" },
-                                        apps = filteredApps, columns = columns, focusedAppPackage = focusedAppPackage,
-                                        onAppFocused = { focusedAppPackage = it }, onLaunchApp = onLaunchApp,
-                                        onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle, initialHighlight = true,
-                                        headingIcon = Icons.Rounded.Apps
+                                    LauncherDestination.MANAGE_APPS -> RoyalAppManagementScreen(
+                                        apps = apps,
+                                        favoritePackages = favoritePackageOrder.toSet(),
+                                        hiddenPackages = hiddenPackages,
+                                        columns = columns,
+                                        language = selectedLanguage,
+                                        onToggleFavorite = { app ->
+                                            val updated = favoritePackageOrder.toMutableList()
+                                            if (!updated.remove(app.packageName)) updated.add(app.packageName)
+                                            favoritePackageOrder = updated
+                                            wallpaperPreferences.edit().putString("launcher_favorite_order", updated.joinToString("|")).apply()
+                                        },
+                                        onToggleHidden = { app ->
+                                            val updated = hiddenPackages.toMutableSet()
+                                            if (!updated.add(app.packageName)) updated.remove(app.packageName)
+                                            hiddenPackages = updated
+                                            wallpaperPreferences.edit().putStringSet("launcher_hidden_packages", updated).apply()
+                                        },
+                                        onMoveFavorite = { app, direction ->
+                                            val updated = favoritePackageOrder.toMutableList()
+                                            val currentIndex = updated.indexOf(app.packageName)
+                                            val targetIndex = currentIndex + direction
+                                            if (currentIndex >= 0 && targetIndex in updated.indices) {
+                                                val moved = updated.removeAt(currentIndex)
+                                                updated.add(targetIndex, moved)
+                                                favoritePackageOrder = updated
+                                                wallpaperPreferences.edit().putString("launcher_favorite_order", updated.joinToString("|")).apply()
+                                            }
+                                        },
+                                        onLaunchApp = onLaunchApp,
+                                        onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
@@ -1380,6 +1422,9 @@ private fun HomeDashboard(
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
     onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String
 ) {
+    val quickAccessApps = remember(shortcuts, favorites) {
+        (shortcuts + favorites).distinctBy { it.packageName }
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp)
         val favoriteHeight = (maxHeight * 0.24f).coerceIn(104.dp, 126.dp)
@@ -1411,18 +1456,18 @@ private fun HomeDashboard(
             )
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(when (selectedLanguage) { "en" -> "Installed apps"; "tr" -> "Yüklü uygulamalar"; else -> "التطبيقات المثبتة" }, color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(when (selectedLanguage) { "en" -> "Quick access"; "tr" -> "Hızlı erişim"; else -> "الوصول السريع" }, color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(21.dp))
             }
             Spacer(Modifier.height(10.dp))
-            if (favorites.isEmpty()) EmptyAppsMessage("لا توجد تطبيقات قابلة للتشغيل على هذا الجهاز", Modifier.fillMaxWidth().height(favoriteHeight))
+            if (quickAccessApps.isEmpty()) EmptyAppsMessage("لا توجد تطبيقات قابلة للتشغيل على هذا الجهاز", Modifier.fillMaxWidth().height(favoriteHeight))
             else LazyRow(
                 modifier = Modifier.fillMaxWidth().height(favoriteHeight),
                 contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                rowItems(favorites, key = { it.packageName }) { app ->
-                    val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == favorites.firstOrNull()?.packageName)
+                rowItems(quickAccessApps, key = { it.packageName }) { app ->
+                    val highlighted = focusedAppPackage == app.packageName || (focusedAppPackage == null && app.packageName == quickAccessApps.firstOrNull()?.packageName)
                     AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
                         highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { onManageApp(app) })
                 }
@@ -1717,9 +1762,9 @@ private fun RoyalSidePanel(
     onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
 ) {
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "Muslim", "Channels", "Gallery", "Songs", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Müslüman", "Kanallar", "Galeri", "Şarkılar", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "مسلم", "القنوات", "المعرض", "الأغاني", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Gallery", "Songs", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Galeri", "Şarkılar", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "القنوات", "المعرض", "الأغاني", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
@@ -1734,15 +1779,17 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
+        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[4], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[5], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
+        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[6], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
+        SidebarNavItem(labels[6], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[7], Icons.Rounded.Settings, false, onClick = onOpenSettings)
+        SidebarNavItem(labels[7], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
+        Spacer(Modifier.height(8.dp))
+        SidebarNavItem(labels[8], Icons.Rounded.Settings, false, onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
@@ -1972,5 +2019,127 @@ private fun weatherIcon(description: String): ImageVector {
         "rain" in value || "مطر" in value || "drizzle" in value -> Icons.Rounded.WaterDrop
         "cloud" in value || "غائم" in value || "سحب" in value -> Icons.Rounded.Cloud
         else -> Icons.Rounded.WbSunny
+    }
+}
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RoyalAppManagementScreen(
+    apps: List<LauncherApp>,
+    favoritePackages: Set<String>,
+    hiddenPackages: Set<String>,
+    columns: Int,
+    language: String,
+    onToggleFavorite: (LauncherApp) -> Unit,
+    onToggleHidden: (LauncherApp) -> Unit,
+    onMoveFavorite: (LauncherApp, Int) -> Unit,
+    onLaunchApp: (LauncherApp) -> Unit,
+    onManageApp: (LauncherApp) -> Unit
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    when (language) { "en" -> "App management"; "tr" -> "Uygulama yönetimi"; else -> "إدارة التطبيقات" },
+                    color = RoyalColors.Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold
+                )
+                Text(
+                    when (language) { "en" -> "Pin favorites, hide apps and arrange your quick access"; "tr" -> "Favorileri sabitleyin, uygulamaları gizleyin ve sıralayın"; else -> "أضف للمفضلة أو أخفِ التطبيقات ورتّب الوصول السريع" },
+                    color = RoyalColors.Pearl.copy(alpha = 0.78f), fontSize = 10.sp
+                )
+            }
+            Text(
+                when (language) { "en" -> "${apps.size} apps"; "tr" -> "${apps.size} uygulama"; else -> "${apps.size} تطبيق" },
+                color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+            )
+        }
+        if (apps.isEmpty()) {
+            EmptyAppsMessage(
+                when (language) { "en" -> "No installed apps are available"; "tr" -> "Yüklü uygulama bulunamadı"; else -> "لا توجد تطبيقات مثبتة قابلة للتشغيل" },
+                Modifier.fillMaxSize()
+            )
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 14.dp, end = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(apps, key = { it.packageName }) { app ->
+                    val isFavorite = app.packageName in favoritePackages
+                    val isHidden = app.packageName in hiddenPackages
+                    Card(
+                        modifier = Modifier.fillMaxWidth().height(150.dp)
+                            .combinedClickable(
+                                onClick = { onLaunchApp(app) },
+                                onLongClick = { onManageApp(app) }
+                            ),
+                        shape = RoundedCornerShape(15.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D121B)),
+                        border = BorderStroke(
+                            if (isFavorite) 1.8.dp else 1.dp,
+                            if (isFavorite) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f)
+                        )
+                    ) {
+                        Column(
+                            Modifier.fillMaxSize().padding(horizontal = 9.dp, vertical = 7.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (app.icon != null) {
+                                    Image(
+                                        painter = remember(app.icon) { BitmapPainter(app.icon.asImageBitmap()) },
+                                        contentDescription = app.label,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.size(42.dp)
+                                    )
+                                } else {
+                                    Icon(Icons.Rounded.Apps, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(42.dp))
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text(app.label, color = RoyalColors.Pearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(app.packageName, color = RoyalColors.Muted, fontSize = 7.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(onClick = { onToggleFavorite(app) }, modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        if (isFavorite) when (language) { "en" -> "★ Pinned"; "tr" -> "★ Sabit"; else -> "★ مفضلة" }
+                                        else when (language) { "en" -> "☆ Pin"; "tr" -> "☆ Sabitle"; else -> "☆ أضف" },
+                                        color = if (isFavorite) RoyalColors.Gold else RoyalColors.Pearl,
+                                        fontSize = 9.sp, maxLines = 1
+                                    )
+                                }
+                                TextButton(onClick = { onToggleHidden(app) }, modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        if (isHidden) when (language) { "en" -> "Show"; "tr" -> "Göster"; else -> "إظهار" }
+                                        else when (language) { "en" -> "Hide"; "tr" -> "Gizle"; else -> "إخفاء" },
+                                        color = if (isHidden) Color(0xFF72D6A0) else RoyalColors.Pearl,
+                                        fontSize = 9.sp, maxLines = 1
+                                    )
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(onClick = { onLaunchApp(app) }) {
+                                    Text(when (language) { "en" -> "Open"; "tr" -> "Aç"; else -> "فتح" }, color = RoyalColors.Pearl, fontSize = 9.sp)
+                                }
+                                if (isFavorite) {
+                                    Row {
+                                        TextButton(onClick = { onMoveFavorite(app, -1) }) { Text("↑", color = RoyalColors.Gold, fontSize = 15.sp) }
+                                        TextButton(onClick = { onMoveFavorite(app, 1) }) { Text("↓", color = RoyalColors.Gold, fontSize = 15.sp) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
