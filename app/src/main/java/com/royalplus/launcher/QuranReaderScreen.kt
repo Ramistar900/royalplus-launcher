@@ -1,0 +1,346 @@
+package com.royalplus.launcher
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+@Composable
+internal fun QuranReaderScreen(
+    language: String,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val preferences = remember(context) {
+        context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
+    }
+    var surahs by remember { mutableStateOf<List<QuranSurah>>(emptyList()) }
+    var loadError by remember { mutableStateOf(false) }
+    var selectedSurah by remember { mutableStateOf<QuranSurah?>(null) }
+    var query by remember { mutableStateOf("") }
+    val lastReadNumber = preferences.getInt("quran_last_surah", 1)
+    val isArabic = language == "ar"
+    val isTurkish = language == "tr"
+
+    LaunchedEffect(Unit) {
+        runCatching {
+            withContext(Dispatchers.IO) { QuranTextRepository.load(context.applicationContext) }
+        }.onSuccess {
+            surahs = it
+        }.onFailure {
+            loadError = true
+        }
+    }
+
+    BackHandler {
+        if (selectedSurah != null) {
+            selectedSurah = null
+        } else {
+            onClose()
+        }
+    }
+
+    val screenBackground = Color(0xFF080E16)
+    val cardBackground = Color(0xFF121C28)
+    val quranFont = remember { FontFamily(Font(R.font.amiri_regular)) }
+
+    Column(
+        Modifier.fillMaxSize().background(screenBackground).padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(42.dp).clip(CircleShape)
+                    .background(Color(0xFF1C2937))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), CircleShape)
+                    .clickable {
+                        if (selectedSurah != null) selectedSurah = null else onClose()
+                    }.focusable(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.ArrowBack, contentDescription = null, tint = RoyalColors.Gold)
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    when { isArabic -> "القرآن الكريم"; isTurkish -> "Kur'an-ı Kerim"; else -> "The Holy Quran" },
+                    color = RoyalColors.Gold,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    when { isArabic -> "النص العثماني • يعمل دون إنترنت"; isTurkish -> "Osmanlı yazımı • çevrimdışı"; else -> "Uthmani text • works offline" },
+                    color = RoyalColors.Muted,
+                    fontSize = 10.sp
+                )
+            }
+            Text(
+                "114",
+                color = RoyalColors.Pearl,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (surahs.isEmpty() && !loadError) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(
+                    when { isArabic -> "جارٍ تحميل المصحف…"; isTurkish -> "Kur'an yükleniyor…"; else -> "Loading Quran…" },
+                    color = RoyalColors.Gold,
+                    fontSize = 16.sp
+                )
+            }
+        } else if (loadError) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(
+                    when {
+                        isArabic -> "تعذر فتح نص القرآن. أعد بناء التطبيق مع تحميل ملف النص."
+                        isTurkish -> "Kur'an metni açılamadı. Metin dosyasını içeren derlemeyi yeniden yükleyin."
+                        else -> "Quran text could not be opened. Rebuild with the text asset included."
+                    },
+                    color = Color(0xFFFFC5B8),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else if (selectedSurah == null) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = RoyalColors.Gold) },
+                placeholder = {
+                    Text(
+                        when { isArabic -> "ابحث باسم السورة أو بآية"; isTurkish -> "Sure veya ayet ara"; else -> "Search surah or verse" },
+                        color = RoyalColors.Muted,
+                        fontSize = 12.sp
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = RoyalColors.Pearl,
+                    unfocusedTextColor = RoyalColors.Pearl,
+                    focusedBorderColor = RoyalColors.Gold,
+                    unfocusedBorderColor = RoyalColors.Gold.copy(alpha = 0.35f),
+                    cursorColor = RoyalColors.Gold
+                )
+            )
+
+            val normalizedQuery = remember(query) { QuranTextRepository.normalizeForSearch(query) }
+            val filteredSurahs = remember(surahs, normalizedQuery) {
+                if (normalizedQuery.isBlank()) surahs else surahs.filter { surah ->
+                    QuranTextRepository.normalizeForSearch(surah.name).contains(normalizedQuery) ||
+                        surah.verses.any { verse ->
+                            QuranTextRepository.normalizeForSearch(verse.text).contains(normalizedQuery)
+                        }
+                }
+            }
+
+            if (lastReadNumber in 1..114 && query.isBlank()) {
+                val lastRead = surahs.firstOrNull { it.number == lastReadNumber }
+                if (lastRead != null) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(cardBackground)
+                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .clickable { selectedSurah = lastRead }
+                            .focusable()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                when { isArabic -> "متابعة آخر قراءة"; isTurkish -> "Son okumaya devam et"; else -> "Continue reading" },
+                                color = RoyalColors.Gold,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(lastRead.name, color = RoyalColors.Pearl, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text("›", color = RoyalColors.Gold, fontSize = 24.sp)
+                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = rememberLazyListState(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(filteredSurahs, key = { it.number }) { surah ->
+                    val isLastRead = surah.number == lastReadNumber
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(cardBackground)
+                            .border(
+                                1.dp,
+                                if (isLastRead) RoyalColors.Gold.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.08f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                selectedSurah = surah
+                                preferences.edit().putInt("quran_last_surah", surah.number).apply()
+                            }
+                            .focusable()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            Modifier.size(34.dp).clip(CircleShape)
+                                .background(Color(0xFF253345)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(surah.number.toString(), color = RoyalColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(surah.name, color = RoyalColors.Pearl, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "${surah.numberedVerseCount} • " + when {
+                                    surah.revelationType.contains("مكية") -> if (isArabic) "مكية" else if (isTurkish) "Mekki" else "Meccan"
+                                    surah.revelationType.contains("مدنية") -> if (isArabic) "مدنية" else if (isTurkish) "Medeni" else "Medinan"
+                                    else -> surah.revelationType
+                                },
+                                color = RoyalColors.Muted,
+                                fontSize = 10.sp
+                            )
+                        }
+                        Text("›", color = RoyalColors.Gold, fontSize = 24.sp)
+                    }
+                }
+                if (filteredSurahs.isEmpty()) {
+                    item {
+                        Text(
+                            when { isArabic -> "لا توجد نتائج"; isTurkish -> "Sonuç bulunamadı"; else -> "No results" },
+                            color = RoyalColors.Muted,
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        } else {
+            val surah = selectedSurah!!
+            Text(
+                surah.name,
+                modifier = Modifier.fillMaxWidth(),
+                color = RoyalColors.Gold,
+                fontSize = 27.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = quranFont,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                when { isArabic -> "${surah.numberedVerseCount} آية • النص العثماني"; isTurkish -> "${surah.numberedVerseCount} ayet • Osmanlı yazımı"; else -> "${surah.numberedVerseCount} verses • Uthmani script" },
+                modifier = Modifier.fillMaxWidth(),
+                color = RoyalColors.Muted,
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
+            )
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = rememberLazyListState(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(surah.verses, key = { "${surah.number}-${it.number}" }) { verse ->
+                    if (verse.number == 0) {
+                        Text(
+                            verse.text,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).focusable(),
+                            color = RoyalColors.Gold,
+                            fontSize = 25.sp,
+                            lineHeight = 43.sp,
+                            fontFamily = quranFont,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                .background(cardBackground)
+                                .padding(horizontal = 12.dp, vertical = 12.dp)
+                                .focusable(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                verse.text,
+                                modifier = Modifier.weight(1f),
+                                color = RoyalColors.Pearl,
+                                fontSize = 24.sp,
+                                lineHeight = 43.sp,
+                                fontFamily = quranFont,
+                                textAlign = TextAlign.Right
+                            )
+                            Box(
+                                Modifier.size(30.dp).clip(CircleShape)
+                                    .background(Color(0xFF253345))
+                                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(verse.number.toString(), color = RoyalColors.Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(2.dp))
+        Text(
+            "نص القرآن: مشروع تنزيل Tanzil • CC BY 3.0 • tanzil.net",
+            modifier = Modifier.fillMaxWidth().clickable { runCatching { uriHandler.openUri("https://tanzil.net/") } }.focusable(),
+            color = RoyalColors.Muted,
+            fontSize = 9.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
