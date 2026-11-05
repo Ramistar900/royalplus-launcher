@@ -4,6 +4,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val signingKeystorePath = System.getenv("SIGNING_KEYSTORE_PATH")
+val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+
 android {
     namespace = "com.royalplus.launcher"
     compileSdk = 35
@@ -14,6 +19,22 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(signingKeystorePath ?: "missing-release-keystore.jks")
+            storePassword = signingStorePassword.orEmpty()
+            keyAlias = signingKeyAlias.orEmpty()
+            keyPassword = signingKeyPassword.orEmpty()
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+        }
     }
 
     buildFeatures {
