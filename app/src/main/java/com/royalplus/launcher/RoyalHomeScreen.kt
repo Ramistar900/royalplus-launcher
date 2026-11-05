@@ -511,7 +511,8 @@ internal fun RoyalHomeScreen(
                                         onRefreshWeather = onRefreshWeather,
                                         onOpenWeather = { showWeatherDetails = true },
                                         onOpenSettings = { showWallpaperSettings = true },
-                                        selectedLanguage = selectedLanguage
+                                        selectedLanguage = selectedLanguage,
+                                        weatherMotionEnabled = weatherMotionEnabled
                                     )
                                     LauncherDestination.APPS -> AppCatalog(
                                         title = if (searchQuery.isBlank()) when (selectedLanguage) { "en" -> "All apps"; "tr" -> "Tüm uygulamalar"; else -> "جميع التطبيقات" } else when (selectedLanguage) { "en" -> "Search results"; "tr" -> "Arama sonuçları"; else -> "نتائج البحث" },
@@ -1420,7 +1421,8 @@ private fun HomeDashboard(
     currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
     onRequestLocation: () -> Unit,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
-    onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String
+    onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String,
+    weatherMotionEnabled: Boolean
 ) {
     val quickAccessApps = remember(shortcuts, favorites) {
         (shortcuts + favorites).distinctBy { it.packageName }
@@ -1452,7 +1454,8 @@ private fun HomeDashboard(
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
-                onExploreApps = { onNavigate(LauncherDestination.APPS) }
+                onExploreApps = { onNavigate(LauncherDestination.APPS) },
+                motionEnabled = weatherMotionEnabled
             )
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -1528,7 +1531,8 @@ private fun RoyalScenicBanner(
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
     onOpenWeather: () -> Unit,
-    onExploreApps: () -> Unit
+    onExploreApps: () -> Unit,
+    motionEnabled: Boolean = true
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
