@@ -167,6 +167,7 @@ internal fun RoyalHomeScreen(
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     var showWeatherDetails by remember { mutableStateOf(false) }
+    var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
@@ -202,9 +203,10 @@ internal fun RoyalHomeScreen(
     }
 
     BackHandler(
-        enabled = showWallpaperSettings || showWeatherDetails || searchActive || selectedDestination != LauncherDestination.HOME
+        enabled = showWallpaperSettings || showWeatherDetails || showQuickControls || searchActive || selectedDestination != LauncherDestination.HOME
     ) {
         when {
+            showQuickControls -> showQuickControls = false
             showWallpaperSettings -> showWallpaperSettings = false
             showWeatherDetails -> showWeatherDetails = false
             searchActive -> {
@@ -232,9 +234,9 @@ internal fun RoyalHomeScreen(
         }
     }
 
-    LaunchedEffect(lastUserInteraction, showWallpaperSettings, searchActive, selectedDestination, screensaverDelaySeconds) {
+    LaunchedEffect(lastUserInteraction, showWallpaperSettings, showQuickControls, searchActive, selectedDestination, screensaverDelaySeconds) {
         if (screensaverDelaySeconds > 0 && !showSmartScreensaver &&
-            !showWallpaperSettings && !searchActive && selectedDestination == LauncherDestination.HOME
+            !showWallpaperSettings && !showQuickControls && !searchActive && selectedDestination == LauncherDestination.HOME
         ) {
             val delayMillis = screensaverDelaySeconds * 1_000L
             delay(delayMillis)
@@ -428,6 +430,7 @@ internal fun RoyalHomeScreen(
                         onQueryChanged = { searchQuery = it },
                         onCloseSearch = { searchActive = false; searchQuery = ""; selectedDestination = LauncherDestination.HOME },
                         onOpenSettings = { showWallpaperSettings = true },
+                        onOpenQuickControls = { showQuickControls = true; showSmartScreensaver = false },
                         onSearch = { searchActive = true; selectedDestination = LauncherDestination.APPS },
                         onInstallApk = onInstallApk,
                         onVoiceSearch = onVoiceSearch,
@@ -534,6 +537,19 @@ internal fun RoyalHomeScreen(
                     Spacer(Modifier.height(8.dp))
                     RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
                 }
+            }
+
+            if (showQuickControls) {
+                RoyalQuickControlCenter(
+                    language = selectedLanguage,
+                    onDismiss = { showQuickControls = false },
+                    onOpenApps = { selectedDestination = LauncherDestination.APPS; searchActive = false; searchQuery = "" },
+                    onOpenMuslim = { selectedDestination = LauncherDestination.MUSLIM },
+                    onOpenGallery = { selectedDestination = LauncherDestination.GALLERY },
+                    onOpenSongs = { selectedDestination = LauncherDestination.SONGS },
+                    onOpenPersonalization = { showWallpaperSettings = true },
+                    onRefreshWeather = onRefreshWeather
+                )
             }
 
             if (showWeatherDetails) {
@@ -1167,7 +1183,7 @@ private fun WallpaperChoice(
 private fun RoyalBrandHeader(
     searchActive: Boolean, searchQuery: String, currentTime: String, dateText: String,
     showDate: Boolean, onQueryChanged: (String) -> Unit,
-    onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onSearch: () -> Unit,
+    onCloseSearch: () -> Unit, onOpenSettings: () -> Unit, onOpenQuickControls: () -> Unit, onSearch: () -> Unit,
     onInstallApk: () -> Unit,
     onVoiceSearch: () -> Unit,
     voiceSearchAvailable: Boolean,
@@ -1212,6 +1228,8 @@ private fun RoyalBrandHeader(
         }
         Spacer(Modifier.width(5.dp))
         StatusIcon(Icons.Rounded.Apps, when (selectedLanguage) { "en" -> "Install APK"; "tr" -> "APK yükle"; else -> "تثبيت ملف APK" }, onInstallApk)
+        Spacer(Modifier.width(5.dp))
+        StatusIcon(Icons.Rounded.Tune, when (selectedLanguage) { "en" -> "Quick controls"; "tr" -> "Hızlı kontroller"; else -> "مركز التحكم" }, onOpenQuickControls)
         Spacer(Modifier.width(5.dp))
         StatusIcon(Icons.Rounded.Settings, when (selectedLanguage) { "en" -> "Settings"; "tr" -> "Ayarlar"; else -> "الإعدادات" }, onOpenSettings)
     }
