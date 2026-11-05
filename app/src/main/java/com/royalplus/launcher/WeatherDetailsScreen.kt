@@ -25,10 +25,17 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Mosque
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.EditLocationAlt
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,9 +64,15 @@ internal fun WeatherDetailsScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onRequestLocation: () -> Unit,
+    onChooseCity: (String) -> Unit,
+    onUseDeviceLocation: () -> Unit,
     motionEnabled: Boolean = true
 ) {
     BackHandler(onBack = onBack)
+    var showCityPicker by remember { mutableStateOf(false) }
+    var cityInput by remember(weather.city) {
+        mutableStateOf(weather.city.substringBefore("،").substringBefore(","))
+    }
     val zone = remember(weather.timeZoneId) { TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id) }
     val hour = remember(currentTimeMillis, weather.timeZoneId) {
         SimpleDateFormat("H", Locale.US).apply { timeZone = zone }.format(Date(currentTimeMillis)).toIntOrNull() ?: 12
@@ -103,6 +116,49 @@ internal fun WeatherDetailsScreen(
     val outline = Color(0x99E7F4FF)
     val gold = Color(0xFFFFD36A)
 
+    if (showCityPicker) {
+        AlertDialog(
+            onDismissRequest = { showCityPicker = false },
+            title = {
+                Text(
+                    when (language) { "en" -> "Choose weather city"; "tr" -> "Hava durumu şehri"; else -> "اختيار مدينة الطقس" },
+                    color = Color(0xFFFFD36A)
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = cityInput,
+                    onValueChange = { cityInput = it },
+                    singleLine = true,
+                    label = { Text(when (language) { "en" -> "City name"; "tr" -> "Şehir adı"; else -> "اسم المدينة" }) }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val value = cityInput.trim()
+                    if (value.isNotBlank()) onChooseCity(value)
+                    showCityPicker = false
+                }) {
+                    Text(when (language) { "en" -> "Apply"; "tr" -> "Uygula"; else -> "تطبيق" }, color = Color(0xFFFFD36A))
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        showCityPicker = false
+                        onUseDeviceLocation()
+                    }) {
+                        Text(when (language) { "en" -> "Use my location"; "tr" -> "Konumumu kullan"; else -> "استخدام موقعي" }, color = Color.White)
+                    }
+                    TextButton(onClick = { showCityPicker = false }) {
+                        Text(when (language) { "en" -> "Cancel"; "tr" -> "İptal"; else -> "إلغاء" }, color = Color.White)
+                    }
+                }
+            },
+            containerColor = Color(0xFF101722)
+        )
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(image = painterResource(backgroundRes), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
         RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
@@ -123,9 +179,24 @@ internal fun WeatherDetailsScreen(
                             Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                    Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
-                        Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                            Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
+                        }
+                        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable {
+                            cityInput = weather.city.substringBefore("،").substringBefore(",")
+                            showCityPicker = true
+                        }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.EditLocationAlt, null, tint = gold, modifier = Modifier.size(15.dp))
+                            Text(if (language == "en") "Choose city" else if (language == "tr") "Şehir seç" else "اختيار المدينة", color = Color.White, fontSize = 11.sp)
+                        }
+                        if (weather.isManualLocation || weather.needsPermission) {
+                            Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable(onClick = onUseDeviceLocation).focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Rounded.LocationOn, null, tint = gold, modifier = Modifier.size(15.dp))
+                                Text(if (language == "en") "My location" else if (language == "tr") "Konumum" else "موقعي", color = Color.White, fontSize = 11.sp)
+                            }
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
