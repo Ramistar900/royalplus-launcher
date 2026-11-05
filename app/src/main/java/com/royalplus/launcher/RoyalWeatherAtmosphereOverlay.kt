@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.unit.dp
 import kotlin.math.sin
 
 @Composable
@@ -56,7 +57,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 repeat(5) { index ->
                     val x = width * (0.12f + index * 0.22f)
                     val y = height * (0.13f + (index % 2) * 0.08f) +
-                        sin(progress * Math.PI * 2.0 + index).toFloat() * 5.dpValue()
+                        sin(progress * Math.PI * 2.0 + index).toFloat() * 5.dp.toPx()
                     drawCircle(
                         color = Color.White.copy(alpha = 0.035f),
                         radius = width * 0.12f,
@@ -86,7 +87,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
                         color = Color(0x77E6F2FF),
                         start = Offset(x, y),
                         end = Offset(x - width * 0.008f, y + height * 0.045f),
-                        strokeWidth = 1.5.dpValue(),
+                        strokeWidth = 1.5.dp.toPx(),
                         cap = StrokeCap.Round
                     )
                 }
@@ -101,7 +102,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
                         bolt,
                         color = Color(0xFFFFF1B5),
                         style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = 4.dpValue(),
+                            width = 4.dp.toPx(),
                             cap = StrokeCap.Round
                         )
                     )
@@ -117,7 +118,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
                     val drift = sin(progress * Math.PI * 2.0 + index * 0.6).toFloat() * 7f
                     drawCircle(
                         color = Color(0xB8F1F8FF),
-                        radius = if (index % 3 == 0) 3.dpValue() else 2.dpValue(),
+                        radius = if (index % 3 == 0) 3.dp.toPx() else 2.dp.toPx(),
                         center = Offset(x + drift, y)
                     )
                 }
@@ -125,6 +126,3 @@ internal fun RoyalWeatherAtmosphereOverlay(
         }
     }
 }
-
-private fun Float.dpValue(): Float = this * 1f
-private fun Int.dpValue(): Float = this.toFloat()
