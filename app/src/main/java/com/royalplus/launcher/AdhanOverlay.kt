@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -49,6 +50,24 @@ internal fun AdhanOverlay(
     onDismiss: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    DisposableEffect(prayerName) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                onDismiss()
+            }
+        }
+        val filter = android.content.IntentFilter(RoyalAdhanPlaybackService.ACTION_PLAYBACK_FINISHED)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+        }
+    }
 
     BackHandler(onBack = {
         context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
