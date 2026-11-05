@@ -126,6 +126,24 @@ internal fun WeatherDetailsScreen(
                         Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
                         Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        WeatherMetricCard(
+                            title = when (language) { "en" -> "Feels like"; "tr" -> "Hissedilen"; else -> "المحسوسة" },
+                            value = weather.apparentTemperatureC?.let { "$it°" } ?: "--",
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeatherMetricCard(
+                            title = when (language) { "en" -> "Humidity"; "tr" -> "Nem"; else -> "الرطوبة" },
+                            value = weather.humidityPercent?.let { "$it%" } ?: "--",
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeatherMetricCard(
+                            title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "الرياح" },
+                            value = weather.windSpeedKmh?.let { "$it km/h" } ?: "--",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
                     Text(timeText, color = Color.White, fontSize = 52.sp, fontWeight = FontWeight.Bold)
