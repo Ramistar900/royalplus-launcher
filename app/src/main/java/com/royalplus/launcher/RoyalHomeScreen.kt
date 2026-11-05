@@ -1562,7 +1562,8 @@ private fun RoyalScenicBanner(
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
                 modifier = Modifier.weight(1.05f).fillMaxHeight(),
-                language = language
+                language = language,
+                motionEnabled = weatherMotionEnabled
             )
         }
     }
