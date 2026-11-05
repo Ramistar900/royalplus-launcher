@@ -240,6 +240,17 @@ internal fun RoyalHomeScreen(
         }
     }
 
+    LaunchedEffect(isAdhanEnabled, weather.latitude, weather.longitude, weather.city, weather.timeZoneId, selectedLanguage) {
+        RoyalAdhanScheduler.setEnabled(context, isAdhanEnabled, selectedLanguage)
+        RoyalAdhanScheduler.ensureLocation(
+            context = context,
+            latitude = weather.latitude,
+            longitude = weather.longitude,
+            city = weather.city,
+            timeZoneId = weather.timeZoneId
+        )
+    }
+
     LaunchedEffect(currentTime, prayerTimesForHome, weather.timeZoneId, weather.city, selectedLanguage) {
         val prayerData = prayerTimesForHome
         if (prayerData != null) {
@@ -547,6 +558,7 @@ internal fun RoyalHomeScreen(
                                 .clickable {
                                     isAdhanEnabled = !isAdhanEnabled
                                     wallpaperPreferences.edit().putBoolean("adhan_enabled", isAdhanEnabled).apply()
+                                    RoyalAdhanScheduler.setEnabled(context, isAdhanEnabled, selectedLanguage)
                                     if (!isAdhanEnabled) {
                                         activeAdhanPrayer = null
                                         prayerTimeBanner = null
@@ -575,6 +587,59 @@ internal fun RoyalHomeScreen(
                                 if (isAdhanEnabled) "ON" else "OFF",
                                 color = if (isAdhanEnabled) RoyalColors.Gold else RoyalColors.Muted,
                                 fontSize = 16.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+                                        !RoyalAdhanScheduler.canScheduleExactAlarms(context)
+                                    ) {
+                                        runCatching {
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                                    android.net.Uri.parse("package:${context.packageName}")
+                                                )
+                                            )
+                                        }.onFailure {
+                                            android.widget.Toast.makeText(context, "افتح إعدادات التطبيقات ثم الوصول الخاص ثم المنبّهات الدقيقة", android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    } else {
+                                        RoyalAdhanScheduler.scheduleNext(context)
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (selectedLanguage == "en") "Prayer alarms are scheduled" else if (selectedLanguage == "tr") "Namaz alarmları zamanlandı" else "تمت جدولة مواقيت الصلاة",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(23.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Precise prayer alarms"; "tr" -> "Hassas namaz alarmları"; else -> "دقة تنبيهات الصلاة" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (RoyalAdhanScheduler.canScheduleExactAlarms(context))
+                                        when (selectedLanguage) { "en" -> "Exact alarm access is available"; "tr" -> "Hassas alarm izni açık"; else -> "صلاحية التنبيه الدقيق متاحة" }
+                                    else
+                                        when (selectedLanguage) { "en" -> "Tap to allow exact alarms; otherwise timing may vary"; "tr" -> "Kesin zamanlama için dokunun; aksi halde gecikme olabilir"; else -> "اضغط للسماح بالدقة العالية؛ وإلا قد يتأخر التنبيه" },
+                                    color = RoyalColors.Muted, fontSize = 10.sp
+                                )
+                            }
+                            Text(
+                                if (RoyalAdhanScheduler.canScheduleExactAlarms(context)) "✓" else "›",
+                                color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
                         }
                         Spacer(Modifier.height(14.dp))
@@ -856,6 +921,7 @@ internal fun RoyalHomeScreen(
                         timeInMillis = currentTime
                     }.get(java.util.Calendar.HOUR_OF_DAY) in 6..17,
                     onDismiss = {
+                        context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
                         activeAdhanPrayer = null
                         prayerTimeBanner = null
                     }
