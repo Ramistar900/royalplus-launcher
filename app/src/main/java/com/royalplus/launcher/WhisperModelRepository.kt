@@ -117,7 +117,7 @@ internal object WhisperModelRepository {
             if (response !in 200..299) {
                 throw IllegalStateException("تعذر تنزيل نموذج الصوت (HTTP $response)")
             }
-            val totalBytes = connection.getHeaderFieldLong("Content-Length", -1L)
+            val totalBytes = (connection.getHeaderField("Content-Length")?.toLongOrNull() ?: -1L)
             val digest = MessageDigest.getInstance("SHA-256")
             var downloaded = 0L
 
@@ -146,7 +146,7 @@ internal object WhisperModelRepository {
             if (expectedBytes > 0L && downloaded != expectedBytes) {
                 throw IllegalStateException("حجم ملف نموذج الصوت غير مطابق؛ أُعيد تنزيله عند المحاولة التالية")
             }
-            val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
+            val actualHash = digest.digest().joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
             if (expectedSha256 != null && !actualHash.equals(expectedSha256, ignoreCase = true)) {
                 throw IllegalStateException("فشل التحقق من سلامة ملف نموذج الصوت")
             }
