@@ -137,7 +137,7 @@ internal object WhisperModelRepository {
                             val percent = ((downloaded * 100L) / totalBytes).toInt().coerceIn(0, 100)
                             onProgress("$percent%")
                         } else {
-                            onProgress("\${downloaded / (1024 * 1024)} MB")
+                            onProgress("${downloaded / (1024 * 1024)} MB")
                         }
                     }
                 }
