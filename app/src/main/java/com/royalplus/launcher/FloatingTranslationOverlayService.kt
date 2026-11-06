@@ -55,6 +55,9 @@ class FloatingTranslationOverlayService : Service() {
 
     private var activeTranslator: Translator? = null
     private var activeSourceLanguage: String? = null
+    private var translationModelReady = false
+    private var translationModelPending = false
+    private var latestPendingCaption: Pair<String, String>? = null
     private var translationRequest = 0
     private var dragStartX = 0f
     private var dragStartY = 0f
@@ -240,6 +243,9 @@ class FloatingTranslationOverlayService : Service() {
             if (activeSourceLanguage != sourceLanguage || activeTranslator == null) {
                 activeTranslator?.close()
                 activeSourceLanguage = sourceLanguage
+                translationModelReady = false
+                translationModelPending = false
+                latestPendingCaption = null
                 activeTranslator = Translation.getClient(
                     TranslatorOptions.Builder()
                         .setSourceLanguage(sourceLanguage)
@@ -249,29 +255,46 @@ class FloatingTranslationOverlayService : Service() {
             }
 
             val translator = activeTranslator ?: return@post
-            val requestId = ++translationRequest
-            updateStatus("ترجمة \${detectedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
-            translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
-                .addOnSuccessListener {
-                    if (!running.get() || requestId != translationRequest) return@addOnSuccessListener
-                    translator.translate(text)
-                        .addOnSuccessListener { translated ->
-                            if (running.get() && requestId == translationRequest) {
-                                showCaption(translated, detectedLanguage)
-                            }
-                        }
-                        .addOnFailureListener {
-                            if (running.get() && requestId == translationRequest) {
-                                updateStatus("تعذرت الترجمة؛ تحقق من اكتمال تنزيل لغة الترجمة")
-                            }
-                        }
-                }
-                .addOnFailureListener {
-                    if (running.get() && requestId == translationRequest) {
-                        updateStatus("تعذر تنزيل نموذج الترجمة لهذه اللغة")
+            if (!translationModelReady) {
+                latestPendingCaption = text to detectedLanguage
+                if (translationModelPending) return@post
+
+                translationModelPending = true
+                updateStatus("تنزيل نموذج الترجمة \${detectedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
+                translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
+                    .addOnSuccessListener {
+                        if (!running.get() || translator !== activeTranslator) return@addOnSuccessListener
+                        translationModelPending = false
+                        translationModelReady = true
+                        val latest = latestPendingCaption
+                        latestPendingCaption = null
+                        if (latest != null) translateWithReadyModel(translator, latest.first, latest.second)
                     }
-                }
+                    .addOnFailureListener {
+                        if (running.get() && translator === activeTranslator) {
+                            translationModelPending = false
+                            updateStatus("تعذر تنزيل نموذج الترجمة لهذه اللغة")
+                        }
+                    }
+                return@post
+            }
+            translateWithReadyModel(translator, text, detectedLanguage)
         }
+    }
+
+    private fun translateWithReadyModel(translator: Translator, text: String, language: String) {
+        val requestId = ++translationRequest
+        translator.translate(text)
+            .addOnSuccessListener { translated ->
+                if (running.get() && requestId == translationRequest) {
+                    showCaption(translated, language)
+                }
+            }
+            .addOnFailureListener {
+                if (running.get() && requestId == translationRequest) {
+                    updateStatus("تعذرت ترجمة هذا المقطع؛ ستستمر المحاولة مع المقطع التالي")
+                }
+            }
     }
 
     private fun showCaption(text: String, language: String) {
@@ -494,6 +517,9 @@ class FloatingTranslationOverlayService : Service() {
         activeTranslator?.close()
         activeTranslator = null
         activeSourceLanguage = null
+        translationModelReady = false
+        translationModelPending = false
+        latestPendingCaption = null
 
         overlayView?.let { view ->
             try {
