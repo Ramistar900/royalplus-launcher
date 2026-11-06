@@ -112,7 +112,7 @@ class FloatingTranslationOverlayService : Service() {
             if (running.get()) {
                 updateStatus(
                     if (error is InterruptedException) "تم إيقاف تجهيز الترجمة"
-                    else "تعذر تجهيز المحرك: \${error.localizedMessage ?: "تحقق من الإنترنت والمساحة"}"
+                    else "تعذر تجهيز المحرك: ${error.localizedMessage ?: "تحقق من الإنترنت والمساحة"}"
                 )
                 mainHandler.postDelayed({ stopSelf() }, 4_000L)
             }
@@ -140,7 +140,7 @@ class FloatingTranslationOverlayService : Service() {
                 maxOf(minBuffer * 2, SAMPLE_RATE * 2)
             )
         } catch (error: Exception) {
-            updateStatus("تعذر فتح الميكروفون: \${error.localizedMessage ?: "تحقق من الإذن"}")
+            updateStatus("تعذر فتح الميكروفون: ${error.localizedMessage ?: "تحقق من الإذن"}")
             mainHandler.postDelayed({ stopSelf() }, 4_000L)
             return
         }
@@ -187,7 +187,7 @@ class FloatingTranslationOverlayService : Service() {
             }
         } catch (error: Exception) {
             if (running.get()) {
-                updateStatus("توقف التقاط الصوت: \${error.localizedMessage ?: "خطأ في الميكروفون"}")
+                updateStatus("توقف التقاط الصوت: ${error.localizedMessage ?: "خطأ في الميكروفون"}")
                 mainHandler.postDelayed({ stopSelf() }, 3_000L)
             }
         } finally {
@@ -223,7 +223,7 @@ class FloatingTranslationOverlayService : Service() {
                 Thread.currentThread().interrupt()
                 break
             } catch (error: Exception) {
-                updateStatus("تعذر تحليل الصوت: \${error.localizedMessage ?: "خطأ في محرك التعرّف"}")
+                updateStatus("تعذر تحليل الصوت: ${error.localizedMessage ?: "خطأ في محرك التعرّف"}")
             }
         }
     }
@@ -260,7 +260,7 @@ class FloatingTranslationOverlayService : Service() {
                 if (translationModelPending) return@post
 
                 translationModelPending = true
-                updateStatus("تنزيل نموذج الترجمة \${detectedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
+                updateStatus("تنزيل نموذج الترجمة ${detectedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
                 translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
                     .addOnSuccessListener {
                         if (!running.get() || translator !== activeTranslator) return@addOnSuccessListener
@@ -300,7 +300,7 @@ class FloatingTranslationOverlayService : Service() {
     private fun showCaption(text: String, language: String) {
         mainHandler.post {
             captionView?.text = text
-            statusView?.text = "ترجمة مباشرة • \${language.uppercase(Locale.ROOT)} ← العربية"
+            statusView?.text = "ترجمة مباشرة • ${language.uppercase(Locale.ROOT)} ← العربية"
             updateNotification("الترجمة العائمة تعمل")
         }
     }
@@ -443,7 +443,8 @@ class FloatingTranslationOverlayService : Service() {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
