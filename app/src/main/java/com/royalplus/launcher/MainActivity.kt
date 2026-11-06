@@ -21,11 +21,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
+    private companion object { const val KEY_TRANSLATION_CONSENT = "floating_translation_consent" }
     private var weatherState by mutableStateOf(WeatherUiState())
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
     private var isDefaultHome by mutableStateOf(false)
     private var voiceSearchAvailable by mutableStateOf(false)
     private var voiceSearchResult by mutableStateOf("")
+    private var translationOverlayEnabled by mutableStateOf(false)
+    private var pendingTranslationOverlayStart = false
 
     private val voiceSearchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -54,6 +57,15 @@ class MainActivity : ComponentActivity() {
                     isLoading = false,
                     needsPermission = true
                 )
+            }
+        }
+
+    private val translationMicrophonePermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                continueTranslationPermissionFlow()
+            } else {
+                Toast.makeText(this, "يلزم إذن الميكروفون لالتقاط صوت الفيديو محلياً", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -106,7 +118,9 @@ class MainActivity : ComponentActivity() {
                     onUninstallApp = { app -> requestAppUninstall(app) },
                     onVoiceSearch = { startVoiceSearch() },
                     voiceSearchAvailable = voiceSearchAvailable,
-                    voiceSearchResult = voiceSearchResult
+                    voiceSearchResult = voiceSearchResult,
+                    translationOverlayEnabled = translationOverlayEnabled,
+                    onToggleTranslationOverlay = { toggleTranslationOverlay() }
                 )
             }
         }
@@ -120,12 +134,99 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (pendingTranslationOverlayStart) {
+            pendingTranslationOverlayStart = false
+            if (Settings.canDrawOverlays(this) &&
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            ) {
+                startTranslationOverlayService()
+            } else {
+                Toast.makeText(this, "لم تكتمل أذونات الترجمة العائمة", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            translationOverlayEnabled = getSharedPreferences(
+                FloatingTranslationOverlayService.PREFERENCES,
+                MODE_PRIVATE
+            ).getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
+        }
         isDefaultHome = isRoyalPlusDefaultHome()
         installedApps = LauncherAppsRepository.load(
             packageManager = packageManager,
             ownPackageName = packageName
         )
         RoyalAdhanScheduler.scheduleNext(this)
+    }
+
+    private fun toggleTranslationOverlay() {
+        if (translationOverlayEnabled) {
+            stopService(Intent(this, FloatingTranslationOverlayService::class.java))
+            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
+            translationOverlayEnabled = false
+            Toast.makeText(this, "تم إيقاف الترجمة وإيقاف التقاط الميكروفون", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val preferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+        if (!preferences.getBoolean(KEY_TRANSLATION_CONSENT, false)) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("تشغيل الترجمة العربية العائمة")
+                .setMessage(
+                    "تلتقط الميزة صوت الفيديو عبر ميكروفون الجهاز وتعالجه محلياً دون رفع الصوت إلى الإنترنت. " +
+                        "يتطلب أول تشغيل تنزيل نموذج صوت متعدد اللغات بحجم يقارب 104 ميغابايت، " +
+                        "وقد تُنزّل نماذج ترجمة اللغات عند الحاجة. بعد ذلك يعمل المحرك دون اتصال."
+                )
+                .setPositiveButton("متابعة") { _, _ ->
+                    preferences.edit().putBoolean(KEY_TRANSLATION_CONSENT, true).apply()
+                    continueTranslationPermissionFlow()
+                }
+                .setNegativeButton("إلغاء", null)
+                .show()
+            return
+        }
+        continueTranslationPermissionFlow()
+    }
+
+    private fun continueTranslationPermissionFlow() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            translationMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            pendingTranslationOverlayStart = true
+            try {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            } catch (_: Exception) {
+                pendingTranslationOverlayStart = false
+                Toast.makeText(this, "تعذر فتح إعداد إذن الظهور فوق التطبيقات", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        startTranslationOverlayService()
+    }
+
+    private fun startTranslationOverlayService() {
+        try {
+            val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+                action = FloatingTranslationOverlayService.ACTION_SHOW
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, true).apply()
+            translationOverlayEnabled = true
+        } catch (_: Exception) {
+            translationOverlayEnabled = false
+            Toast.makeText(this, "تعذر تشغيل الترجمة العائمة على هذا الجهاز", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun startVoiceSearch() {
