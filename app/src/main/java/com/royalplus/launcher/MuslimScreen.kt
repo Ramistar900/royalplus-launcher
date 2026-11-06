@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,9 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,6 +94,7 @@ internal fun MuslimScreen(
 ) {
     val context = LocalContext.current
     var selectedSection by remember { mutableStateOf("home") }
+    var showCityPicker by remember { mutableStateOf(false) }
     val hijriPreferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
@@ -304,9 +308,21 @@ internal fun MuslimScreen(
                     ) { Text(if (language == "en") "+ day" else if (language == "tr") "+ gün" else "+ يوم", color = Color.Black, fontSize = 11.sp) }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(cityName, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text(when (language) { "en" -> "Times for selected city"; "tr" -> "Seçilen şehrin vakitleri"; else -> "حساب المواقيت حسب المدينة المختارة" }, color = RoyalColors.Muted, fontSize = 9.sp)
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.clip(RoundedCornerShape(9.dp))
+                    .clickable { showCityPicker = true }
+                    .focusable()
+                    .padding(start = 8.dp, top = 5.dp, bottom = 5.dp)
+            ) {
+                Text(
+                    if (selectedCityIndex == 0 && cityName.isBlank()) when (language) { "en" -> "Current location"; "tr" -> "Mevcut konum"; else -> "الموقع الحالي" } else cityName,
+                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    when (language) { "en" -> "Change city"; "tr" -> "Şehri değiştir"; else -> "تغيير المدينة" },
+                    color = RoyalColors.Gold, fontSize = 10.sp
+                )
             }
         }
 
@@ -392,65 +408,15 @@ internal fun MuslimScreen(
             }
         }
 
-        if (selectedCityIndex != 0) {
-            Text("${when (language) { "en" -> "Selected city"; "tr" -> "Seçilen şehir"; else -> "المدينة المختارة" }}: $cityName", color = RoyalColors.Muted, fontSize = 10.sp)
-        }
-        listOf(prayerCities.drop(1).chunked(6)).flatten().forEachIndexed { rowIndex, cityRow ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                if (rowIndex == 0) {
-                    Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
-                            .border(1.dp, if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                            .clickable {
-                                prayerCityManuallySelected = false
-                                selectedCityIndex = 0
-                                onRequestLocation()
-                            }
-                            .focusable()
-                            .padding(vertical = 8.dp, horizontal = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            when (language) { "en" -> "My location"; "tr" -> "Konumum"; else -> "موقعي" },
-                            color = if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Pearl,
-                            fontSize = 10.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
-                }
-                cityRow.forEachIndexed { columnIndex, city ->
-                    val cityIndex = 1 + rowIndex * 6 + columnIndex
-                    val chosen = selectedCityIndex == cityIndex
-                    Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                            .background(if (chosen) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
-                            .border(1.dp, if (chosen) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                            .clickable {
-                                selectedCityIndex = cityIndex
-                                prayerCityManuallySelected = true
-                            }
-                            .focusable()
-                            .padding(vertical = 8.dp, horizontal = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            localizedPrayerCityName(cityIndex, language),
-                            color = if (chosen) RoyalColors.Gold else RoyalColors.Pearl,
-                            fontSize = 10.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
-                }
-                val missingCells = 6 - cityRow.size - if (rowIndex == 0) 1 else 0
-                repeat(missingCells.coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
-            }
-            Spacer(Modifier.height(6.dp))
-        }
         if (!hasCoordinates && selectedCityIndex == 0) {
-            Text(when (language) { "en" -> "Could not detect your location. Choose a city below to view prayer times and the Hijri date; the selected city appears above."; "tr" -> "Konumunuz belirlenemedi. Namaz vakitlerini ve Hicri tarihi görmek için aşağıdan bir şehir seçin; seçilen şehir yukarıda gösterilir."; else -> "تعذّر تحديد موقعك؛ اختر مدينتك من الأسفل لعرض مواقيت الصلاة والتاريخ الهجري. المدينة المحددة ظاهرة أعلى البطاقة." }, color = RoyalColors.Muted, fontSize = 11.sp)
+            Text(
+                when (language) {
+                    "en" -> "Location unavailable. Choose a city using the Change city button."
+                    "tr" -> "Konum alınamadı. Şehri Değiştir düğmesinden bir şehir seçin."
+                    else -> "تعذّر تحديد موقعك. اضغط على «تغيير المدينة» واختر مدينتك."
+                },
+                color = RoyalColors.Muted, fontSize = 11.sp
+            )
         }
 
         Text(when (language) { "en" -> "Explore"; "tr" -> "Keşfet"; else -> "استكشف الأقسام" },
@@ -463,6 +429,59 @@ internal fun MuslimScreen(
                 repeat((3 - row.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
             }
         }
+    }
+
+    if (showCityPicker) {
+        AlertDialog(
+            onDismissRequest = { showCityPicker = false },
+            title = {
+                Text(
+                    when (language) { "en" -> "Choose a city"; "tr" -> "Şehir seçin"; else -> "اختر المدينة" },
+                    color = RoyalColors.Gold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    prayerCities.indices.forEach { index ->
+                        val selected = selectedCityIndex == index
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(if (selected) RoyalColors.Gold.copy(alpha = 0.16f) else Color(0xFF202536))
+                                .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Muted.copy(alpha = 0.35f), RoundedCornerShape(9.dp))
+                                .clickable {
+                                    selectedCityIndex = index
+                                    prayerCityManuallySelected = index != 0
+                                    showCityPicker = false
+                                    if (index == 0) onRequestLocation()
+                                }
+                                .focusable()
+                                .padding(horizontal = 12.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                localizedPrayerCityName(index, language),
+                                modifier = Modifier.weight(1f),
+                                color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                                fontSize = 13.sp
+                            )
+                            if (selected) Text("✓", color = RoyalColors.Gold, fontSize = 16.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCityPicker = false }) {
+                    Text(when (language) { "en" -> "Close"; "tr" -> "Kapat"; else -> "إغلاق" }, color = RoyalColors.Gold)
+                }
+            },
+            containerColor = Color(0xFF171B29),
+            titleContentColor = RoyalColors.Gold,
+            textContentColor = RoyalColors.Pearl
+        )
     }
 }
 
