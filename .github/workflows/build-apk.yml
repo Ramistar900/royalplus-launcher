@@ -67,6 +67,12 @@ jobs:
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
 
+      - name: Download Sherpa ONNX Android runtime
+        run: |
+          mkdir -p app/libs
+          curl --fail --location --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar --output app/libs/sherpa-onnx-2.0.1.aar
+          test -s app/libs/sherpa-onnx-2.0.1.aar
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
@@ -155,6 +161,13 @@ jobs:
         run: |
           echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/royalplus-release.keystore"
           chmod 600 "$RUNNER_TEMP/royalplus-release.keystore"
+
+      - name: Download Sherpa ONNX Android runtime
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          mkdir -p app/libs
+          curl --fail --location --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar --output app/libs/sherpa-onnx-2.0.1.aar
+          test -s app/libs/sherpa-onnx-2.0.1.aar
 
       - name: Build signed release APK
         if: steps.signing.outputs.available == 'true'
