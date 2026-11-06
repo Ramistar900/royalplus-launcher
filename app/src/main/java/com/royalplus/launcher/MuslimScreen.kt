@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -496,7 +497,12 @@ private fun MuslimNavigationTile(
         "hadith" -> when (language) { "en" -> "Hadith"; "tr" -> "Hadisler"; else -> "الأحاديث النبوية" }
         else -> when (language) { "en" -> "Worship tools"; "tr" -> "İbadet araçları"; else -> "أدوات العبادة" }
     }
-    val symbol = when (section) { "quran" -> "۞"; "duas" -> "۩"; "hadith" -> "▤"; else -> "◉" }
+    val iconRes = when (section) {
+        "quran" -> R.drawable.ic_muslim_quran
+        "duas" -> R.drawable.ic_muslim_dua
+        "hadith" -> R.drawable.ic_muslim_hadith
+        else -> R.drawable.ic_muslim_worship
+    }
     Column(
         modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF171B29))
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
@@ -505,7 +511,7 @@ private fun MuslimNavigationTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Text(symbol, color = RoyalColors.Gold, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+        Icon(painter = painterResource(iconRes), contentDescription = title, tint = Color.Unspecified, modifier = Modifier.size(36.dp))
         Text(title, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
