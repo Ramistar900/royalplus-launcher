@@ -57,6 +57,8 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("com.google.mlkit:translate:17.0.3")
+    implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
