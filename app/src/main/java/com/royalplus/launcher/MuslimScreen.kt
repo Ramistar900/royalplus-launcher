@@ -636,20 +636,35 @@ private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Text(
-            if (target.isRamadan) when (language) {
-                "en" -> "🌙 Ramadan Mubarak"
-                "tr" -> "🌙 Ramazanınız mübarek olsun"
-                else -> "🌙 رمضان مبارك"
-            } else when (language) {
-                "en" -> "🌙 Days until Ramadan"
-                "tr" -> "🌙 Ramazan'a kalan gün"
-                else -> "🌙 باقي لرمضان"
-            },
-            color = RoyalColors.Gold,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold
-        )
+        if (target.isRamadan) {
+            Text(
+                when (language) {
+                    "en" -> "☾ Ramadan Mubarak"
+                    "tr" -> "☾ Ramazanınız mübarek olsun"
+                    else -> "☾ رمضان مبارك"
+                },
+                color = RoyalColors.Gold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+        } else if (language == "ar") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Text("☾", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("باقي لشهر رمضان", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(displayedDays, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                Text("يوم", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+        } else {
+            Text(
+                if (language == "en") "☾ Days until Ramadan" else "☾ Ramazan'a kalan gün",
+                color = RoyalColors.Gold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
         if (target.isRamadan) {
             Text(
                 when (language) {
@@ -661,23 +676,19 @@ private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center
             )
-        } else {
+        } else if (language != "ar") {
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    if (language == "ar") displayedDays else remainingDays.toString(),
+                    remainingDays.toString(),
                     color = Color.White,
                     fontSize = 42.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    when (language) {
-                        "en" -> "days"
-                        "tr" -> "gün"
-                        else -> "يوماً"
-                    },
+                    if (language == "en") "days" else "gün",
                     color = RoyalColors.Gold,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
