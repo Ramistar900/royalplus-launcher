@@ -111,7 +111,7 @@ internal fun QuranReaderScreen(
         }
     }
 
-    LaunchedEffect(selectedSurah?.number) {
+    LaunchedEffect(selectedSurah?.number, selectedReader) {
         runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
         runCatching { audioPlayer.reset() }
         audioLoading = false
@@ -829,7 +829,8 @@ internal fun QuranReaderScreen(
                         QuranReaderAction(
                             label = if (downloadAllInProgress) "إيقاف تنزيل السور" else "تنزيل جميع سور هذا القارئ",
                             modifier = Modifier.fillMaxWidth(),
-                            selected = downloadAllInProgress
+                            selected = downloadAllInProgress,
+                            enabled = selectedReader != "mossad" || downloadAllInProgress
                         ) {
                             if (downloadAllInProgress) {
                                 downloadAllInProgress = false
