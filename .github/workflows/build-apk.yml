@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "feature/quran-audio-clean" ]
   workflow_dispatch:
 
 permissions:
