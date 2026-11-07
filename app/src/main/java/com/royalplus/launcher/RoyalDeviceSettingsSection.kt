@@ -29,6 +29,10 @@ import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +46,12 @@ import androidx.compose.ui.unit.sp
 @Composable
 internal fun RoyalDeviceSettingsSection(language: String) {
     val context = LocalContext.current
+    val owlPreferences = remember(context) {
+        context.getSharedPreferences(RoyalOwlAmbienceController.PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
+    var owlSoundEnabled by remember(owlPreferences) {
+        mutableStateOf(owlPreferences.getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true))
+    }
     val storage = storageSummary(language)
     val connection = connectionSummary(context, language)
     val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
@@ -81,6 +91,22 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             if (language == "en") "Sound settings" else if (language == "tr") "Ses ayarları" else "إعدادات الصوت",
             if (language == "en") "Volume and audio output" else if (language == "tr") "Ses seviyesi ve çıkışı" else "مستوى الصوت ومخرج الصوت") {
             openSystemSettings(context, Settings.ACTION_SOUND_SETTINGS)
+        }
+        SettingsInfoRow(
+            Icons.Rounded.VolumeUp,
+            if (language == "en") "Night owl call" else if (language == "tr") "Gece baykuş sesi" else "نداء البومة الليلي",
+            if (owlSoundEnabled) {
+                if (language == "en") "Enabled • clear nights only; volume follows device media level"
+                else if (language == "tr") "Açık • yalnızca açık gecelerde; ses cihazın medya düzeyini izler"
+                else "مفعّل • في الليالي الصافية فقط؛ مستوى الصوت من الجهاز"
+            } else {
+                if (language == "en") "Muted • tap to enable"
+                else if (language == "tr") "Sessiz • açmak için dokunun"
+                else "مكتوم • اضغط للتشغيل"
+            }
+        ) {
+            owlSoundEnabled = !owlSoundEnabled
+            RoyalOwlAmbienceController.setEnabled(context, owlSoundEnabled)
         }
         SettingsInfoRow(Icons.Rounded.Info,
             if (language == "en") "System information" else if (language == "tr") "Sistem bilgileri" else "معلومات النظام وإصدار Android",
