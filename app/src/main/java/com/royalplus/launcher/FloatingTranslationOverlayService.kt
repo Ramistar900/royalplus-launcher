@@ -240,6 +240,7 @@ class FloatingTranslationOverlayService : Service() {
 
     private fun translateCaption(text: String, detectedLanguage: String) {
         mainHandler.post {
+            if (!running.get()) return@post
             val sourceLanguage = TranslateLanguage.fromLanguageTag(detectedLanguage)
             if (sourceLanguage.isNullOrBlank()) {
                 updateStatus("تعرّف الصوت على اللغة، لكن ML Kit لا يوفّر ترجمتها حالياً")
@@ -407,9 +408,15 @@ class FloatingTranslationOverlayService : Service() {
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
                 x = dp(12)
             }
-            manager.addView(control, params)
-            controlView = control
-            controlWindowParams = params
+            try {
+                manager.addView(control, params)
+                controlView = control
+                controlWindowParams = params
+            } catch (_: Exception) {
+                // If the system rejects the control window, restore the edge handle.
+                showEdgeReveal()
+                return
+            }
         }
         scheduleControlHide()
     }
@@ -576,8 +583,37 @@ class FloatingTranslationOverlayService : Service() {
             // The capture device may already have been released by the system.
         }
         audioRecord = null
-        recognizer?.release()
+        val engineToRelease = recognizer
         recognizer = null
+        if (engineToRelease != null) {
+            val decoder = decodeThread
+            if (decoder == null || !decoder.isAlive) {
+                try {
+                    engineToRelease.release()
+                } catch (_: Exception) {
+                    // Native recognizer cleanup must not prevent the service from stopping.
+                }
+            } else {
+                // sherpa-onnx owns native resources; release only after the decode call exits.
+                Thread({
+                    var interrupted = false
+                    while (decoder.isAlive) {
+                        try {
+                            decoder.join()
+                        } catch (_: InterruptedException) {
+                            interrupted = true
+                        }
+                    }
+                    try {
+                        engineToRelease.release()
+                    } catch (_: Exception) {
+                        // Native recognizer cleanup must not prevent the service from stopping.
+                    } finally {
+                        if (interrupted) Thread.currentThread().interrupt()
+                    }
+                }, "RoyalWhisperRelease").start()
+            }
+        }
         activeTranslator?.close()
         activeTranslator = null
         activeSourceLanguage = null
