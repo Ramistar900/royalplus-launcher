@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,9 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -90,7 +94,8 @@ internal fun MuslimScreen(
     language: String = "ar"
 ) {
     val context = LocalContext.current
-    var showQuranReader by remember { mutableStateOf(false) }
+    var selectedSection by remember { mutableStateOf("home") }
+    var showCityPicker by remember { mutableStateOf(false) }
     val hijriPreferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
@@ -223,14 +228,19 @@ internal fun MuslimScreen(
         }
     }
 
-    if (showQuranReader) {
-        QuranReaderScreen(language = language, onClose = { showQuranReader = false })
+    if (selectedSection != "home") {
+        MuslimSubSectionScreen(
+            section = selectedSection, language = language,
+            latitude = latitude, longitude = longitude,
+            onRequestLocation = onRequestLocation,
+            onBack = { selectedSection = "home" }
+        )
         return
     }
 
     Column(
         modifier = Modifier.fillMaxSize()
-            .background(Color(0xFFFFF3D8))
+            .background(RoyalColors.Black)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -240,13 +250,13 @@ internal fun MuslimScreen(
                 val ramadanDecorated = data?.hijriDate?.contains("رمضان") == true
                 Text(
                     if (ramadanDecorated) "☾ ✦ " + when (language) { "en" -> "Muslim"; "tr" -> "Müslüman"; else -> "مسلم" } + " ✦ ☾" else when (language) { "en" -> "Muslim"; "tr" -> "Müslüman"; else -> "مسلم" },
-                    color = Color.Black,
+                    color = RoyalColors.Gold,
                     fontSize = 27.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     if (ramadanDecorated) when (language) { "en" -> "Ramadan Kareem • Hijri calendar & prayer times"; "tr" -> "Ramazanınız mübarek olsun • Hicri takvim ve namaz vakitleri"; else -> "رمضان كريم • التقويم الهجري ومواقيت الصلاة" } else when (language) { "en" -> "Hijri calendar & prayer times"; "tr" -> "Hicri takvim ve namaz vakitleri"; else -> "التقويم الهجري ومواقيت الصلاة" },
-                    color = Color(0xFF333333),
+                    color = RoyalColors.Muted,
                     fontSize = 12.sp
                 )
             }
@@ -260,41 +270,15 @@ internal fun MuslimScreen(
         }
 
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
-                .background(Color(0xFF111820))
-                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(13.dp))
-                .clickable { showQuranReader = true }
-                .focusable()
-                .padding(horizontal = 15.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    when (language) { "en" -> "The Holy Quran"; "tr" -> "Kur'an-ı Kerim"; else -> "القرآن الكريم" },
-                    color = RoyalColors.Gold,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    when (language) { "en" -> "Complete offline Uthmani text • 114 surahs"; "tr" -> "Tam çevrimdışı Osmanlı metni • 114 sure"; else -> "المصحف العثماني كاملاً دون إنترنت • 114 سورة" },
-                    color = RoyalColors.Muted,
-                    fontSize = 10.sp
-                )
-            }
-            Text("۞", color = RoyalColors.Gold, fontSize = 28.sp)
-        }
-
-        Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
-                .background(Color(0xFF8C641A))
-                .border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(17.dp))
+                .background(Color(0xFF171B29))
+                .border(1.dp, RoyalColors.Gold, RoundedCornerShape(17.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(when (language) { "en" -> "Hijri date"; "tr" -> "Hicri tarih"; else -> "التاريخ الهجري" }, color = Color.Black, fontSize = 12.sp)
-                Text(data?.hijriDate?.takeIf { it.isNotBlank() } ?: when (language) { "en" -> "Loading Hijri date"; "tr" -> "Hicri tarih yükleniyor"; else -> "جارٍ تحميل التاريخ الهجري" }, color = Color.Black, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text(when (language) { "en" -> "Hijri date"; "tr" -> "Hicri tarih"; else -> "التاريخ الهجري" }, color = RoyalColors.Gold, fontSize = 12.sp)
+                Text(data?.hijriDate?.takeIf { it.isNotBlank() } ?: when (language) { "en" -> "Loading Hijri date"; "tr" -> "Hicri tarih yükleniyor"; else -> "جارٍ تحميل التاريخ الهجري" }, color = RoyalColors.Pearl, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(data?.gregorianDate.orEmpty(), color = RoyalColors.Muted, fontSize = 11.sp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -302,13 +286,13 @@ internal fun MuslimScreen(
                 ) {
                     Box(
                         Modifier.clip(RoundedCornerShape(7.dp))
-                            .background(Color(0xFFFFE7A8))
-                            .border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(7.dp))
+                            .background(Color(0xFF202536))
+                            .border(1.dp, RoyalColors.Gold, RoundedCornerShape(7.dp))
                             .clickable { hijriDayAdjustment = (hijriDayAdjustment - 1).coerceAtLeast(-30) }
                             .focusable()
                             .padding(horizontal = 10.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
-                    ) { Text(if (language == "en") "− day" else if (language == "tr") "− gün" else "− يوم", color = Color.Black, fontSize = 11.sp) }
+                    ) { Text(if (language == "en") "− day" else if (language == "tr") "− gün" else "− يوم", color = RoyalColors.Pearl, fontSize = 11.sp) }
                     Text(
                         if (hijriDayAdjustment == 0) when (language) { "en" -> "Offset: 0"; "tr" -> "Düzeltme: 0"; else -> "ضبط: 0" } else "${when (language) { "en" -> "Offset"; "tr" -> "Düzeltme"; else -> "ضبط" }}: ${if (hijriDayAdjustment > 0) "+" else ""}$hijriDayAdjustment",
                         color = RoyalColors.Muted,
@@ -325,9 +309,21 @@ internal fun MuslimScreen(
                     ) { Text(if (language == "en") "+ day" else if (language == "tr") "+ gün" else "+ يوم", color = Color.Black, fontSize = 11.sp) }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(cityName, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text(when (language) { "en" -> "Times for selected city"; "tr" -> "Seçilen şehrin vakitleri"; else -> "حساب المواقيت حسب المدينة المختارة" }, color = RoyalColors.Muted, fontSize = 9.sp)
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.clip(RoundedCornerShape(9.dp))
+                    .clickable { showCityPicker = true }
+                    .focusable()
+                    .padding(start = 8.dp, top = 5.dp, bottom = 5.dp)
+            ) {
+                Text(
+                    if (selectedCityIndex == 0 && cityName.isBlank()) when (language) { "en" -> "Current location"; "tr" -> "Mevcut konum"; else -> "الموقع الحالي" } else cityName,
+                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    when (language) { "en" -> "Change city"; "tr" -> "Şehri değiştir"; else -> "تغيير المدينة" },
+                    color = RoyalColors.Gold, fontSize = 10.sp
+                )
             }
         }
 
@@ -371,69 +367,16 @@ internal fun MuslimScreen(
             language = language
         )
 
-        if (data?.hijriDate?.contains("رمضان") == true) {
-            val fajrMinutes = timesafeMinutes(data?.times?.get("Fajr"))
-            val maghribMinutes = timesafeMinutes(data?.times?.get("Maghrib"))
-            val imsakTime = fajrMinutes?.let { minutes ->
-                val adjusted = (minutes - 10 + 1440) % 1440
-                String.format(Locale.US, "%02d:%02d", adjusted / 60, adjusted % 60)
-            }
-            val iftarTime = data?.times?.get("Maghrib")
-            val iftarCountdown = maghribMinutes?.let { target ->
-                val current = SimpleDateFormat("HH:mm:ss", Locale.US).apply { timeZone = prayerTimeZone }.format(Date(now)).split(":")
-                val currentSeconds = current[0].toInt() * 3600 + current[1].toInt() * 60 + current[2].toInt()
-                var remaining = target * 60 - currentSeconds
-                if (remaining <= 0) remaining += 24 * 3600
-                String.format(Locale.US, "%02d:%02d:%02d", remaining / 3600, (remaining % 3600) / 60, remaining % 60)
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(15.dp))
-                        .background(Color(0xFF14271F))
-                        .border(1.dp, Color(0xFF6DAA80), RoundedCornerShape(15.dp))
-                        .padding(horizontal = 12.dp, vertical = 11.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(when (language) { "en" -> "🌙 Suhoor cutoff"; "tr" -> "🌙 İmsak"; else -> "🌙 الإمساك" }, color = Color(0xFFD8E9B8), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(imsakTime ?: "--:--", color = RoyalColors.Pearl, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                    Text(when (language) { "en" -> "10 minutes before Fajr, as a precaution"; "tr" -> "Tedbir amaçlı imsak, fecirden 10 dakika önce"; else -> "قبل الفجر بـ10 دقائق احتياطًا" }, color = RoyalColors.Muted, fontSize = 9.sp, textAlign = TextAlign.Center)
-                }
-                Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(15.dp))
-                        .background(Color(0xFF30240F))
-                        .border(1.dp, RoyalColors.Gold, RoundedCornerShape(15.dp))
-                        .padding(horizontal = 12.dp, vertical = 11.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(when (language) { "en" -> "✨ Iftar"; "tr" -> "✨ İftar"; else -> "✨ الإفطار" }, color = RoyalColors.Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(iftarTime ?: "--:--", color = RoyalColors.Pearl, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                    Text("${when (language) { "en" -> "Remaining"; "tr" -> "Kalan"; else -> "المتبقي" }} ${iftarCountdown ?: "--:--:--"}", color = RoyalColors.Gold, fontSize = 10.sp, textAlign = TextAlign.Center)
-                }
-            }
-        }
-
-        RoyalWorshipToolsSection(
-            latitude = latitude,
-            longitude = longitude,
-            language = language,
-            onRequestLocation = onRequestLocation
-        )
-        DuasSection(language = language)
-        HadithsSection(language = language)
-
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFF8C641A)).border(1.dp, Color(0xFF20C9B5), RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text("${when (language) { "en" -> "Today’s Hijri date"; "tr" -> "Bugünün Hicri tarihi"; else -> "التاريخ الهجري اليوم" }}: ${data?.hijriDate?.takeIf { it.isNotBlank() } ?: when (language) { "en" -> "Loading Hijri date"; "tr" -> "Hicri tarih yükleniyor"; else -> "جارٍ تحميل التاريخ الهجري" }}", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
-        Text(when (language) { "en" -> "Prayer times for the next seven days"; "tr" -> "Önümüzdeki yedi günün namaz vakitleri"; else -> "جدول مواقيت الصلاة للأيام السبعة" }, color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(when (language) { "en" -> "Prayer times for the next seven days"; "tr" -> "Önümüzdeki yedi günün namaz vakitleri"; else -> "جدول مواقيت الصلاة للأيام السبعة" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text(when (language) { "en" -> "Updates daily and calculates times for the selected city"; "tr" -> "Her gün otomatik yenilenir ve seçilen şehre göre hesaplanır"; else -> "يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت حسب المدينة المختارة" }, color = RoyalColors.Muted, fontSize = 10.sp)
         val prayerColumns = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                 .border(1.dp, Color(0xFFB68A2C), RoundedCornerShape(12.dp))
-                .background(Color(0xFFFFF3D8)).padding(5.dp),
+                .background(Color(0xFF11151D)).padding(5.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Row(Modifier.fillMaxWidth().background(Color(0xFFFFE7A8), RoundedCornerShape(7.dp)).padding(vertical = 7.dp, horizontal = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().background(Color(0xFF242A39), RoundedCornerShape(7.dp)).padding(vertical = 7.dp, horizontal = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 PrayerTableCell(when (language) { "en" -> "#"; "tr" -> "No."; else -> "الفهرس" }, Modifier.weight(0.55f), true)
                 PrayerTableCell(when (language) { "en" -> "Day & date"; "tr" -> "Gün ve tarih"; else -> "اليوم والتاريخ" }, Modifier.weight(1.55f), true)
                 prayerColumns.forEach { key ->
@@ -466,65 +409,146 @@ internal fun MuslimScreen(
             }
         }
 
-        if (selectedCityIndex != 0) {
-            Text("${when (language) { "en" -> "Selected city"; "tr" -> "Seçilen şehir"; else -> "المدينة المختارة" }}: $cityName", color = RoyalColors.Muted, fontSize = 10.sp)
-        }
-        listOf(prayerCities.drop(1).chunked(6)).flatten().forEachIndexed { rowIndex, cityRow ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                if (rowIndex == 0) {
-                    Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
-                            .border(1.dp, if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                            .clickable {
-                                prayerCityManuallySelected = false
-                                selectedCityIndex = 0
-                                onRequestLocation()
-                            }
-                            .focusable()
-                            .padding(vertical = 8.dp, horizontal = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            when (language) { "en" -> "My location"; "tr" -> "Konumum"; else -> "موقعي" },
-                            color = if (selectedCityIndex == 0 && !prayerCityManuallySelected) RoyalColors.Gold else RoyalColors.Pearl,
-                            fontSize = 10.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
-                }
-                cityRow.forEachIndexed { columnIndex, city ->
-                    val cityIndex = 1 + rowIndex * 6 + columnIndex
-                    val chosen = selectedCityIndex == cityIndex
-                    Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                            .background(if (chosen) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xAA11151D))
-                            .border(1.dp, if (chosen) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                            .clickable {
-                                selectedCityIndex = cityIndex
-                                prayerCityManuallySelected = true
-                            }
-                            .focusable()
-                            .padding(vertical = 8.dp, horizontal = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            localizedPrayerCityName(cityIndex, language),
-                            color = if (chosen) RoyalColors.Gold else RoyalColors.Pearl,
-                            fontSize = 10.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
-                }
-                val missingCells = 6 - cityRow.size - if (rowIndex == 0) 1 else 0
-                repeat(missingCells.coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
-            }
-            Spacer(Modifier.height(6.dp))
-        }
         if (!hasCoordinates && selectedCityIndex == 0) {
-            Text(when (language) { "en" -> "Could not detect your location. Choose a city below to view prayer times and the Hijri date; the selected city appears above."; "tr" -> "Konumunuz belirlenemedi. Namaz vakitlerini ve Hicri tarihi görmek için aşağıdan bir şehir seçin; seçilen şehir yukarıda gösterilir."; else -> "تعذّر تحديد موقعك؛ اختر مدينتك من الأسفل لعرض مواقيت الصلاة والتاريخ الهجري. المدينة المحددة ظاهرة أعلى البطاقة." }, color = RoyalColors.Muted, fontSize = 11.sp)
+            Text(
+                when (language) {
+                    "en" -> "Location unavailable. Choose a city using the Change city button."
+                    "tr" -> "Konum alınamadı. Şehri Değiştir düğmesinden bir şehir seçin."
+                    else -> "تعذّر تحديد موقعك. اضغط على «تغيير المدينة» واختر مدينتك."
+                },
+                color = RoyalColors.Muted, fontSize = 11.sp
+            )
+        }
+
+        Text(when (language) { "en" -> "Explore"; "tr" -> "Keşfet"; else -> "استكشف الأقسام" },
+            color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        listOf(listOf("quran", "duas", "hadith"), listOf("worship")).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                row.forEach { section ->
+                    MuslimNavigationTile(section, language, Modifier.weight(1f)) { selectedSection = section }
+                }
+                repeat((3 - row.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+
+    if (showCityPicker) {
+        AlertDialog(
+            onDismissRequest = { showCityPicker = false },
+            title = {
+                Text(
+                    when (language) { "en" -> "Choose a city"; "tr" -> "Şehir seçin"; else -> "اختر المدينة" },
+                    color = RoyalColors.Gold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    prayerCities.indices.forEach { index ->
+                        val selected = selectedCityIndex == index
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(if (selected) RoyalColors.Gold.copy(alpha = 0.16f) else Color(0xFF202536))
+                                .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Muted.copy(alpha = 0.35f), RoundedCornerShape(9.dp))
+                                .clickable {
+                                    selectedCityIndex = index
+                                    prayerCityManuallySelected = index != 0
+                                    showCityPicker = false
+                                    if (index == 0) onRequestLocation()
+                                }
+                                .focusable()
+                                .padding(horizontal = 12.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                localizedPrayerCityName(index, language),
+                                modifier = Modifier.weight(1f),
+                                color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                                fontSize = 13.sp
+                            )
+                            if (selected) Text("✓", color = RoyalColors.Gold, fontSize = 16.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCityPicker = false }) {
+                    Text(when (language) { "en" -> "Close"; "tr" -> "Kapat"; else -> "إغلاق" }, color = RoyalColors.Gold)
+                }
+            },
+            containerColor = Color(0xFF171B29),
+            titleContentColor = RoyalColors.Gold,
+            textContentColor = RoyalColors.Pearl
+        )
+    }
+}
+
+@Composable
+private fun MuslimNavigationTile(
+    section: String, language: String,
+    modifier: Modifier = Modifier, onClick: () -> Unit
+) {
+    val title = when (section) {
+        "quran" -> when (language) { "en" -> "Holy Quran"; "tr" -> "Kur'an-ı Kerim"; else -> "القرآن الكريم" }
+        "duas" -> when (language) { "en" -> "Duas & Adhkar"; "tr" -> "Dualar ve Zikirler"; else -> "الأدعية والأذكار" }
+        "hadith" -> when (language) { "en" -> "Hadith"; "tr" -> "Hadisler"; else -> "الأحاديث النبوية" }
+        else -> when (language) { "en" -> "Worship tools"; "tr" -> "İbadet araçları"; else -> "أدوات العبادة" }
+    }
+    val iconRes = when (section) {
+        "quran" -> R.drawable.ic_muslim_quran
+        "duas" -> R.drawable.ic_muslim_dua
+        "hadith" -> R.drawable.ic_muslim_hadith
+        else -> R.drawable.ic_muslim_worship
+    }
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF171B29))
+            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick).focusable()
+            .padding(horizontal = 7.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Icon(painter = painterResource(iconRes), contentDescription = title, tint = Color.Unspecified, modifier = Modifier.size(36.dp))
+        Text(title, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun MuslimSubSectionScreen(
+    section: String, language: String, latitude: Double?, longitude: Double?,
+    onRequestLocation: () -> Unit, onBack: () -> Unit
+) {
+    if (section == "quran") {
+        QuranReaderScreen(language = language, onClose = onBack)
+        return
+    }
+    Column(
+        Modifier.fillMaxSize().background(RoyalColors.Black)
+            .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SmallPrayerAction(when (language) { "en" -> "Back"; "tr" -> "Geri"; else -> "رجوع" }, Icons.Rounded.Refresh, onBack)
+            Text(
+                when (section) {
+                    "duas" -> when (language) { "en" -> "Duas & Adhkar"; "tr" -> "Dualar ve Zikirler"; else -> "الأدعية والأذكار" }
+                    "hadith" -> when (language) { "en" -> "Prophetic Hadith"; "tr" -> "Peygamber Hadisleri"; else -> "الأحاديث النبوية" }
+                    else -> when (language) { "en" -> "Worship tools"; "tr" -> "İbadet araçları"; else -> "أدوات العبادة" }
+                },
+                color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+            )
+        }
+        when (section) {
+            "duas" -> DuasSection(language = language)
+            "hadith" -> HadithsSection(language = language)
+            "worship" -> RoyalWorshipToolsSection(
+                latitude = latitude, longitude = longitude, language = language,
+                onRequestLocation = onRequestLocation
+            )
         }
     }
 }
@@ -532,7 +556,7 @@ internal fun MuslimScreen(
 @Composable
 private fun PrayerTableCell(value: String, modifier: Modifier, highlighted: Boolean, expired: Boolean = false) {
     Box(modifier = modifier.padding(horizontal = 1.dp).clip(RoundedCornerShape(4.dp)).then(if (expired) Modifier.background(Color(0xFFD62828)) else Modifier).padding(vertical = if (expired) 4.dp else 2.dp, horizontal = 1.dp), contentAlignment = Alignment.Center) {
-        Text(text = value, color = if (expired) Color.White else Color.Black, fontSize = 9.sp, fontWeight = if (highlighted || expired) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2)
+        Text(text = value, color = if (expired) Color.White else RoyalColors.Pearl, fontSize = 9.sp, fontWeight = if (highlighted || expired) FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center, lineHeight = 11.sp, maxLines = 2)
     }
 }
 
