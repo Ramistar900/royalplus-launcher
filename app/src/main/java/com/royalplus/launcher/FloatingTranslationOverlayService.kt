@@ -340,7 +340,7 @@ class FloatingTranslationOverlayService : Service() {
             maxLines = 3
             includeFontPadding = true
             setPadding(dp(18), dp(9), dp(18), dp(9))
-            background = solidRoundedBackground(0xB3000000.toInt(), dp(10).toFloat())
+            background = solidRoundedBackground(0x66000000, dp(10).toFloat())
             visibility = View.GONE
             setShadowLayer(dp(1).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
             contentDescription = "الترجمة العربية"

@@ -31,7 +31,7 @@
     <application
         android:allowBackup="true"
         android:banner="@drawable/launcher_banner"
-        android:icon="@drawable/royalplus_logo_source"
+        android:icon="@mipmap/ic_launcher"
         android:label="ROYAL+ Launcher"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
