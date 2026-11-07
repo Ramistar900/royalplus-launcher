@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +60,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun QuranReaderScreen(
@@ -74,12 +78,40 @@ internal fun QuranReaderScreen(
     var settingsOpen by remember { mutableStateOf(false) }
     var selectedReader by remember { mutableStateOf(preferences.getString("quran_reader_key", "afasy") ?: "afasy") }
     var selectedWallpaper by remember { mutableStateOf(preferences.getString("quran_wallpaper_key", "color") ?: "color") }
+    var audioLoading by remember { mutableStateOf(false) }
+    var audioReady by remember { mutableStateOf(false) }
+    var audioPlaying by remember { mutableStateOf(false) }
+    var audioMessage by remember { mutableStateOf("") }
+    var currentAudioVerse by remember { mutableStateOf(0) }
+    var activeAudioSurah by remember { mutableStateOf(0) }
+    var activeTimings by remember { mutableStateOf<List<QuranVerseTiming>>(emptyList()) }
+    val audioPlayer = remember { MediaPlayer() }
     val lastReadNumber = preferences.getInt("quran_last_surah", 1)
     val lastReadVerse = preferences.getInt("quran_last_verse", 1)
     var bookmarkedSurah by remember { mutableStateOf(preferences.getInt("quran_bookmark_surah", 0)) }
     var bookmarkedVerse by remember { mutableStateOf(preferences.getInt("quran_bookmark_verse", 0)) }
     val isArabic = language == "ar"
     val isTurkish = language == "tr"
+
+    DisposableEffect(audioPlayer) {
+        onDispose {
+            runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
+            runCatching { audioPlayer.reset() }
+            runCatching { audioPlayer.release() }
+        }
+    }
+
+    LaunchedEffect(selectedSurah?.number) {
+        runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
+        runCatching { audioPlayer.reset() }
+        audioLoading = false
+        audioReady = false
+        audioPlaying = false
+        audioMessage = ""
+        currentAudioVerse = 0
+        activeAudioSurah = 0
+        activeTimings = emptyList()
+    }
 
     LaunchedEffect(Unit) {
         runCatching {
@@ -424,6 +456,136 @@ internal fun QuranReaderScreen(
                     if (target >= 0) scope.launch { verseListState.animateScrollToItem(target) }
                 }
             }
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                    .background(Color(0xFF121C28).copy(alpha = 0.94f))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(13.dp))
+                    .padding(9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Box(
+                    Modifier.size(42.dp).clip(CircleShape)
+                        .background(if (audioPlaying) Color(0xFF7A2424) else Color(0xFF253345))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
+                        .clickable(enabled = !audioLoading) {
+                            if (audioReady) {
+                                if (audioPlaying) {
+                                    runCatching { audioPlayer.pause() }
+                                    audioPlaying = false
+                                    currentAudioVerse = 0
+                                } else {
+                                    runCatching { audioPlayer.start() }.onSuccess { audioPlaying = true }
+                                }
+                            } else {
+                                audioLoading = true
+                                audioMessage = "جارٍ تجهيز التلاوة…"
+                                scope.launch {
+                                    val track = runCatching {
+                                        withContext(Dispatchers.IO) {
+                                            QuranAudioRepository.loadTrack(context.applicationContext, selectedReader, surah.number)
+                                        }
+                                    }.getOrNull()
+                                    if (track == null) {
+                                        audioLoading = false
+                                        audioMessage = if (selectedReader == "mossad")
+                                            "تلاوات عبد الرحمن مسعد المختارة تحتاج إلى إضافة روابطها المعتمدة"
+                                        else "لم يُعثر على تسجيل موثوق لهذا القارئ والسورة"
+                                    } else {
+                                        activeAudioSurah = surah.number
+                                        activeTimings = track.timings
+                                        audioPlayer.reset()
+                                        audioPlayer.setAudioAttributes(
+                                            AudioAttributes.Builder()
+                                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                .build()
+                                        )
+                                        audioPlayer.setOnPreparedListener { prepared ->
+                                            audioLoading = false
+                                            audioReady = true
+                                            audioPlaying = true
+                                            prepared.start()
+                                        }
+                                        audioPlayer.setOnCompletionListener {
+                                            audioPlaying = false
+                                            audioReady = false
+                                            currentAudioVerse = 0
+                                        }
+                                        audioPlayer.setOnErrorListener { _, _, _ ->
+                                            audioLoading = false
+                                            audioReady = false
+                                            audioPlaying = false
+                                            currentAudioVerse = 0
+                                            audioMessage = "تعذر تشغيل ملف التلاوة"
+                                            true
+                                        }
+                                        audioMessage = if (track.timingAvailable)
+                                            "التلاوة جاهزة • تلوين الآيات متاح"
+                                        else "التلاوة جاهزة • لا تتوفر توقيتات مطابقة للتلوين"
+                                        runCatching {
+                                            audioPlayer.setDataSource(track.audioUrl)
+                                            audioPlayer.prepareAsync()
+                                        }.onFailure {
+                                            audioLoading = false
+                                            audioReady = false
+                                            audioPlaying = false
+                                            audioMessage = "تعذر الاتصال بمصدر التلاوة"
+                                        }
+                                    }
+                                }
+                            }
+                        }.focusable(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        when { audioLoading -> "…"; audioPlaying -> "Ⅱ"; audioReady -> "▶"; else -> "▶" },
+                        color = RoyalColors.Gold, fontSize = 19.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("مشغل التلاوة", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        audioMessage.ifBlank { "القارئ: " + when (selectedReader) {
+                            "maher" -> "ماهر المعيقلي"
+                            "sudais" -> "عبد الرحمن السديس"
+                            "mossad" -> "عبد الرحمن مسعد • تلاوات مختارة"
+                            else -> "مشاري العفاسي"
+                        } },
+                        color = RoyalColors.Pearl, fontSize = 10.sp, maxLines = 2
+                    )
+                }
+                Text(
+                    "■", color = RoyalColors.Gold, fontSize = 17.sp,
+                    modifier = Modifier.clip(CircleShape).clickable {
+                        runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
+                        runCatching { audioPlayer.reset() }
+                        audioReady = false
+                        audioPlaying = false
+                        audioLoading = false
+                        currentAudioVerse = 0
+                        audioMessage = "تم إيقاف التلاوة"
+                    }.padding(8.dp).focusable()
+                )
+            }
+
+            LaunchedEffect(audioPlaying, activeTimings, surah.number) {
+                while (audioPlaying) {
+                    val position = runCatching { audioPlayer.currentPosition }.getOrDefault(-1)
+                    val timedVerse = if (activeAudioSurah == surah.number && position >= 0) {
+                        activeTimings.firstOrNull { position >= it.startMs && position < it.endMs }?.ayah ?: 0
+                    } else 0
+                    if (timedVerse != currentAudioVerse) {
+                        currentAudioVerse = timedVerse
+                        if (timedVerse > 0) {
+                            val targetIndex = surah.verses.indexOfFirst { it.number == timedVerse }
+                            if (targetIndex >= 0) verseListState.animateScrollToItem(targetIndex)
+                        }
+                    }
+                    delay(150L)
+                }
+            }
+
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 state = verseListState,
@@ -457,7 +619,7 @@ internal fun QuranReaderScreen(
                             Text(
                                 verse.text,
                                 modifier = Modifier.weight(1f),
-                                color = RoyalColors.Pearl,
+                                color = if (verse.number == currentAudioVerse) Color(0xFFFF3B30) else RoyalColors.Pearl,
                                 fontSize = 24.sp,
                                 lineHeight = 43.sp,
                                 fontFamily = quranFont,
