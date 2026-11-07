@@ -3,9 +3,13 @@ package com.royalplus.launcher
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.Normalizer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal data class QuranVerseTiming(
     val ayah: Int,
@@ -16,13 +20,15 @@ internal data class QuranVerseTiming(
 internal data class QuranAudioTrack(
     val audioUrl: String,
     val timings: List<QuranVerseTiming>,
-    val timingAvailable: Boolean
+    val timingAvailable: Boolean,
+    val localFile: File? = null
 )
 
 internal object QuranAudioRepository {
     private const val API = "https://mp3quran.net/api/v3"
     private const val CONNECT_TIMEOUT_MS = 12_000
-    private const val READ_TIMEOUT_MS = 18_000
+    private const val READ_TIMEOUT_MS = 30_000
+    private const val MIN_VALID_AUDIO_BYTES = 1_024
 
     private data class ReadSource(
         val name: String,
@@ -82,6 +88,104 @@ internal object QuranAudioRepository {
             timings = timings,
             timingAvailable = timings.isNotEmpty()
         )
+    }
+
+    fun downloadedSurahNumbers(context: Context, readerKey: String): Set<Int> {
+        val directory = audioDirectory(context, readerKey)
+        return directory.listFiles()
+            .orEmpty()
+            .asSequence()
+            .filter { it.isFile && it.length() >= MIN_VALID_AUDIO_BYTES && it.extension.equals("mp3", true) }
+            .mapNotNull { it.nameWithoutExtension.toIntOrNull()?.takeIf { number -> number in 1..114 } }
+            .toSet()
+    }
+
+    fun downloadedFile(context: Context, readerKey: String, surahNumber: Int): File? {
+        if (surahNumber !in 1..114) return null
+        val file = File(audioDirectory(context, readerKey), "%03d.mp3".format(surahNumber))
+        return file.takeIf { it.isFile && it.length() >= MIN_VALID_AUDIO_BYTES }
+    }
+
+    fun loadDownloadedTrack(
+        context: Context,
+        readerKey: String,
+        surahNumber: Int
+    ): QuranAudioTrack? {
+        val file = downloadedFile(context, readerKey, surahNumber) ?: return null
+        val timings = loadCachedTimings(context, readerKey, surahNumber).orEmpty()
+        return QuranAudioTrack(
+            audioUrl = file.absolutePath,
+            timings = timings,
+            timingAvailable = timings.isNotEmpty(),
+            localFile = file
+        )
+    }
+
+    suspend fun downloadTrack(
+        context: Context,
+        readerKey: String,
+        surahNumber: Int
+    ): QuranAudioTrack? = withContext(Dispatchers.IO) {
+        require(surahNumber in 1..114)
+        downloadedFile(context, readerKey, surahNumber)?.let { existing ->
+            return@withContext loadDownloadedTrack(context, readerKey, surahNumber)
+                ?: QuranAudioTrack(existing.absolutePath, emptyList(), false, existing)
+        }
+
+        val sourceTrack = loadTrack(context, readerKey, surahNumber) ?: return@withContext null
+        val directory = audioDirectory(context, readerKey)
+        if (!directory.exists() && !directory.mkdirs()) return@withContext null
+        val destination = File(directory, "%03d.mp3".format(surahNumber))
+        val temporary = File(directory, "%03d.mp3.part".format(surahNumber))
+        var connection: HttpURLConnection? = null
+
+        try {
+            connection = (URL(sourceTrack.audioUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "ROYALPlusLauncher/1.0")
+                setRequestProperty("Accept", "audio/mpeg,*/*")
+            }
+            if (connection.responseCode !in 200..299) return@withContext null
+            connection.inputStream.use { input ->
+                FileOutputStream(temporary).use { output ->
+                    input.copyTo(output, bufferSize = 64 * 1024)
+                    output.fd.sync()
+                }
+            }
+            if (temporary.length() < MIN_VALID_AUDIO_BYTES) {
+                temporary.delete()
+                return@withContext null
+            }
+            if (destination.exists() && !destination.delete()) {
+                temporary.delete()
+                return@withContext null
+            }
+            if (!temporary.renameTo(destination)) {
+                temporary.copyTo(destination, overwrite = true)
+                temporary.delete()
+            }
+            if (!destination.isFile || destination.length() < MIN_VALID_AUDIO_BYTES) {
+                destination.delete()
+                return@withContext null
+            }
+            sourceTrack.copy(
+                audioUrl = destination.absolutePath,
+                localFile = destination
+            )
+        } catch (_: Exception) {
+            temporary.delete()
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private fun audioDirectory(context: Context, readerKey: String): File {
+        val safeReader = readerKey.takeIf { it in setOf("afasy", "maher", "sudais", "mossad") } ?: "afasy"
+        return File(File(context.filesDir, "quran_audio"), safeReader)
     }
 
     private fun loadMatchingTimings(source: ReadSource, surahNumber: Int): List<QuranVerseTiming>? {
