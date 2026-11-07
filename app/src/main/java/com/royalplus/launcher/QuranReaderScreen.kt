@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.paint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -40,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -66,6 +71,9 @@ internal fun QuranReaderScreen(
     var loadError by remember { mutableStateOf(false) }
     var selectedSurah by remember { mutableStateOf<QuranSurah?>(null) }
     var query by remember { mutableStateOf("") }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var selectedReader by remember { mutableStateOf(preferences.getString("quran_reader_key", "afasy") ?: "afasy") }
+    var selectedWallpaper by remember { mutableStateOf(preferences.getString("quran_wallpaper_key", "color") ?: "color") }
     val lastReadNumber = preferences.getInt("quran_last_surah", 1)
     val lastReadVerse = preferences.getInt("quran_last_verse", 1)
     var bookmarkedSurah by remember { mutableStateOf(preferences.getInt("quran_bookmark_surah", 0)) }
@@ -84,6 +92,10 @@ internal fun QuranReaderScreen(
     }
 
     BackHandler {
+        if (settingsOpen) {
+            settingsOpen = false
+            return@BackHandler
+        }
         if (selectedSurah != null) {
             selectedSurah = null
         } else {
@@ -95,8 +107,21 @@ internal fun QuranReaderScreen(
     val cardBackground = Color(0xFF121C28)
     val quranFont = remember { FontFamily(Font(R.font.amiri_regular)) }
 
+    val quranWallpaperRes = when (selectedWallpaper) {
+        "nature" -> R.drawable.royal_nature_wallpaper
+        "forest" -> R.drawable.royal_wallpaper_forest_04
+        "green" -> R.drawable.royal_wallpaper_grreen_07
+        "lake" -> R.drawable.royal_wallpaper_lake_03
+        "mountains" -> R.drawable.royal_wallpaper_mountains_02
+        "sunset" -> R.drawable.royal_wallpaper_sunset_05
+        "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+        else -> R.drawable.royal_color_wallpaper
+    }
+
     Column(
-        Modifier.fillMaxSize().background(screenBackground).padding(horizontal = 18.dp, vertical = 12.dp),
+        Modifier.fillMaxSize().paint(painterResource(quranWallpaperRes), contentScale = ContentScale.Crop)
+            .background(Color.Black.copy(alpha = 0.42f))
+            .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
@@ -134,6 +159,19 @@ internal fun QuranReaderScreen(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+            Box(
+                Modifier.size(42.dp).clip(CircleShape)
+                    .background(Color(0xFF1C2937).copy(alpha = 0.82f))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), CircleShape)
+                    .clickable { settingsOpen = true }.focusable(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    androidx.compose.material.icons.Icons.Rounded.Settings,
+                    contentDescription = if (isArabic) "إعدادات القرآن" else "Quran settings",
+                    tint = RoyalColors.Gold
+                )
+            }
         }
 
         if (surahs.isEmpty() && !loadError) {
@@ -447,6 +485,70 @@ internal fun QuranReaderScreen(
             color = RoyalColors.Muted,
             fontSize = 9.sp,
             textAlign = TextAlign.Center
+        )
+    }
+
+    if (settingsOpen) {
+        AlertDialog(
+            onDismissRequest = { settingsOpen = false },
+            containerColor = Color(0xF0141D29),
+            title = {
+                Text("إعدادات القرآن الكريم", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.height(420.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    item { Text("اختيار القارئ", color = RoyalColors.Gold, fontWeight = FontWeight.Bold) }
+                    items(listOf(
+                        "afasy" to "مشاري العفاسي",
+                        "maher" to "ماهر المعيقلي",
+                        "sudais" to "عبد الرحمن السديس",
+                        "mossad" to "عبد الرحمن مسعد • تلاوات مختارة"
+                    ), key = { it.first }) { (key, label) ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(if (selectedReader == key) RoyalColors.Gold.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f))
+                                .clickable {
+                                    selectedReader = key
+                                    preferences.edit().putString("quran_reader_key", key).apply()
+                                }.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, color = RoyalColors.Pearl, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                            if (selectedReader == key) Text("✓", color = RoyalColors.Gold)
+                        }
+                    }
+                    item {
+                        Spacer(Modifier.height(5.dp))
+                        Text("خلفية المصحف", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
+                    }
+                    items(listOf(
+                        "color" to "ملونة", "nature" to "طبيعة", "forest" to "غابة",
+                        "green" to "خضراء", "lake" to "بحيرة", "mountains" to "جبال",
+                        "sunset" to "غروب", "waterfall" to "شلال"
+                    ), key = { it.first }) { (key, label) ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(if (selectedWallpaper == key) RoyalColors.Gold.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f))
+                                .clickable {
+                                    selectedWallpaper = key
+                                    preferences.edit().putString("quran_wallpaper_key", key).apply()
+                                }.padding(9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, color = RoyalColors.Pearl, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                            if (selectedWallpaper == key) Text("✓", color = RoyalColors.Gold)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { settingsOpen = false }) {
+                    Text("تم", color = RoyalColors.Gold)
+                }
+            }
         )
     }
 }
