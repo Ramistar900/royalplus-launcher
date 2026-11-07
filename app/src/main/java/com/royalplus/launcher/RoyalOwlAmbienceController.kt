@@ -84,6 +84,21 @@ internal object RoyalOwlAmbienceController {
         }
     }
 
+    fun onAudioSettingsChanged() {
+        if (foreground && isCurrentlyEligibleForScheduling()) {
+            scheduleNext()
+        } else {
+            cancelScheduledTask()
+            stopPlayer()
+        }
+    }
+
+    fun onAudioVolumeChanged() {
+        val context = appContext ?: return
+        val level = OWL_VOLUME * RoyalWeatherAmbienceController.volume(context)
+        runCatching { mediaPlayer?.setVolume(level, level) }
+    }
+
     fun onForeground(context: Context, weather: WeatherUiState) {
         appContext = context.applicationContext
         foreground = true
@@ -154,6 +169,8 @@ internal object RoyalOwlAmbienceController {
         if (age < 0L || age > MAX_WEATHER_AGE_MS) return false
         if (weather.isLoading || code !in 0..1) return false
         if (!isEnabled()) return false
+        val context = appContext ?: return false
+        if (!RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY)) return false
         return true
     }
 
@@ -189,7 +206,8 @@ internal object RoyalOwlAmbienceController {
 
         val player = MediaPlayer.create(context, R.raw.nature_owl_clear_night) ?: return
         mediaPlayer = player
-        player.setVolume(OWL_VOLUME, OWL_VOLUME)
+        val level = OWL_VOLUME * RoyalWeatherAmbienceController.volume(context)
+        player.setVolume(level, level)
         player.setOnCompletionListener { completed -> releasePlayerInstance(completed) }
         player.setOnErrorListener { failed, _, _ ->
             releasePlayerInstance(failed)

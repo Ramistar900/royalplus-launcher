@@ -82,6 +82,7 @@ internal fun WeatherGlassCard(
     motionEnabled: Boolean = true
 ) {
     RoyalOwlAmbienceEffect(weather)
+    RoyalWeatherAmbienceEffect(weather)
     val visual = weatherVisual(weather)
     val localizedDescription = when (weather.weatherCode) {
         0 -> when (language) { "en" -> "Clear sky"; "tr" -> "Açık hava"; else -> "سماء صافية" }
