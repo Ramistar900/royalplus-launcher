@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/live-arabic-translation" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -12,8 +12,8 @@ permissions:
 
 jobs:
   build-pr:
-    name: Verify pull request build
-    if: github.event_name == 'pull_request'
+    name: Verify application build
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/live-arabic-translation')
     runs-on: ubuntu-latest
     permissions:
       contents: read
