@@ -231,8 +231,10 @@ internal object RoyalWeatherAmbienceController {
     private fun selectScene(context: Context, weather: WeatherUiState): AmbienceScene? {
         val code = weather.weatherCode ?: return null
         return when {
-            code in 95..99 && isEnabled(context, RAIN_ENABLED_KEY) ->
-                AmbienceScene("storm-rain", R.raw.weather_thunderstorm_rain)
+            code in 95..99 ->
+                if (isEnabled(context, RAIN_ENABLED_KEY)) {
+                    AmbienceScene("storm-rain", R.raw.weather_thunderstorm_rain)
+                } else null
             isRainCode(code) && isEnabled(context, RAIN_ENABLED_KEY) ->
                 AmbienceScene("rain", R.raw.weather_rain_natural)
             (weather.windSpeedKmh ?: 0) >= WIND_THRESHOLD_KMH &&
