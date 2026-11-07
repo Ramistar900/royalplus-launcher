@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Keep the foreground artwork inside the 72dp adaptive-icon safe zone. -->
     <item>
         <shape android:shape="rectangle">
             <size android:width="108dp" android:height="108dp" />
             <solid android:color="#00000000" />
         </shape>
     </item>
-    <item android:drawable="@drawable/royalplus_home_logo" android:width="78dp" android:height="78dp" android:gravity="center" />
+    <item android:drawable="@drawable/royalplus_home_logo" android:width="72dp" android:height="72dp" android:gravity="center" />
 </layer-list>
