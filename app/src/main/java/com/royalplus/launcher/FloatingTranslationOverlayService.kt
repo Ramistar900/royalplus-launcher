@@ -18,9 +18,8 @@ import android.os.Looper
 import android.os.Process
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
-import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -49,10 +48,19 @@ class FloatingTranslationOverlayService : Service() {
     private var decodeThread: Thread? = null
 
     private var windowManager: WindowManager? = null
-    private var overlayView: LinearLayout? = null
-    private var overlayParams: WindowManager.LayoutParams? = null
-    private var statusView: TextView? = null
     private var captionView: TextView? = null
+    private var controlView: TextView? = null
+    private var edgeRevealView: TextView? = null
+    private var captionWindowParams: WindowManager.LayoutParams? = null
+    private var controlWindowParams: WindowManager.LayoutParams? = null
+    private var edgeWindowParams: WindowManager.LayoutParams? = null
+
+    private val captionHideRunnable = Runnable {
+        captionView?.visibility = View.GONE
+    }
+    private val controlHideRunnable = Runnable {
+        hideControlAndShowEdge()
+    }
 
     private var activeTranslator: Translator? = null
     private var activeSourceLanguage: String? = null
@@ -60,14 +68,15 @@ class FloatingTranslationOverlayService : Service() {
     private var translationModelPending = false
     private var latestPendingCaption: Pair<String, String>? = null
     private var translationRequest = 0
-    private var dragStartX = 0f
-    private var dragStartY = 0f
-    private var initialX = 0
-    private var initialY = 0
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_SHOW && running.get()) {
+            revealControl()
+            updateNotification("الترجمة العائمة تعمل")
             return START_NOT_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
@@ -83,7 +92,7 @@ class FloatingTranslationOverlayService : Service() {
 
         createNotificationChannel()
         startTranslationForeground()
-        if (overlayView == null) {
+        if (captionView == null) {
             try {
                 showOverlay()
             } catch (_: Exception) {
@@ -300,129 +309,181 @@ class FloatingTranslationOverlayService : Service() {
 
     private fun showCaption(text: String, language: String) {
         mainHandler.post {
-            captionView?.text = text
-            statusView?.text = "ترجمة مباشرة • ${language.uppercase(Locale.ROOT)} ← العربية"
+            val caption = captionView ?: return@post
+            caption.text = text
+            caption.visibility = View.VISIBLE
+            mainHandler.removeCallbacks(captionHideRunnable)
+            mainHandler.postDelayed(captionHideRunnable, CAPTION_DISPLAY_MILLIS)
             updateNotification("الترجمة العائمة تعمل")
         }
     }
 
     private fun updateStatus(message: String) {
-        mainHandler.post {
-            statusView?.text = message
-            updateNotification(message)
-        }
+        updateNotification(message)
     }
 
+    /**
+     * The subtitles and the controls use separate windows so hiding the controls
+     * never interrupts audio capture or hides a current caption.
+     */
     private fun showOverlay() {
         val manager = getSystemService(WINDOW_SERVICE) as WindowManager
         windowManager = manager
+        val overlayType = overlayWindowType()
 
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(15), dp(10), dp(15), dp(13))
-            background = roundedBackground(0xE9161B24.toInt(), 0xFFD6AD62.toInt(), dp(16).toFloat())
-            elevation = dp(10).toFloat()
-        }
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(3), dp(2), dp(2), dp(7))
-        }
-        val title = TextView(this).apply {
-            text = "ROYAL+  •  الترجمة العربية المباشرة"
-            setTextColor(0xFFFFD987.toInt())
-            textSize = 14f
-            setPadding(dp(4), dp(4), dp(8), dp(4))
-        }
-        val close = TextView(this).apply {
-            text = "×"
-            textSize = 25f
-            gravity = Gravity.CENTER
-            setTextColor(0xFFFFFFFF.toInt())
-            background = roundedBackground(0xFF343B48.toInt(), 0xFF6E7786.toInt(), dp(9).toFloat())
-            contentDescription = "إيقاف الترجمة العائمة"
-        }
-        header.addView(title, LinearLayout.LayoutParams(0, dp(38), 1f))
-        header.addView(close, LinearLayout.LayoutParams(dp(42), dp(38)))
-        header.setOnTouchListener { _, event -> moveOverlay(event) }
-
-        val status = TextView(this).apply {
-            text = "بدء تجهيز الترجمة…"
-            setTextColor(0xFFFFD987.toInt())
-            textSize = 11f
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(3), dp(8), dp(6))
-        }
         val caption = TextView(this).apply {
-            text = "ستظهر الترجمة العربية هنا"
             setTextColor(0xFFFFFFFF.toInt())
-            textSize = 20f
+            textSize = 21f
             gravity = Gravity.CENTER
-            textDirection = android.view.View.TEXT_DIRECTION_FIRST_STRONG_RTL
-            setPadding(dp(14), dp(13), dp(14), dp(13))
-            background = roundedBackground(0xCC05070B.toInt(), 0x55FFFFFF, dp(12).toFloat())
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+            textDirection = View.TEXT_DIRECTION_RTL
+            maxLines = 3
+            includeFontPadding = true
+            setPadding(dp(18), dp(9), dp(18), dp(9))
+            background = solidRoundedBackground(0xB3000000.toInt(), dp(10).toFloat())
+            visibility = View.GONE
+            setShadowLayer(dp(1).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
+            contentDescription = "الترجمة العربية"
         }
-        container.addView(header, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ))
-        container.addView(status, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ))
-        container.addView(caption, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ))
+        val captionParams = WindowManager.LayoutParams(
+            (resources.displayMetrics.widthPixels * 0.92f).toInt().coerceAtLeast(dp(240)),
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = dp(62)
+        }
 
-        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        try {
+            manager.addView(caption, captionParams)
+            captionView = caption
+            captionWindowParams = captionParams
+            revealControl()
+        } catch (error: Exception) {
+            try {
+                manager.removeView(caption)
+            } catch (_: Exception) {
+                // The window may not have been attached.
+            }
+            throw error
+        }
+    }
+
+    private fun overlayWindowType(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
+
+    private fun revealControl() {
+        removeEdgeReveal()
+        val manager = windowManager ?: return
+        if (controlView == null) {
+            val control = TextView(this).apply {
+                text = "CC"
+                textSize = 11f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                setTextColor(0xFFFFFFFF.toInt())
+                background = solidRoundedBackground(0xE61A1F28.toInt(), dp(24).toFloat())
+                contentDescription = "إيقاف الترجمة العائمة"
+                setOnClickListener { stopSelf() }
+            }
+            val params = WindowManager.LayoutParams(
+                dp(46),
+                dp(46),
+                overlayWindowType(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                x = dp(12)
+            }
+            manager.addView(control, params)
+            controlView = control
+            controlWindowParams = params
+        }
+        scheduleControlHide()
+    }
+
+    private fun scheduleControlHide() {
+        mainHandler.removeCallbacks(controlHideRunnable)
+        mainHandler.postDelayed(controlHideRunnable, CONTROL_IDLE_HIDE_MILLIS)
+    }
+
+    private fun hideControlAndShowEdge() {
+        removeControl()
+        showEdgeReveal()
+    }
+
+    private fun showEdgeReveal() {
+        val manager = windowManager ?: return
+        if (edgeRevealView != null) return
+
+        val edge = TextView(this).apply {
+            isClickable = true
+            contentDescription = "المس لإظهار أدوات الترجمة"
+            background = solidRoundedBackground(0x55000000, dp(8).toFloat())
+            setOnClickListener { revealControl() }
+        }
         val params = WindowManager.LayoutParams(
-            (resources.displayMetrics.widthPixels * 0.82f).toInt().coerceAtLeast(dp(280)),
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType,
+            dp(12),
+            dp(92),
+            overlayWindowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = dp(104)
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            x = 0
         }
-        manager.addView(container, params)
-        overlayView = container
-        overlayParams = params
-        statusView = status
-        captionView = caption
-        close.setOnClickListener { stopSelf() }
+        try {
+            manager.addView(edge, params)
+            edgeRevealView = edge
+            edgeWindowParams = params
+        } catch (_: Exception) {
+            // The notification's Show action remains available as a fallback.
+        }
     }
 
-    private fun moveOverlay(event: MotionEvent): Boolean {
-        val params = overlayParams ?: return false
-        val manager = windowManager ?: return false
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                dragStartX = event.rawX
-                dragStartY = event.rawY
-                initialX = params.x
-                initialY = params.y
-                return true
+    private fun removeControl() {
+        controlView?.let { view ->
+            try {
+                windowManager?.removeView(view)
+            } catch (_: Exception) {
+                // The system may already have detached this view.
             }
-            MotionEvent.ACTION_MOVE -> {
-                params.x = initialX + (event.rawX - dragStartX).toInt()
-                params.y = initialY - (event.rawY - dragStartY).toInt()
-                try {
-                    overlayView?.let { manager.updateViewLayout(it, params) }
-                } catch (_: Exception) {
-                    stopSelf()
-                }
-                return true
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
         }
-        return false
+        controlView = null
+        controlWindowParams = null
     }
+
+    private fun removeEdgeReveal() {
+        edgeRevealView?.let { view ->
+            try {
+                windowManager?.removeView(view)
+            } catch (_: Exception) {
+                // The system may already have detached this view.
+            }
+        }
+        edgeRevealView = null
+        edgeWindowParams = null
+    }
+
+    private fun solidRoundedBackground(color: Int, radius: Float) =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = radius
+        }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -453,11 +514,15 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     private fun buildNotification(message: String): Notification {
+        val showIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+            action = ACTION_SHOW
+        }
         val stopIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
             action = ACTION_STOP
         }
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        val showPendingIntent = PendingIntent.getService(this, 4103, showIntent, pendingFlags)
         val stopPendingIntent = PendingIntent.getService(this, 4102, stopIntent, pendingFlags)
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
@@ -469,9 +534,13 @@ class FloatingTranslationOverlayService : Service() {
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("ROYAL+ — الترجمة العربية")
             .setContentText(message.take(110))
+            .setContentIntent(showPendingIntent)
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(Notification.PRIORITY_LOW)
+            .addAction(Notification.Action.Builder(
+                android.R.drawable.ic_menu_view, "إظهار", showPendingIntent
+            ).build())
             .addAction(Notification.Action.Builder(
                 android.R.drawable.ic_menu_close_clear_cancel, "إيقاف", stopPendingIntent
             ).build())
@@ -487,13 +556,7 @@ class FloatingTranslationOverlayService : Service() {
         }
     }
 
-    private fun roundedBackground(color: Int, strokeColor: Int, radius: Float) =
-        GradientDrawable().apply {
-            setColor(color)
-            cornerRadius = radius
-            setStroke(dp(1), strokeColor)
-        }
-
+    private fun dp(value: Int): Int =
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
@@ -523,17 +586,24 @@ class FloatingTranslationOverlayService : Service() {
         translationModelPending = false
         latestPendingCaption = null
 
-        overlayView?.let { view ->
+        mainHandler.removeCallbacks(captionHideRunnable)
+        mainHandler.removeCallbacks(controlHideRunnable)
+
+        listOfNotNull(captionView, controlView, edgeRevealView).forEach { view ->
             try {
                 windowManager?.removeView(view)
             } catch (_: Exception) {
-                // The system may already have detached the overlay.
+                // The system may already have detached this overlay.
             }
         }
-        overlayView = null
-        overlayParams = null
-        statusView = null
         captionView = null
+        controlView = null
+        edgeRevealView = null
+        captionWindowParams = null
+        controlWindowParams = null
+        edgeWindowParams = null
+        windowManager = null
+
         getSharedPreferences(PREFERENCES, MODE_PRIVATE)
             .edit().putBoolean(KEY_ENABLED, false).apply()
 
@@ -555,6 +625,8 @@ class FloatingTranslationOverlayService : Service() {
         const val KEY_ENABLED = "floating_translation_overlay_enabled"
         private const val CHANNEL_ID = "royal_translation_overlay"
         private const val NOTIFICATION_ID = 4101
+        private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
+        private const val CAPTION_DISPLAY_MILLIS = 5_000L
         private const val SAMPLE_RATE = 16_000
         private const val SEGMENT_SECONDS = 8
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
