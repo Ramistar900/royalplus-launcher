@@ -1,0 +1,5 @@
+Madinah Mushaf (604-page) start-of-page mapping.
+Source repository: Mushaf-Learning/quran-text
+Source file: metadata/pages.json
+License: MIT (see quran-pages-license.txt).
+The mapping is used only to calculate the visible Madinah Mushaf page for the locally bundled Uthmani Quran text.
