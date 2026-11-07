@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -636,18 +638,27 @@ internal fun QuranReaderScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Text(
-                    if (audioMuted) "🔇" else "🔊",
-                    modifier = Modifier.clip(CircleShape).clickable {
-                        val shouldMute = !audioMuted
-                        audioMuted = shouldMute
-                        runCatching {
-                            val volume = if (shouldMute) 0f else 1f
-                            audioPlayer.setVolume(volume, volume)
-                        }
-                    }.padding(6.dp).focusable(),
-                    fontSize = 17.sp
-                )
+                Box(
+                    Modifier.size(38.dp).clip(CircleShape)
+                        .background(Color(0xFF183E43))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
+                        .clickable {
+                            val shouldMute = !audioMuted
+                            audioMuted = shouldMute
+                            runCatching {
+                                val volume = if (shouldMute) 0f else 1f
+                                audioPlayer.setVolume(volume, volume)
+                            }
+                        }.focusable(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (audioMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
+                        contentDescription = if (audioMuted) "إلغاء كتم الصوت" else "كتم الصوت",
+                        tint = RoyalColors.Gold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Text(
                     "■", color = RoyalColors.Gold, fontSize = 17.sp,
                     modifier = Modifier.clip(CircleShape).clickable {
