@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +48,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.paint
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -65,6 +67,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 internal fun QuranReaderScreen(
@@ -162,12 +167,19 @@ internal fun QuranReaderScreen(
         else -> R.drawable.royal_color_wallpaper
     }
 
-    Column(
-        Modifier.fillMaxSize().paint(painterResource(quranWallpaperRes), contentScale = ContentScale.Crop)
-            .background(Color.Black.copy(alpha = 0.42f))
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(quranWallpaperRes),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Column(
+            Modifier.fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.42f))
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -797,6 +809,7 @@ internal fun QuranReaderScreen(
             fontSize = 9.sp,
             textAlign = TextAlign.Center
         )
+        }
     }
 
     if (settingsOpen) {
@@ -916,8 +929,6 @@ internal fun QuranReaderScreen(
             }
         )
     }
-}
-
 
     if (audioLibraryOpen) {
         val readerLabel = when (selectedReader) {
@@ -971,6 +982,7 @@ internal fun QuranReaderScreen(
             }
         )
     }
+}
 
 @Composable
 private fun QuranAyahFlowerNumber(number: Int) {
