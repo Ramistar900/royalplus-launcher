@@ -638,9 +638,10 @@ internal fun QuranReaderScreen(
                 Text(
                     if (audioMuted) "🔇" else "🔊",
                     modifier = Modifier.clip(CircleShape).clickable {
-                        audioMuted = !audioMuted
+                        val shouldMute = !audioMuted
+                        audioMuted = shouldMute
                         runCatching {
-                            val volume = if (audioMuted) 1f else 0f
+                            val volume = if (shouldMute) 0f else 1f
                             audioPlayer.setVolume(volume, volume)
                         }
                     }.padding(6.dp).focusable(),
