@@ -80,6 +80,7 @@ internal object RoyalWeatherAmbienceController {
     private var loopPlayer: MediaPlayer? = null
     private var thunderPlayer: MediaPlayer? = null
     private var thunderTask: Runnable? = null
+    private var reevaluationTask: Runnable? = null
     private var audioManager: AudioManager? = null
     private var hasAudioFocus = false
     private var pausedForAudioFocus = false
@@ -202,6 +203,22 @@ internal object RoyalWeatherAmbienceController {
         }
 
         updateThunderSchedule(context, weather)
+        scheduleReevaluation()
+    }
+
+    private fun scheduleReevaluation() {
+        reevaluationTask?.let(handler::removeCallbacks)
+        val task = Runnable {
+            reevaluationTask = null
+            updatePlaybackForCurrentWeather()
+        }
+        reevaluationTask = task
+        handler.postDelayed(task, 60_000L)
+    }
+
+    private fun cancelReevaluation() {
+        reevaluationTask?.let(handler::removeCallbacks)
+        reevaluationTask = null
     }
 
     private fun hasFreshWeather(): Boolean {
@@ -378,6 +395,7 @@ internal object RoyalWeatherAmbienceController {
     }
 
     private fun stopAllPlayback() {
+        cancelReevaluation()
         cancelThunderTask()
         val loop = loopPlayer
         val thunder = thunderPlayer
