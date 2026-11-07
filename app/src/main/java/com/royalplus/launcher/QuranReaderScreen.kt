@@ -103,7 +103,6 @@ internal fun QuranReaderScreen(
         }
     }
 
-    val screenBackground = Color(0xFF080E16)
     val cardBackground = Color(0xFF121C28)
     val quranFont = remember { FontFamily(Font(R.font.amiri_regular)) }
 
