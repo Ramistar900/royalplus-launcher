@@ -2,15 +2,10 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
+            <size android:width="320dp" android:height="180dp" />
             <solid android:color="#080A12" />
         </shape>
     </item>
-    <item android:gravity="center">
-        <shape android:shape="rectangle">
-            <size android:width="240dp" android:height="72dp" />
-            <solid android:color="#171522" />
-            <stroke android:width="2dp" android:color="#D6B45D" />
-            <corners android:radius="10dp" />
-        </shape>
-    </item>
+    <item android:drawable="@drawable/royalplus_home_logo" android:width="112dp" android:height="112dp" android:gravity="left|center_vertical" android:left="22dp" />
+    <item android:drawable="@drawable/launcher_banner_wordmark" />
 </layer-list>
