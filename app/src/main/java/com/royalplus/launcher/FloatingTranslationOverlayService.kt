@@ -557,7 +557,6 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     private fun dp(value: Int): Int =
-    private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
