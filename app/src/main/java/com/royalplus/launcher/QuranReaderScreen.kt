@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -60,7 +59,6 @@ internal fun QuranReaderScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val preferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
@@ -444,8 +442,8 @@ internal fun QuranReaderScreen(
 
         Spacer(Modifier.height(2.dp))
         Text(
-            "نص القرآن: مشروع تنزيل Tanzil • CC BY 3.0 • tanzil.net",
-            modifier = Modifier.fillMaxWidth().clickable { runCatching { uriHandler.openUri("https://tanzil.net/") } }.focusable(),
+            "نص القرآن: مشروع تنزيل Tanzil • CC BY 3.0",
+            modifier = Modifier.fillMaxWidth(),
             color = RoyalColors.Muted,
             fontSize = 9.sp,
             textAlign = TextAlign.Center
