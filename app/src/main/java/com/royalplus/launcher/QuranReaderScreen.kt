@@ -604,18 +604,19 @@ internal fun QuranReaderScreen(
                         .clickable(enabled = !audioDownloadInProgress && surah.number !in downloadedAudioSurahs) {
                             audioDownloadInProgress = true
                             audioMessage = "جارٍ تنزيل السورة وحفظها على الجهاز…"
+                            val downloadReader = selectedReader
                             scope.launch {
                                 val track = QuranAudioRepository.downloadTrack(
                                     context.applicationContext,
-                                    selectedReader,
+                                    downloadReader,
                                     surah.number
                                 )
-                                if (track?.localFile != null) {
+                                if (selectedReader == downloadReader && track?.localFile != null) {
                                     downloadedAudioSurahs = downloadedAudioSurahs + surah.number
                                     activeTimings = track.timings
                                     audioMessage = "اكتمل التنزيل • أصبحت السورة متاحة دون إنترنت"
-                                } else {
-                                    audioMessage = if (selectedReader == "mossad")
+                                } else if (selectedReader == downloadReader) {
+                                    audioMessage = if (downloadReader == "mossad")
                                         "تلاوات عبد الرحمن مسعد المختارة لم تُربط بمصادر تنزيل موثوقة بعد"
                                     else "تعذر تنزيل هذه السورة من مصدر القارئ"
                                 }
@@ -849,7 +850,7 @@ internal fun QuranReaderScreen(
                                             batchReader,
                                             chapter.number
                                         )
-                                        if (result?.localFile != null) {
+                                        if (selectedReader == batchReader && result?.localFile != null) {
                                             downloadedAudioSurahs = downloadedAudioSurahs + chapter.number
                                             completed += 1
                                         }
