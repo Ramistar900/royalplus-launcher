@@ -239,7 +239,7 @@ internal object RoyalWeatherAmbienceController {
     private fun isThunderEligible(context: Context, weather: WeatherUiState): Boolean =
         isEnabled(context, MASTER_ENABLED_KEY) &&
             isEnabled(context, THUNDER_ENABLED_KEY) &&
-            weather.weatherCode in 95..99 &&
+            (weather.weatherCode ?: -1) in 95..99 &&
             volume(context) > 0f &&
             hasFreshWeather()
 
