@@ -111,10 +111,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (hasLocationPermission() || hasSavedManualWeatherCity()) {
+        // Never request location during launcher startup. Some Android TV firmware
+        // crashes or restarts the launcher while returning from the runtime permission
+        // screen. Weather must remain optional and must not block the Home experience.
+        if (hasSavedManualWeatherCity()) {
             refreshWeather()
         } else {
-            requestLocationPermission()
+            weatherState = WeatherUiState(
+                city = "اختر المدينة",
+                description = "يمكنك اختيار مدينة يدوياً أو تفعيل موقع الجهاز من إعدادات الطقس",
+                isLoading = false,
+                needsPermission = !hasLocationPermission()
+            )
         }
     }
 
