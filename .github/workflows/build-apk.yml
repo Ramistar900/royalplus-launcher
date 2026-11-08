@@ -70,6 +70,9 @@ jobs:
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
+      - name: Run Android API compatibility lint
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon lintDebug
+
       - name: Upload debug APK for TV testing
         uses: actions/upload-artifact@v4
         with:
