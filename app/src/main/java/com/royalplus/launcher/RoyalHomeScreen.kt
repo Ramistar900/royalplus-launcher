@@ -71,8 +71,10 @@ import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -1667,8 +1669,14 @@ private fun AppTile(
 ) {
     var hasFocus by remember(app.packageName) { mutableStateOf(false) }
     val focusScale by animateFloatAsState(
-        targetValue = if (hasFocus) 1.07f else 1f,
+        targetValue = if (hasFocus) 1.025f else 1f,
+        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
         label = "app_tile_focus_scale"
+    )
+    val iconFocusScale by animateFloatAsState(
+        targetValue = if (hasFocus || highlighted) 1.12f else 1f,
+        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+        label = "app_icon_focus_scale"
     )
     val shape = when (iconStyle) {
         "circle" -> RoundedCornerShape(50)
@@ -1717,6 +1725,10 @@ private fun AppTile(
             Box(
                 modifier = Modifier
                     .size(68.dp)
+                    .graphicsLayer {
+                        scaleX = iconFocusScale
+                        scaleY = iconFocusScale
+                    }
                     .clip(shape)
                     .background(iconBackground)
                     .border(if (iconStyle == "rounded" ) 1.dp else 1.5.dp, iconBorder, shape)
@@ -1859,10 +1871,19 @@ private fun SidebarNavItem(
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
     val shape = RoundedCornerShape(13.dp)
+    val focusScale by animateFloatAsState(
+        targetValue = if (focused) 1.045f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "sidebar_focus_scale"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(42.dp)
+            .graphicsLayer {
+                scaleX = focusScale
+                scaleY = focusScale
+            }
             .clip(shape)
             .background(
                 if (emphasized) Brush.horizontalGradient(
