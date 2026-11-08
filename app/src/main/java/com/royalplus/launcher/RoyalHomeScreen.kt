@@ -855,7 +855,7 @@ internal fun RoyalHomeScreen(
                                         modifier = Modifier.weight(1f),
                                         title = title,
                                         selected = selectedScreensaverWallpaper == key,
-                                        image = painterResource(imageRes),
+                                        image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 768, maxPixels = 1_000_000L),
                                         onClick = {
                                             selectedScreensaverWallpaper = key
                                             wallpaperPreferences.edit().putString("screensaver_wallpaper", key).apply()
