@@ -42,12 +42,18 @@ internal object QuranAudioRepository {
         surahNumber: Int
     ): QuranAudioTrack? {
         require(surahNumber in 1..114)
-        if (readerKey == "mossad") return null
-
         val targetName = when (readerKey) {
             "afasy" -> listOf("مشاري العفاسي", "Mishary Alafasi", "Mishary Rashid Alafasy")
             "maher" -> listOf("ماهر المعيقلي", "Maher Al Meaqli", "Maher Al-Muaiqly")
             "sudais" -> listOf("عبدالرحمن السديس", "عبد الرحمن السديس", "Abdulrahman Alsudaes")
+            "mossad" -> listOf(
+                "عبد الرحمن مسعد",
+                "عبدالرحمن مسعد",
+                "Abdul Rahman Mossad",
+                "Abdulrahman Mossad",
+                "Abdulrhman Mosad",
+                "Abdelrahman Mosaad"
+            )
             else -> return null
         }
         val normalizedTargets = targetName.map(::normalizeName)
