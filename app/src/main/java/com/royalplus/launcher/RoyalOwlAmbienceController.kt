@@ -211,7 +211,7 @@ internal object RoyalOwlAmbienceController {
     }
 
     private fun isThunderstorm(weather: WeatherUiState): Boolean =
-        !weather.isLoading && weather.weatherCode in 95..99
+        !weather.isLoading && weather.weatherCode?.let { it in 95..99 } == true
 
     private fun playThunderstormOnce() {
         val context = appContext ?: return
