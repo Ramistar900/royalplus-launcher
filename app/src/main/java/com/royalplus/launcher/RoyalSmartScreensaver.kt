@@ -75,7 +75,7 @@ internal fun RoyalSmartScreensaver(
         contentAlignment = Alignment.Center
     ) {
         RoyalMotionImage(
-            image = painterResource(id = when (selectedWallpaper) {
+            image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
                 "forest" -> R.drawable.royal_wallpaper_forest_04
                 "green" -> R.drawable.royal_wallpaper_grreen_07
                 "lake" -> R.drawable.royal_wallpaper_lake_03
@@ -84,7 +84,7 @@ internal fun RoyalSmartScreensaver(
                 "sunset" -> R.drawable.royal_wallpaper_sunset_05
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
                 else -> R.drawable.royal_smart_screensaver
-            }),
+            }, maxEdgePx = 2048),
             modifier = Modifier.fillMaxSize(),
             motionEnabled = motionEnabled
         )

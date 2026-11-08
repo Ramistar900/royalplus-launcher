@@ -117,6 +117,75 @@ private fun hasRoyalMediaPermission(context: android.content.Context): Boolean {
     return permissions.any { context.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
 }
 
+private const val GALLERY_THUMBNAIL_MAX_EDGE = 840
+private const val GALLERY_THUMBNAIL_MAX_PIXELS = 1_000_000L
+
+private fun loadRoyalMediaThumbnail(
+    context: android.content.Context,
+    item: RoyalMediaItem
+): Bitmap? {
+    return runCatching {
+        val bitmap = when {
+            Build.VERSION.SDK_INT >= 29 ->
+                context.contentResolver.loadThumbnail(item.uri, Size(420, 300), null)
+            item.video ->
+                MediaStore.Video.Thumbnails.getThumbnail(
+                    context.contentResolver,
+                    item.id,
+                    MediaStore.Video.Thumbnails.MINI_KIND,
+                    null
+                )
+            else -> decodeLegacyPhotoThumbnail(context, item.uri)
+        } ?: return@runCatching null
+
+        val sampleSize = royalBitmapSampleSize(
+            width = bitmap.width,
+            height = bitmap.height,
+            maxEdgePx = GALLERY_THUMBNAIL_MAX_EDGE,
+            maxPixels = GALLERY_THUMBNAIL_MAX_PIXELS
+        )
+        if (sampleSize <= 1) {
+            bitmap
+        } else {
+            val targetWidth = (bitmap.width / sampleSize).coerceAtLeast(1)
+            val targetHeight = (bitmap.height / sampleSize).coerceAtLeast(1)
+            Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true).also { scaled ->
+                if (scaled !== bitmap) bitmap.recycle()
+            }
+        }
+    }.getOrNull()
+}
+
+private fun decodeLegacyPhotoThumbnail(
+    context: android.content.Context,
+    uri: Uri
+): Bitmap? {
+    val bounds = BitmapFactory.Options().apply {
+        inJustDecodeBounds = true
+        inScaled = false
+    }
+    val boundsStream = context.contentResolver.openInputStream(uri) ?: return null
+    boundsStream.use { stream ->
+        BitmapFactory.decodeStream(stream, null, bounds)
+    }
+
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = royalBitmapSampleSize(
+            width = bounds.outWidth,
+            height = bounds.outHeight,
+            maxEdgePx = GALLERY_THUMBNAIL_MAX_EDGE,
+            maxPixels = GALLERY_THUMBNAIL_MAX_PIXELS
+        )
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+        inScaled = false
+    }
+    return context.contentResolver.openInputStream(uri)?.use { stream ->
+        BitmapFactory.decodeStream(stream, null, options)
+    }
+}
+
 private fun queryRoyalMedia(resolver: android.content.ContentResolver): List<RoyalMediaItem> {
     val collection = MediaStore.Files.getContentUri("external")
     val projection = arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.MIME_TYPE,
@@ -146,11 +215,7 @@ private fun RoyalMediaTile(item: RoyalMediaItem, onClick: () -> Unit) {
     var bitmap by remember(item.uri) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(item.uri) {
         bitmap = withContext(Dispatchers.IO) {
-            try {
-                if (Build.VERSION.SDK_INT >= 29) context.contentResolver.loadThumbnail(item.uri, Size(420, 300), null)
-                else if (item.video) MediaStore.Video.Thumbnails.getThumbnail(context.contentResolver, item.id, MediaStore.Video.Thumbnails.MINI_KIND, null)
-                else context.contentResolver.openInputStream(item.uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 4 }) }
-            } catch (_: Exception) { null }
+            loadRoyalMediaThumbnail(context, item)
         }
     }
     Column(Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF11151D))

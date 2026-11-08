@@ -775,7 +775,7 @@ internal fun RoyalHomeScreen(
                                         modifier = Modifier.weight(1f),
                                         title = title,
                                         selected = selectedWallpaper == key,
-                                        image = painterResource(imageRes),
+                                        image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 768, maxPixels = 1_000_000L),
                                         onClick = {
                                             selectedWallpaper = key
                                             wallpaperPreferences.edit().putString("launcher_wallpaper", key).apply()
@@ -855,7 +855,7 @@ internal fun RoyalHomeScreen(
                                         modifier = Modifier.weight(1f),
                                         title = title,
                                         selected = selectedScreensaverWallpaper == key,
-                                        image = painterResource(imageRes),
+                                        image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 768, maxPixels = 1_000_000L),
                                         onClick = {
                                             selectedScreensaverWallpaper = key
                                             wallpaperPreferences.edit().putString("screensaver_wallpaper", key).apply()
@@ -1097,7 +1097,7 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
         RoyalFireplaceAudioEffect(enabled = true)
     } else {
         RoyalMotionImage(
-            image = painterResource(when (selectedWallpaper) {
+            image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
                 "nature" -> R.drawable.royal_nature_wallpaper
                 "forest" -> R.drawable.royal_wallpaper_forest_04
                 "green" -> R.drawable.royal_wallpaper_grreen_07
@@ -1106,7 +1106,7 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
                 "sunset" -> R.drawable.royal_wallpaper_sunset_05
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
                 else -> R.drawable.royal_color_wallpaper
-            }),
+            }, maxEdgePx = 2048),
             modifier = modifier, motionEnabled = motionEnabled
         )
     }
@@ -1444,7 +1444,7 @@ private fun HomeDashboard(
         }
         if (isRamadan) {
             Image(
-                painter = painterResource(R.drawable.ramadan_overlay),
+                painter = rememberRoyalBitmapPainter(R.drawable.ramadan_overlay, maxEdgePx = 2048),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 alpha = 0.30f,
@@ -1543,7 +1543,7 @@ private fun RoyalScenicBanner(
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
     Box(modifier.clip(shape).border(BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
-        Image(painterResource(R.drawable.royal_nature_wallpaper), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        Image(rememberRoyalBitmapPainter(R.drawable.royal_nature_wallpaper, maxEdgePx = 1024, maxPixels = 1_500_000L), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
         Row(
