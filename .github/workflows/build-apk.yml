@@ -177,13 +177,21 @@ jobs:
         if: steps.signing.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
+          set -euo pipefail
           TAG="royalplus-build-${GITHUB_RUN_NUMBER}"
           APK="app/build/outputs/apk/release/app-release.apk"
           TITLE="ROYAL+ Launcher build ${GITHUB_RUN_NUMBER}"
           NOTES="Signed APK built from commit ${GITHUB_SHA}. This is a draft release; review and publish it manually."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+            if [[ "$IS_DRAFT" != "true" ]]; then
+              echo "::error::Refusing to modify an already published release."
+              exit 1
+            fi
             gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
             gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           fi
