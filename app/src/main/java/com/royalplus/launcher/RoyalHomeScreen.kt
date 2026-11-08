@@ -16,6 +16,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -177,6 +179,10 @@ internal fun RoyalHomeScreen(
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
+    var clickSoundsEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", true))
+    }
+    val latestClickSoundsEnabled by rememberUpdatedState(clickSoundsEnabled)
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
     var selectedScreensaverWallpaper by remember {
         mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
@@ -464,11 +470,21 @@ internal fun RoyalHomeScreen(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
+                        if (latestClickSoundsEnabled) {
+                            context.getSystemService(android.media.AudioManager::class.java)
+                                ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+                        }
                         lastUserInteraction = System.currentTimeMillis()
                         showSmartScreensaver = false
                     }
                 }
                 .onPreviewKeyEvent {
+                    if (it.type == KeyEventType.KeyDown && latestClickSoundsEnabled &&
+                        it.key in setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
+                    ) {
+                        context.getSystemService(android.media.AudioManager::class.java)
+                            ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+                    }
                     lastUserInteraction = System.currentTimeMillis()
                     showSmartScreensaver = false
                     false
@@ -802,6 +818,40 @@ internal fun RoyalHomeScreen(
                                 if (RoyalAdhanScheduler.canScheduleExactAlarms(context)) "✓" else "›",
                                 color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Interface sound effects"; "tr" -> "Arayüz ses efektleri"; else -> "أصوات الواجهة" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (clickSoundsEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    clickSoundsEnabled = !clickSoundsEnabled
+                                    wallpaperPreferences.edit().putBoolean("ui_click_sounds_enabled", clickSoundsEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Button and navigation clicks"; "tr" -> "Düğme ve gezinme tıklamaları"; else -> "صوت النقر والتنقل" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (clickSoundsEnabled) when (selectedLanguage) { "en" -> "System click sound enabled"; "tr" -> "Sistem tıklama sesi açık"; else -> "صوت النقر مفعّل" }
+                                    else when (selectedLanguage) { "en" -> "Click sounds disabled"; "tr" -> "Tıklama sesleri kapalı"; else -> "أصوات النقر متوقفة" },
+                                    color = if (clickSoundsEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (clickSoundsEnabled) "ON" else "OFF", color = if (clickSoundsEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "ROYAL Motion • Background movement"; "tr" -> "ROYAL Motion • Arka plan hareketi"; else -> "حيوية الخلفيات • ROYAL Motion" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
