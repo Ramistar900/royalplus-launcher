@@ -1,10 +1,14 @@
 package com.royalplus.launcher
 
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,11 +28,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +48,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +66,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 internal fun QuranReaderScreen(
@@ -60,7 +77,6 @@ internal fun QuranReaderScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val preferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }
@@ -68,12 +84,52 @@ internal fun QuranReaderScreen(
     var loadError by remember { mutableStateOf(false) }
     var selectedSurah by remember { mutableStateOf<QuranSurah?>(null) }
     var query by remember { mutableStateOf("") }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var selectedReader by remember { mutableStateOf(preferences.getString("quran_reader_key", "afasy") ?: "afasy") }
+    var selectedWallpaper by remember { mutableStateOf(preferences.getString("quran_wallpaper_key", "color") ?: "color") }
+    var audioLoading by remember { mutableStateOf(false) }
+    var audioReady by remember { mutableStateOf(false) }
+    var audioPlaying by remember { mutableStateOf(false) }
+    var audioMessage by remember { mutableStateOf("") }
+    var currentAudioVerse by remember { mutableStateOf(0) }
+    var audioMuted by remember { mutableStateOf(false) }
+    var audioDownloadInProgress by remember { mutableStateOf(false) }
+    var downloadAllInProgress by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf("") }
+    var audioLibraryOpen by remember { mutableStateOf(false) }
+    var downloadedAudioSurahs by remember(selectedReader) {
+        mutableStateOf(QuranAudioRepository.downloadedSurahNumbers(context.applicationContext, selectedReader))
+    }
+    val screenScope = androidx.compose.runtime.rememberCoroutineScope()
+    var activeAudioSurah by remember { mutableStateOf(0) }
+    var activeTimings by remember { mutableStateOf<List<QuranVerseTiming>>(emptyList()) }
+    val audioPlayer = remember { MediaPlayer() }
     val lastReadNumber = preferences.getInt("quran_last_surah", 1)
     val lastReadVerse = preferences.getInt("quran_last_verse", 1)
     var bookmarkedSurah by remember { mutableStateOf(preferences.getInt("quran_bookmark_surah", 0)) }
     var bookmarkedVerse by remember { mutableStateOf(preferences.getInt("quran_bookmark_verse", 0)) }
     val isArabic = language == "ar"
     val isTurkish = language == "tr"
+
+    DisposableEffect(audioPlayer) {
+        onDispose {
+            runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
+            runCatching { audioPlayer.reset() }
+            runCatching { audioPlayer.release() }
+        }
+    }
+
+    LaunchedEffect(selectedSurah?.number, selectedReader) {
+        runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
+        runCatching { audioPlayer.reset() }
+        audioLoading = false
+        audioReady = false
+        audioPlaying = false
+        audioMessage = ""
+        currentAudioVerse = 0
+        activeAudioSurah = 0
+        activeTimings = emptyList()
+    }
 
     LaunchedEffect(Unit) {
         runCatching {
@@ -86,6 +142,10 @@ internal fun QuranReaderScreen(
     }
 
     BackHandler {
+        if (settingsOpen) {
+            settingsOpen = false
+            return@BackHandler
+        }
         if (selectedSurah != null) {
             selectedSurah = null
         } else {
@@ -93,14 +153,33 @@ internal fun QuranReaderScreen(
         }
     }
 
-    val screenBackground = Color(0xFF080E16)
     val cardBackground = Color(0xFF121C28)
     val quranFont = remember { FontFamily(Font(R.font.amiri_regular)) }
 
-    Column(
-        Modifier.fillMaxSize().background(screenBackground).padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    val quranWallpaperRes = when (selectedWallpaper) {
+        "nature" -> R.drawable.royal_nature_wallpaper
+        "forest" -> R.drawable.royal_wallpaper_forest_04
+        "green" -> R.drawable.royal_wallpaper_grreen_07
+        "lake" -> R.drawable.royal_wallpaper_lake_03
+        "mountains" -> R.drawable.royal_wallpaper_mountains_02
+        "sunset" -> R.drawable.royal_wallpaper_sunset_05
+        "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+        else -> R.drawable.royal_color_wallpaper
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(quranWallpaperRes),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Column(
+            Modifier.fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.42f))
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -136,6 +215,19 @@ internal fun QuranReaderScreen(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+            Box(
+                Modifier.size(42.dp).clip(CircleShape)
+                    .background(Color(0xFF1C2937).copy(alpha = 0.82f))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), CircleShape)
+                    .clickable { settingsOpen = true }.focusable(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = if (isArabic) "إعدادات القرآن" else "Quran settings",
+                    tint = RoyalColors.Gold
+                )
+            }
         }
 
         if (surahs.isEmpty() && !loadError) {
@@ -160,6 +252,27 @@ internal fun QuranReaderScreen(
                 )
             }
         } else if (selectedSurah == null) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x9A16A6A2))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                    .clickable { audioLibraryOpen = true }
+                    .focusable()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("مكتبتي الصوتية", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("السور المنزّلة للقارئ المحدد فقط", color = RoyalColors.Pearl, fontSize = 10.sp)
+                }
+                Text(
+                    "${downloadedAudioSurahs.size} / 114",
+                    color = RoyalColors.Pearl,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -324,6 +437,9 @@ internal fun QuranReaderScreen(
                     ?: surah.verses.drop(verseListState.firstVisibleItemIndex).firstOrNull { it.number > 0 }?.number
                     ?: 1
             }
+            val currentPage = remember(surah.number, currentVisibleVerse) {
+                QuranTextRepository.pageNumber(context.applicationContext, surah.number, currentVisibleVerse)
+            }
             LaunchedEffect(surah.number) {
                 val initialIndex = if (lastReadNumber == surah.number) {
                     surah.verses.indexOfFirst { it.number == lastReadVerse }.coerceAtLeast(0)
@@ -389,66 +505,523 @@ internal fun QuranReaderScreen(
                     if (target >= 0) scope.launch { verseListState.animateScrollToItem(target) }
                 }
             }
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                state = verseListState,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                    .background(Color(0xFF121C28).copy(alpha = 0.94f))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(13.dp))
+                    .padding(9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                items(surah.verses, key = { "${surah.number}-${it.number}" }) { verse ->
-                    if (verse.number == 0) {
-                        Text(
-                            verse.text,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).focusable(),
-                            color = RoyalColors.Gold,
-                            fontSize = 25.sp,
-                            lineHeight = 43.sp,
-                            fontFamily = quranFont,
-                            textAlign = TextAlign.Center
-                        )
-                    } else {
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                .background(if (verse.number == savedBookmarkForSurah) Color(0xFF2A2518) else cardBackground)
-                                .border(
-                                    if (verse.number == savedBookmarkForSurah) 1.dp else 0.dp,
-                                    if (verse.number == savedBookmarkForSurah) RoyalColors.Gold.copy(alpha = 0.8f) else Color.Transparent,
-                                    RoundedCornerShape(10.dp)
+                Box(
+                    Modifier.size(42.dp).clip(CircleShape)
+                        .background(if (audioPlaying) Color(0xFF7A2424) else Color(0xFF253345))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
+                        .clickable(enabled = !audioLoading && !audioDownloadInProgress && downloadedAudioSurahs.contains(surah.number)) {
+                            if (audioReady) {
+                                if (audioPlaying) {
+                                    runCatching { audioPlayer.pause() }
+                                    audioPlaying = false
+                                    currentAudioVerse = 0
+                                } else {
+                                    runCatching { audioPlayer.start() }.onSuccess { audioPlaying = true }
+                                }
+                            } else {
+                                audioLoading = true
+                                audioMessage = "جارٍ فتح التلاوة المحمّلة…"
+                                scope.launch {
+                                    val track = withContext(Dispatchers.IO) {
+                                        QuranAudioRepository.loadDownloadedTrack(
+                                            context.applicationContext,
+                                            selectedReader,
+                                            surah.number
+                                        )
+                                    }
+                                    if (track?.localFile == null) {
+                                        audioLoading = false
+                                        downloadedAudioSurahs = withContext(Dispatchers.IO) {
+                                            QuranAudioRepository.downloadedSurahNumbers(context.applicationContext, selectedReader)
+                                        }
+                                        audioMessage = "نزّل هذه السورة أولاً لتشغيلها دون إنترنت"
+                                    } else {
+                                        activeAudioSurah = surah.number
+                                        activeTimings = track.timings
+                                        audioPlayer.reset()
+                                        audioPlayer.setAudioAttributes(
+                                            AudioAttributes.Builder()
+                                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                .build()
+                                        )
+                                        audioPlayer.setVolume(if (audioMuted) 0f else 1f, if (audioMuted) 0f else 1f)
+                                        audioPlayer.setOnPreparedListener { prepared ->
+                                            audioLoading = false
+                                            audioReady = true
+                                            audioPlaying = true
+                                            prepared.start()
+                                        }
+                                        audioPlayer.setOnCompletionListener {
+                                            audioPlaying = false
+                                            audioReady = false
+                                            currentAudioVerse = 0
+                                        }
+                                        audioPlayer.setOnErrorListener { _, _, _ ->
+                                            audioLoading = false
+                                            audioReady = false
+                                            audioPlaying = false
+                                            currentAudioVerse = 0
+                                            audioMessage = "تعذر تشغيل ملف التلاوة المحمّل"
+                                            true
+                                        }
+                                        audioMessage = if (track.timingAvailable)
+                                            "تعمل دون إنترنت • تلوين الآيات متاح"
+                                        else "تعمل دون إنترنت • لا تتوفر توقيتات مطابقة للتلوين"
+                                        runCatching {
+                                            audioPlayer.setDataSource(track.localFile.absolutePath)
+                                            audioPlayer.prepareAsync()
+                                        }.onFailure {
+                                            audioLoading = false
+                                            audioReady = false
+                                            audioPlaying = false
+                                            audioMessage = "تعذر فتح ملف التلاوة المحمّل"
+                                        }
+                                    }
+                                }
+                            }
+                        }.focusable(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        when { audioLoading -> "…"; audioPlaying -> "Ⅱ"; audioReady -> "▶"; else -> "▶" },
+                        color = RoyalColors.Gold, fontSize = 19.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("مشغل التلاوة", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        audioMessage.ifBlank {
+                            if (surah.number in downloadedAudioSurahs) {
+                                "القارئ: " + when (selectedReader) {
+                                    "maher" -> "ماهر المعيقلي"
+                                    "sudais" -> "عبد الرحمن السديس"
+                                    "mossad" -> "عبد الرحمن مسعد • تلاوات مختارة"
+                                    else -> "مشاري العفاسي"
+                                }
+                            } else "هذه السورة غير محمّلة لهذا القارئ"
+                        },
+                        color = RoyalColors.Pearl, fontSize = 10.sp, maxLines = 2
+                    )
+                }
+                Box(
+                    Modifier.size(38.dp).clip(CircleShape)
+                        .background(Color(0xFF183E43))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
+                        .clickable(enabled = !audioDownloadInProgress && surah.number !in downloadedAudioSurahs) {
+                            audioDownloadInProgress = true
+                            audioMessage = "جارٍ تنزيل السورة وحفظها على الجهاز…"
+                            val downloadReader = selectedReader
+                            scope.launch {
+                                val track = QuranAudioRepository.downloadTrack(
+                                    context.applicationContext,
+                                    downloadReader,
+                                    surah.number
                                 )
-                                .padding(horizontal = 12.dp, vertical = 12.dp)
-                                .focusable(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                verse.text,
-                                modifier = Modifier.weight(1f),
-                                color = RoyalColors.Pearl,
-                                fontSize = 24.sp,
-                                lineHeight = 43.sp,
-                                fontFamily = quranFont,
-                                textAlign = TextAlign.Right
-                            )
-                            Box(
-                                Modifier.size(30.dp).clip(CircleShape)
-                                    .background(Color(0xFF253345))
-                                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(verse.number.toString(), color = RoyalColors.Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                if (selectedReader == downloadReader && track?.localFile != null) {
+                                    downloadedAudioSurahs = downloadedAudioSurahs + surah.number
+                                    activeTimings = track.timings
+                                    audioMessage = "اكتمل التنزيل • أصبحت السورة متاحة دون إنترنت"
+                                } else if (selectedReader == downloadReader) {
+                                    audioMessage = if (downloadReader == "mossad")
+                                        "تلاوات عبد الرحمن مسعد المختارة لم تُربط بمصادر تنزيل موثوقة بعد"
+                                    else "تعذر تنزيل هذه السورة من مصدر القارئ"
+                                }
+                                audioDownloadInProgress = false
+                            }
+                        }.focusable(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        when {
+                            audioDownloadInProgress -> "…"
+                            surah.number in downloadedAudioSurahs -> "✓"
+                            else -> "↓"
+                        },
+                        color = RoyalColors.Gold,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Box(
+                    Modifier.size(38.dp).clip(CircleShape)
+                        .background(Color(0xFF183E43))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
+                        .clickable {
+                            val shouldMute = !audioMuted
+                            audioMuted = shouldMute
+                            runCatching {
+                                val volume = if (shouldMute) 0f else 1f
+                                audioPlayer.setVolume(volume, volume)
+                            }
+                        }.focusable(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (audioMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
+                        contentDescription = if (audioMuted) "إلغاء كتم الصوت" else "كتم الصوت",
+                        tint = RoyalColors.Gold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    "■", color = RoyalColors.Gold, fontSize = 17.sp,
+                    modifier = Modifier.clip(CircleShape).clickable {
+                        runCatching { if (audioPlayer.isPlaying) audioPlayer.stop() }
+                        runCatching { audioPlayer.reset() }
+                        audioReady = false
+                        audioPlaying = false
+                        audioLoading = false
+                        currentAudioVerse = 0
+                        audioMessage = "تم إيقاف التلاوة"
+                    }.padding(8.dp).focusable()
+                )
+            }
+
+            LaunchedEffect(audioPlaying, activeTimings, surah.number) {
+                while (audioPlaying) {
+                    val position = runCatching { audioPlayer.currentPosition }.getOrDefault(-1)
+                    val timedVerse = if (activeAudioSurah == surah.number && position >= 0) {
+                        activeTimings.firstOrNull { position >= it.startMs && position < it.endMs }?.ayah ?: 0
+                    } else 0
+                    if (timedVerse != currentAudioVerse) {
+                        currentAudioVerse = timedVerse
+                        if (timedVerse > 0) {
+                            val targetIndex = surah.verses.indexOfFirst { it.number == timedVerse }
+                            if (targetIndex >= 0) verseListState.animateScrollToItem(targetIndex)
+                        }
+                    }
+                    delay(150L)
+                }
+            }
+
+            Box(
+                Modifier.weight(1f).fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xB31FA9A3))
+                    .border(1.2.dp, RoyalColors.Gold.copy(alpha = 0.88f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        state = verseListState,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(surah.verses, key = { "${surah.number}-${it.number}" }) { verse ->
+                            if (verse.number == 0) {
+                                Text(
+                                    verse.text,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).focusable(),
+                                    color = RoyalColors.Gold,
+                                    fontSize = 25.sp,
+                                    lineHeight = 43.sp,
+                                    fontFamily = quranFont,
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Row(
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (verse.number == savedBookmarkForSurah) Color(0x332A2518)
+                                            else Color.Transparent
+                                        )
+                                        .border(
+                                            if (verse.number == savedBookmarkForSurah) 1.dp else 0.dp,
+                                            if (verse.number == savedBookmarkForSurah) RoyalColors.Gold.copy(alpha = 0.8f) else Color.Transparent,
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                                        .focusable(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        verse.text,
+                                        modifier = Modifier.weight(1f),
+                                        color = if (verse.number == currentAudioVerse) Color(0xFFFF3B30) else RoyalColors.Pearl,
+                                        fontSize = 24.sp,
+                                        lineHeight = 43.sp,
+                                        fontFamily = quranFont,
+                                        textAlign = TextAlign.Right
+                                    )
+                                    QuranAyahFlowerNumber(verse.number)
+                                }
                             }
                         }
                     }
+                    Box(
+                        Modifier.align(Alignment.CenterHorizontally)
+                            .padding(top = 5.dp, bottom = 1.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0x6639C7BD))
+                            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.8f), RoundedCornerShape(50))
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            "الصفحة $currentPage",
+                            color = RoyalColors.Gold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
+                Text(
+                    "❧",
+                    modifier = Modifier.align(Alignment.TopStart).padding(start = 3.dp, top = 0.dp),
+                    color = RoyalColors.Gold.copy(alpha = 0.7f),
+                    fontSize = 16.sp
+                )
+                Text(
+                    "❧",
+                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 3.dp, top = 0.dp),
+                    color = RoyalColors.Gold.copy(alpha = 0.7f),
+                    fontSize = 16.sp
+                )
+                Text(
+                    "❧",
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 3.dp, bottom = 0.dp),
+                    color = RoyalColors.Gold.copy(alpha = 0.7f),
+                    fontSize = 16.sp
+                )
+                Text(
+                    "❧",
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 3.dp, bottom = 0.dp),
+                    color = RoyalColors.Gold.copy(alpha = 0.7f),
+                    fontSize = 16.sp
+                )
             }
         }
 
         Spacer(Modifier.height(2.dp))
         Text(
-            "نص القرآن: مشروع تنزيل Tanzil • CC BY 3.0 • tanzil.net",
-            modifier = Modifier.fillMaxWidth().clickable { runCatching { uriHandler.openUri("https://tanzil.net/") } }.focusable(),
+            "نص القرآن: مشروع تنزيل Tanzil • CC BY 3.0",
+            modifier = Modifier.fillMaxWidth(),
             color = RoyalColors.Muted,
             fontSize = 9.sp,
             textAlign = TextAlign.Center
+        )
+        }
+    }
+
+    if (settingsOpen) {
+        AlertDialog(
+            onDismissRequest = { settingsOpen = false },
+            containerColor = Color(0xF0141D29),
+            title = {
+                Text("إعدادات القرآن الكريم", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.height(420.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    item { Text("اختيار القارئ", color = RoyalColors.Gold, fontWeight = FontWeight.Bold) }
+                    items(listOf(
+                        "afasy" to "مشاري العفاسي",
+                        "maher" to "ماهر المعيقلي",
+                        "sudais" to "عبد الرحمن السديس",
+                        "mossad" to "عبد الرحمن مسعد • تلاوات مختارة"
+                    ), key = { it.first }) { (key, label) ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(if (selectedReader == key) RoyalColors.Gold.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f))
+                                .clickable {
+                                    selectedReader = key
+                                    downloadAllInProgress = false
+                                    preferences.edit().putString("quran_reader_key", key).apply()
+                                    screenScope.launch {
+                                        downloadedAudioSurahs = withContext(Dispatchers.IO) {
+                                            QuranAudioRepository.downloadedSurahNumbers(context.applicationContext, key)
+                                        }
+                                    }
+                                }.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, color = RoyalColors.Pearl, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                            if (selectedReader == key) Text("✓", color = RoyalColors.Gold)
+                        }
+                    }
+                    item {
+                        Spacer(Modifier.height(5.dp))
+                        QuranReaderAction(
+                            label = if (downloadAllInProgress) "إيقاف تنزيل السور" else "تنزيل جميع سور هذا القارئ",
+                            modifier = Modifier.fillMaxWidth(),
+                            selected = downloadAllInProgress,
+                            enabled = selectedReader != "mossad" || downloadAllInProgress
+                        ) {
+                            if (downloadAllInProgress) {
+                                downloadAllInProgress = false
+                                downloadProgress = "تم إيقاف التنزيل بناءً على طلبك"
+                            } else {
+                                val batchReader = selectedReader
+                                downloadAllInProgress = true
+                                downloadProgress = "يبدأ تنزيل السور المتاحة لهذا القارئ…"
+                                screenScope.launch {
+                                    var completed = downloadedAudioSurahs.size
+                                    for (chapter in surahs) {
+                                        if (!downloadAllInProgress || selectedReader != batchReader) break
+                                        if (chapter.number in downloadedAudioSurahs) continue
+                                        val result = QuranAudioRepository.downloadTrack(
+                                            context.applicationContext,
+                                            batchReader,
+                                            chapter.number
+                                        )
+                                        if (selectedReader == batchReader && result?.localFile != null) {
+                                            downloadedAudioSurahs = downloadedAudioSurahs + chapter.number
+                                            completed += 1
+                                        }
+                                        downloadProgress = "تم تنزيل $completed من 114 سورة"
+                                    }
+                                    downloadAllInProgress = false
+                                    if (selectedReader == batchReader && downloadProgress != "تم إيقاف التنزيل بناءً على طلبك") {
+                                        downloadProgress = "انتهت محاولة التنزيل • المتاح الآن $completed من 114"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (downloadProgress.isNotBlank()) {
+                        item {
+                            Text(
+                                downloadProgress,
+                                color = RoyalColors.Pearl,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                    item {
+                        Spacer(Modifier.height(5.dp))
+                        Text("خلفية المصحف", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
+                    }
+                    items(listOf(
+                        "color" to "ملونة", "nature" to "طبيعة", "forest" to "غابة",
+                        "green" to "خضراء", "lake" to "بحيرة", "mountains" to "جبال",
+                        "sunset" to "غروب", "waterfall" to "شلال"
+                    ), key = { it.first }) { (key, label) ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                .background(if (selectedWallpaper == key) RoyalColors.Gold.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f))
+                                .clickable {
+                                    selectedWallpaper = key
+                                    preferences.edit().putString("quran_wallpaper_key", key).apply()
+                                }.padding(9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, color = RoyalColors.Pearl, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                            if (selectedWallpaper == key) Text("✓", color = RoyalColors.Gold)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { settingsOpen = false }) {
+                    Text("تم", color = RoyalColors.Gold)
+                }
+            }
+        )
+    }
+
+    if (audioLibraryOpen) {
+        val readerLabel = when (selectedReader) {
+            "maher" -> "ماهر المعيقلي"
+            "sudais" -> "عبد الرحمن السديس"
+            "mossad" -> "عبد الرحمن مسعد • تلاوات مختارة"
+            else -> "مشاري العفاسي"
+        }
+        AlertDialog(
+            onDismissRequest = { audioLibraryOpen = false },
+            containerColor = Color(0xF0141D29),
+            title = {
+                Text("الصوتيات المحمّلة • $readerLabel", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                val librarySurahs = surahs.filter { it.number in downloadedAudioSurahs }.sortedBy { it.number }
+                if (librarySurahs.isEmpty()) {
+                    Text(
+                        "لا توجد سور محمّلة لهذا القارئ بعد. افتح سورة ثم اضغط زر التنزيل، أو استخدم تنزيل جميع السور من الإعدادات.",
+                        color = RoyalColors.Pearl,
+                        fontSize = 13.sp
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.height(380.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        items(librarySurahs, key = { it.number }) { chapter ->
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                                    .background(Color(0x6630AFA8))
+                                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(9.dp))
+                                    .clickable {
+                                        selectedSurah = chapter
+                                        audioLibraryOpen = false
+                                    }
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(chapter.name, color = RoyalColors.Pearl, modifier = Modifier.weight(1f))
+                                Text("✓", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { audioLibraryOpen = false }) {
+                    Text("إغلاق", color = RoyalColors.Gold)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun QuranAyahFlowerNumber(number: Int) {
+    Box(
+        Modifier.size(38.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
+            val gold = RoyalColors.Gold
+            val orbit = size.minDimension * 0.27f
+            val petalRadius = size.minDimension * 0.12f
+            for (petal in 0 until 8) {
+                val angle = petal * (PI / 4.0)
+                drawCircle(
+                    color = gold.copy(alpha = 0.88f),
+                    radius = petalRadius,
+                    center = Offset(
+                        centerX + cos(angle).toFloat() * orbit,
+                        centerY + sin(angle).toFloat() * orbit
+                    )
+                )
+            }
+            drawCircle(
+                color = gold,
+                radius = size.minDimension * 0.34f,
+                style = Stroke(width = 1.2.dp.toPx())
+            )
+            drawCircle(
+                color = Color(0xFF174D4B),
+                radius = size.minDimension * 0.19f
+            )
+        }
+        Text(
+            number.toString(),
+            color = RoyalColors.Gold,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
