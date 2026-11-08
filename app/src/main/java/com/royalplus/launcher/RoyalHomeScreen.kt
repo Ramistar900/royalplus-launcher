@@ -182,7 +182,7 @@ internal fun RoyalHomeScreen(
     var clickSoundsEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", true))
     }
-    val latestClickSoundsEnabled by rememberUpdatedState(clickSoundsEnabled)
+    val latestClickSoundsEnabled = rememberUpdatedState(clickSoundsEnabled)
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
     var selectedScreensaverWallpaper by remember {
         mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
@@ -470,7 +470,7 @@ internal fun RoyalHomeScreen(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
-                        if (latestClickSoundsEnabled) {
+                        if (latestClickSoundsEnabled.value) {
                             context.getSystemService(android.media.AudioManager::class.java)
                                 ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
                         }
@@ -479,7 +479,7 @@ internal fun RoyalHomeScreen(
                     }
                 }
                 .onPreviewKeyEvent {
-                    if (it.type == KeyEventType.KeyDown && latestClickSoundsEnabled &&
+                    if (it.type == KeyEventType.KeyDown && latestClickSoundsEnabled.value &&
                         it.key in setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
                     ) {
                         context.getSystemService(android.media.AudioManager::class.java)
