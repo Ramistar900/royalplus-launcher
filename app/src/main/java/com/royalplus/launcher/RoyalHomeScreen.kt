@@ -192,9 +192,6 @@ internal fun RoyalHomeScreen(
     var screensaverMotionEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
     }
-    var fireAnimationEnabled by remember {
-        mutableStateOf(wallpaperPreferences.getBoolean("fire_background_animation_enabled", true))
-    }
     var lakeWaterSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("lake_water_sound_enabled", true))
     }
@@ -479,7 +476,7 @@ internal fun RoyalHomeScreen(
                     false
                 }
         ) {
-            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled, fireAnimationEnabled && !showSmartScreensaver, oceanAnimationEnabled && !showSmartScreensaver, syriaFlagAnimationEnabled && !showSmartScreensaver)
+            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled && selectedWallpaper != "fire", oceanAnimationEnabled && !showSmartScreensaver, syriaFlagAnimationEnabled && !showSmartScreensaver)
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
                     "en" -> "Manage ${app.label}"
@@ -683,8 +680,7 @@ internal fun RoyalHomeScreen(
                     weather = weather,
                     language = selectedLanguage,
                     selectedWallpaper = selectedScreensaverWallpaper,
-                    motionEnabled = screensaverMotionEnabled,
-                    fireAnimationEnabled = fireAnimationEnabled,
+                    motionEnabled = screensaverMotionEnabled && selectedScreensaverWallpaper != "fire",
                     oceanAnimationEnabled = oceanAnimationEnabled,
                     syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
                     onDismiss = {
@@ -1046,40 +1042,6 @@ internal fun RoyalHomeScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                         Spacer(Modifier.height(14.dp))
-                        Text(
-                            when (selectedLanguage) { "en" -> "Fireplace effects"; "tr" -> "Şömine efektleri"; else -> "مؤثرات المدفأة" },
-                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(if (fireAnimationEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
-                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
-                                .clickable {
-                                    fireAnimationEnabled = !fireAnimationEnabled
-                                    wallpaperPreferences.edit().putBoolean("fire_background_animation_enabled", fireAnimationEnabled).apply()
-                                }
-                                .focusable()
-                                .padding(horizontal = 14.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Icon(Icons.Rounded.Bolt, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    when (selectedLanguage) { "en" -> "Animated flames"; "tr" -> "Hareketli alevler"; else -> "تحريك اللهب والجمر" },
-                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    if (fireAnimationEnabled) when (selectedLanguage) { "en" -> "Flicker and rising embers enabled"; "tr" -> "Alev ve köz hareketi açık"; else -> "حركة اللهب وتطاير الجمر مفعّلة" }
-                                    else when (selectedLanguage) { "en" -> "Animation disabled"; "tr" -> "Animasyon kapalı"; else -> "الحركة متوقفة" },
-                                    color = if (fireAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
-                                )
-                            }
-                            Text(if (fireAnimationEnabled) "ON" else "OFF", color = if (fireAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.height(8.dp))
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .background(if (fireCrackleSoundEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
@@ -1368,7 +1330,6 @@ private fun RoyalBackdrop(
     modifier: Modifier = Modifier,
     selectedWallpaper: String,
     motionEnabled: Boolean = true,
-    fireAnimationEnabled: Boolean = true,
     oceanAnimationEnabled: Boolean = true,
     syriaFlagAnimationEnabled: Boolean = true
 ) {
@@ -1389,9 +1350,6 @@ private fun RoyalBackdrop(
         modifier = modifier, motionEnabled = motionEnabled
     )
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
-    if (selectedWallpaper == "fire" && fireAnimationEnabled) {
-        RoyalFireOverlay(modifier = modifier)
-    }
     if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
         RoyalOceanOverlay(modifier = modifier)
     }
