@@ -36,9 +36,7 @@ internal fun rememberRoyalBitmapPainter(
                 inJustDecodeBounds = true
                 inScaled = false
             }
-            context.resources.openRawResource(resourceId).use { stream ->
-                BitmapFactory.decodeStream(stream, null, bounds)
-            }
+            BitmapFactory.decodeResource(context.resources, resourceId, bounds)
 
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                 null
@@ -54,9 +52,7 @@ internal fun rememberRoyalBitmapPainter(
                     inPreferredConfig = Bitmap.Config.ARGB_8888
                     inScaled = false
                 }
-                context.resources.openRawResource(resourceId).use { stream ->
-                    BitmapFactory.decodeStream(stream, null, options)
-                }
+                BitmapFactory.decodeResource(context.resources, resourceId, options)
             }
         }.getOrNull()
 
