@@ -5,13 +5,13 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 
 /**
- * Fireplace ambience sourced from SFXMint's CC0 1.0 sound library:
- * https://sfxmint.com/sounds/ambience-fireplace-03
- * Direct asset URL is publicly reusable under CC0 1.0.
+ * Longer prepared-loop fireplace ambience from SFXMint, dedicated to CC0 1.0:
+ * https://sfxmint.com/sounds/ambience-fireplace-50
+ * The longer prepared loop reduces abrupt, repetitive short-fire restarts.
  */
 internal object RoyalFireAmbienceController {
-    private const val AUDIO_URL = "https://sfxmint.com/dl/ambience-fireplace-03.mp3"
-    private const val VOLUME = 0.22f
+    private const val AUDIO_URL = "https://sfxmint.com/dl/ambience-fireplace-50.mp3"
+    private const val VOLUME = 0.18f
 
     private var player: MediaPlayer? = null
 
