@@ -775,7 +775,7 @@ internal fun RoyalHomeScreen(
                                         modifier = Modifier.weight(1f),
                                         title = title,
                                         selected = selectedWallpaper == key,
-                                        image = painterResource(imageRes),
+                                        image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 768, maxPixels = 1_000_000L),
                                         onClick = {
                                             selectedWallpaper = key
                                             wallpaperPreferences.edit().putString("launcher_wallpaper", key).apply()
@@ -1097,7 +1097,7 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
         RoyalFireplaceAudioEffect(enabled = true)
     } else {
         RoyalMotionImage(
-            image = painterResource(when (selectedWallpaper) {
+            image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
                 "nature" -> R.drawable.royal_nature_wallpaper
                 "forest" -> R.drawable.royal_wallpaper_forest_04
                 "green" -> R.drawable.royal_wallpaper_grreen_07
@@ -1106,7 +1106,7 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
                 "sunset" -> R.drawable.royal_wallpaper_sunset_05
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
                 else -> R.drawable.royal_color_wallpaper
-            }),
+            }, maxEdgePx = 2048),
             modifier = modifier, motionEnabled = motionEnabled
         )
     }
@@ -1444,7 +1444,7 @@ private fun HomeDashboard(
         }
         if (isRamadan) {
             Image(
-                painter = painterResource(R.drawable.ramadan_overlay),
+                painter = rememberRoyalBitmapPainter(R.drawable.ramadan_overlay, maxEdgePx = 2048),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 alpha = 0.30f,
