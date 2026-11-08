@@ -765,7 +765,8 @@ internal fun RoyalHomeScreen(
                             Triple("lake", if (selectedLanguage == "en") "Lake" else if (selectedLanguage == "tr") "Göl" else "بحيرة", R.drawable.royal_wallpaper_lake_03),
                             Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
-                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06)
+                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
+                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k)
                         )
                         homeWallpapers.chunked(4).forEach { wallpaperRow ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1091,19 +1092,24 @@ internal fun RoyalHomeScreen(
 
 @Composable
 private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String, motionEnabled: Boolean = true) {
-    RoyalMotionImage(
-        image = painterResource(when (selectedWallpaper) {
-            "nature" -> R.drawable.royal_nature_wallpaper
-            "forest" -> R.drawable.royal_wallpaper_forest_04
-            "green" -> R.drawable.royal_wallpaper_grreen_07
-            "lake" -> R.drawable.royal_wallpaper_lake_03
-            "mountains" -> R.drawable.royal_wallpaper_mountains_02
-            "sunset" -> R.drawable.royal_wallpaper_sunset_05
-            "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
-            else -> R.drawable.royal_color_wallpaper
-        }),
-        modifier = modifier, motionEnabled = motionEnabled
-    )
+    if (selectedWallpaper == "fire") {
+        RoyalFireplaceBackground(modifier = modifier.fillMaxSize())
+        RoyalFireplaceAudioEffect(enabled = true)
+    } else {
+        RoyalMotionImage(
+            image = painterResource(when (selectedWallpaper) {
+                "nature" -> R.drawable.royal_nature_wallpaper
+                "forest" -> R.drawable.royal_wallpaper_forest_04
+                "green" -> R.drawable.royal_wallpaper_grreen_07
+                "lake" -> R.drawable.royal_wallpaper_lake_03
+                "mountains" -> R.drawable.royal_wallpaper_mountains_02
+                "sunset" -> R.drawable.royal_wallpaper_sunset_05
+                "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                else -> R.drawable.royal_color_wallpaper
+            }),
+            modifier = modifier, motionEnabled = motionEnabled
+        )
+    }
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
 }
 
