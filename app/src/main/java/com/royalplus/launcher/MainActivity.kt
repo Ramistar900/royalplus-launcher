@@ -1,7 +1,10 @@
 package com.royalplus.launcher
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -11,6 +14,10 @@ import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.View
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +32,7 @@ class MainActivity : ComponentActivity() {
     private var isDefaultHome by mutableStateOf(false)
     private var voiceSearchAvailable by mutableStateOf(false)
     private var voiceSearchResult by mutableStateOf("")
+    private var showingCrashReport = false
 
     private val voiceSearchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -58,7 +66,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        voiceSearchAvailable = SpeechRecognizer.isRecognitionAvailable(this)
+
+        val savedCrashReport = RoyalPlusApplication.readPendingReport(this)
+        if (savedCrashReport != null) {
+            showingCrashReport = true
+            showCrashReport(savedCrashReport)
+            return
+        }
+
+        RoyalPlusApplication.markStage(this, "MainActivity.onCreate: checking speech recognition")
+        voiceSearchAvailable = runCatching {
+            SpeechRecognizer.isRecognitionAvailable(this)
+        }.getOrDefault(false)
+
+        RoyalPlusApplication.markStage(this, "MainActivity.onCreate: scheduling adhan")
         RoyalAdhanScheduler.scheduleNext(this)
         window.statusBarColor = android.graphics.Color.rgb(8, 10, 18)
         window.navigationBarColor = android.graphics.Color.rgb(8, 10, 18)
@@ -70,6 +91,7 @@ class MainActivity : ComponentActivity() {
                 or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
 
+        RoyalPlusApplication.markStage(this, "MainActivity.onCreate: attaching Compose home screen")
         setContent {
             MaterialTheme {
                 RoyalHomeScreen(
@@ -83,7 +105,6 @@ class MainActivity : ComponentActivity() {
                         try {
                             startActivity(app.launchIntent)
                         } catch (_: Exception) {
-                            // The app may have been removed or blocked after the launcher list was loaded.
                             Toast.makeText(
                                 this,
                                 "تعذر فتح ${app.label}. حدّث قائمة التطبيقات أو تحقق من تثبيته.",
@@ -95,7 +116,6 @@ class MainActivity : ComponentActivity() {
                         try {
                             startActivity(Intent(Settings.ACTION_SETTINGS))
                         } catch (_: Exception) {
-                            // The device may not expose a system settings activity.
                         }
                     },
                     isDefaultHome = isDefaultHome,
@@ -110,9 +130,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Never request location during launcher startup. Some Android TV firmware
-        // crashes or restarts the launcher while returning from the runtime permission
-        // screen. Weather must remain optional and must not block the Home experience.
+        RoyalPlusApplication.markStage(this, "MainActivity.onCreate: Compose content attached; preparing weather state")
         if (hasSavedManualWeatherCity()) {
             refreshWeather()
         } else {
@@ -125,13 +143,69 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun showCrashReport(report: String) {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 20, 24, 20)
+            setBackgroundColor(Color.rgb(8, 10, 18))
+        }
+        val title = TextView(this).apply {
+            text = "ROYAL+ — تقرير تشخيص الانهيار"
+            textSize = 22f
+            setTextColor(Color.rgb(232, 190, 105))
+        }
+        val hint = TextView(this).apply {
+            text = "تم إيقاف تشغيل الواجهة مؤقتاً لحماية التقرير. صوّر هذه الشاشة وأرسلها لي، خصوصاً اسم الخطأ والأسطر الأولى."
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setPadding(0, 12, 0, 12)
+        }
+        val details = TextView(this).apply {
+            text = report
+            textSize = 12f
+            setTextColor(Color.rgb(225, 225, 225))
+            setTextIsSelectable(true)
+            setPadding(12, 12, 12, 12)
+        }
+        val scroll = ScrollView(this).apply {
+            addView(details)
+        }
+        val copyButton = Button(this).apply {
+            text = "نسخ تقرير الخطأ"
+            setOnClickListener {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("ROYAL+ crash report", report))
+                Toast.makeText(this@MainActivity, "تم نسخ التقرير؛ يمكنك لصقه في رسالة", Toast.LENGTH_LONG).show()
+            }
+        }
+        val clearButton = Button(this).apply {
+            text = "مسح التقرير وإعادة المحاولة"
+            setOnClickListener {
+                RoyalPlusApplication.clearPendingReport(this@MainActivity)
+                recreate()
+            }
+        }
+        root.addView(title)
+        root.addView(hint)
+        root.addView(scroll, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
+        root.addView(copyButton)
+        root.addView(clearButton)
+        setContentView(root)
+    }
+
     override fun onResume() {
         super.onResume()
+        if (showingCrashReport) return
+        RoyalPlusApplication.markStage(this, "MainActivity.onResume: checking default launcher")
         isDefaultHome = isRoyalPlusDefaultHome()
+        RoyalPlusApplication.markStage(this, "MainActivity.onResume: loading installed applications")
         installedApps = LauncherAppsRepository.load(
             packageManager = packageManager,
             ownPackageName = packageName
         )
+        RoyalPlusApplication.markStage(this, "MainActivity.onResume: startup checks completed")
         RoyalAdhanScheduler.scheduleNext(this)
     }
 
@@ -161,13 +235,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         try {
-            // Android owns the confirmation and decides whether this package can be removed.
-            startActivity(
-                Intent(
-                    Intent.ACTION_DELETE,
-                    Uri.parse("package:${app.packageName}")
-                )
-            )
+            startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.packageName}")))
         } catch (_: Exception) {
             openAppDetails(app)
         }
@@ -175,12 +243,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openAppDetails(app: LauncherApp) {
         try {
-            startActivity(
-                Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:${app.packageName}")
-                )
-            )
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.packageName}")))
         } catch (_: Exception) {
             Toast.makeText(this, "تعذر فتح إعدادات هذا التطبيق على الجهاز", Toast.LENGTH_LONG).show()
         }
@@ -209,7 +272,6 @@ class MainActivity : ComponentActivity() {
 
     private fun openDefaultHomeSettings() {
         if (HomeRoleCompat.openDefaultHomeSettings(this)) return
-
         val actions = listOf(
             Settings.ACTION_HOME_SETTINGS,
             Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS,
@@ -220,9 +282,7 @@ class MainActivity : ComponentActivity() {
                 startActivity(Intent(action))
                 return
             } catch (_: android.content.ActivityNotFoundException) {
-                // Try the next supported system settings screen.
             } catch (_: SecurityException) {
-                // Try the next supported system settings screen.
             }
         }
         Toast.makeText(this, "لم يعثر أندرويد على شاشة اختيار الواجهة الرئيسية", Toast.LENGTH_LONG).show()
@@ -236,8 +296,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun hasLocationPermission(): Boolean =
-        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED
+        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     private fun hasSavedManualWeatherCity(): Boolean =
         !getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
@@ -297,17 +356,13 @@ class MainActivity : ComponentActivity() {
             )
             return
         }
-
         weatherState = WeatherUiState(
             city = "جارٍ تحديد الموقع",
             description = "جارٍ تحميل الطقس",
             isLoading = true
         )
-
         RoyalWeatherRepository.fetch(this) { result ->
-            runOnUiThread {
-                weatherState = result
-            }
+            runOnUiThread { weatherState = result }
         }
     }
 }
