@@ -43,7 +43,6 @@ internal fun RoyalSmartScreensaver(
     selectedWallpaper: String,
     onDismiss: () -> Unit,
     motionEnabled: Boolean = true,
-    fireAnimationEnabled: Boolean = true,
     oceanAnimationEnabled: Boolean = true,
     syriaFlagAnimationEnabled: Boolean = true
 ) {
@@ -94,9 +93,6 @@ internal fun RoyalSmartScreensaver(
             modifier = Modifier.fillMaxSize(),
             motionEnabled = motionEnabled
         )
-        if (selectedWallpaper == "fire" && fireAnimationEnabled) {
-            RoyalFireOverlay(modifier = Modifier.fillMaxSize())
-        }
         if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
             RoyalOceanOverlay(modifier = Modifier.fillMaxSize())
         }
