@@ -107,7 +107,7 @@ jobs:
               fi
               sleep 1
             done
-            adb shell pidof -s com.royalplus.launcher
+            adb shell pidof com.royalplus.launcher | grep -Eq '[0-9]+'
             APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -B3 -A20 'Process: com.royalplus.launcher' || true)"
             if [[ -n "$APP_CRASH_LOG" ]]; then
               printf '%s\\n' "$APP_CRASH_LOG"
