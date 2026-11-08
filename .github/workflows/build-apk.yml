@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "feat/quran-mushaf-gold-frame" ]
+    branches: [ "main", "feature/quran-audio-clean" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -72,7 +72,7 @@ jobs:
 
   release-main:
     name: Build signed APK and create GitHub draft release
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean' || github.ref == 'refs/heads/feat/quran-mushaf-gold-frame'))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
