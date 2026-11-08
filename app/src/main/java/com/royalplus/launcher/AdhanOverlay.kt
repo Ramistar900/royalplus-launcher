@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
 
 @Composable
@@ -58,12 +59,12 @@ internal fun AdhanOverlay(
             }
         }
         val filter = android.content.IntentFilter(RoyalAdhanPlaybackService.ACTION_PLAYBACK_FINISHED)
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            context.registerReceiver(receiver, filter)
-        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         onDispose {
             runCatching { context.unregisterReceiver(receiver) }
         }
