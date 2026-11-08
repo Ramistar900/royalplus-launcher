@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -95,9 +96,9 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
                 path = outer,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xCCFFF0B0),
-                        Color(0xBFFF9B2E),
-                        Color(0x88FF5A12),
+                        Color(0x88FFF0B0),
+                        Color(0x88FF9B2E),
+                        Color(0x66FF5A12),
                         Color.Transparent
                     ),
                     startY = tipY,
@@ -125,14 +126,41 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
                 path = core,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xDDFFF8D6),
-                        Color(0xAAFFE28A),
-                        Color(0x66FFC04B),
+                        Color(0x99FFF8D6),
+                        Color(0x77FFE28A),
+                        Color(0x55FFC04B),
                         Color.Transparent
                     ),
                     startY = baseY - coreHeight,
                     endY = baseY
                 )
+            )
+        }
+
+        // Very light white smoke rises in soft, translucent wisps above the flames.
+        for (index in 0 until 4) {
+            val progress = (cycle + index * 0.235f) % 1f
+            val drift = sin((progress * 2.2f + index * 1.4f).toDouble()).toFloat()
+            val startX = width * (0.39f + index * 0.075f)
+            val startY = baseY - height * (0.055f + (index % 2) * 0.025f)
+            val endX = startX + drift * width * 0.045f
+            val endY = startY - height * (0.24f + (index % 3) * 0.035f)
+            val fadeInOut = (sin(progress * PI.toFloat()).coerceAtLeast(0f) * 0.16f)
+            val smokePath = Path().apply {
+                moveTo(startX, startY)
+                cubicTo(
+                    startX - width * 0.035f + drift * width * 0.018f,
+                    startY - height * 0.075f,
+                    endX + width * 0.035f,
+                    startY - height * 0.14f,
+                    endX,
+                    endY
+                )
+            }
+            drawPath(
+                path = smokePath,
+                color = Color.White.copy(alpha = fadeInOut),
+                style = Stroke(width = width * 0.012f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
             )
         }
 
