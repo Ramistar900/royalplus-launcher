@@ -42,7 +42,8 @@ internal fun RoyalSmartScreensaver(
     language: String,
     selectedWallpaper: String,
     onDismiss: () -> Unit,
-    motionEnabled: Boolean = true
+    motionEnabled: Boolean = true,
+    fireAnimationEnabled: Boolean = true
 ) {
     val isEnglish = language == "en"
     val isTurkish = language == "tr"
@@ -88,6 +89,9 @@ internal fun RoyalSmartScreensaver(
             modifier = Modifier.fillMaxSize(),
             motionEnabled = motionEnabled
         )
+        if (selectedWallpaper == "fire" && fireAnimationEnabled) {
+            RoyalFireOverlay(modifier = Modifier.fillMaxSize())
+        }
         RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
         Box(
             modifier = Modifier

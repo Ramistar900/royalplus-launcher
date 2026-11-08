@@ -184,31 +184,51 @@ internal fun RoyalHomeScreen(
     var screensaverMotionEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
     }
+    var fireAnimationEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("fire_background_animation_enabled", true))
+    }
     var lakeWaterSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("lake_water_sound_enabled", true))
+    }
+    var fireCrackleSoundEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("fire_crackle_sound_enabled", true))
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
         if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake"
+    val shouldPlayFireCrackleSound = fireCrackleSoundEnabled &&
+        if (showSmartScreensaver) selectedScreensaverWallpaper == "fire" else selectedWallpaper == "fire"
     val latestLakeWaterSoundState by rememberUpdatedState(shouldPlayLakeWaterSound)
+    val latestFireCrackleSoundState by rememberUpdatedState(shouldPlayFireCrackleSound)
     LaunchedEffect(shouldPlayLakeWaterSound) {
         RoyalLakeAmbienceController.sync(context, shouldPlayLakeWaterSound)
+    }
+    LaunchedEffect(shouldPlayFireCrackleSound) {
+        RoyalFireAmbienceController.sync(context, shouldPlayFireCrackleSound)
     }
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
-                Lifecycle.Event.ON_STOP -> RoyalLakeAmbienceController.stop()
+                Lifecycle.Event.ON_START -> {
+                    RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
+                    RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    RoyalLakeAmbienceController.stop()
+                    RoyalFireAmbienceController.stop()
+                }
                 else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
+            RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
         }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             RoyalLakeAmbienceController.stop()
+            RoyalFireAmbienceController.stop()
         }
     }
     var screensaverDelaySeconds by remember {
@@ -435,7 +455,7 @@ internal fun RoyalHomeScreen(
                     false
                 }
         ) {
-            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled)
+            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled, fireAnimationEnabled && !showSmartScreensaver)
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
                     "en" -> "Manage ${app.label}"
@@ -640,6 +660,7 @@ internal fun RoyalHomeScreen(
                     language = selectedLanguage,
                     selectedWallpaper = selectedScreensaverWallpaper,
                     motionEnabled = screensaverMotionEnabled,
+                    fireAnimationEnabled = fireAnimationEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -797,7 +818,8 @@ internal fun RoyalHomeScreen(
                             Triple("lake", if (selectedLanguage == "en") "Lake" else if (selectedLanguage == "tr") "Göl" else "بحيرة", R.drawable.royal_wallpaper_lake_03),
                             Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
-                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06)
+                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
+                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k)
                         )
                         homeWallpapers.chunked(4).forEach { wallpaperRow ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -925,6 +947,69 @@ internal fun RoyalHomeScreen(
                                 )
                             }
                             Text(if (lakeWaterSoundEnabled) "ON" else "OFF", color = if (lakeWaterSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Fireplace effects"; "tr" -> "Şömine efektleri"; else -> "مؤثرات المدفأة" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (fireAnimationEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    fireAnimationEnabled = !fireAnimationEnabled
+                                    wallpaperPreferences.edit().putBoolean("fire_background_animation_enabled", fireAnimationEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.Bolt, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Animated flames"; "tr" -> "Hareketli alevler"; else -> "تحريك اللهب والجمر" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (fireAnimationEnabled) when (selectedLanguage) { "en" -> "Flicker and rising embers enabled"; "tr" -> "Alev ve köz hareketi açık"; else -> "حركة اللهب وتطاير الجمر مفعّلة" }
+                                    else when (selectedLanguage) { "en" -> "Animation disabled"; "tr" -> "Animasyon kapalı"; else -> "الحركة متوقفة" },
+                                    color = if (fireAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (fireAnimationEnabled) "ON" else "OFF", color = if (fireAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (fireCrackleSoundEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    fireCrackleSoundEnabled = !fireCrackleSoundEnabled
+                                    wallpaperPreferences.edit().putBoolean("fire_crackle_sound_enabled", fireCrackleSoundEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Fire crackling sound"; "tr" -> "Ateş çıtırtısı sesi"; else -> "صوت طقطقة واحتراق الحطب" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (fireCrackleSoundEnabled) when (selectedLanguage) { "en" -> "Plays with the Fireplace wallpaper"; "tr" -> "Şömine duvar kâğıdıyla çalar"; else -> "يعمل عند اختيار خلفية المدفأة" }
+                                    else when (selectedLanguage) { "en" -> "Sound disabled"; "tr" -> "Ses kapalı"; else -> "الصوت متوقف" },
+                                    color = if (fireCrackleSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (fireCrackleSoundEnabled) "ON" else "OFF", color = if (fireCrackleSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -1151,7 +1236,12 @@ internal fun RoyalHomeScreen(
 }
 
 @Composable
-private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String, motionEnabled: Boolean = true) {
+private fun RoyalBackdrop(
+    modifier: Modifier = Modifier,
+    selectedWallpaper: String,
+    motionEnabled: Boolean = true,
+    fireAnimationEnabled: Boolean = true
+) {
     RoyalMotionImage(
         image = painterResource(when (selectedWallpaper) {
             "nature" -> R.drawable.royal_nature_wallpaper
@@ -1161,11 +1251,15 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
             "mountains" -> R.drawable.royal_wallpaper_mountains_02
             "sunset" -> R.drawable.royal_wallpaper_sunset_05
             "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+            "fire" -> R.drawable.royal_live_fire_4k
             else -> R.drawable.royal_color_wallpaper
         }),
         modifier = modifier, motionEnabled = motionEnabled
     )
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
+    if (selectedWallpaper == "fire" && fireAnimationEnabled) {
+        RoyalFireOverlay(modifier = modifier)
+    }
 }
 
 @Composable
