@@ -17,10 +17,10 @@ internal object LauncherAppsRepository {
         val leanbackIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
 
         // Some TV apps expose only LEANBACK_LAUNCHER, while phone/tablet apps
-        // commonly expose LAUNCHER. Merge both lists and keep the actual activity.
+        // commonly expose LAUNCHER. Manifest queries declare both categories.
         val activities = (
-            packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL) +
-                packageManager.queryIntentActivities(leanbackIntent, PackageManager.MATCH_ALL)
+            packageManager.queryIntentActivities(launcherIntent, 0) +
+                packageManager.queryIntentActivities(leanbackIntent, 0)
             )
             .distinctBy { info ->
                 val activity = info.activityInfo
