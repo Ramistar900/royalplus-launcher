@@ -593,11 +593,11 @@ private data class DuaItem(val title: String, val text: String, val source: Stri
 
 @Composable
 private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String) {
-    val target = remember(now / 1000L, timeZoneId) {
+    val target = remember(now / 60_000L, timeZoneId) {
         PrayerTimesRepository.nextRamadanTarget(now, timeZoneId)
     }
-    val parts = remember(now / 1000L, target, timeZoneId) {
-        if (target.isRamadan) listOf(0L, 0L, 0L, 0L) else {
+    val remainingDays = remember(now / 60_000L, target, timeZoneId) {
+        if (target.isRamadan) 0L else {
             val zone = TimeZone.getTimeZone(timeZoneId)
             val cursor = java.util.GregorianCalendar(zone, Locale.US).apply {
                 timeInMillis = now
@@ -613,76 +613,87 @@ private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String
                 set(java.util.Calendar.SECOND, 0)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
-            var years = 0L
-            while (true) {
-                val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.YEAR, 1) }
-                if (next.timeInMillis <= end.timeInMillis) {
-                    cursor.add(java.util.Calendar.YEAR, 1)
-                    years++
-                } else break
+            var days = 0L
+            while (cursor.timeInMillis < end.timeInMillis) {
+                cursor.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                days++
             }
-            var months = 0L
-            while (true) {
-                val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.MONTH, 1) }
-                if (next.timeInMillis <= end.timeInMillis) {
-                    cursor.add(java.util.Calendar.MONTH, 1)
-                    months++
-                } else break
-            }
-            var remainingDays = 0L
-            while (true) {
-                val next = (cursor.clone() as java.util.Calendar).apply { add(java.util.Calendar.DAY_OF_MONTH, 1) }
-                if (next.timeInMillis <= end.timeInMillis) {
-                    cursor.add(java.util.Calendar.DAY_OF_MONTH, 1)
-                    remainingDays++
-                } else break
-            }
-            val weeks = remainingDays / 7L
-            val days = remainingDays % 7L
-            listOf(years, months, weeks, days)
+            days
         }
     }
-    val labels = when (language) {
-        "en" -> listOf("Years", "Months", "Weeks", "Days")
-        "tr" -> listOf("Yıl", "Ay", "Hafta", "Gün")
-        else -> listOf("سنة", "أشهر", "أسابيع", "أيام")
-    }
+    val displayedDays = remainingDays.toString().map { digit ->
+        when (digit) {
+            '0' -> '٠'; '1' -> '١'; '2' -> '٢'; '3' -> '٣'; '4' -> '٤'
+            '5' -> '٥'; '6' -> '٦'; '7' -> '٧'; '8' -> '٨'; '9' -> '٩'
+            else -> digit
+        }
+    }.joinToString("")
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
             .background(Brush.horizontalGradient(listOf(Color(0xFF111111), Color(0xFF173C32), Color(0xFF30200D))))
             .border(1.dp, RoyalColors.Gold, RoundedCornerShape(17.dp))
-            .padding(horizontal = 13.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp)
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Text(
-            if (target.isRamadan) when (language) { "en" -> "🌙 Ramadan Mubarak"; "tr" -> "🌙 Ramazanınız mübarek olsun"; else -> "🌙 رمضان كريم" }
-            else when (language) { "en" -> "🌙 Time until Ramadan"; "tr" -> "🌙 Ramazan'a kalan süre"; else -> "🌙 العد التنازلي لرمضان" },
-            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold
-        )
-        Text(
-            if (target.isRamadan) when (language) { "en" -> "The countdown is complete"; "tr" -> "Geri sayım tamamlandı"; else -> "وصلنا إلى شهر رمضان المبارك" }
-            else when (language) { "en" -> "Years • months • weeks • days"; "tr" -> "Yıl • ay • hafta • gün"; else -> "المدة المتبقية بالسنوات والأشهر والأسابيع والأيام" },
-            color = Color.White.copy(alpha = 0.86f), fontSize = 10.sp
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            labels.forEachIndexed { index, label ->
-                Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
-                        .background(Color(0xFF080D0C).copy(alpha = 0.82f))
-                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.42f), RoundedCornerShape(9.dp))
-                        .padding(vertical = 11.dp, horizontal = 3.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Text(
-                        parts[index].toString(),
-                        color = Color.White,
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                    Text(label, color = RoyalColors.Gold, fontSize = 10.sp, maxLines = 1)
-                }
+        if (target.isRamadan) {
+            Text(
+                when (language) {
+                    "en" -> "☾ Ramadan Mubarak"
+                    "tr" -> "☾ Ramazanınız mübarek olsun"
+                    else -> "☾ رمضان مبارك"
+                },
+                color = RoyalColors.Gold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+        } else if (language == "ar") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Text("☾", color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("باقي لشهر رمضان", color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(displayedDays, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                Text("يوم", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+        } else {
+            Text(
+                if (language == "en") "☾ Days until Ramadan" else "☾ Ramazan'a kalan gün",
+                color = RoyalColors.Gold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (target.isRamadan) {
+            Text(
+                when (language) {
+                    "en" -> "May this month bring you blessings"
+                    "tr" -> "Ramazan ayınız mübarek olsun"
+                    else -> "تقبّل الله طاعتكم وكل عام وأنتم بخير"
+                },
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+        } else if (language != "ar") {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    remainingDays.toString(),
+                    color = Color.White,
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (language == "en") "days" else "gün",
+                    color = RoyalColors.Gold,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 7.dp)
+                )
             }
         }
     }
