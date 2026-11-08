@@ -118,7 +118,7 @@ internal fun WeatherGlassCard(
             .border(1.dp, Color(0xBFFFD76D), weatherFrame)
     ) {
         RoyalMotionImage(
-            image = painterResource(imageRes),
+            image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 1280, maxPixels = 2_097_152L),
             modifier = Modifier.matchParentSize(),
             motionEnabled = motionEnabled
         )
