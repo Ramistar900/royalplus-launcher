@@ -58,6 +58,8 @@ internal object RoyalOwlAmbienceController {
     private const val MAX_INTERVAL_MS = 60L * 60L * 1000L
     private const val MAX_WEATHER_AGE_MS = 90L * 60L * 1000L
     private const val OWL_VOLUME = 0.24f
+    private const val THUNDER_VOLUME = 0.30f
+    private const val THUNDER_AUDIO_URL = "https://ramistar900.github.io/royal-audio-player/assets/ogg/weather.thunderstorm.thunder.ogg"
 
     private val handler = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
@@ -67,6 +69,7 @@ internal object RoyalOwlAmbienceController {
     private var foreground = false
     private var scheduledTask: Runnable? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var thunderPlayer: MediaPlayer? = null
 
     fun setEnabled(context: Context, enabled: Boolean) {
         val applicationContext = context.applicationContext
@@ -88,19 +91,24 @@ internal object RoyalOwlAmbienceController {
         appContext = context.applicationContext
         foreground = true
         updateWeatherIdentity(weather)
+        if (isThunderstorm(weather)) playThunderstormOnce()
         scheduleNext()
     }
 
     fun onWeatherChanged(context: Context, weather: WeatherUiState) {
         appContext = context.applicationContext
         val changed = updateWeatherIdentity(weather)
-        if (changed && foreground) scheduleNext()
+        if (changed) {
+            if (isThunderstorm(weather)) playThunderstormOnce() else stopThunderPlayer()
+            if (foreground) scheduleNext()
+        }
     }
 
     fun onBackground() {
         foreground = false
         cancelScheduledTask()
         stopPlayer()
+        stopThunderPlayer()
     }
 
     private fun updateWeatherIdentity(weather: WeatherUiState): Boolean {
@@ -199,6 +207,67 @@ internal object RoyalOwlAmbienceController {
             player.start()
         } catch (_: Exception) {
             releasePlayerInstance(player)
+        }
+    }
+
+    private fun isThunderstorm(weather: WeatherUiState): Boolean =
+        !weather.isLoading && weather.weatherCode in 95..99
+
+    private fun playThunderstormOnce() {
+        val context = appContext ?: return
+        if (!foreground || latestWeather?.let(::isThunderstorm) != true || thunderPlayer != null) return
+
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        if (audioManager != null && audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) <= 0) return
+
+        val player = MediaPlayer()
+        thunderPlayer = player
+        try {
+            player.setAudioStreamType(AudioManager.STREAM_MUSIC)
+            player.setDataSource(THUNDER_AUDIO_URL)
+            player.setVolume(THUNDER_VOLUME, THUNDER_VOLUME)
+            player.setOnPreparedListener { prepared ->
+                if (thunderPlayer !== prepared || !foreground ||
+                    latestWeather?.let(::isThunderstorm) != true
+                ) {
+                    releaseThunderPlayerInstance(prepared)
+                } else {
+                    runCatching { prepared.start() }
+                        .onFailure { releaseThunderPlayerInstance(prepared) }
+                }
+            }
+            player.setOnCompletionListener { completed ->
+                releaseThunderPlayerInstance(completed)
+            }
+            player.setOnErrorListener { failed, _, _ ->
+                releaseThunderPlayerInstance(failed)
+                true
+            }
+            player.prepareAsync()
+        } catch (_: Exception) {
+            releaseThunderPlayerInstance(player)
+        }
+    }
+
+    private fun stopThunderPlayer() {
+        val active = thunderPlayer ?: return
+        thunderPlayer = null
+        runCatching {
+            active.setOnPreparedListener(null)
+            active.setOnCompletionListener(null)
+            active.setOnErrorListener(null)
+            if (active.isPlaying) active.stop()
+            active.release()
+        }
+    }
+
+    private fun releaseThunderPlayerInstance(player: MediaPlayer) {
+        if (thunderPlayer === player) thunderPlayer = null
+        runCatching {
+            player.setOnPreparedListener(null)
+            player.setOnCompletionListener(null)
+            player.setOnErrorListener(null)
+            player.release()
         }
     }
 
