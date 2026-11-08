@@ -1,6 +1,8 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import java.io.File
+import java.io.FileOutputStream
 import android.graphics.SurfaceTexture
 import android.media.AudioAttributes
 import android.media.MediaPlayer
@@ -178,7 +180,13 @@ internal fun RoyalFireplaceAudioEffect(enabled: Boolean) {
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                         .build()
                 )
-                created.setDataSource(FIREPLACE_AUDIO_URL)
+                val localAudio = File(context.cacheDir, "fireplace_audio.mp3")
+                if (!localAudio.isFile || localAudio.length() == 0L) {
+                    context.assets.open("fireplace_audio.mp3").use { input ->
+                        FileOutputStream(localAudio).use { output -> input.copyTo(output) }
+                    }
+                }
+                created.setDataSource(localAudio.absolutePath)
                 created.isLooping = true
                 created.setVolume(0.18f, 0.18f)
                 created.setOnPreparedListener { preparedPlayer ->
@@ -219,4 +227,3 @@ internal fun RoyalFireplaceAudioEffect(enabled: Boolean) {
     }
 }
 
-private const val FIREPLACE_AUDIO_URL = "https://sfxmint.com/dl/ambience-fireplace-50.mp3"
