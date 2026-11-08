@@ -84,6 +84,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -178,6 +183,33 @@ internal fun RoyalHomeScreen(
     }
     var screensaverMotionEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
+    }
+    var lakeWaterSoundEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("lake_water_sound_enabled", true))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
+        if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake"
+    val latestLakeWaterSoundState by rememberUpdatedState(shouldPlayLakeWaterSound)
+    LaunchedEffect(shouldPlayLakeWaterSound) {
+        RoyalLakeAmbienceController.sync(context, shouldPlayLakeWaterSound)
+    }
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
+                Lifecycle.Event.ON_STOP -> RoyalLakeAmbienceController.stop()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            RoyalLakeAmbienceController.stop()
+        }
     }
     var screensaverDelaySeconds by remember {
         mutableStateOf(wallpaperPreferences.getInt("screensaver_delay_seconds", 30).coerceIn(0, 300))
@@ -864,6 +896,35 @@ internal fun RoyalHomeScreen(
                                 repeat(4 - wallpaperRow.size) { Spacer(Modifier.weight(1f)) }
                             }
                             Spacer(Modifier.height(8.dp))
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (lakeWaterSoundEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    lakeWaterSoundEnabled = !lakeWaterSoundEnabled
+                                    wallpaperPreferences.edit().putBoolean("lake_water_sound_enabled", lakeWaterSoundEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.WaterDrop, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Lake water sound"; "tr" -> "Göl suyu sesi"; else -> "صوت جريان ماء البحيرة" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (lakeWaterSoundEnabled) when (selectedLanguage) { "en" -> "Enabled when Lake wallpaper is active"; "tr" -> "Göl duvar kâğıdı etkinken açık"; else -> "يعمل عند اختيار خلفية البحيرة" }
+                                    else when (selectedLanguage) { "en" -> "Disabled"; "tr" -> "Kapalı"; else -> "متوقف" },
+                                    color = if (lakeWaterSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (lakeWaterSoundEnabled) "ON" else "OFF", color = if (lakeWaterSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
