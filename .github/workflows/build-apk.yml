@@ -97,32 +97,7 @@ jobs:
           profile: Nexus 6
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            set -euo pipefail
-            APK="$(find "$GITHUB_WORKSPACE/app/build/outputs/apk" -type f -path "*/debug/*.apk" -print -quit)"
-            if [[ -z "$APK" || ! -s "$APK" ]]; then
-              echo "::error::Debug APK not found under $GITHUB_WORKSPACE/app/build/outputs/apk"
-              find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
-              exit 1
-            fi
-            test -s "$APK"
-            adb install -r "$APK"
-            adb logcat -c
-            adb shell am force-stop com.royalplus.launcher
-            adb shell am start -W -n com.royalplus.launcher/.MainActivity
-            for attempt in $(seq 1 20); do
-              if adb shell pidof com.royalplus.launcher >/dev/null 2>&1; then
-                break
-              fi
-              sleep 1
-            done
-            adb shell pidof com.royalplus.launcher | grep -Eq '[0-9]+'
-            APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -B3 -A20 'Process: com.royalplus.launcher' || true)"
-            if [[ -n "$APP_CRASH_LOG" ]]; then
-              printf '%s\\n' "$APP_CRASH_LOG"
-              exit 1
-            fi
-            echo "Android 8 API 26 install and launcher startup passed."
+          script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Create or update Android 8 test draft release
         if: github.event.pull_request.head.repo.full_name == github.repository
@@ -261,32 +236,7 @@ jobs:
           profile: Nexus 6
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            set -euo pipefail
-            APK="$(find "$GITHUB_WORKSPACE/app/build/outputs/apk" -type f -path "*/debug/*.apk" -print -quit)"
-            if [[ -z "$APK" || ! -s "$APK" ]]; then
-              echo "::error::Debug APK not found under $GITHUB_WORKSPACE/app/build/outputs/apk"
-              find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
-              exit 1
-            fi
-            test -s "$APK"
-            adb install -r "$APK"
-            adb logcat -c
-            adb shell am force-stop com.royalplus.launcher
-            adb shell am start -W -n com.royalplus.launcher/.MainActivity
-            for attempt in $(seq 1 20); do
-              if adb shell pidof com.royalplus.launcher >/dev/null 2>&1; then
-                break
-              fi
-              sleep 1
-            done
-            adb shell pidof com.royalplus.launcher | grep -Eq '[0-9]+'
-            APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -B3 -A20 'Process: com.royalplus.launcher' || true)"
-            if [[ -n "$APP_CRASH_LOG" ]]; then
-              printf '%s\\n' "$APP_CRASH_LOG"
-              exit 1
-            fi
-            echo "Android 8 API 26 install and launcher startup passed."
+          script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Build signed release APK
         if: steps.signing.outputs.available == 'true'
