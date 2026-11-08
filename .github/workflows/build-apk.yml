@@ -184,6 +184,9 @@ jobs:
           set -euo pipefail
           TAG="royalplus-build-${GITHUB_RUN_NUMBER}"
           APK="app/build/outputs/apk/release/app-release.apk"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          test -s "$DEBUG_APK"
           TITLE="ROYAL+ Launcher build ${GITHUB_RUN_NUMBER}"
           NOTES="Debug and signed APKs built from commit ${GITHUB_SHA}. app-debug.apk is for testing; app-release.apk is signed for installation. This is a draft release; review and publish it manually."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
