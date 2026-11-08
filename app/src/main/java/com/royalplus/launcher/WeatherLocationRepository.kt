@@ -158,7 +158,7 @@ internal object RoyalWeatherRepository {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             getCurrentLocation(context, manager, providers) ?: cached
         } else {
-            getLocationWithUpdates(manager, providers) ?: cached
+            getLocationWithUpdates(context, manager, providers) ?: cached
         }
     }
 
@@ -200,9 +200,16 @@ internal object RoyalWeatherRepository {
 
     @Suppress("DEPRECATION")
     private fun getLocationWithUpdates(
+        context: Context,
         manager: LocationManager,
         providers: List<String>
     ): Location? {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
+
         val latch = CountDownLatch(1)
         val result = AtomicReference<Location?>(null)
         val listener = object : LocationListener {
