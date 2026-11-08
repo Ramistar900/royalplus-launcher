@@ -68,7 +68,7 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
         // replacing it with cartoon shapes.
         for (index in 0 until 11) {
             val phase = (cycle + index * 0.137f) % 1f
-            val wave = sin((phase * 2.0 * PI).toFloat() + index * 1.37f)
+            val wave = sin(phase * 2f * PI.toFloat() + index * 1.37f)
             val pulse = 0.82f + 0.18f * wave
             val centerX = width * (0.285f + index * 0.043f)
             val flameHeight = height * (0.16f + (index % 4) * 0.035f) * pulse
