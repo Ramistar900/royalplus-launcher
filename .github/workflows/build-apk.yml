@@ -99,7 +99,12 @@ jobs:
           disable-animations: true
           script: |
             set -euo pipefail
-            APK="app/build/outputs/apk/debug/app-debug.apk"
+            APK="$(find "$GITHUB_WORKSPACE/app/build/outputs/apk" -type f -path "*/debug/*.apk" -print -quit)"
+            if [[ -z "$APK" || ! -s "$APK" ]]; then
+              echo "::error::Debug APK not found under $GITHUB_WORKSPACE/app/build/outputs/apk"
+              find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
+              exit 1
+            fi
             test -s "$APK"
             adb install -r "$APK"
             adb logcat -c
@@ -258,7 +263,12 @@ jobs:
           disable-animations: true
           script: |
             set -euo pipefail
-            APK="app/build/outputs/apk/debug/app-debug.apk"
+            APK="$(find "$GITHUB_WORKSPACE/app/build/outputs/apk" -type f -path "*/debug/*.apk" -print -quit)"
+            if [[ -z "$APK" || ! -s "$APK" ]]; then
+              echo "::error::Debug APK not found under $GITHUB_WORKSPACE/app/build/outputs/apk"
+              find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
+              exit 1
+            fi
             test -s "$APK"
             adb install -r "$APK"
             adb logcat -c
