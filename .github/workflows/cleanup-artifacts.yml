@@ -10,6 +10,10 @@ on:
         required: true
         type: boolean
         default: true
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup-artifacts.yml"
 
 permissions:
   actions: write
@@ -27,7 +31,7 @@ jobs:
       - name: Preview or remove older artifacts
         uses: actions/github-script@v7
         env:
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || github.event_name == 'pull_request' && 'true' || inputs.dry_run }}
         with:
           script: |
             const dryRun = process.env.DRY_RUN !== 'false';
