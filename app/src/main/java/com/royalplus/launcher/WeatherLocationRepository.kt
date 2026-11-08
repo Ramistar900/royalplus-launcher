@@ -207,6 +207,11 @@ internal object RoyalWeatherRepository {
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
             PackageManager.PERMISSION_GRANTED
         ) return null
+        // LocationManager.getCurrentLocation() was added in API 30.
+        // Android 8–10 use the legacy listener path instead.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return getLocationWithUpdates(context, manager, providers)
+        }
         val latch = CountDownLatch(1)
         val best = AtomicReference<Location?>(null)
         val remaining = AtomicInteger(providers.size)
