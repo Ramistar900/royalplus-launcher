@@ -97,6 +97,7 @@ internal fun QuranReaderScreen(
     var downloadAllInProgress by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableStateOf("") }
     var audioLibraryOpen by remember { mutableStateOf(false) }
+    var mossadSelectionsOpen by remember { mutableStateOf(false) }
     var downloadedAudioSurahs by remember(selectedReader) {
         mutableStateOf(QuranAudioRepository.downloadedSurahNumbers(context.applicationContext, selectedReader))
     }
@@ -271,6 +272,22 @@ internal fun QuranReaderScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF183B3C))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                    .clickable { mossadSelectionsOpen = true }
+                    .focusable()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("مختارات عبد الرحمن مسعد", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("17 تلاوة مختارة • تنزيل للاستماع دون إنترنت", color = RoyalColors.Pearl, fontSize = 10.sp)
+                }
+                Text("استعراض  ›", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
 
             OutlinedTextField(
@@ -981,6 +998,10 @@ internal fun QuranReaderScreen(
                 }
             }
         )
+    }
+
+    if (mossadSelectionsOpen) {
+        QuranMossadSelectionsScreen(onClose = { mossadSelectionsOpen = false })
     }
 }
 
