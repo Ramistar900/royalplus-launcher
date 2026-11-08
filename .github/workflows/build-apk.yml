@@ -79,13 +79,19 @@ jobs:
       - name: Run Android API compatibility lint
         run: /tmp/gradle-8.9/bin/gradle --no-daemon lintDebug
 
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Smoke test on Android 8 (API 26)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 26
           arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          profile: Nexus 6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: |
             set -euo pipefail
@@ -96,13 +102,13 @@ jobs:
             adb shell am force-stop com.royalplus.launcher
             adb shell am start -W -n com.royalplus.launcher/.MainActivity
             for attempt in $(seq 1 20); do
-              if adb shell pidof -s com.royalplus.launcher >/dev/null 2>&1; then
+              if adb shell pidof com.royalplus.launcher >/dev/null 2>&1; then
                 break
               fi
               sleep 1
             done
             adb shell pidof -s com.royalplus.launcher
-            APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -A20 'Process: com.royalplus.launcher' || true)"
+            APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -B3 -A20 'Process: com.royalplus.launcher' || true)"
             if [[ -n "$APP_CRASH_LOG" ]]; then
               printf '%s\\n' "$APP_CRASH_LOG"
               exit 1
