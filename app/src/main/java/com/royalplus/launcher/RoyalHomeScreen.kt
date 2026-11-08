@@ -193,18 +193,30 @@ internal fun RoyalHomeScreen(
     var fireCrackleSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("fire_crackle_sound_enabled", true))
     }
+    var oceanAnimationEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("ocean_background_animation_enabled", true))
+    }
+    var oceanWavesSoundEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("ocean_waves_sound_enabled", true))
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
         if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake"
     val shouldPlayFireCrackleSound = fireCrackleSoundEnabled &&
         if (showSmartScreensaver) selectedScreensaverWallpaper == "fire" else selectedWallpaper == "fire"
+    val shouldPlayOceanWavesSound = oceanWavesSoundEnabled &&
+        if (showSmartScreensaver) selectedScreensaverWallpaper == "ocean" else selectedWallpaper == "ocean"
     val latestLakeWaterSoundState by rememberUpdatedState(shouldPlayLakeWaterSound)
     val latestFireCrackleSoundState by rememberUpdatedState(shouldPlayFireCrackleSound)
+    val latestOceanWavesSoundState by rememberUpdatedState(shouldPlayOceanWavesSound)
     LaunchedEffect(shouldPlayLakeWaterSound) {
         RoyalLakeAmbienceController.sync(context, shouldPlayLakeWaterSound)
     }
     LaunchedEffect(shouldPlayFireCrackleSound) {
         RoyalFireAmbienceController.sync(context, shouldPlayFireCrackleSound)
+    }
+    LaunchedEffect(shouldPlayOceanWavesSound) {
+        RoyalOceanAmbienceController.sync(context, shouldPlayOceanWavesSound)
     }
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -212,10 +224,12 @@ internal fun RoyalHomeScreen(
                 Lifecycle.Event.ON_START -> {
                     RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
                     RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
+                    RoyalOceanAmbienceController.sync(context, latestOceanWavesSoundState)
                 }
                 Lifecycle.Event.ON_STOP -> {
                     RoyalLakeAmbienceController.stop()
                     RoyalFireAmbienceController.stop()
+                    RoyalOceanAmbienceController.stop()
                 }
                 else -> Unit
             }
@@ -224,11 +238,13 @@ internal fun RoyalHomeScreen(
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
             RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
+            RoyalOceanAmbienceController.sync(context, latestOceanWavesSoundState)
         }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             RoyalLakeAmbienceController.stop()
             RoyalFireAmbienceController.stop()
+            RoyalOceanAmbienceController.stop()
         }
     }
     var screensaverDelaySeconds by remember {
@@ -455,7 +471,7 @@ internal fun RoyalHomeScreen(
                     false
                 }
         ) {
-            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled, fireAnimationEnabled && !showSmartScreensaver)
+            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled, fireAnimationEnabled && !showSmartScreensaver, oceanAnimationEnabled && !showSmartScreensaver)
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
                     "en" -> "Manage ${app.label}"
@@ -661,6 +677,7 @@ internal fun RoyalHomeScreen(
                     selectedWallpaper = selectedScreensaverWallpaper,
                     motionEnabled = screensaverMotionEnabled,
                     fireAnimationEnabled = fireAnimationEnabled,
+                    oceanAnimationEnabled = oceanAnimationEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -819,7 +836,8 @@ internal fun RoyalHomeScreen(
                             Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
                             Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
-                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k)
+                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
+                            Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k)
                         )
                         homeWallpapers.chunked(4).forEach { wallpaperRow ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -947,6 +965,69 @@ internal fun RoyalHomeScreen(
                                 )
                             }
                             Text(if (lakeWaterSoundEnabled) "ON" else "OFF", color = if (lakeWaterSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Ocean effects"; "tr" -> "Okyanus efektleri"; else -> "مؤثرات موج البحر" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (oceanAnimationEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    oceanAnimationEnabled = !oceanAnimationEnabled
+                                    wallpaperPreferences.edit().putBoolean("ocean_background_animation_enabled", oceanAnimationEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.WaterDrop, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Moving ocean waves"; "tr" -> "Hareketli okyanus dalgaları"; else -> "تحريك أمواج البحر" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (oceanAnimationEnabled) when (selectedLanguage) { "en" -> "Subtle moving wave highlights enabled"; "tr" -> "Hafif dalga hareketi açık"; else -> "حركة الأمواج الخفيفة مفعّلة" }
+                                    else when (selectedLanguage) { "en" -> "Animation disabled"; "tr" -> "Animasyon kapalı"; else -> "حركة الأمواج متوقفة" },
+                                    color = if (oceanAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (oceanAnimationEnabled) "ON" else "OFF", color = if (oceanAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (oceanWavesSoundEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    oceanWavesSoundEnabled = !oceanWavesSoundEnabled
+                                    wallpaperPreferences.edit().putBoolean("ocean_waves_sound_enabled", oceanWavesSoundEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(Icons.Rounded.WaterDrop, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Ocean wave sound"; "tr" -> "Okyanus dalga sesi"; else -> "صوت تلاطم أمواج البحر" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (oceanWavesSoundEnabled) when (selectedLanguage) { "en" -> "Plays only with Ocean wallpaper"; "tr" -> "Yalnızca Okyanus duvar kâğıdında çalar"; else -> "يعمل فقط عند اختيار خلفية موج البحر" }
+                                    else when (selectedLanguage) { "en" -> "Sound disabled"; "tr" -> "Ses kapalı"; else -> "الصوت متوقف" },
+                                    color = if (oceanWavesSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (oceanWavesSoundEnabled) "ON" else "OFF", color = if (oceanWavesSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(
@@ -1240,7 +1321,8 @@ private fun RoyalBackdrop(
     modifier: Modifier = Modifier,
     selectedWallpaper: String,
     motionEnabled: Boolean = true,
-    fireAnimationEnabled: Boolean = true
+    fireAnimationEnabled: Boolean = true,
+    oceanAnimationEnabled: Boolean = true
 ) {
     RoyalMotionImage(
         image = painterResource(when (selectedWallpaper) {
@@ -1252,6 +1334,7 @@ private fun RoyalBackdrop(
             "sunset" -> R.drawable.royal_wallpaper_sunset_05
             "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
             "fire" -> R.drawable.royal_live_fire_4k
+            "ocean" -> R.drawable.royal_ocean_4k
             else -> R.drawable.royal_color_wallpaper
         }),
         modifier = modifier, motionEnabled = motionEnabled
@@ -1259,6 +1342,9 @@ private fun RoyalBackdrop(
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
     if (selectedWallpaper == "fire" && fireAnimationEnabled) {
         RoyalFireOverlay(modifier = modifier)
+    }
+    if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
+        RoyalOceanOverlay(modifier = modifier)
     }
 }
 
