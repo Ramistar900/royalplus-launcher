@@ -70,6 +70,14 @@ jobs:
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
+      - name: Upload debug APK for TV testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: royalplus-tv-test-apk-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
   release-main:
     name: Build signed APK and create GitHub draft release
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
