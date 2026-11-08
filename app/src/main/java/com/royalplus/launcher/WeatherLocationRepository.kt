@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Address
@@ -166,9 +167,9 @@ internal object RoyalWeatherRepository {
         val fresh = if (activeProviders.isEmpty()) {
             null
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getCurrentLocation(manager, activeProviders)
+            getCurrentLocation(context, manager, activeProviders)
         } else {
-            getLocationWithUpdates(manager, activeProviders)
+            getLocationWithUpdates(context, manager, activeProviders)
         }
 
         val selected = fresh ?: cached?.takeIf { now - it.time in 0..LOCATION_MAX_AGE_MS }
@@ -200,7 +201,12 @@ internal object RoyalWeatherRepository {
     }
 
 
-    private fun getCurrentLocation(manager: LocationManager, providers: List<String>): Location? {
+    // Re-check at the point of use: permission may be revoked after findLocation() starts.
+    @SuppressLint("MissingPermission")
+    private fun getCurrentLocation(context: Context, manager: LocationManager, providers: List<String>): Location? {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return null
         val latch = CountDownLatch(1)
         val best = AtomicReference<Location?>(null)
         val remaining = AtomicInteger(providers.size)
@@ -228,8 +234,12 @@ internal object RoyalWeatherRepository {
         return best.get()
     }
 
-    @Suppress("DEPRECATION")
-    private fun getLocationWithUpdates(manager: LocationManager, providers: List<String>): Location? {
+    // Re-check at the point of use: this helper is also called asynchronously from a worker.
+    @SuppressLint("MissingPermission", "DEPRECATION")
+    private fun getLocationWithUpdates(context: Context, manager: LocationManager, providers: List<String>): Location? {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return null
         val latch = CountDownLatch(1)
         val result = AtomicReference<Location?>(null)
         val listener = object : LocationListener {
