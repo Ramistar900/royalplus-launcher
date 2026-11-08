@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.app.role.RoleManager
 import android.widget.Toast
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -209,21 +208,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openDefaultHomeSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            try {
-                val roleManager = getSystemService(RoleManager::class.java)
-                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                    if (roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
-                        startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
-                    } else {
-                        startActivity(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
-                    }
-                    return
-                }
-            } catch (_: Exception) {
-                // Fall back to the device's supported Home settings screen.
-            }
-        }
+        if (HomeRoleCompat.openDefaultHomeSettings(this)) return
 
         val actions = listOf(
             Settings.ACTION_HOME_SETTINGS,
@@ -244,16 +229,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isRoyalPlusDefaultHome(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            try {
-                val roleManager = getSystemService(RoleManager::class.java)
-                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                    return roleManager.isRoleHeld(RoleManager.ROLE_HOME)
-                }
-            } catch (_: Exception) {
-                // Use the standard Home intent check below as a fallback.
-            }
-        }
+        HomeRoleCompat.isRoyalPlusDefaultHome(this)?.let { return it }
         val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         val resolved = packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
         return resolved?.activityInfo?.packageName == packageName
