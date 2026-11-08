@@ -76,6 +76,39 @@ jobs:
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
+      - name: Run Android API compatibility lint
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon lintDebug
+
+      - name: Smoke test on Android 8 (API 26)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            APK="app/build/outputs/apk/debug/app-debug.apk"
+            test -s "$APK"
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am force-stop com.royalplus.launcher
+            adb shell am start -W -n com.royalplus.launcher/.MainActivity
+            for attempt in $(seq 1 20); do
+              if adb shell pidof -s com.royalplus.launcher >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+            adb shell pidof -s com.royalplus.launcher
+            APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -A20 'Process: com.royalplus.launcher' || true)"
+            if [[ -n "$APP_CRASH_LOG" ]]; then
+              printf '%s\\n' "$APP_CRASH_LOG"
+              exit 1
+            fi
+            echo "Android 8 API 26 install and launcher startup passed."
+
   release-main:
     name: Build signed APK and create GitHub draft release
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
