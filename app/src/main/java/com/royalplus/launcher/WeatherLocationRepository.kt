@@ -162,6 +162,7 @@ internal object RoyalWeatherRepository {
         }
     }
 
+    @android.annotation.TargetApi(Build.VERSION_CODES.R)
     private fun getCurrentLocation(
         context: Context,
         manager: LocationManager,
