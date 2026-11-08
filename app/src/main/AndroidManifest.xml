@@ -25,6 +25,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".RoyalPlusApplication"
         android:allowBackup="true"
         android:banner="@drawable/launcher_banner"
         android:icon="@mipmap/ic_launcher"
