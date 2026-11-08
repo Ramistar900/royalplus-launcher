@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Handler
@@ -15,6 +16,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.Calendar
+import java.util.TimeZone
 import kotlin.random.Random
 
 @Composable
@@ -59,7 +61,33 @@ internal object RoyalOwlAmbienceController {
     private const val MAX_WEATHER_AGE_MS = 90L * 60L * 1000L
     private const val OWL_VOLUME = 0.24f
     private const val THUNDER_VOLUME = 0.30f
-    private const val THUNDER_AUDIO_URL = "https://ramistar900.github.io/royal-audio-player/assets/ogg/weather.thunderstorm.thunder.ogg"
+    private const val RAIN_VOLUME = 0.18f
+    private const val BIRDS_VOLUME = 0.16f
+    private const val WIND_VOLUME = 0.15f
+    private const val LEAVES_VOLUME = 0.11f
+
+    private const val THUNDER_AUDIO_URL =
+        "https://ramistar900.github.io/royal-audio-player/assets/ogg/weather.thunderstorm.thunder.ogg"
+    private const val RAIN_AUDIO_URL =
+        "https://ramistar900.github.io/royal-audio-player/assets/ogg/weather.rain.natural.ogg"
+    private const val BIRDS_GENERAL_AUDIO_URL =
+        "https://ramistar900.github.io/royal-audio-player/assets/ogg/nature.birds.general.ogg"
+    private const val BIRDS_MORNING_AUDIO_URL =
+        "https://ramistar900.github.io/royal-audio-player/assets/ogg/nature.birds.morning.ogg"
+    private const val WIND_AUDIO_URL =
+        "https://ramistar900.github.io/royal-audio-player/assets/ogg/nature.wind.gentle.ogg"
+    private const val LEAVES_AUDIO_URL =
+        "https://ramistar900.github.io/royal-audio-player/assets/ogg/nature.leaves.rustle.ogg"
+
+    private const val BREEZE_MIN_KMH = 18
+    private const val STRONG_WIND_KMH = 35
+    private const val LEAVES_MIN_KMH = 25
+
+    private data class WeatherAmbienceTrack(
+        val id: String,
+        val url: String,
+        val volume: Float
+    )
 
     private val handler = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
@@ -70,6 +98,8 @@ internal object RoyalOwlAmbienceController {
     private var scheduledTask: Runnable? = null
     private var mediaPlayer: MediaPlayer? = null
     private var thunderPlayer: MediaPlayer? = null
+    private val weatherAmbiencePlayers = linkedMapOf<String, MediaPlayer>()
+    private var activeWeatherAmbienceKey: String? = null
 
     fun setEnabled(context: Context, enabled: Boolean) {
         val applicationContext = context.applicationContext
@@ -92,6 +122,7 @@ internal object RoyalOwlAmbienceController {
         foreground = true
         updateWeatherIdentity(weather)
         if (isThunderstorm(weather)) playThunderstormOnce()
+        syncWeatherAmbience()
         scheduleNext()
     }
 
@@ -100,6 +131,7 @@ internal object RoyalOwlAmbienceController {
         val changed = updateWeatherIdentity(weather)
         if (changed) {
             if (isThunderstorm(weather)) playThunderstormOnce() else stopThunderPlayer()
+            syncWeatherAmbience()
             if (foreground) scheduleNext()
         }
     }
@@ -109,6 +141,7 @@ internal object RoyalOwlAmbienceController {
         cancelScheduledTask()
         stopPlayer()
         stopThunderPlayer()
+        stopWeatherAmbience()
     }
 
     private fun updateWeatherIdentity(weather: WeatherUiState): Boolean {
@@ -124,6 +157,138 @@ internal object RoyalOwlAmbienceController {
             }
         stopPlayer()
         return true
+    }
+
+    /**
+     * Selects only ambience that can be justified by the actual weather response:
+     * rain for precipitation, birds for calm clear daytime weather, and wind/leaves
+     * for measured moderate winds. Storms use the separate one-shot thunder sound.
+     */
+    private fun resolveWeatherAmbience(weather: WeatherUiState?): List<WeatherAmbienceTrack> {
+        if (weather == null || weather.isLoading) return emptyList()
+        val code = weather.weatherCode ?: return emptyList()
+
+        // The requested storm sound replaces the storm-rain recording entirely.
+        if (code in 95..99) return emptyList()
+
+        // Drizzle, freezing drizzle, rain, freezing rain and rain showers.
+        if (code in 51..67 || code in 80..82) {
+            return listOf(
+                WeatherAmbienceTrack("rain", RAIN_AUDIO_URL, RAIN_VOLUME)
+            )
+        }
+
+        val windSpeed = weather.windSpeedKmh
+        if (windSpeed != null && windSpeed >= STRONG_WIND_KMH) {
+            // The library has a gentle breeze recording, not a strong-wind effect.
+            return emptyList()
+        }
+        if (windSpeed != null && windSpeed >= BREEZE_MIN_KMH) {
+            return buildList {
+                add(WeatherAmbienceTrack("wind", WIND_AUDIO_URL, WIND_VOLUME))
+                if (windSpeed >= LEAVES_MIN_KMH) {
+                    add(WeatherAmbienceTrack("leaves", LEAVES_AUDIO_URL, LEAVES_VOLUME))
+                }
+            }
+        }
+
+        // Use bird ambience only in calm, clear/mostly-clear/partly-cloudy daylight.
+        if (code in 0..2) {
+            val zoneId = weather.timeZoneId ?: TimeZone.getDefault().id
+            val hour = Calendar.getInstance(TimeZone.getTimeZone(zoneId))
+                .get(Calendar.HOUR_OF_DAY)
+            if (hour in 5..10) {
+                return listOf(
+                    WeatherAmbienceTrack("birds-morning", BIRDS_MORNING_AUDIO_URL, BIRDS_VOLUME)
+                )
+            }
+            if (hour in 11..18) {
+                return listOf(
+                    WeatherAmbienceTrack("birds-day", BIRDS_GENERAL_AUDIO_URL, BIRDS_VOLUME)
+                )
+            }
+        }
+
+        // No unrelated coastal/stream sound is guessed from weather alone.
+        return emptyList()
+    }
+
+    private fun syncWeatherAmbience() {
+        if (!foreground) {
+            stopWeatherAmbience()
+            return
+        }
+
+        val tracks = resolveWeatherAmbience(latestWeather)
+        val nextKey = tracks.joinToString("|") { it.id }
+        if (nextKey == activeWeatherAmbienceKey &&
+            tracks.all { weatherAmbiencePlayers.containsKey(it.id) }
+        ) {
+            return
+        }
+
+        stopWeatherAmbience()
+        activeWeatherAmbienceKey = nextKey
+        tracks.forEach(::playWeatherAmbienceTrack)
+    }
+
+    private fun playWeatherAmbienceTrack(track: WeatherAmbienceTrack) {
+        val context = appContext ?: return
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        if (audioManager != null && audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) <= 0) {
+            return
+        }
+
+        val player = MediaPlayer()
+        weatherAmbiencePlayers[track.id] = player
+        try {
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            player.setDataSource(track.url)
+            player.isLooping = true
+            player.setVolume(track.volume, track.volume)
+            player.setOnPreparedListener { prepared ->
+                if (weatherAmbiencePlayers[track.id] !== prepared || !foreground) {
+                    releaseWeatherPlayerInstance(track.id, prepared)
+                } else {
+                    runCatching { prepared.start() }
+                        .onFailure { releaseWeatherPlayerInstance(track.id, prepared) }
+                }
+            }
+            player.setOnErrorListener { failed, _, _ ->
+                releaseWeatherPlayerInstance(track.id, failed)
+                true
+            }
+            player.prepareAsync()
+        } catch (_: Exception) {
+            releaseWeatherPlayerInstance(track.id, player)
+        }
+    }
+
+    private fun stopWeatherAmbience() {
+        val activePlayers = weatherAmbiencePlayers.toList()
+        weatherAmbiencePlayers.clear()
+        activeWeatherAmbienceKey = null
+        activePlayers.forEach { (id, player) ->
+            releaseWeatherPlayerInstance(id, player)
+        }
+    }
+
+    private fun releaseWeatherPlayerInstance(trackId: String, player: MediaPlayer) {
+        if (weatherAmbiencePlayers[trackId] === player) {
+            weatherAmbiencePlayers.remove(trackId)
+        }
+        runCatching {
+            player.setOnPreparedListener(null)
+            player.setOnCompletionListener(null)
+            player.setOnErrorListener(null)
+            if (player.isPlaying) player.stop()
+            player.release()
+        }
     }
 
     private fun scheduleNext() {
