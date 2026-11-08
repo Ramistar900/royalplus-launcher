@@ -1543,7 +1543,7 @@ private fun RoyalScenicBanner(
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
     Box(modifier.clip(shape).border(BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
-        Image(painterResource(R.drawable.royal_nature_wallpaper), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        Image(rememberRoyalBitmapPainter(R.drawable.royal_nature_wallpaper, maxEdgePx = 1024, maxPixels = 1_500_000L), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
         Row(
