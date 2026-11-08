@@ -5,12 +5,12 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 
 /**
- * Bundled prepared-loop fireplace ambience from SFXMint (CC0 1.0):
+ * Longer prepared-loop fireplace ambience from SFXMint, dedicated to CC0 1.0:
  * https://sfxmint.com/sounds/ambience-fireplace-50
- * Keeping the audio in app assets avoids network-dependent playback.
+ * The longer prepared loop reduces abrupt, repetitive short-fire restarts.
  */
 internal object RoyalFireAmbienceController {
-    private const val AUDIO_ASSET = "fireplace_ambience.mp3"
+    private const val AUDIO_URL = "https://sfxmint.com/dl/ambience-fireplace-50.mp3"
     private const val VOLUME = 0.18f
 
     private var player: MediaPlayer? = null
@@ -31,9 +31,7 @@ internal object RoyalFireAmbienceController {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
             )
-            context.applicationContext.assets.openFd(AUDIO_ASSET).use { audio ->
-                created.setDataSource(audio.fileDescriptor, audio.startOffset, audio.length)
-            }
+            created.setDataSource(AUDIO_URL)
             created.isLooping = true
             created.setVolume(VOLUME, VOLUME)
             created.setOnPreparedListener { prepared ->
