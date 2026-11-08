@@ -1,29 +1,65 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APK="$(find "$GITHUB_WORKSPACE/app/build/outputs/apk" -type f -path "*/debug/*.apk" -print -quit)"
+PACKAGE="com.royalplus.launcher"
+ACTIVITY="$PACKAGE/.MainActivity"
+APK_ROOT="$GITHUB_WORKSPACE/app/build/outputs/apk"
+APK="$(find "$APK_ROOT" -type f -path "*/debug/*.apk" -print -quit)"
+
 if [[ -z "$APK" || ! -s "$APK" ]]; then
-  echo "::error::Debug APK not found under $GITHUB_WORKSPACE/app/build/outputs/apk"
+  echo "::error::Debug APK not found under $APK_ROOT"
   find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
   exit 1
 fi
 
+echo "Installing Android 8 Debug APK: $APK"
 adb install -r "$APK"
-adb logcat -c
-adb shell am force-stop com.royalplus.launcher
-adb shell am start -W -n com.royalplus.launcher/.MainActivity
-sleep 5
-PID="$(adb shell pidof com.royalplus.launcher | tr -d '\r' || true)"
-if [[ -z "$PID" ]]; then
+
+# Stop any previous instance before starting a fresh, live log capture.
+adb shell am force-stop "$PACKAGE"
+
+# Do not run 'adb logcat -c': Android 8 emulator images may deny clearing
+# log buffers. Stream only new AndroidRuntime errors from this point onward.
+LOG_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+LOG_FILE="$LOG_DIR/android8-runtime-errors.log"
+: > "$LOG_FILE"
+adb logcat -v brief -s AndroidRuntime:E > "$LOG_FILE" 2>&1 &
+LOGCAT_PID=$!
+
+cleanup_logcat() {
+  kill "$LOGCAT_PID" >/dev/null 2>&1 || true
+  wait "$LOGCAT_PID" >/dev/null 2>&1 || true
+}
+trap cleanup_logcat EXIT
+
+sleep 1
+if ! kill -0 "$LOGCAT_PID" >/dev/null 2>&1; then
+  echo "::error::Could not start AndroidRuntime log capture."
+  cat "$LOG_FILE" || true
+  exit 1
+fi
+
+echo "Launching $ACTIVITY"
+START_OUTPUT="$(adb shell am start -W -n "$ACTIVITY" 2>&1)" || {
+  printf '%s\n' "$START_OUTPUT"
+  echo "::error::Activity launch command failed."
+  cat "$LOG_FILE" || true
+  exit 1
+}
+printf '%s\n' "$START_OUTPUT"
+
+sleep 8
+PID="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+if [[ -z "${PID//[[:space:]]/}" ]]; then
   echo "::error::ROYAL+ Launcher process did not remain alive after startup."
-  adb logcat -d -v brief -s AndroidRuntime:E
+  cat "$LOG_FILE" || true
+  adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" || true
   exit 1
 fi
 
-APP_CRASH_LOG="$(adb logcat -d -v brief -s AndroidRuntime:E | grep -B3 -A20 'Process: com.royalplus.launcher' || true)"
-if [[ -n "$APP_CRASH_LOG" ]]; then
-  printf '%s\n' "$APP_CRASH_LOG"
+if grep -E 'FATAL EXCEPTION|Process: com\.royalplus\.launcher' "$LOG_FILE"; then
+  echo "::error::AndroidRuntime reported a launcher crash during startup."
   exit 1
 fi
 
-echo "Android 8 API 26 install and launcher startup passed."
+echo "Android 8 API 26 install, activity launch, process liveness, and crash-log checks passed (PID: $PID)."
