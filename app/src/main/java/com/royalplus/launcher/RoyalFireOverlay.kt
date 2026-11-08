@@ -66,13 +66,13 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
 
         // Thin, low-opacity flame tongues reinforce the photographed fire rather than
         // replacing it with cartoon shapes.
-        for (index in 0 until 11) {
+        for (index in 0 until 13) {
             val phase = (cycle + index * 0.137f) % 1f
             val wave = sin(phase * 2f * PI.toFloat() + index * 1.37f)
-            val pulse = 0.82f + 0.18f * wave
-            val centerX = width * (0.285f + index * 0.043f)
-            val flameHeight = height * (0.16f + (index % 4) * 0.035f) * pulse
-            val flameWidth = width * (0.018f + (index % 3) * 0.0035f)
+            val pulse = 0.70f + 0.30f * wave
+            val centerX = width * (0.235f + index * 0.044f)
+            val flameHeight = height * (0.235f + (index % 5) * 0.038f) * pulse
+            val flameWidth = width * (0.024f + (index % 3) * 0.0045f)
             val sway = wave * flameWidth * 0.58f
             val tipX = centerX + sway
             val tipY = baseY - flameHeight
@@ -95,9 +95,9 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
                 path = outer,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0x77FFF0B0),
-                        Color(0x66FFB13B),
-                        Color(0x44FF5A12),
+                        Color(0xCCFFF0B0),
+                        Color(0xBFFF9B2E),
+                        Color(0x88FF5A12),
                         Color.Transparent
                     ),
                     startY = tipY,
@@ -125,9 +125,9 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
                 path = core,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0x88FFF8D6),
-                        Color(0x55FFE28A),
-                        Color(0x22FFC04B),
+                        Color(0xDDFFF8D6),
+                        Color(0xAAFFE28A),
+                        Color(0x66FFC04B),
                         Color.Transparent
                     ),
                     startY = baseY - coreHeight,
