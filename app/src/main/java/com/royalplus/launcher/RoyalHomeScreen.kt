@@ -207,27 +207,18 @@ internal fun RoyalHomeScreen(
     var syriaFlagAnimationEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("syria_flag_animation_enabled", true))
     }
-    var oceanWavesSoundEnabled by remember {
-        mutableStateOf(wallpaperPreferences.getBoolean("ocean_waves_sound_enabled", true))
-    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
         if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake"
     val shouldPlayFireCrackleSound = fireCrackleSoundEnabled &&
         if (showSmartScreensaver) selectedScreensaverWallpaper == "fire" else selectedWallpaper == "fire"
-    val shouldPlayOceanWavesSound = oceanWavesSoundEnabled &&
-        if (showSmartScreensaver) selectedScreensaverWallpaper == "ocean" else selectedWallpaper == "ocean"
     val latestLakeWaterSoundState by rememberUpdatedState(shouldPlayLakeWaterSound)
     val latestFireCrackleSoundState by rememberUpdatedState(shouldPlayFireCrackleSound)
-    val latestOceanWavesSoundState by rememberUpdatedState(shouldPlayOceanWavesSound)
     LaunchedEffect(shouldPlayLakeWaterSound) {
         RoyalLakeAmbienceController.sync(context, shouldPlayLakeWaterSound)
     }
     LaunchedEffect(shouldPlayFireCrackleSound) {
         RoyalFireAmbienceController.sync(context, shouldPlayFireCrackleSound)
-    }
-    LaunchedEffect(shouldPlayOceanWavesSound) {
-        RoyalOceanAmbienceController.sync(context, shouldPlayOceanWavesSound)
     }
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -235,12 +226,10 @@ internal fun RoyalHomeScreen(
                 Lifecycle.Event.ON_START -> {
                     RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
                     RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
-                    RoyalOceanAmbienceController.sync(context, latestOceanWavesSoundState)
                 }
                 Lifecycle.Event.ON_STOP -> {
                     RoyalLakeAmbienceController.stop()
                     RoyalFireAmbienceController.stop()
-                    RoyalOceanAmbienceController.stop()
                 }
                 else -> Unit
             }
@@ -249,13 +238,11 @@ internal fun RoyalHomeScreen(
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
             RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
-            RoyalOceanAmbienceController.sync(context, latestOceanWavesSoundState)
         }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             RoyalLakeAmbienceController.stop()
             RoyalFireAmbienceController.stop()
-            RoyalOceanAmbienceController.stop()
         }
     }
     var screensaverDelaySeconds by remember {
@@ -1058,34 +1045,6 @@ internal fun RoyalHomeScreen(
                             Text(if (oceanAnimationEnabled) "ON" else "OFF", color = if (oceanAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(8.dp))
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(if (oceanWavesSoundEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
-                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
-                                .clickable {
-                                    oceanWavesSoundEnabled = !oceanWavesSoundEnabled
-                                    wallpaperPreferences.edit().putBoolean("ocean_waves_sound_enabled", oceanWavesSoundEnabled).apply()
-                                }
-                                .focusable()
-                                .padding(horizontal = 14.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Icon(Icons.Rounded.WaterDrop, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    when (selectedLanguage) { "en" -> "Ocean wave sound"; "tr" -> "Okyanus dalga sesi"; else -> "صوت تلاطم أمواج البحر" },
-                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    if (oceanWavesSoundEnabled) when (selectedLanguage) { "en" -> "Plays only with Ocean wallpaper"; "tr" -> "Yalnızca Okyanus duvar kâğıdında çalar"; else -> "يعمل فقط عند اختيار خلفية موج البحر" }
-                                    else when (selectedLanguage) { "en" -> "Sound disabled"; "tr" -> "Ses kapalı"; else -> "الصوت متوقف" },
-                                    color = if (oceanWavesSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
-                                )
-                            }
-                            Text(if (oceanWavesSoundEnabled) "ON" else "OFF", color = if (oceanWavesSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        }
                         Spacer(Modifier.height(14.dp))
                         Text(
                             when (selectedLanguage) { "en" -> "Fireplace effects"; "tr" -> "Şömine efektleri"; else -> "مؤثرات المدفأة" },
