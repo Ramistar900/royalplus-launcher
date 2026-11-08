@@ -164,9 +164,10 @@ private fun decodeLegacyPhotoThumbnail(
         inJustDecodeBounds = true
         inScaled = false
     }
-    context.contentResolver.openInputStream(uri)?.use { stream ->
+    val boundsStream = context.contentResolver.openInputStream(uri) ?: return null
+    boundsStream.use { stream ->
         BitmapFactory.decodeStream(stream, null, bounds)
-    } ?: return null
+    }
 
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
