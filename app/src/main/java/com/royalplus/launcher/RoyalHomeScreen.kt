@@ -196,6 +196,9 @@ internal fun RoyalHomeScreen(
     var oceanAnimationEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("ocean_background_animation_enabled", true))
     }
+    var syriaFlagAnimationEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("syria_flag_animation_enabled", true))
+    }
     var oceanWavesSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("ocean_waves_sound_enabled", true))
     }
@@ -471,7 +474,7 @@ internal fun RoyalHomeScreen(
                     false
                 }
         ) {
-            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled, fireAnimationEnabled && !showSmartScreensaver, oceanAnimationEnabled && !showSmartScreensaver)
+            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled, fireAnimationEnabled && !showSmartScreensaver, oceanAnimationEnabled && !showSmartScreensaver, syriaFlagAnimationEnabled && !showSmartScreensaver)
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
                     "en" -> "Manage ${app.label}"
@@ -678,6 +681,7 @@ internal fun RoyalHomeScreen(
                     motionEnabled = screensaverMotionEnabled,
                     fireAnimationEnabled = fireAnimationEnabled,
                     oceanAnimationEnabled = oceanAnimationEnabled,
+                    syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -837,7 +841,8 @@ internal fun RoyalHomeScreen(
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
                             Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
                             Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
-                            Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k)
+                            Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k),
+                            Triple("syria", if (selectedLanguage == "en") "Syrian flag" else if (selectedLanguage == "tr") "Suriye bayrağı" else "علم سوريا", R.drawable.royal_syria_flag_4k)
                         )
                         homeWallpapers.chunked(4).forEach { wallpaperRow ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1093,6 +1098,37 @@ internal fun RoyalHomeScreen(
                             Text(if (fireCrackleSoundEnabled) "ON" else "OFF", color = if (fireCrackleSoundEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
+                        Text(when (selectedLanguage) { "en" -> "Syrian flag"; "tr" -> "Suriye bayrağı"; else -> "علم سوريا" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (syriaFlagAnimationEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    syriaFlagAnimationEnabled = !syriaFlagAnimationEnabled
+                                    wallpaperPreferences.edit().putBoolean("syria_flag_animation_enabled", syriaFlagAnimationEnabled).apply()
+                                }
+                                .focusable()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Spacer(Modifier.width(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Flag waving animation"; "tr" -> "Bayrak dalgalanma animasyonu"; else -> "حركة رفرفة العلم" },
+                                    color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    if (syriaFlagAnimationEnabled) when (selectedLanguage) { "en" -> "Silent fabric waving effect"; "tr" -> "Sessiz kumaş dalgalanma efekti"; else -> "رفرفة قماش بلا صوت" }
+                                    else when (selectedLanguage) { "en" -> "Animation disabled"; "tr" -> "Animasyon kapalı"; else -> "الحركة متوقفة" },
+                                    color = if (syriaFlagAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Text(if (syriaFlagAnimationEnabled) "ON" else "OFF", color = if (syriaFlagAnimationEnabled) RoyalColors.Gold else RoyalColors.Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(14.dp))
                         Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1322,7 +1358,8 @@ private fun RoyalBackdrop(
     selectedWallpaper: String,
     motionEnabled: Boolean = true,
     fireAnimationEnabled: Boolean = true,
-    oceanAnimationEnabled: Boolean = true
+    oceanAnimationEnabled: Boolean = true,
+    syriaFlagAnimationEnabled: Boolean = true
 ) {
     RoyalMotionImage(
         image = painterResource(when (selectedWallpaper) {
@@ -1335,6 +1372,7 @@ private fun RoyalBackdrop(
             "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
             "fire" -> R.drawable.royal_live_fire_4k
             "ocean" -> R.drawable.royal_ocean_4k
+            "syria" -> R.drawable.royal_syria_flag_4k
             else -> R.drawable.royal_color_wallpaper
         }),
         modifier = modifier, motionEnabled = motionEnabled
@@ -1345,6 +1383,9 @@ private fun RoyalBackdrop(
     }
     if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
         RoyalOceanOverlay(modifier = modifier)
+    }
+    if (selectedWallpaper == "syria" && syriaFlagAnimationEnabled) {
+        RoyalFlagOverlay(modifier = modifier)
     }
 }
 

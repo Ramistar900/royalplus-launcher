@@ -44,7 +44,8 @@ internal fun RoyalSmartScreensaver(
     onDismiss: () -> Unit,
     motionEnabled: Boolean = true,
     fireAnimationEnabled: Boolean = true,
-    oceanAnimationEnabled: Boolean = true
+    oceanAnimationEnabled: Boolean = true,
+    syriaFlagAnimationEnabled: Boolean = true
 ) {
     val isEnglish = language == "en"
     val isTurkish = language == "tr"
@@ -87,6 +88,7 @@ internal fun RoyalSmartScreensaver(
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
                 "fire" -> R.drawable.royal_live_fire_4k
                 "ocean" -> R.drawable.royal_ocean_4k
+                "syria" -> R.drawable.royal_syria_flag_4k
                 else -> R.drawable.royal_smart_screensaver
             }),
             modifier = Modifier.fillMaxSize(),
@@ -97,6 +99,9 @@ internal fun RoyalSmartScreensaver(
         }
         if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
             RoyalOceanOverlay(modifier = Modifier.fillMaxSize())
+        }
+        if (selectedWallpaper == "syria" && syriaFlagAnimationEnabled) {
+            RoyalFlagOverlay(modifier = Modifier.fillMaxSize())
         }
         RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
         Box(
