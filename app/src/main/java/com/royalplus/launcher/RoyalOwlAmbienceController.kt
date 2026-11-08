@@ -66,6 +66,7 @@ internal object RoyalOwlAmbienceController {
     private const val WIND_VOLUME = 0.15f
     private const val SNOW_LIGHT_WIND_VOLUME = 0.10f
     private const val SNOW_MODERATE_WIND_VOLUME = 0.15f
+    private const val SNOW_HEAVY_WIND_VOLUME = 0.20f
     private const val LEAVES_VOLUME = 0.11f
 
     private const val THUNDER_AUDIO_URL =
@@ -192,7 +193,12 @@ internal object RoyalOwlAmbienceController {
                 WeatherAmbienceTrack("snow-moderate-wind", WIND_AUDIO_URL, SNOW_MODERATE_WIND_VOLUME)
             )
         }
-        if (code == 75 || code == 77 || code == 86) return emptyList()
+        if (code == 75 || code == 86) {
+            return listOf(
+                WeatherAmbienceTrack("snow-heavy-wind", WIND_AUDIO_URL, SNOW_HEAVY_WIND_VOLUME)
+            )
+        }
+        if (code == 77) return emptyList()
 
         val windSpeed = weather.windSpeedKmh
         if (windSpeed != null && windSpeed >= STRONG_WIND_KMH) {
