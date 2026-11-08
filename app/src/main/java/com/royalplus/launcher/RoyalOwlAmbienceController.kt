@@ -64,6 +64,8 @@ internal object RoyalOwlAmbienceController {
     private const val RAIN_VOLUME = 0.18f
     private const val BIRDS_VOLUME = 0.16f
     private const val WIND_VOLUME = 0.15f
+    private const val SNOW_LIGHT_WIND_VOLUME = 0.10f
+    private const val SNOW_MODERATE_WIND_VOLUME = 0.15f
     private const val LEAVES_VOLUME = 0.11f
 
     private const val THUNDER_AUDIO_URL =
@@ -177,6 +179,20 @@ internal object RoyalOwlAmbienceController {
                 WeatherAmbienceTrack("rain", RAIN_AUDIO_URL, RAIN_VOLUME)
             )
         }
+
+        // Gentle wind can accompany light/moderate snowfall only.
+        // Heavy snow and snow grains are intentionally left without this gentle-wind track.
+        if (code == 71 || code == 85) {
+            return listOf(
+                WeatherAmbienceTrack("snow-light-wind", WIND_AUDIO_URL, SNOW_LIGHT_WIND_VOLUME)
+            )
+        }
+        if (code == 73) {
+            return listOf(
+                WeatherAmbienceTrack("snow-moderate-wind", WIND_AUDIO_URL, SNOW_MODERATE_WIND_VOLUME)
+            )
+        }
+        if (code == 75 || code == 77 || code == 86) return emptyList()
 
         val windSpeed = weather.windSpeedKmh
         if (windSpeed != null && windSpeed >= STRONG_WIND_KMH) {
