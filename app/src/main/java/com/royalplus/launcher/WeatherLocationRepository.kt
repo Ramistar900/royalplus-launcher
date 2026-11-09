@@ -69,7 +69,7 @@ internal object RoyalWeatherRepository {
                 // Weather must still load without asking for location permission.
                 val location = try {
                     findLocation(appContext)
-                } catch (_: SecurityException) {
+                } catch (_: Exception) {
                     null
                 }
                 if (location != null) {
