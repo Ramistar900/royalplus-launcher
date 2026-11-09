@@ -391,36 +391,73 @@ jobs:
             "$APKSIGNER" verify --verbose --print-certs "$APK"
           done
 
-      - name: Create or update GitHub draft release
+      - name: Publish automatic signed release on main or keep test draft
         env:
           GH_TOKEN: ${{ github.token }}
           SIGNED_AVAILABLE: ${{ steps.signing.outputs.available }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="royalplus-test-${GITHUB_RUN_NUMBER}"
           DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$DEBUG_APK"
-          ASSETS=("$DEBUG_APK")
-          NOTES="Debug APK for testing, built from commit ${GITHUB_SHA}. This draft passed Android Lint and Android 8 API 26 installation/startup checks."
-          if [[ "$SIGNED_AVAILABLE" == "true" ]]; then
-            mapfile -t RELEASE_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
-            if [[ "${#RELEASE_APKS[@]}" -gt 0 ]]; then
-              ASSETS+=("${RELEASE_APKS[@]}")
-              NOTES="$NOTES Signed release APKs are split by CPU ABI to reduce download size. Install the APK matching the TV/device architecture (arm64-v8a is common on newer TVs; armeabi-v7a is for 32-bit ARM devices)."
-            fi
+
+          IS_PRODUCTION_RELEASE=false
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            IS_PRODUCTION_RELEASE=true
+            TAG="royalplus-${GITHUB_RUN_NUMBER}"
+            TITLE="ROYAL+ Launcher ${GITHUB_RUN_NUMBER}"
           else
-            NOTES="$NOTES Signing secrets are not configured, so only the debug APK is attached."
+            TAG="royalplus-test-${GITHUB_RUN_NUMBER}"
+            TITLE="ROYAL+ Launcher test build ${GITHUB_RUN_NUMBER}"
           fi
-          TITLE="ROYAL+ Launcher test build ${GITHUB_RUN_NUMBER}"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
-            if [[ "$IS_DRAFT" != "true" ]]; then
-              echo "::error::Refusing to modify an already published release."
+
+          mapfile -t RELEASE_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
+          if [[ "$IS_PRODUCTION_RELEASE" == "true" ]]; then
+            if [[ "$SIGNED_AVAILABLE" != "true" || "${#RELEASE_APKS[@]}" -eq 0 ]]; then
+              echo "::error::A production release requires configured signing secrets and signed ABI APKs."
               exit 1
             fi
-            gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            ASSETS=("${RELEASE_APKS[@]}")
+            NOTES="Automatically published from verified main commit ${GITHUB_SHA}. This release passed assembleDebug, Android Lint, and Android 8 (API 26) emulator install/startup checks. The signed APKs are split by CPU ABI to reduce download size; install the APK matching the TV/device architecture."
           else
-            gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            ASSETS=("$DEBUG_APK")
+            NOTES="Test build from commit ${GITHUB_SHA}. This draft is not a production release."
+            if [[ "$SIGNED_AVAILABLE" == "true" && "${#RELEASE_APKS[@]}" -gt 0 ]]; then
+              ASSETS+=("${RELEASE_APKS[@]}")
+              NOTES="$NOTES Signed ABI-specific release APKs are included for installation-size testing."
+            else
+              NOTES="$NOTES Signing secrets are not configured, so only the debug APK is attached."
+            fi
+          fi
+
+          echo "APK sizes:"
+          for APK in "${ASSETS[@]}"; do
+            du -h "$APK"
+          done
+
+          if [[ "$IS_PRODUCTION_RELEASE" == "true" ]]; then
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+              if [[ "$IS_DRAFT" != "true" ]]; then
+                echo "::error::Refusing to overwrite an already published release."
+                exit 1
+              fi
+              gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+              RELEASE_ID="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json databaseId --jq '.databaseId')"
+              gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --method PATCH -F draft=false -F prerelease=false
+            else
+              gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES" --latest
+            fi
+          else
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+              if [[ "$IS_DRAFT" != "true" ]]; then
+                echo "::error::Refusing to modify an already published release."
+                exit 1
+              fi
+              gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            else
+              gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            fi
           fi
