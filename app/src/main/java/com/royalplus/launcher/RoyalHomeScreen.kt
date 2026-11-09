@@ -514,7 +514,9 @@ internal fun RoyalHomeScreen(
                                         onOpenWeather = { showWeatherDetails = true },
                                         onOpenSettings = { showWallpaperSettings = true },
                                         selectedLanguage = selectedLanguage,
-                                        weatherMotionEnabled = weatherMotionEnabled
+                                        weatherMotionEnabled = weatherMotionEnabled,
+                                        prayerTimes = prayerTimesForHome,
+                                        currentTimeMillis = currentTime
                                     )
                                     LauncherDestination.APPS -> AppCatalog(
                                         title = if (searchQuery.isBlank()) when (selectedLanguage) { "en" -> "All apps"; "tr" -> "Tüm uygulamalar"; else -> "جميع التطبيقات" } else when (selectedLanguage) { "en" -> "Search results"; "tr" -> "Arama sonuçları"; else -> "نتائج البحث" },
@@ -1427,6 +1429,7 @@ private fun HomeDashboard(
     onAppFocused: (String) -> Unit, onLaunchApp: (LauncherApp) -> Unit,
     onManageApp: (LauncherApp) -> Unit,
     currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
+    prayerTimes: PrayerTimesData?, currentTimeMillis: Long,
     onRequestLocation: () -> Unit,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
     onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String,
@@ -1459,6 +1462,8 @@ private fun HomeDashboard(
                 weather = weather,
                 language = selectedLanguage,
                 currentTime = currentTime,
+                prayerTimes = prayerTimes,
+                currentTimeMillis = currentTimeMillis,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
@@ -1540,6 +1545,8 @@ private fun RoyalScenicBanner(
     onRefreshWeather: () -> Unit,
     onOpenWeather: () -> Unit,
     onExploreApps: () -> Unit,
+    prayerTimes: PrayerTimesData?,
+    currentTimeMillis: Long,
     motionEnabled: Boolean = true
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -1570,6 +1577,8 @@ private fun RoyalScenicBanner(
             WeatherGlassCard(
                 weather = weather,
                 currentTime = currentTime,
+                prayerTimes = prayerTimes,
+                currentTimeMillis = currentTimeMillis,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
