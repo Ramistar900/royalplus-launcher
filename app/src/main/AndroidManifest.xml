@@ -37,6 +37,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
+        android:name=".RoyalPlusApplication"
         android:allowBackup="true"
         android:banner="@drawable/launcher_banner"
         android:icon="@mipmap/ic_launcher"
