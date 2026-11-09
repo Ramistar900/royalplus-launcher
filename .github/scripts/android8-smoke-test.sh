@@ -19,8 +19,8 @@ fi
 AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
 test -n "$AAPT"
 BADGING="$("$AAPT" dump badging "$APK")"
-PACKAGE="$(printf '%s\\n' "$BADGING" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")"
-ACTIVITY="$(printf '%s\\n' "$BADGING" | sed -n "s/^launchable-activity: name='\\([^']*\\)'.*/\\1/p")"
+PACKAGE="$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")"
+ACTIVITY="$(printf '%s\n' "$BADGING" | sed -n "s/^launchable-activity: name='\\([^']*\\)'.*/\\1/p")"
 test -n "$PACKAGE"
 test -n "$ACTIVITY"
 
