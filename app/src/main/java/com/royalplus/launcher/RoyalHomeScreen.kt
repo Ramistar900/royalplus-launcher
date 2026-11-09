@@ -13,6 +13,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -87,6 +91,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -177,6 +186,60 @@ internal fun RoyalHomeScreen(
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
+    var clickSoundsEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", true))
+    }
+    val latestClickSoundsEnabled = rememberUpdatedState(clickSoundsEnabled)
+    var lakeWaterSoundEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("lake_water_sound_enabled", true))
+    }
+    var fireCrackleSoundEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("fire_crackle_sound_enabled", true))
+    }
+    var oceanAnimationEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("ocean_background_animation_enabled", true))
+    }
+    var syriaFlagAnimationEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("syria_flag_animation_enabled", true))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
+        (if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake")
+    val shouldPlayFireCrackleSound = fireCrackleSoundEnabled &&
+        (if (showSmartScreensaver) selectedScreensaverWallpaper == "fire" else selectedWallpaper == "fire")
+    val latestLakeWaterSoundState by rememberUpdatedState(shouldPlayLakeWaterSound)
+    val latestFireCrackleSoundState by rememberUpdatedState(shouldPlayFireCrackleSound)
+    LaunchedEffect(shouldPlayLakeWaterSound) {
+        RoyalLakeAmbienceController.sync(context, shouldPlayLakeWaterSound)
+    }
+    LaunchedEffect(shouldPlayFireCrackleSound) {
+        RoyalFireAmbienceController.sync(context, shouldPlayFireCrackleSound)
+    }
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
+                    RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    RoyalLakeAmbienceController.stop()
+                    RoyalFireAmbienceController.stop()
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            RoyalLakeAmbienceController.sync(context, latestLakeWaterSoundState)
+            RoyalFireAmbienceController.sync(context, latestFireCrackleSoundState)
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            RoyalLakeAmbienceController.stop()
+            RoyalFireAmbienceController.stop()
+        }
+    }
     var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
     var selectedScreensaverWallpaper by remember {
         mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
@@ -398,17 +461,34 @@ internal fun RoyalHomeScreen(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
+                        if (latestClickSoundsEnabled.value) {
+                            context.getSystemService(android.media.AudioManager::class.java)
+                                ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+                        }
                         lastUserInteraction = System.currentTimeMillis()
                         showSmartScreensaver = false
                     }
                 }
-                .onPreviewKeyEvent {
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && latestClickSoundsEnabled.value &&
+                        event.key in setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
+                    ) {
+                        context.getSystemService(android.media.AudioManager::class.java)
+                            ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+                    }
                     lastUserInteraction = System.currentTimeMillis()
                     showSmartScreensaver = false
                     false
                 }
         ) {
-            RoyalBackdrop(Modifier.matchParentSize(), selectedWallpaper, homeMotionEnabled)
+            RoyalBackdrop(
+                modifier = Modifier.matchParentSize(),
+                selectedWallpaper = selectedWallpaper,
+                motionEnabled = homeMotionEnabled,
+                oceanAnimationEnabled = oceanAnimationEnabled,
+                syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
+                fireCrackleSoundEnabled = fireCrackleSoundEnabled
+            )
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
                     "en" -> "Manage ${app.label}"
@@ -616,7 +696,10 @@ internal fun RoyalHomeScreen(
                     weather = weather,
                     language = selectedLanguage,
                     selectedWallpaper = selectedScreensaverWallpaper,
-                    motionEnabled = screensaverMotionEnabled,
+                    motionEnabled = screensaverMotionEnabled && selectedScreensaverWallpaper != "fire",
+                    oceanAnimationEnabled = oceanAnimationEnabled,
+                    syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
+                    fireCrackleSoundEnabled = fireCrackleSoundEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -775,7 +858,9 @@ internal fun RoyalHomeScreen(
                             Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
                             Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
-                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k)
+                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
+                            Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k),
+                            Triple("syria", if (selectedLanguage == "en") "Syrian flag" else if (selectedLanguage == "tr") "Suriye bayrağı" else "علم سوريا", R.drawable.royal_syria_flag_4k)
                         )
                         homeWallpapers.chunked(4).forEach { wallpaperRow ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1100,10 +1185,17 @@ internal fun RoyalHomeScreen(
 }
 
 @Composable
-private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: String, motionEnabled: Boolean = true) {
+private fun RoyalBackdrop(
+    modifier: Modifier = Modifier,
+    selectedWallpaper: String,
+    motionEnabled: Boolean = true,
+    oceanAnimationEnabled: Boolean = true,
+    syriaFlagAnimationEnabled: Boolean = true,
+    fireCrackleSoundEnabled: Boolean = true
+) {
     if (selectedWallpaper == "fire") {
         RoyalFireplaceBackground(modifier = modifier.fillMaxSize())
-        RoyalFireplaceAudioEffect(enabled = true)
+        RoyalFireplaceAudioEffect(enabled = fireCrackleSoundEnabled)
     } else {
         RoyalMotionImage(
             image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
@@ -1114,12 +1206,21 @@ private fun RoyalBackdrop(modifier: Modifier = Modifier, selectedWallpaper: Stri
                 "mountains" -> R.drawable.royal_wallpaper_mountains_02
                 "sunset" -> R.drawable.royal_wallpaper_sunset_05
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                "ocean" -> R.drawable.royal_ocean_4k
+                "syria" -> R.drawable.royal_syria_flag_4k
                 else -> R.drawable.royal_color_wallpaper
             }, maxEdgePx = 2048),
-            modifier = modifier, motionEnabled = motionEnabled
+            modifier = modifier,
+            motionEnabled = motionEnabled
         )
     }
     Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
+    if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
+        RoyalOceanOverlay(modifier = modifier)
+    }
+    if (selectedWallpaper == "syria" && syriaFlagAnimationEnabled) {
+        RoyalFlagOverlay(modifier = modifier)
+    }
 }
 
 @Composable
