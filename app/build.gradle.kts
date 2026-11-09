@@ -43,6 +43,10 @@ android {
             signingConfig = signingConfigs.getByName(
                 if (releaseSigningAvailable) "release" else "debug"
             )
+            if (!releaseSigningAvailable) {
+                // Keep PR test installs side-by-side with the user's production app.
+                applicationIdSuffix = ".test"
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
