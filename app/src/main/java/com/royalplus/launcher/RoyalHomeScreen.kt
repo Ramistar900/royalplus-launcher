@@ -487,7 +487,6 @@ internal fun RoyalHomeScreen(
                 motionEnabled = homeMotionEnabled,
                 oceanAnimationEnabled = oceanAnimationEnabled,
                 syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
-                fireCrackleSoundEnabled = fireCrackleSoundEnabled
             )
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
@@ -699,7 +698,6 @@ internal fun RoyalHomeScreen(
                     motionEnabled = screensaverMotionEnabled && selectedScreensaverWallpaper != "fire",
                     oceanAnimationEnabled = oceanAnimationEnabled,
                     syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
-                    fireCrackleSoundEnabled = fireCrackleSoundEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -1267,12 +1265,10 @@ private fun RoyalBackdrop(
     selectedWallpaper: String,
     motionEnabled: Boolean = true,
     oceanAnimationEnabled: Boolean = true,
-    syriaFlagAnimationEnabled: Boolean = true,
-    fireCrackleSoundEnabled: Boolean = true
+    syriaFlagAnimationEnabled: Boolean = true
 ) {
     if (selectedWallpaper == "fire") {
         RoyalFireplaceBackground(modifier = modifier.fillMaxSize())
-        RoyalFireplaceAudioEffect(enabled = fireCrackleSoundEnabled)
     } else {
         RoyalMotionImage(
             image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
