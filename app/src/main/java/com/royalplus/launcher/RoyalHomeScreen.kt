@@ -186,6 +186,21 @@ internal fun RoyalHomeScreen(
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
+    var masterNatureSoundsEnabled by remember(wallpaperPreferences) {
+        mutableStateOf(wallpaperPreferences.getBoolean(RoyalWeatherAmbienceController.MASTER_ENABLED_KEY, true))
+    }
+    DisposableEffect(wallpaperPreferences) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
+            if (key == RoyalWeatherAmbienceController.MASTER_ENABLED_KEY) {
+                masterNatureSoundsEnabled = preferences.getBoolean(
+                    RoyalWeatherAmbienceController.MASTER_ENABLED_KEY,
+                    true
+                )
+            }
+        }
+        wallpaperPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { wallpaperPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
     var clickSoundsEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", true))
     }
@@ -207,9 +222,9 @@ internal fun RoyalHomeScreen(
         mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
     }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
+    val shouldPlayLakeWaterSound = masterNatureSoundsEnabled && lakeWaterSoundEnabled &&
         (if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake")
-    val shouldPlayFireCrackleSound = fireCrackleSoundEnabled &&
+    val shouldPlayFireCrackleSound = masterNatureSoundsEnabled && fireCrackleSoundEnabled &&
         (if (showSmartScreensaver) selectedScreensaverWallpaper == "fire" else selectedWallpaper == "fire")
     val latestLakeWaterSoundState by rememberUpdatedState(shouldPlayLakeWaterSound)
     val latestFireCrackleSoundState by rememberUpdatedState(shouldPlayFireCrackleSound)
