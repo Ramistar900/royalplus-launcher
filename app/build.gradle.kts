@@ -8,6 +8,12 @@ val signingKeystorePath = System.getenv("SIGNING_KEYSTORE_PATH")
 val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
 val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+val releaseSigningAvailable = listOf(
+    signingKeystorePath,
+    signingStorePassword,
+    signingKeyAlias,
+    signingKeyPassword
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.royalplus.launcher"
@@ -32,8 +38,14 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            // PR/manual validation can use the debug certificate; main releases
+            // always use the repository's private signing key.
+            signingConfig = signingConfigs.getByName(
+                if (releaseSigningAvailable) "release" else "debug"
+            )
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
 
