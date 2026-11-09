@@ -230,17 +230,40 @@ internal object RoyalAdhanScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExactAlarms(context)) {
-                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, candidate.triggerAtMillis, pendingIntent)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, candidate.triggerAtMillis, pendingIntent)
-            } else {
-                manager.set(AlarmManager.RTC_WAKEUP, candidate.triggerAtMillis, pendingIntent)
+            when {
+                // Android 8–11 do not require the Android 12 exact-alarm special access.
+                // Use the exact API on these versions instead of silently downgrading prayer times.
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.S ->
+                    manager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        candidate.triggerAtMillis,
+                        pendingIntent
+                    )
+
+                // Android 12+ requires exact-alarm access; otherwise keep a safe inexact fallback.
+                canScheduleExactAlarms(context) ->
+                    manager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        candidate.triggerAtMillis,
+                        pendingIntent
+                    )
+
+                else ->
+                    manager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        candidate.triggerAtMillis,
+                        pendingIntent
+                    )
             }
         } catch (_: SecurityException) {
+            // A user or OEM may revoke exact-alarm access between the check and scheduling.
             runCatching {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, candidate.triggerAtMillis, pendingIntent)
+                    manager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        candidate.triggerAtMillis,
+                        pendingIntent
+                    )
                 } else {
                     manager.set(AlarmManager.RTC_WAKEUP, candidate.triggerAtMillis, pendingIntent)
                 }
