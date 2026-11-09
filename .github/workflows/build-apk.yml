@@ -16,7 +16,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -70,6 +70,59 @@ jobs:
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
+      - name: Run Android API compatibility lint
+        shell: bash
+        run: |
+          set +e
+          /tmp/gradle-8.9/bin/gradle --no-daemon lintDebug
+          LINT_STATUS=$?
+          REPORT="$(find app/build -name lint-results-debug.txt -type f | head -n 1 || true)"
+          if [[ -n "$REPORT" ]]; then
+            echo "Full Android Lint report: $REPORT"
+            cat "$REPORT"
+          fi
+          exit "$LINT_STATUS"
+
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test on Android 8 (API 26)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          profile: Nexus 6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android8-smoke-test.sh
+
+      - name: Create or update Android 8 test draft release
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="royalplus-test-pr38"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          TITLE="ROYAL+ Launcher • PR #38 Android 8 test"
+          NOTES="Validated Debug APK from commit ${GITHUB_SHA}. Build and Android Lint passed; the APK was installed and the launcher started on Android 8 (API 26). This is a draft for testing, not a production release."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+            if [[ "$IS_DRAFT" != "true" ]]; then
+              echo "::error::Refusing to modify an already published release."
+              exit 1
+            fi
+            gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+          else
+            gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+          fi
+
   release-main:
     name: Build signed APK and create GitHub draft release
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
@@ -106,7 +159,6 @@ jobs:
         run: echo "::warning::Signed release skipped. Add SIGNING_KEYSTORE_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS and SIGNING_KEY_PASSWORD repository secrets."
 
       - name: Fetch Royal Arabic fonts
-        if: steps.signing.outputs.available == 'true'
         run: |
           mkdir -p app/src/main/res/font
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/cairo.ttf --output app/src/main/res/font/cairo.ttf
@@ -116,7 +168,6 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
 
       - name: Download and verify offline Quran text
-        if: steps.signing.outputs.available == 'true'
         run: |
           mkdir -p app/src/main/assets
           curl --fail --location --retry 3 https://raw.githubusercontent.com/dotquran/corpus/c23f5cec2e95e253dc450bd0f34d09e37ba40fac/processed/quran-uthmani.json --output app/src/main/assets/quran-uthmani.json
@@ -143,7 +194,6 @@ jobs:
           PY
 
       - name: Download Gradle 8.9
-        if: steps.signing.outputs.available == 'true'
         run: |
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
@@ -155,6 +205,38 @@ jobs:
         run: |
           echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/royalplus-release.keystore"
           chmod 600 "$RUNNER_TEMP/royalplus-release.keystore"
+
+      - name: Build debug APK
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
+
+      - name: Run Android API compatibility lint
+        shell: bash
+        run: |
+          set +e
+          /tmp/gradle-8.9/bin/gradle --no-daemon lintDebug
+          LINT_STATUS=$?
+          REPORT="$(find app/build -name lint-results-debug.txt -type f | head -n 1 || true)"
+          if [[ -n "$REPORT" ]]; then
+            echo "Full Android Lint report: $REPORT"
+            cat "$REPORT"
+          fi
+          exit "$LINT_STATUS"
+
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test on Android 8 (API 26)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          profile: Nexus 6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Build signed release APK
         if: steps.signing.outputs.available == 'true'
@@ -169,29 +251,40 @@ jobs:
         if: steps.signing.outputs.available == 'true'
         run: |
           APK="app/build/outputs/apk/release/app-release.apk"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$DEBUG_APK"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Create or update GitHub draft release
-        if: steps.signing.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          SIGNED_AVAILABLE: ${{ steps.signing.outputs.available }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="royalplus-build-${GITHUB_RUN_NUMBER}"
-          APK="app/build/outputs/apk/release/app-release.apk"
-          TITLE="ROYAL+ Launcher build ${GITHUB_RUN_NUMBER}"
-          NOTES="Signed APK built from commit ${GITHUB_SHA}. This is a draft release; review and publish it manually."
+          TAG="royalplus-test-${GITHUB_RUN_NUMBER}"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          RELEASE_APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$DEBUG_APK"
+          ASSETS=("$DEBUG_APK")
+          NOTES="Debug APK for testing, built from commit ${GITHUB_SHA}. This draft passed Android Lint and Android 8 API 26 installation/startup checks."
+          if [[ "$SIGNED_AVAILABLE" == "true" && -s "$RELEASE_APK" ]]; then
+            ASSETS+=("$RELEASE_APK")
+            NOTES="$NOTES A signed release APK is also attached."
+          else
+            NOTES="$NOTES Signing secrets are not configured, so only the debug APK is attached."
+          fi
+          TITLE="ROYAL+ Launcher test build ${GITHUB_RUN_NUMBER}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
             if [[ "$IS_DRAFT" != "true" ]]; then
               echo "::error::Refusing to modify an already published release."
               exit 1
             fi
-            gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
-            gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           fi

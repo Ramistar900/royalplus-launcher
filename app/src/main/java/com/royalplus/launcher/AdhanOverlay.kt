@@ -58,12 +58,12 @@ internal fun AdhanOverlay(
             }
         }
         val filter = android.content.IntentFilter(RoyalAdhanPlaybackService.ACTION_PLAYBACK_FINISHED)
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            context.registerReceiver(receiver, filter)
-        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         onDispose {
             runCatching { context.unregisterReceiver(receiver) }
         }

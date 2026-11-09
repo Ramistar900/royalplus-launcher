@@ -111,10 +111,17 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (hasLocationPermission() || hasSavedManualWeatherCity()) {
+        if (hasSavedManualWeatherCity()) {
             refreshWeather()
         } else {
-            requestLocationPermission()
+            // Do not interrupt Android TV startup with a runtime permission dialog.
+            // The user can explicitly enable device location from the weather settings.
+            weatherState = WeatherUiState(
+                city = "اختر المدينة",
+                description = "يمكنك اختيار مدينة يدوياً أو تفعيل موقع الجهاز من إعدادات الطقس",
+                isLoading = false,
+                needsPermission = !hasLocationPermission()
+            )
         }
     }
 
