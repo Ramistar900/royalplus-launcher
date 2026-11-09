@@ -880,6 +880,56 @@ internal fun RoyalHomeScreen(
                             }
                             Spacer(Modifier.height(8.dp))
                         }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Ambient sound & background effects"; "tr" -> "Ortam sesleri ve arka plan efektleri"; else -> "أصوات الطبيعة ومؤثرات الخلفيات" },
+                            color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        RoyalFeatureToggleRow(
+                            title = when (selectedLanguage) { "en" -> "Button and navigation clicks"; "tr" -> "Düğme ve gezinme tıklamaları"; else -> "صوت النقر والتنقل" },
+                            detail = if (clickSoundsEnabled) "ON" else "OFF",
+                            checked = clickSoundsEnabled,
+                            onClick = {
+                                clickSoundsEnabled = !clickSoundsEnabled
+                                wallpaperPreferences.edit().putBoolean("ui_click_sounds_enabled", clickSoundsEnabled).apply()
+                            }
+                        )
+                        RoyalFeatureToggleRow(
+                            title = when (selectedLanguage) { "en" -> "Lake water sound"; "tr" -> "Göl suyu sesi"; else -> "صوت جريان ماء البحيرة" },
+                            detail = if (lakeWaterSoundEnabled) "ON" else "OFF",
+                            checked = lakeWaterSoundEnabled,
+                            onClick = {
+                                lakeWaterSoundEnabled = !lakeWaterSoundEnabled
+                                wallpaperPreferences.edit().putBoolean("lake_water_sound_enabled", lakeWaterSoundEnabled).apply()
+                            }
+                        )
+                        RoyalFeatureToggleRow(
+                            title = when (selectedLanguage) { "en" -> "Fire crackling sound"; "tr" -> "Ateş çıtırtısı sesi"; else -> "صوت طقطقة واحتراق الحطب" },
+                            detail = if (fireCrackleSoundEnabled) "ON" else "OFF",
+                            checked = fireCrackleSoundEnabled,
+                            onClick = {
+                                fireCrackleSoundEnabled = !fireCrackleSoundEnabled
+                                wallpaperPreferences.edit().putBoolean("fire_crackle_sound_enabled", fireCrackleSoundEnabled).apply()
+                            }
+                        )
+                        RoyalFeatureToggleRow(
+                            title = when (selectedLanguage) { "en" -> "Moving ocean waves"; "tr" -> "Hareketli okyanus dalgaları"; else -> "تحريك أمواج البحر" },
+                            detail = if (oceanAnimationEnabled) "ON" else "OFF",
+                            checked = oceanAnimationEnabled,
+                            onClick = {
+                                oceanAnimationEnabled = !oceanAnimationEnabled
+                                wallpaperPreferences.edit().putBoolean("ocean_background_animation_enabled", oceanAnimationEnabled).apply()
+                            }
+                        )
+                        RoyalFeatureToggleRow(
+                            title = when (selectedLanguage) { "en" -> "Flag waving animation"; "tr" -> "Bayrak dalgalanma animasyonu"; else -> "حركة رفرفة العلم" },
+                            detail = if (syriaFlagAnimationEnabled) "ON" else "OFF",
+                            checked = syriaFlagAnimationEnabled,
+                            onClick = {
+                                syriaFlagAnimationEnabled = !syriaFlagAnimationEnabled
+                                wallpaperPreferences.edit().putBoolean("syria_flag_animation_enabled", syriaFlagAnimationEnabled).apply()
+                            }
+                        )
                         Spacer(Modifier.height(8.dp))
                         Text(when (selectedLanguage) { "en" -> "Smart screensaver"; "tr" -> "Akıllı ekran koruyucu"; else -> "الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
@@ -1181,6 +1231,33 @@ internal fun RoyalHomeScreen(
             }
         }
     }
+    }
+}
+
+@Composable
+private fun RoyalFeatureToggleRow(
+    title: String,
+    detail: String,
+    checked: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (checked) RoyalColors.Gold.copy(alpha = 0.12f) else Color(0xFF080A0F))
+            .border(
+                1.dp,
+                if (checked) RoyalColors.Gold.copy(alpha = 0.55f) else RoyalColors.Gold.copy(alpha = 0.24f),
+                RoundedCornerShape(10.dp)
+            )
+            .clickable(onClick = onClick)
+            .focusable()
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(title, color = RoyalColors.Pearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(detail, color = if (checked) RoyalColors.Gold else RoyalColors.Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
