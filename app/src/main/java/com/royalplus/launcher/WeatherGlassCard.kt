@@ -74,6 +74,8 @@ private fun weatherVisual(weather: WeatherUiState): WeatherVisual {
 internal fun WeatherGlassCard(
     weather: WeatherUiState,
     currentTime: String,
+    prayerTimes: PrayerTimesData?,
+    currentTimeMillis: Long,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
     onOpenWeather: () -> Unit,
@@ -82,6 +84,46 @@ internal fun WeatherGlassCard(
     motionEnabled: Boolean = true
 ) {
     RoyalOwlAmbienceEffect(weather)
+    val prayerZone = java.util.TimeZone.getTimeZone(
+        weather.timeZoneId ?: java.util.TimeZone.getDefault().id
+    )
+    val prayerClock = java.util.Calendar.getInstance(prayerZone).apply {
+        timeInMillis = currentTimeMillis
+    }
+    val currentPrayerMinute = prayerClock.get(java.util.Calendar.HOUR_OF_DAY) * 60 +
+        prayerClock.get(java.util.Calendar.MINUTE)
+    val prayerEntries = listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")
+        .mapNotNull { key ->
+            prayerTimes?.times?.get(key)?.let { time ->
+                val parts = time.split(":")
+                val hour = parts.getOrNull(0)?.toIntOrNull()
+                val minute = parts.getOrNull(1)?.toIntOrNull()
+                if (hour != null && minute != null && hour in 0..23 && minute in 0..59) {
+                    Triple(key, time, hour * 60 + minute)
+                } else null
+            }
+        }
+    val nextPrayer = prayerEntries.firstOrNull { it.third > currentPrayerMinute }
+        ?: prayerEntries.firstOrNull { it.first == "Fajr" }
+    val prayerCountdown = nextPrayer?.let { (_, time, _) ->
+        val parts = time.split(":")
+        val target = java.util.Calendar.getInstance(prayerZone).apply {
+            timeInMillis = currentTimeMillis
+            set(java.util.Calendar.HOUR_OF_DAY, parts[0].toInt())
+            set(java.util.Calendar.MINUTE, parts[1].toInt())
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+            if (timeInMillis <= currentTimeMillis) add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        val remaining = ((target.timeInMillis - currentTimeMillis) / 1000L).coerceAtLeast(0L)
+        String.format(
+            java.util.Locale.US,
+            "%02d:%02d:%02d",
+            remaining / 3600L,
+            (remaining % 3600L) / 60L,
+            remaining % 60L
+        )
+    }
     val visual = weatherVisual(weather)
     val localizedDescription = when (weather.weatherCode) {
         0 -> when (language) { "en" -> "Clear sky"; "tr" -> "Açık hava"; else -> "سماء صافية" }
@@ -170,6 +212,62 @@ internal fun WeatherGlassCard(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
+            if (nextPrayer != null) {
+                Spacer(Modifier.height(5.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x553B321C))
+                        .padding(horizontal = 7.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(horizontalAlignment = Alignment.Start) {
+                        Text(
+                            text = when (language) {
+                                "en" -> "Next prayer"
+                                "tr" -> "Sonraki namaz"
+                                else -> "الصلاة القادمة"
+                            },
+                            color = Color(0xFFFFE4A6),
+                            fontSize = 8.sp,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = PrayerTimesRepository.displayNames()[nextPrayer.first] ?: nextPrayer.first,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            nextPrayer.second,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            prayerCountdown ?: "",
+                            color = Color(0xFFFFD76D),
+                            fontSize = 8.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
+            } else if (!weather.isLoading) {
+                Text(
+                    text = when (language) {
+                        "en" -> "Prayer times unavailable"
+                        "tr" -> "Namaz vakitleri yok"
+                        else -> "مواقيت الصلاة غير متاحة"
+                    },
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 8.sp,
+                    maxLines = 1
+                )
+            }
             if (weather.needsPermission || (!weather.isLoading && weather.temperatureC == null)) {
                 Spacer(Modifier.height(3.dp))
                 Row(

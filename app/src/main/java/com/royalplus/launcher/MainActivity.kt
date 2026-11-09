@@ -111,18 +111,8 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (hasSavedManualWeatherCity()) {
-            refreshWeather()
-        } else {
-            // Do not interrupt Android TV startup with a runtime permission dialog.
-            // The user can explicitly enable device location from the weather settings.
-            weatherState = WeatherUiState(
-                city = "اختر المدينة",
-                description = "يمكنك اختيار مدينة يدوياً أو تفعيل موقع الجهاز من إعدادات الطقس",
-                isLoading = false,
-                needsPermission = !hasLocationPermission()
-            )
-        }
+        // Start weather without a mandatory GPS permission; the repository falls back to IP location.
+        refreshWeather()
     }
 
     override fun onResume() {
@@ -285,7 +275,7 @@ class MainActivity : ComponentActivity() {
     private fun clearManualWeatherCityAndUseDeviceLocation() {
         getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
             .edit().remove("weather_manual_city").apply()
-        if (hasLocationPermission()) refreshWeather() else requestLocationPermission()
+        refreshWeather()
     }
 
     private fun requestLocationPermission() {
@@ -311,16 +301,6 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        if (!hasLocationPermission()) {
-            weatherState = WeatherUiState(
-                city = "الموقع غير متاح",
-                description = "اسمح بالوصول إلى الموقع لعرض الطقس",
-                isLoading = false,
-                needsPermission = true
-            )
-            return
-        }
-
         weatherState = WeatherUiState(
             city = "جارٍ تحديد الموقع",
             description = "جارٍ تحميل الطقس",
