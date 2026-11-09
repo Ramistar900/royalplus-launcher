@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,11 +47,29 @@ import androidx.compose.ui.unit.sp
 @Composable
 internal fun RoyalDeviceSettingsSection(language: String) {
     val context = LocalContext.current
-    val owlPreferences = remember(context) {
-        context.getSharedPreferences(RoyalOwlAmbienceController.PREFERENCES_NAME, Context.MODE_PRIVATE)
+    val audioPreferences = remember(context) {
+        context.getSharedPreferences(RoyalWeatherAmbienceController.PREFERENCES_NAME, Context.MODE_PRIVATE)
     }
-    var owlSoundEnabled by remember(owlPreferences) {
-        mutableStateOf(owlPreferences.getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true))
+    var masterSoundsEnabled by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getBoolean(RoyalWeatherAmbienceController.MASTER_ENABLED_KEY, true))
+    }
+    var rainSoundEnabled by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getBoolean(RoyalWeatherAmbienceController.RAIN_ENABLED_KEY, true))
+    }
+    var thunderSoundEnabled by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getBoolean(RoyalWeatherAmbienceController.THUNDER_ENABLED_KEY, true))
+    }
+    var windSoundEnabled by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getBoolean(RoyalWeatherAmbienceController.WIND_ENABLED_KEY, true))
+    }
+    var birdsSoundEnabled by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getBoolean(RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY, true))
+    }
+    var owlSoundEnabled by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true))
+    }
+    var audioVolume by remember(audioPreferences) {
+        mutableStateOf(audioPreferences.getFloat(RoyalWeatherAmbienceController.VOLUME_KEY, 0.72f).coerceIn(0f, 1f))
     }
     val storage = storageSummary(language)
     val connection = connectionSummary(context, language)
@@ -92,22 +111,77 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             if (language == "en") "Volume and audio output" else if (language == "tr") "Ses seviyesi ve çıkışı" else "مستوى الصوت ومخرج الصوت") {
             openSystemSettings(context, Settings.ACTION_SOUND_SETTINGS)
         }
+        Text(
+            if (language == "en") "Nature & weather sounds" else if (language == "tr") "Doğa ve hava sesleri" else "أصوات الطبيعة والطقس",
+            color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold
+        )
+        val enabledLabel: (Boolean) -> String = { enabled ->
+            if (enabled) {
+                if (language == "en") "Enabled" else if (language == "tr") "Etkin" else "مفعّل"
+            } else {
+                if (language == "en") "Muted" else if (language == "tr") "Sessiz" else "مكتوم"
+            }
+        }
+        val mutedByMaster = if (language == "en") "Muted by master switch" else if (language == "tr") "Ana anahtar kapalı" else "مكتوم بسبب كتم جميع الأصوات"
         SettingsInfoRow(
             Icons.Rounded.VolumeUp,
-            if (language == "en") "Night owl call" else if (language == "tr") "Gece baykuş sesi" else "نداء البومة الليلي",
-            if (owlSoundEnabled) {
-                if (language == "en") "Enabled • clear nights only; volume follows device media level"
-                else if (language == "tr") "Açık • yalnızca açık gecelerde; ses cihazın medya düzeyini izler"
-                else "مفعّل • في الليالي الصافية فقط؛ مستوى الصوت من الجهاز"
+            if (language == "en") "Mute all nature sounds" else if (language == "tr") "Tüm doğa seslerini kapat" else "كتم جميع الأصوات",
+            if (masterSoundsEnabled) {
+                if (language == "en") "All automatic weather and nature sounds are allowed • tap to mute"
+                else if (language == "tr") "Tüm otomatik hava ve doğa sesleri açık • kapatmak için dokunun"
+                else "الأصوات التلقائية مسموحة • اضغط لكتمها"
             } else {
-                if (language == "en") "Muted • tap to enable"
-                else if (language == "tr") "Sessiz • açmak için dokunun"
-                else "مكتوم • اضغط للتشغيل"
+                if (language == "en") "All nature and weather sounds are muted • tap to enable"
+                else if (language == "tr") "Tüm doğa ve hava sesleri kapalı • açmak için dokunun"
+                else "جميع أصوات الطبيعة والطقس مكتومة • اضغط للتشغيل"
             }
         ) {
-            owlSoundEnabled = !owlSoundEnabled
-            RoyalOwlAmbienceController.setEnabled(context, owlSoundEnabled)
+            masterSoundsEnabled = !masterSoundsEnabled
+            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY, masterSoundsEnabled)
         }
+        SettingsInfoRow(Icons.Rounded.VolumeUp,
+            if (language == "en") "Rain" else if (language == "tr") "Yağmur" else "المطر",
+            if (!masterSoundsEnabled) mutedByMaster else enabledLabel(rainSoundEnabled)) {
+            rainSoundEnabled = !rainSoundEnabled
+            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalWeatherAmbienceController.RAIN_ENABLED_KEY, rainSoundEnabled)
+        }
+        SettingsInfoRow(Icons.Rounded.VolumeUp,
+            if (language == "en") "Thunder" else if (language == "tr") "Gök gürültüsü" else "الرعد",
+            if (!masterSoundsEnabled) mutedByMaster else enabledLabel(thunderSoundEnabled)) {
+            thunderSoundEnabled = !thunderSoundEnabled
+            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalWeatherAmbienceController.THUNDER_ENABLED_KEY, thunderSoundEnabled)
+        }
+        SettingsInfoRow(Icons.Rounded.VolumeUp,
+            if (language == "en") "Wind" else if (language == "tr") "Rüzgâr" else "الرياح",
+            if (!masterSoundsEnabled) mutedByMaster else enabledLabel(windSoundEnabled)) {
+            windSoundEnabled = !windSoundEnabled
+            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalWeatherAmbienceController.WIND_ENABLED_KEY, windSoundEnabled)
+        }
+        SettingsInfoRow(Icons.Rounded.VolumeUp,
+            if (language == "en") "Morning birds" else if (language == "tr") "Sabah kuşları" else "عصافير الصباح",
+            if (!masterSoundsEnabled) mutedByMaster else enabledLabel(birdsSoundEnabled)) {
+            birdsSoundEnabled = !birdsSoundEnabled
+            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY, birdsSoundEnabled)
+        }
+        SettingsInfoRow(Icons.Rounded.VolumeUp,
+            if (language == "en") "Night owl" else if (language == "tr") "Gece baykuşu" else "البومة الليلية",
+            if (!masterSoundsEnabled) mutedByMaster else enabledLabel(owlSoundEnabled)) {
+            owlSoundEnabled = !owlSoundEnabled
+            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalOwlAmbienceController.ENABLED_KEY, owlSoundEnabled)
+        }
+        Text(
+            (if (language == "en") "Sound level: " else if (language == "tr") "Ses seviyesi: " else "مستوى الصوت: ") +
+                (audioVolume * 100f).toInt().toString() + "%",
+            color = RoyalColors.Pearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+        )
+        Slider(
+            value = audioVolume,
+            onValueChange = { value ->
+                audioVolume = value
+                RoyalWeatherAmbienceController.setVolume(context, value)
+            },
+            valueRange = 0f..1f
+        )
         SettingsInfoRow(Icons.Rounded.Info,
             if (language == "en") "System information" else if (language == "tr") "Sistem bilgileri" else "معلومات النظام وإصدار Android",
             androidVersion) { openSystemSettings(context, Settings.ACTION_DEVICE_INFO_SETTINGS) }
