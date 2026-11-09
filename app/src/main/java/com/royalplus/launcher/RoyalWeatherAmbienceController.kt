@@ -68,7 +68,11 @@ internal object RoyalWeatherAmbienceController {
     private const val MAX_THUNDER_INTERVAL_MS = 15L * 60L * 1000L
     private const val MAX_AMBIENCE_VOLUME = 0.48f
 
-    private data class AmbienceScene(val key: String, val resourceId: Int)
+    private data class AmbienceScene(
+        val key: String,
+        val resourceId: Int,
+        val volumeMultiplier: Float = 1f
+    )
 
     private val handler = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
@@ -77,6 +81,7 @@ internal object RoyalWeatherAmbienceController {
     private var weatherReceivedAtElapsedMs: Long? = null
     private var foreground = false
     private var activeSceneKey: String? = null
+    private var activeSceneVolumeMultiplier = 1f
     private var loopPlayer: MediaPlayer? = null
     private var thunderPlayer: MediaPlayer? = null
     private var thunderTask: Runnable? = null
@@ -197,6 +202,7 @@ internal object RoyalWeatherAmbienceController {
         if (nextScene?.key != activeSceneKey) {
             stopLoopPlayer()
             activeSceneKey = nextScene?.key
+            activeSceneVolumeMultiplier = nextScene?.volumeMultiplier ?: 1f
             if (nextScene != null) startLoopPlayer(context, nextScene)
         } else if (nextScene != null && loopPlayer == null && !pausedForAudioFocus) {
             startLoopPlayer(context, nextScene)
@@ -237,6 +243,10 @@ internal object RoyalWeatherAmbienceController {
                 } else null
             isRainCode(code) && isEnabled(context, RAIN_ENABLED_KEY) ->
                 AmbienceScene("rain", R.raw.weather_rain_natural)
+            (weather.weatherCode in setOf(75, 86)) &&
+                (weather.windSpeedKmh ?: 0) >= 15 &&
+                isEnabled(context, WIND_ENABLED_KEY) ->
+                AmbienceScene("heavy-snow-wind", R.raw.nature_wind_gentle, 1.35f)
             (weather.windSpeedKmh ?: 0) >= WIND_THRESHOLD_KMH &&
                 isEnabled(context, WIND_ENABLED_KEY) ->
                 AmbienceScene("wind", R.raw.nature_wind_gentle)
@@ -267,7 +277,7 @@ internal object RoyalWeatherAmbienceController {
         val player = runCatching { MediaPlayer.create(context, scene.resourceId) }.getOrNull() ?: return
         loopPlayer = player
         player.isLooping = true
-        val level = effectiveVolume(context)
+        val level = (effectiveVolume(context) * scene.volumeMultiplier).coerceIn(0f, 1f)
         player.setVolume(level, level)
         player.setOnErrorListener { failed, _, _ ->
             if (loopPlayer === failed) loopPlayer = null
@@ -376,7 +386,8 @@ internal object RoyalWeatherAmbienceController {
 
     private fun applyPlayerVolume(multiplier: Float) {
         val context = appContext ?: return
-        val level = effectiveVolume(context) * multiplier.coerceIn(0f, 1f)
+        val level = effectiveVolume(context) *
+            activeSceneVolumeMultiplier * multiplier.coerceIn(0f, 1f)
         runCatching { loopPlayer?.setVolume(level, level) }
         runCatching { thunderPlayer?.setVolume(level, level) }
     }
@@ -404,6 +415,7 @@ internal object RoyalWeatherAmbienceController {
         loopPlayer = null
         thunderPlayer = null
         activeSceneKey = null
+        activeSceneVolumeMultiplier = 1f
         releasePlayer(loop)
         releasePlayer(thunder)
         abandonAudioFocus()
