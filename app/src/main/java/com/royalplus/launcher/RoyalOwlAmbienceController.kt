@@ -15,6 +15,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.Calendar
+import java.util.TimeZone
 import kotlin.random.Random
 
 @Composable
@@ -140,7 +141,8 @@ internal object RoyalOwlAmbienceController {
             return
         }
 
-        val calendar = Calendar.getInstance()
+        val zone = latestWeather?.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
+        val calendar = Calendar.getInstance(zone)
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val delayMs = if (isOwlNightWindow(hour)) {
             Random.nextLong(MIN_INTERVAL_MS, MAX_INTERVAL_MS + 1L)
@@ -176,7 +178,8 @@ internal object RoyalOwlAmbienceController {
 
     private fun isCurrentlyEligible(): Boolean {
         if (!isCurrentlyEligibleForScheduling()) return false
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val zone = latestWeather?.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
+        val hour = Calendar.getInstance(zone).get(Calendar.HOUR_OF_DAY)
         return isOwlNightWindow(hour)
     }
 
