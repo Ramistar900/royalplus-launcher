@@ -1,5 +1,6 @@
 package com.royalplus.launcher
 
+import android.annotation.TargetApi
 import android.os.Build
 import java.util.Date
 
