@@ -171,11 +171,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="royalplus-test-pr38"
+          TAG="royalplus-test-pr${{ github.event.pull_request.number }}"
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          TITLE="ROYAL+ Launcher • PR #38 Android 8 test"
-          NOTES="Validated Debug APK from commit ${GITHUB_SHA}. Build and Android Lint passed; the APK was installed and the launcher started on Android 8 (API 26). This is a draft for testing, not a production release."
+          TITLE="ROYAL+ Launcher • PR #${{ github.event.pull_request.number }} Android 8 test"
+          NOTES="Validated Debug APK from commit ${GITHUB_SHA}. Build and Android Lint passed; the APK was installed and the launcher started on Android 8 (API 26). Media optimization is applied in the build workspace only; source assets are preserved. This is a draft for testing, not a production release."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
             if [[ "$IS_DRAFT" != "true" ]]; then
