@@ -10,7 +10,7 @@ import android.media.MediaPlayer
  * The longer prepared loop reduces abrupt, repetitive short-fire restarts.
  */
 internal object RoyalFireAmbienceController {
-    private const val AUDIO_URL = "https://sfxmint.com/dl/ambience-fireplace-50.mp3"
+    private const val ASSET_NAME = "fireplace_audio.mp3"
     private const val VOLUME = 0.18f
 
     private var player: MediaPlayer? = null
@@ -31,7 +31,9 @@ internal object RoyalFireAmbienceController {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
             )
-            created.setDataSource(AUDIO_URL)
+            context.applicationContext.assets.openFd(ASSET_NAME).use { asset ->
+                created.setDataSource(asset.fileDescriptor, asset.startOffset, asset.length)
+            }
             created.isLooping = true
             created.setVolume(VOLUME, VOLUME)
             created.setOnPreparedListener { prepared ->
