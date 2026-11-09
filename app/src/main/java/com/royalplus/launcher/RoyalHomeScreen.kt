@@ -211,6 +211,9 @@ internal fun RoyalHomeScreen(
     var fireCrackleSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("fire_crackle_sound_enabled", true))
     }
+    var fireAnimationEnabled by remember {
+        mutableStateOf(wallpaperPreferences.getBoolean("fireplace_animation_enabled", true))
+    }
     var oceanAnimationEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("ocean_background_animation_enabled", true))
     }
@@ -502,6 +505,7 @@ internal fun RoyalHomeScreen(
                 motionEnabled = homeMotionEnabled,
                 oceanAnimationEnabled = oceanAnimationEnabled,
                 syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
+                fireAnimationEnabled = fireAnimationEnabled
             )
             appForManagement?.let { app ->
                 val title = when (selectedLanguage) {
@@ -713,6 +717,7 @@ internal fun RoyalHomeScreen(
                     motionEnabled = screensaverMotionEnabled && selectedScreensaverWallpaper != "fire",
                     oceanAnimationEnabled = oceanAnimationEnabled,
                     syriaFlagAnimationEnabled = syriaFlagAnimationEnabled,
+                    fireAnimationEnabled = fireAnimationEnabled,
                     onDismiss = {
                         showSmartScreensaver = false
                         lastUserInteraction = System.currentTimeMillis()
@@ -923,6 +928,15 @@ internal fun RoyalHomeScreen(
                             onClick = {
                                 fireCrackleSoundEnabled = !fireCrackleSoundEnabled
                                 wallpaperPreferences.edit().putBoolean("fire_crackle_sound_enabled", fireCrackleSoundEnabled).apply()
+                            }
+                        )
+                        RoyalFeatureToggleRow(
+                            title = when (selectedLanguage) { "en" -> "Fireplace video animation"; "tr" -> "Şömine ateş animasyonu"; else -> "حركة فيديو المدفأة" },
+                            detail = if (fireAnimationEnabled) "ON" else "OFF",
+                            checked = fireAnimationEnabled,
+                            onClick = {
+                                fireAnimationEnabled = !fireAnimationEnabled
+                                wallpaperPreferences.edit().putBoolean("fireplace_animation_enabled", fireAnimationEnabled).apply()
                             }
                         )
                         RoyalFeatureToggleRow(
@@ -1280,10 +1294,17 @@ private fun RoyalBackdrop(
     selectedWallpaper: String,
     motionEnabled: Boolean = true,
     oceanAnimationEnabled: Boolean = true,
-    syriaFlagAnimationEnabled: Boolean = true
+    syriaFlagAnimationEnabled: Boolean = true,
+    fireAnimationEnabled: Boolean = true
 ) {
-    if (selectedWallpaper == "fire") {
+    if (selectedWallpaper == "fire" && fireAnimationEnabled) {
         RoyalFireplaceBackground(modifier = modifier.fillMaxSize())
+    } else if (selectedWallpaper == "fire") {
+        RoyalMotionImage(
+            image = rememberRoyalBitmapPainter(R.drawable.royal_live_fire_4k, maxEdgePx = 2048),
+            modifier = modifier,
+            motionEnabled = false
+        )
     } else {
         RoyalMotionImage(
             image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
