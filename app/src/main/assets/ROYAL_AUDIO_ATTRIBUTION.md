@@ -19,3 +19,11 @@ Source: https://sfxmint.com/sounds/ambience-fireplace-50
 Bundled offline asset: app/src/main/assets/fireplace_audio.mp3.
 Licence: CC0, as identified by the source listing.
 Used as a separate low-volume looping ambience track; the fireplace MP4 is muted.
+
+ons.wikimedia.org/wiki/File:Thunder.ogg
+- Gentle natural wind: “Howling wind.ogg”, CC0 1.0, https://commons.wikimedia.org/wiki/File:Howling_wind.ogg
+- Morning birdsong: “Birdsong mild sunny day.ogg”, CC0 1.0, https://commons.wikimedia.org/wiki/File:Birdsong_mild_sunny_day.ogg
+
+The additional recordings are supplied by the ROYAL AUDIO library in OGG format.
+The thunder recording is attributed to Bidgee and distributed under CC BY 3.0.
+The other additional recordings are public-domain CC0 1.0 recordings.
