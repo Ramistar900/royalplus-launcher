@@ -45,6 +45,7 @@ import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.CalendarToday
@@ -146,7 +147,9 @@ internal fun RoyalHomeScreen(
     onUninstallApp: (LauncherApp) -> Unit,
     onVoiceSearch: () -> Unit,
     voiceSearchAvailable: Boolean,
-    voiceSearchResult: String
+    voiceSearchResult: String,
+    translationOverlayEnabled: Boolean,
+    onToggleTranslationOverlay: () -> Unit
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var prayerTimesForHome by remember { mutableStateOf<PrayerTimesData?>(null) }
@@ -456,6 +459,8 @@ internal fun RoyalHomeScreen(
                         onInstallApk = onInstallApk,
                         onVoiceSearch = onVoiceSearch,
                         voiceSearchAvailable = voiceSearchAvailable,
+                        translationOverlayEnabled = translationOverlayEnabled,
+                        onToggleTranslationOverlay = onToggleTranslationOverlay,
                         selectedLanguage = selectedLanguage
                     )
                     if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
@@ -1242,6 +1247,8 @@ private fun RoyalBrandHeader(
     onInstallApk: () -> Unit,
     onVoiceSearch: () -> Unit,
     voiceSearchAvailable: Boolean,
+    translationOverlayEnabled: Boolean,
+    onToggleTranslationOverlay: () -> Unit,
     selectedLanguage: String
 ) {
     Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1276,6 +1283,16 @@ private fun RoyalBrandHeader(
             }
             Spacer(Modifier.width(9.dp))
         }
+        StatusIcon(
+            Icons.Rounded.ClosedCaption,
+            when (selectedLanguage) {
+                "en" -> if (translationOverlayEnabled) "Stop Arabic captions" else "Floating Arabic captions"
+                "tr" -> if (translationOverlayEnabled) "Arapça altyazıyı durdur" else "Yüzen Arapça altyazı"
+                else -> if (translationOverlayEnabled) "إيقاف الترجمة العائمة" else "الترجمة العربية العائمة"
+            },
+            onToggleTranslationOverlay
+        )
+        Spacer(Modifier.width(5.dp))
         StatusIcon(Icons.Rounded.Search, when (selectedLanguage) { "en" -> "Search"; "tr" -> "Ara"; else -> "البحث" }, onSearch)
         if (voiceSearchAvailable) {
             Spacer(Modifier.width(5.dp))
