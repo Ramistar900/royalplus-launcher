@@ -111,11 +111,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (hasLocationPermission() || hasSavedManualWeatherCity()) {
-            refreshWeather()
-        } else {
-            requestLocationPermission()
-        }
+        // Weather starts without forcing a location permission prompt.
+        // The repository uses a saved city or a safe timezone-based fallback on TV devices.
+        refreshWeather()
     }
 
     override fun onResume() {
@@ -304,16 +302,6 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        if (!hasLocationPermission()) {
-            weatherState = WeatherUiState(
-                city = "الموقع غير متاح",
-                description = "اسمح بالوصول إلى الموقع لعرض الطقس",
-                isLoading = false,
-                needsPermission = true
-            )
-            return
-        }
-
         weatherState = WeatherUiState(
             city = "جارٍ تحديد الموقع",
             description = "جارٍ تحميل الطقس",
