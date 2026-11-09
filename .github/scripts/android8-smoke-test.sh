@@ -4,15 +4,21 @@ set -euo pipefail
 PACKAGE="com.royalplus.launcher"
 ACTIVITY="$PACKAGE/.MainActivity"
 APK_ROOT="$GITHUB_WORKSPACE/app/build/outputs/apk"
-APK="$(find "$APK_ROOT" -type f -path "*/debug/*.apk" -print -quit)"
+APK="$(find "$APK_ROOT" -type f -path "*/release/*x86_64*.apk" -print -quit)"
+BUILD_TYPE="minified x86_64 Release"
+
+if [[ -z "$APK" ]]; then
+  APK="$(find "$APK_ROOT" -type f -path "*/debug/*.apk" -print -quit)"
+  BUILD_TYPE="Debug fallback"
+fi
 
 if [[ -z "$APK" || ! -s "$APK" ]]; then
-  echo "::error::Debug APK not found under $APK_ROOT"
+  echo "::error::No Android APK found under $APK_ROOT"
   find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
   exit 1
 fi
 
-echo "Installing Android 8 Debug APK: $APK"
+echo "Installing Android 8 $BUILD_TYPE APK: $APK"
 adb install -r "$APK"
 
 # Stop any previous instance before starting a fresh, live log capture.
