@@ -1669,12 +1669,12 @@ private fun AppTile(
 ) {
     var hasFocus by remember(app.packageName) { mutableStateOf(false) }
     val focusScale by animateFloatAsState(
-        targetValue = if (hasFocus) 1.025f else 1f,
+        targetValue = if (hasFocus) 1.04f else 1f,
         animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
         label = "app_tile_focus_scale"
     )
     val iconFocusScale by animateFloatAsState(
-        targetValue = if (hasFocus || highlighted) 1.12f else 1f,
+        targetValue = if (hasFocus || highlighted) 1.20f else 1f,
         animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
         label = "app_icon_focus_scale"
     )
