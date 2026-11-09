@@ -155,29 +155,6 @@ jobs:
           fi
           exit "$LINT_STATUS"
 
-      - name: Build signed release APK
-        if: steps.signing.outputs.available == 'true'
-        env:
-          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/royalplus-release.keystore
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
-
-      - name: Verify APK signature
-        if: steps.signing.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$DEBUG_APK"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
-          test -n "$APKSIGNER"
-          mapfile -t RELEASE_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
-          test "${#RELEASE_APKS[@]}" -gt 0
-          for APK in "${RELEASE_APKS[@]}"; do
-            "$APKSIGNER" verify --verbose --print-certs "$APK"
-          done
-
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -381,6 +358,27 @@ jobs:
             cat "$REPORT"
           fi
           exit "$LINT_STATUS"
+
+      - name: Build signed release APK
+        if: steps.signing.outputs.available == 'true'
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/royalplus-release.keystore
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
+
+      - name: Verify APK signature
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          mapfile -t RELEASE_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
+          test "${#RELEASE_APKS[@]}" -gt 0
+          for APK in "${RELEASE_APKS[@]}"; do
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
+          done
 
       - name: Enable KVM for Android emulator
         run: |
