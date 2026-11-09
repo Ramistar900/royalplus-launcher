@@ -130,6 +130,16 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     private fun startAudioCapture() {
+        // Permissions can be revoked after the service starts; re-check immediately
+        // before opening AudioRecord to avoid a runtime SecurityException.
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            updateStatus("تم سحب إذن الميكروفون؛ فعّله من إعدادات التطبيق ثم أعد المحاولة")
+            mainHandler.postDelayed({ stopSelf() }, 2_000L)
+            return
+        }
+
         val minBuffer = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
