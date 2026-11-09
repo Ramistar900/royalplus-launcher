@@ -1688,13 +1688,13 @@ private fun AppTile(
         modifier = modifier.graphicsLayer {
             scaleX = focusScale
             scaleY = focusScale
+        }.onFocusChanged { state ->
+            hasFocus = state.isFocused
+            if (state.isFocused) onFocused(app.packageName)
         }.combinedClickable(
             onClick = onLaunch,
             onLongClick = onManage
-        ).onFocusChanged { state ->
-            hasFocus = state.isFocused
-            if (state.isFocused) onFocused(app.packageName)
-        },
+        ),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = if (highlighted) Color(0xFF211A0D).copy(alpha = 0.98f)
