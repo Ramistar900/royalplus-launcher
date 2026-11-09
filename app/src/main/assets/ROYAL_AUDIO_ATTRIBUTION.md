@@ -20,7 +20,11 @@ Bundled offline asset: app/src/main/assets/fireplace_audio.mp3.
 Licence: CC0, as identified by the source listing.
 Used as a separate low-volume looping ambience track; the fireplace MP4 is muted.
 
-ons.wikimedia.org/wiki/File:Thunder.ogg
+Additional ROYAL AUDIO weather and nature recordings included in this app:
+
+- Natural rain: “Rain.ogg”, CC0 1.0, https://commons.wikimedia.org/wiki/File:Rain.ogg
+- Thunderstorm rain bed: “Rain (1).ogg”, CC0 1.0, https://commons.wikimedia.org/wiki/File:Rain_(1).ogg
+- Natural thunder: “Thunder.ogg” by Bidgee, CC BY 3.0, https://commons.wikimedia.org/wiki/File:Thunder.ogg
 - Gentle natural wind: “Howling wind.ogg”, CC0 1.0, https://commons.wikimedia.org/wiki/File:Howling_wind.ogg
 - Morning birdsong: “Birdsong mild sunny day.ogg”, CC0 1.0, https://commons.wikimedia.org/wiki/File:Birdsong_mild_sunny_day.ogg
 
