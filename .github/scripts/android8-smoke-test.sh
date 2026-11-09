@@ -2,17 +2,29 @@
 set -euo pipefail
 
 PACKAGE="com.royalplus.launcher"
-ACTIVITY="$PACKAGE/.MainActivity"
 APK_ROOT="$GITHUB_WORKSPACE/app/build/outputs/apk"
-APK="$(find "$APK_ROOT" -type f -path "*/debug/*.apk" -print -quit)"
+APK="$(find "$APK_ROOT" -type f -path "*/release/*x86_64*.apk" -print -quit)"
+BUILD_TYPE="minified x86_64 Release"
+if [[ -z "$APK" ]]; then
+  APK="$(find "$APK_ROOT" -type f -path "*/debug/*.apk" -print -quit)"
+  BUILD_TYPE="Debug fallback"
+fi
 
 if [[ -z "$APK" || ! -s "$APK" ]]; then
-  echo "::error::Debug APK not found under $APK_ROOT"
+  echo "::error::No APK found under $APK_ROOT"
   find "$GITHUB_WORKSPACE/app/build/outputs" -maxdepth 5 -type f -name "*.apk" -print || true
   exit 1
 fi
 
-echo "Installing Android 8 Debug APK: $APK"
+AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
+test -n "$AAPT"
+BADGING="$("$AAPT" dump badging "$APK")"
+PACKAGE="$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")"
+ACTIVITY="$(printf '%s\n' "$BADGING" | sed -n "s/^launchable-activity: name='\\([^']*\\)'.*/\\1/p")"
+test -n "$PACKAGE"
+test -n "$ACTIVITY"
+
+echo "Installing Android 8 $BUILD_TYPE APK: $APK ($PACKAGE)"
 adb install -r "$APK"
 
 # Stop any previous instance before starting a fresh, live log capture.
@@ -40,7 +52,7 @@ if ! kill -0 "$LOGCAT_PID" >/dev/null 2>&1; then
 fi
 
 echo "Launching $ACTIVITY"
-START_OUTPUT="$(adb shell am start -W -n "$ACTIVITY" 2>&1)" || {
+START_OUTPUT="$(adb shell am start -W -n "$PACKAGE/$ACTIVITY" 2>&1)" || {
   printf '%s\n' "$START_OUTPUT"
   echo "::error::Activity launch command failed."
   cat "$LOG_FILE" || true
@@ -62,4 +74,4 @@ if grep -E 'FATAL EXCEPTION|Process: com\.royalplus\.launcher' "$LOG_FILE"; then
   exit 1
 fi
 
-echo "Android 8 API 26 install, activity launch, process liveness, and crash-log checks passed (PID: $PID)."
+echo "Android 8 API 26 $BUILD_TYPE install, activity launch, process liveness, and crash-log checks passed (PID: $PID)."

@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-pr:
     name: Verify pull request build
@@ -67,8 +71,76 @@ jobs:
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
 
+      - name: Download verified Sherpa ONNX runtime
+        run: |
+          set -euo pipefail
+          mkdir -p app/libs
+          curl --fail --location --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar --output app/libs/sherpa-onnx-2.0.1.aar
+          echo "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7  app/libs/sherpa-onnx-2.0.1.aar" | sha256sum --check
+
+      - name: Optimize bundled media without removing features
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq webp ffmpeg
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          roots = [Path("app/src/main/res/drawable"), Path("app/src/main/res/drawable-nodpi")]
+          converted = 0
+          saved = 0
+          for root in roots:
+              if not root.exists():
+                  continue
+              for source in sorted(root.iterdir()):
+                  if not source.is_file() or source.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+                      continue
+                  original_size = source.stat().st_size
+                  if original_size < 300_000:
+                      continue
+                  target = source.with_suffix(".webp")
+                  if target.exists():
+                      continue
+                  temporary = target.with_name(target.name + ".tmp")
+                  result = subprocess.run(
+                      ["cwebp", "-quiet", "-m", "6", "-q", "89", str(source), "-o", str(temporary)],
+                      check=False
+                  )
+                  if result.returncode == 0 and temporary.exists() and temporary.stat().st_size < original_size:
+                      new_size = temporary.stat().st_size
+                      temporary.replace(target)
+                      source.unlink()
+                      converted += 1
+                      saved += original_size - new_size
+                  else:
+                      temporary.unlink(missing_ok=True)
+          print(f"WebP resources converted: {converted}; saved {saved / 1048576:.2f} MiB.")
+
+          video = Path("app/src/main/assets/fireplace_burning_fire_loop.mp4")
+          if video.is_file():
+              temporary = Path("/tmp/royal-fire-optimized.mp4")
+              subprocess.run([
+                  "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                  "-i", str(video), "-an",
+                  "-vf", "scale='min(2560,iw)':-2", "-r", "24",
+                  "-c:v", "libx264", "-preset", "slow", "-crf", "26",
+                  "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(temporary)
+              ], check=True)
+              if temporary.stat().st_size < video.stat().st_size:
+                  before = video.stat().st_size
+                  temporary.replace(video)
+                  print(f"Fireplace video optimized: {(before-video.stat().st_size)/1048576:.2f} MiB saved.")
+              else:
+                  print("Keeping original fireplace loop; optimized video was not smaller.")
+          PY
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
+
+      - name: Build minified ABI-split test APKs
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
 
       - name: Run Android API compatibility lint
         shell: bash
@@ -106,21 +178,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="royalplus-test-pr38"
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          TITLE="ROYAL+ Launcher • PR #38 Android 8 test"
-          NOTES="Validated Debug APK from commit ${GITHUB_SHA}. Build and Android Lint passed; the APK was installed and the launcher started on Android 8 (API 26). This is a draft for testing, not a production release."
+          TAG="royalplus-test-pr${{ github.event.pull_request.number }}"
+          mapfile -t TEST_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
+          test "${#TEST_APKS[@]}" -gt 0
+          TITLE="ROYAL+ Launcher • PR #${{ github.event.pull_request.number }} Android 8 test"
+          NOTES="Minified, resource-shrunk ABI-specific test APKs from commit ${GITHUB_SHA}. The x86_64 variant was installed and launched on Android 8 (API 26). PR test builds use a separate .test application ID and temporary debug certificate, so they do not replace or overwrite the production app or its data. The production build uses the private release key. Media optimization is applied in the build workspace only; repository source assets remain unchanged. This is a draft for testing, not a production release."
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
             if [[ "$IS_DRAFT" != "true" ]]; then
               echo "::error::Refusing to modify an already published release."
               exit 1
             fi
-            gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "${TEST_APKS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
-            gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            gh release create "$TAG" "${TEST_APKS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           fi
 
   release-main:
@@ -206,6 +278,71 @@ jobs:
           echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/royalplus-release.keystore"
           chmod 600 "$RUNNER_TEMP/royalplus-release.keystore"
 
+      - name: Download verified Sherpa ONNX runtime
+        run: |
+          set -euo pipefail
+          mkdir -p app/libs
+          curl --fail --location --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar --output app/libs/sherpa-onnx-2.0.1.aar
+          echo "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7  app/libs/sherpa-onnx-2.0.1.aar" | sha256sum --check
+
+      - name: Optimize bundled media without removing features
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq webp ffmpeg
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          roots = [Path("app/src/main/res/drawable"), Path("app/src/main/res/drawable-nodpi")]
+          converted = 0
+          saved = 0
+          for root in roots:
+              if not root.exists():
+                  continue
+              for source in sorted(root.iterdir()):
+                  if not source.is_file() or source.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+                      continue
+                  original_size = source.stat().st_size
+                  if original_size < 300_000:
+                      continue
+                  target = source.with_suffix(".webp")
+                  if target.exists():
+                      continue
+                  temporary = target.with_name(target.name + ".tmp")
+                  result = subprocess.run(
+                      ["cwebp", "-quiet", "-m", "6", "-q", "89", str(source), "-o", str(temporary)],
+                      check=False
+                  )
+                  if result.returncode == 0 and temporary.exists() and temporary.stat().st_size < original_size:
+                      new_size = temporary.stat().st_size
+                      temporary.replace(target)
+                      source.unlink()
+                      converted += 1
+                      saved += original_size - new_size
+                  else:
+                      temporary.unlink(missing_ok=True)
+          print(f"WebP resources converted: {converted}; saved {saved / 1048576:.2f} MiB.")
+
+          video = Path("app/src/main/assets/fireplace_burning_fire_loop.mp4")
+          if video.is_file():
+              temporary = Path("/tmp/royal-fire-optimized.mp4")
+              subprocess.run([
+                  "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                  "-i", str(video), "-an",
+                  "-vf", "scale='min(2560,iw)':-2", "-r", "24",
+                  "-c:v", "libx264", "-preset", "slow", "-crf", "26",
+                  "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(temporary)
+              ], check=True)
+              if temporary.stat().st_size < video.stat().st_size:
+                  before = video.stat().st_size
+                  temporary.replace(video)
+                  print(f"Fireplace video optimized: {(before-video.stat().st_size)/1048576:.2f} MiB saved.")
+              else:
+                  print("Keeping original fireplace loop; optimized video was not smaller.")
+          PY
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
@@ -221,6 +358,27 @@ jobs:
             cat "$REPORT"
           fi
           exit "$LINT_STATUS"
+
+      - name: Build signed release APK
+        if: steps.signing.outputs.available == 'true'
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/royalplus-release.keystore
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
+
+      - name: Verify APK signature
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          mapfile -t RELEASE_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
+          test "${#RELEASE_APKS[@]}" -gt 0
+          for APK in "${RELEASE_APKS[@]}"; do
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
+          done
 
       - name: Enable KVM for Android emulator
         run: |
@@ -238,53 +396,73 @@ jobs:
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
 
-      - name: Build signed release APK
-        if: steps.signing.outputs.available == 'true'
-        env:
-          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/royalplus-release.keystore
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleRelease
-
-      - name: Verify APK signature
-        if: steps.signing.outputs.available == 'true'
-        run: |
-          APK="app/build/outputs/apk/release/app-release.apk"
-          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$DEBUG_APK"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
-          test -n "$APKSIGNER"
-          "$APKSIGNER" verify --verbose --print-certs "$APK"
-
-      - name: Create or update GitHub draft release
+      - name: Publish automatic signed release on main or keep test draft
         env:
           GH_TOKEN: ${{ github.token }}
           SIGNED_AVAILABLE: ${{ steps.signing.outputs.available }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="royalplus-test-${GITHUB_RUN_NUMBER}"
           DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
-          RELEASE_APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$DEBUG_APK"
-          ASSETS=("$DEBUG_APK")
-          NOTES="Debug APK for testing, built from commit ${GITHUB_SHA}. This draft passed Android Lint and Android 8 API 26 installation/startup checks."
-          if [[ "$SIGNED_AVAILABLE" == "true" && -s "$RELEASE_APK" ]]; then
-            ASSETS+=("$RELEASE_APK")
-            NOTES="$NOTES A signed release APK is also attached."
+
+          IS_PRODUCTION_RELEASE=false
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            IS_PRODUCTION_RELEASE=true
+            TAG="royalplus-${GITHUB_RUN_NUMBER}"
+            TITLE="ROYAL+ Launcher ${GITHUB_RUN_NUMBER}"
           else
-            NOTES="$NOTES Signing secrets are not configured, so only the debug APK is attached."
+            TAG="royalplus-test-${GITHUB_RUN_NUMBER}"
+            TITLE="ROYAL+ Launcher test build ${GITHUB_RUN_NUMBER}"
           fi
-          TITLE="ROYAL+ Launcher test build ${GITHUB_RUN_NUMBER}"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
-            if [[ "$IS_DRAFT" != "true" ]]; then
-              echo "::error::Refusing to modify an already published release."
+
+          mapfile -t RELEASE_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
+          if [[ "$IS_PRODUCTION_RELEASE" == "true" ]]; then
+            if [[ "$SIGNED_AVAILABLE" != "true" || "${#RELEASE_APKS[@]}" -eq 0 ]]; then
+              echo "::error::A production release requires configured signing secrets and signed ABI APKs."
               exit 1
             fi
-            gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            ASSETS=("${RELEASE_APKS[@]}")
+            NOTES="Automatically published from verified main commit ${GITHUB_SHA}. This release passed assembleDebug, Android Lint, and Android 8 (API 26) emulator install/startup checks. The signed APKs are split by CPU ABI to reduce download size; install the APK matching the TV/device architecture."
           else
-            gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            ASSETS=("$DEBUG_APK")
+            NOTES="Test build from commit ${GITHUB_SHA}. This draft is not a production release."
+            if [[ "$SIGNED_AVAILABLE" == "true" && "${#RELEASE_APKS[@]}" -gt 0 ]]; then
+              ASSETS+=("${RELEASE_APKS[@]}")
+              NOTES="$NOTES Signed ABI-specific release APKs are included for installation-size testing."
+            else
+              NOTES="$NOTES Signing secrets are not configured, so only the debug APK is attached."
+            fi
+          fi
+
+          echo "APK sizes:"
+          for APK in "${ASSETS[@]}"; do
+            du -h "$APK"
+          done
+
+          if [[ "$IS_PRODUCTION_RELEASE" == "true" ]]; then
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+              if [[ "$IS_DRAFT" != "true" ]]; then
+                echo "::error::Refusing to overwrite an already published release."
+                exit 1
+              fi
+              gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+              RELEASE_ID="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json databaseId --jq '.databaseId')"
+              gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --method PATCH -F draft=false -F prerelease=false
+            else
+              gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES" --latest
+            fi
+          else
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+              if [[ "$IS_DRAFT" != "true" ]]; then
+                echo "::error::Refusing to modify an already published release."
+                exit 1
+              fi
+              gh release upload "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            else
+              gh release create "$TAG" "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            fi
           fi

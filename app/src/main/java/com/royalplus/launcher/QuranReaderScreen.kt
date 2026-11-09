@@ -97,6 +97,7 @@ internal fun QuranReaderScreen(
     var downloadAllInProgress by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableStateOf("") }
     var audioLibraryOpen by remember { mutableStateOf(false) }
+    var mossadSelectionsOpen by remember { mutableStateOf(false) }
     var downloadedAudioSurahs by remember(selectedReader) {
         mutableStateOf(QuranAudioRepository.downloadedSurahNumbers(context.applicationContext, selectedReader))
     }
@@ -271,6 +272,22 @@ internal fun QuranReaderScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF183B3C))
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                    .clickable { mossadSelectionsOpen = true }
+                    .focusable()
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("مختارات عبد الرحمن مسعد", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("17 تلاوة مختارة • تنزيل للاستماع دون إنترنت", color = RoyalColors.Pearl, fontSize = 10.sp)
+                }
+                Text("استعراض  ›", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
 
             OutlinedTextField(
@@ -706,9 +723,11 @@ internal fun QuranReaderScreen(
             Box(
                 Modifier.weight(1f).fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xB31FA9A3))
-                    .border(1.2.dp, RoyalColors.Gold.copy(alpha = 0.88f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .background(Color(0xF009211C))
+                    .border(2.dp, RoyalColors.Gold, RoundedCornerShape(20.dp))
+                    .padding(4.dp)
+                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.58f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Column(Modifier.fillMaxSize()) {
                     LazyColumn(
@@ -728,32 +747,37 @@ internal fun QuranReaderScreen(
                                     textAlign = TextAlign.Center
                                 )
                             } else {
-                                Row(
-                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                        .background(
-                                            if (verse.number == savedBookmarkForSurah) Color(0x332A2518)
-                                            else Color.Transparent
+                                Column(Modifier.fillMaxWidth()) {
+                                    Row(
+                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                if (verse.number == savedBookmarkForSurah) Color(0x553A2D12)
+                                                else Color.Transparent
+                                            )
+                                            .border(
+                                                if (verse.number == savedBookmarkForSurah) 1.dp else 0.dp,
+                                                if (verse.number == savedBookmarkForSurah) RoyalColors.Gold.copy(alpha = 0.85f) else Color.Transparent,
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 10.dp)
+                                            .focusable(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            verse.text,
+                                            modifier = Modifier.weight(1f),
+                                            color = if (verse.number == currentAudioVerse) Color(0xFFFF6B5F) else Color(0xFFFFF4D8),
+                                            fontSize = 25.sp,
+                                            lineHeight = 46.sp,
+                                            fontFamily = quranFont,
+                                            textAlign = TextAlign.Right
                                         )
-                                        .border(
-                                            if (verse.number == savedBookmarkForSurah) 1.dp else 0.dp,
-                                            if (verse.number == savedBookmarkForSurah) RoyalColors.Gold.copy(alpha = 0.8f) else Color.Transparent,
-                                            RoundedCornerShape(10.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 10.dp)
-                                        .focusable(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        verse.text,
-                                        modifier = Modifier.weight(1f),
-                                        color = if (verse.number == currentAudioVerse) Color(0xFFFF3B30) else RoyalColors.Pearl,
-                                        fontSize = 24.sp,
-                                        lineHeight = 43.sp,
-                                        fontFamily = quranFont,
-                                        textAlign = TextAlign.Right
-                                    )
-                                    QuranAyahFlowerNumber(verse.number)
+                                        QuranAyahFlowerNumber(verse.number)
+                                    }
+                                    if (verse.number != surah.verses.lastOrNull()?.number) {
+                                        QuranAyahOrnamentDivider()
+                                    }
                                 }
                             }
                         }
@@ -810,6 +834,10 @@ internal fun QuranReaderScreen(
             textAlign = TextAlign.Center
         )
         }
+    }
+
+    if (mossadSelectionsOpen) {
+        QuranMossadSelectionsScreen(onClose = { mossadSelectionsOpen = false })
     }
 
     if (settingsOpen) {
@@ -981,6 +1009,25 @@ internal fun QuranReaderScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun QuranAyahOrnamentDivider() {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Box(Modifier.weight(1f).height(1.dp).background(RoyalColors.Gold.copy(alpha = 0.28f)))
+        Text(
+            "۞  ✦  ۞",
+            modifier = Modifier.padding(horizontal = 10.dp),
+            color = RoyalColors.Gold.copy(alpha = 0.82f),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+        Box(Modifier.weight(1f).height(1.dp).background(RoyalColors.Gold.copy(alpha = 0.28f)))
     }
 }
 

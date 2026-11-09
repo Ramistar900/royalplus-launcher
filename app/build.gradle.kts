@@ -8,6 +8,12 @@ val signingKeystorePath = System.getenv("SIGNING_KEYSTORE_PATH")
 val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
 val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+val releaseSigningAvailable = listOf(
+    signingKeystorePath,
+    signingStorePassword,
+    signingKeyAlias,
+    signingKeyPassword
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.royalplus.launcher"
@@ -32,13 +38,32 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            // PR/manual validation can use the debug certificate; main releases
+            // always use the repository's private signing key.
+            signingConfig = signingConfigs.getByName(
+                if (releaseSigningAvailable) "release" else "debug"
+            )
+            if (!releaseSigningAvailable) {
+                // Keep PR test installs side-by-side with the user's production app.
+                applicationIdSuffix = ".test"
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
 
     buildFeatures {
         compose = true
+    }
+
+    splits {
+        abi {
+            isEnable = project.findProperty("enableAbiSplits")?.toString() == "true"
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = false
+        }
     }
 
     compileOptions {
@@ -58,6 +83,8 @@ dependencies {
 
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+    implementation("com.google.mlkit:translate:17.0.3")
+    implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")

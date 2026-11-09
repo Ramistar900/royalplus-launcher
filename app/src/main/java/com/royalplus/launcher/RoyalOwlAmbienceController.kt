@@ -15,6 +15,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.Calendar
+import java.util.TimeZone
 import kotlin.random.Random
 
 @Composable
@@ -84,6 +85,21 @@ internal object RoyalOwlAmbienceController {
         }
     }
 
+    fun onAudioSettingsChanged() {
+        if (foreground && isCurrentlyEligibleForScheduling()) {
+            scheduleNext()
+        } else {
+            cancelScheduledTask()
+            stopPlayer()
+        }
+    }
+
+    fun onAudioVolumeChanged() {
+        val context = appContext ?: return
+        val level = OWL_VOLUME * RoyalWeatherAmbienceController.volume(context)
+        runCatching { mediaPlayer?.setVolume(level, level) }
+    }
+
     fun onForeground(context: Context, weather: WeatherUiState) {
         appContext = context.applicationContext
         foreground = true
@@ -125,7 +141,8 @@ internal object RoyalOwlAmbienceController {
             return
         }
 
-        val calendar = Calendar.getInstance()
+        val zone = latestWeather?.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
+        val calendar = Calendar.getInstance(zone)
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val delayMs = if (isOwlNightWindow(hour)) {
             Random.nextLong(MIN_INTERVAL_MS, MAX_INTERVAL_MS + 1L)
@@ -154,12 +171,15 @@ internal object RoyalOwlAmbienceController {
         if (age < 0L || age > MAX_WEATHER_AGE_MS) return false
         if (weather.isLoading || code !in 0..1) return false
         if (!isEnabled()) return false
+        val context = appContext ?: return false
+        if (!RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY)) return false
         return true
     }
 
     private fun isCurrentlyEligible(): Boolean {
         if (!isCurrentlyEligibleForScheduling()) return false
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val zone = latestWeather?.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
+        val hour = Calendar.getInstance(zone).get(Calendar.HOUR_OF_DAY)
         return isOwlNightWindow(hour)
     }
 
@@ -189,7 +209,8 @@ internal object RoyalOwlAmbienceController {
 
         val player = MediaPlayer.create(context, R.raw.nature_owl_clear_night) ?: return
         mediaPlayer = player
-        player.setVolume(OWL_VOLUME, OWL_VOLUME)
+        val level = OWL_VOLUME * RoyalWeatherAmbienceController.volume(context)
+        player.setVolume(level, level)
         player.setOnCompletionListener { completed -> releasePlayerInstance(completed) }
         player.setOnErrorListener { failed, _, _ ->
             releasePlayerInstance(failed)

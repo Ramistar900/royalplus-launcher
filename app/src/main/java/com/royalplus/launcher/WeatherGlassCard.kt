@@ -84,6 +84,7 @@ internal fun WeatherGlassCard(
     motionEnabled: Boolean = true
 ) {
     RoyalOwlAmbienceEffect(weather)
+    RoyalWeatherAmbienceEffect(weather)
     val prayerZone = java.util.TimeZone.getTimeZone(
         weather.timeZoneId ?: java.util.TimeZone.getDefault().id
     )
