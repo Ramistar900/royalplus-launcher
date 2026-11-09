@@ -65,21 +65,31 @@ internal object RoyalWeatherRepository {
         val appContext = context.applicationContext
         executor.execute {
             val result = try {
-                val location = findLocation(appContext)
-                    ?: throw IllegalStateException("Automatic location unavailable")
-                val city = findCity(appContext, location)
-                fetchCurrentWeather(appContext, location, city)
-            } catch (_: SecurityException) {
-                cachedWeatherForLastLocation(appContext) ?: WeatherUiState(
-                    city = "الموقع غير متاح",
-                    description = "اسمح بالوصول إلى الموقع لعرض الطقس",
-                    isLoading = false,
-                    needsPermission = true
-                )
+                // Android TV devices often have no GPS/network location provider.
+                // Weather must still load without asking for location permission.
+                val location = try {
+                    findLocation(appContext)
+                } catch (_: SecurityException) {
+                    null
+                }
+                if (location != null) {
+                    fetchCurrentWeather(appContext, location, findCity(appContext, location))
+                } else {
+                    val fallbackCity = fallbackCityForDeviceTimeZone()
+                    if (fallbackCity != null) {
+                        fetchCityWeather(appContext, fallbackCity).copy(isManualLocation = true)
+                    } else {
+                        cachedWeatherForLastLocation(appContext) ?: WeatherUiState(
+                            city = "اختر مدينتك",
+                            description = "لا يتوفر موقع تلقائي على هذا التلفاز؛ اختر المدينة لعرض الطقس",
+                            isLoading = false
+                        )
+                    }
+                }
             } catch (_: Exception) {
                 cachedWeatherForLastLocation(appContext) ?: WeatherUiState(
-                    city = "تعذّر تحديد المنطقة",
-                    description = "تعذّر تحديد الموقع أو الاتصال بمصادر الطقس؛ أعد المحاولة",
+                    city = "تعذّر تحميل الطقس",
+                    description = "تعذّر الاتصال بمصادر الطقس؛ تحقق من الإنترنت أو اختر مدينة أخرى",
                     isLoading = false
                 )
             }
@@ -92,26 +102,7 @@ internal object RoyalWeatherRepository {
         val requestedCity = cityQuery.trim()
         executor.execute {
             val result = try {
-                require(requestedCity.isNotBlank()) { "City name is blank" }
-                val encodedCity = URLEncoder.encode(requestedCity, Charsets.UTF_8.name())
-                val geocodingUrl = URL(
-                    "https://geocoding-api.open-meteo.com/v1/search" +
-                        "?name=$encodedCity&count=1&language=${Locale.getDefault().language}&format=json"
-                )
-                val locationAndName = requestJson(geocodingUrl).let { root ->
-                    val first = root.optJSONArray("results")?.optJSONObject(0)
-                        ?: throw IllegalArgumentException("City was not found")
-                    val location = Location("royalplus-manual").apply {
-                        latitude = first.getDouble("latitude")
-                        longitude = first.getDouble("longitude")
-                    }
-                    val resolvedCity = first.optString("name").ifBlank { requestedCity }
-                    val country = first.optString("country")
-                    val displayCity = if (country.isNotBlank()) "$resolvedCity، $country" else resolvedCity
-                    location to displayCity
-                }
-                fetchCurrentWeather(appContext, locationAndName.first, locationAndName.second)
-                    .copy(isManualLocation = true)
+                fetchCityWeather(appContext, requestedCity).copy(isManualLocation = true)
             } catch (_: Exception) {
                 WeatherUiState(
                     city = requestedCity.ifBlank { "مدينة غير محددة" },
@@ -122,6 +113,34 @@ internal object RoyalWeatherRepository {
             }
             onResult(result)
         }
+    }
+
+    private fun fallbackCityForDeviceTimeZone(): String? =
+        when (TimeZone.getDefault().id) {
+            "Europe/Istanbul", "Turkey" -> "Istanbul"
+            else -> null
+        }
+
+    private fun fetchCityWeather(context: Context, requestedCity: String): WeatherUiState {
+        require(requestedCity.isNotBlank()) { "City name is blank" }
+        val encodedCity = URLEncoder.encode(requestedCity, Charsets.UTF_8.name())
+        val geocodingUrl = URL(
+            "https://geocoding-api.open-meteo.com/v1/search" +
+                "?name=$encodedCity&count=1&language=${Locale.getDefault().language}&format=json"
+        )
+        val locationAndName = requestJson(geocodingUrl).let { root ->
+            val first = root.optJSONArray("results")?.optJSONObject(0)
+                ?: throw IllegalArgumentException("City was not found")
+            val location = Location("royalplus-manual").apply {
+                latitude = first.getDouble("latitude")
+                longitude = first.getDouble("longitude")
+            }
+            val resolvedCity = first.optString("name").ifBlank { requestedCity }
+            val country = first.optString("country")
+            val displayCity = if (country.isNotBlank()) "$resolvedCity، $country" else resolvedCity
+            location to displayCity
+        }
+        return fetchCurrentWeather(context, locationAndName.first, locationAndName.second)
     }
 
     private fun findLocation(context: Context): Location? {
