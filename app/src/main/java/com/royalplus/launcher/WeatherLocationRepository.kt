@@ -75,15 +75,21 @@ internal object RoyalWeatherRepository {
                 if (location != null) {
                     fetchCurrentWeather(appContext, location, findCity(appContext, location))
                 } else {
-                    val fallbackCity = fallbackCityForDeviceTimeZone()
-                    if (fallbackCity != null) {
-                        fetchCityWeather(appContext, fallbackCity).copy(isManualLocation = true)
+                    // Use the device's internet egress location when Android exposes no GPS/network provider.
+                    val ipLocation = try { findLocationByIp() } catch (_: Exception) { null }
+                    if (ipLocation != null) {
+                        fetchCurrentWeather(appContext, ipLocation.first, ipLocation.second)
                     } else {
-                        cachedWeatherForLastLocation(appContext) ?: WeatherUiState(
-                            city = "اختر مدينتك",
-                            description = "لا يتوفر موقع تلقائي على هذا التلفاز؛ اختر المدينة لعرض الطقس",
-                            isLoading = false
-                        )
+                        val fallbackCity = fallbackCityForDeviceTimeZone()
+                        if (fallbackCity != null) {
+                            fetchCityWeather(appContext, fallbackCity).copy(isManualLocation = true)
+                        } else {
+                            cachedWeatherForLastLocation(appContext) ?: WeatherUiState(
+                                city = "اختر مدينتك",
+                                description = "تعذّر تحديد موقع الجهاز عبر الشبكة؛ اختر مدينتك لعرض الطقس ومواقيت الصلاة",
+                                isLoading = false
+                            )
+                        }
                     }
                 }
             } catch (_: Exception) {
@@ -113,6 +119,25 @@ internal object RoyalWeatherRepository {
             }
             onResult(result)
         }
+    }
+
+    private fun findLocationByIp(): Pair<Location, String>? {
+        val root = requestJson(URL("https://ipapi.co/json/"))
+        if (root.optString("error").equals("true", ignoreCase = true)) return null
+        val latitude = root.optDouble("latitude", Double.NaN)
+        val longitude = root.optDouble("longitude", Double.NaN)
+        if (!latitude.isFinite() || !longitude.isFinite() ||
+            latitude !in -90.0..90.0 || longitude !in -180.0..180.0
+        ) return null
+        val city = root.optString("city").takeIf { it.isNotBlank() } ?: return null
+        val country = root.optString("country_name").takeIf { it.isNotBlank() }
+        val displayCity = if (country != null) "$city، $country" else city
+        val location = Location("royalplus-ip").apply {
+            this.latitude = latitude
+            this.longitude = longitude
+            time = System.currentTimeMillis()
+        }
+        return location to displayCity
     }
 
     private fun fallbackCityForDeviceTimeZone(): String? =
