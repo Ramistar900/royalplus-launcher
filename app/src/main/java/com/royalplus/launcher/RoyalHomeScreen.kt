@@ -1,7 +1,6 @@
 package com.royalplus.launcher
 
 import androidx.activity.compose.BackHandler
-import android.icu.util.IslamicCalendar
 import android.os.Build
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1671,8 +1670,7 @@ private fun HomeDashboard(
         // Ramadan artwork and greeting are rendered behind the interactive home content,
         // and only while the device's Islamic calendar is in Ramadan.
         val isRamadan = remember(currentTime) {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-                IslamicCalendar(Date(System.currentTimeMillis())).get(IslamicCalendar.MONTH) == 8
+            HijriCalendarCompat.isRamadan(java.util.Date(System.currentTimeMillis()))
         }
         if (isRamadan) {
             Image(
