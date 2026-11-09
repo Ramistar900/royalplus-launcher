@@ -65,11 +65,14 @@ internal fun RoyalDeviceSettingsSection(language: String) {
     var birdsSoundEnabled by remember(audioPreferences) {
         mutableStateOf(audioPreferences.getBoolean(RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY, true))
     }
-    var owlSoundEnabled by remember(audioPreferences) {
-        mutableStateOf(audioPreferences.getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true))
-    }
     var audioVolume by remember(audioPreferences) {
         mutableStateOf(audioPreferences.getFloat(RoyalWeatherAmbienceController.VOLUME_KEY, 0.72f).coerceIn(0f, 1f))
+    }
+    val owlPreferences = remember(context) {
+        context.getSharedPreferences(RoyalOwlAmbienceController.PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
+    var owlSoundEnabled by remember(owlPreferences) {
+        mutableStateOf(owlPreferences.getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true))
     }
     val storage = storageSummary(language)
     val connection = connectionSummary(context, language)
@@ -163,11 +166,21 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             birdsSoundEnabled = !birdsSoundEnabled
             RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY, birdsSoundEnabled)
         }
-        SettingsInfoRow(Icons.Rounded.VolumeUp,
-            if (language == "en") "Night owl" else if (language == "tr") "Gece baykuşu" else "البومة الليلية",
-            if (!masterSoundsEnabled) mutedByMaster else enabledLabel(owlSoundEnabled)) {
+        SettingsInfoRow(
+            Icons.Rounded.VolumeUp,
+            if (language == "en") "Night owl call" else if (language == "tr") "Gece baykuş sesi" else "نداء البومة الليلي",
+            if (owlSoundEnabled) {
+                if (language == "en") "Enabled • clear nights only; volume follows device media level"
+                else if (language == "tr") "Açık • yalnızca açık gecelerde; ses cihazın medya düzeyini izler"
+                else "مفعّل • في الليالي الصافية فقط؛ مستوى الصوت من الجهاز"
+            } else {
+                if (language == "en") "Muted • tap to enable"
+                else if (language == "tr") "Sessiz • açmak için dokunun"
+                else "مكتوم • اضغط للتشغيل"
+            }
+        ) {
             owlSoundEnabled = !owlSoundEnabled
-            RoyalWeatherAmbienceController.setSoundEnabled(context, RoyalOwlAmbienceController.ENABLED_KEY, owlSoundEnabled)
+            RoyalOwlAmbienceController.setEnabled(context, owlSoundEnabled)
         }
         Text(
             (if (language == "en") "Sound level: " else if (language == "tr") "Ses seviyesi: " else "مستوى الصوت: ") +
