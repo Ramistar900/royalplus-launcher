@@ -45,6 +45,7 @@ internal fun RoyalSmartScreensaver(
     motionEnabled: Boolean = true,
     oceanAnimationEnabled: Boolean = true,
     syriaFlagAnimationEnabled: Boolean = true,
+    fireAnimationEnabled: Boolean = true,
     fireCrackleSoundEnabled: Boolean = true
 ) {
     val isEnglish = language == "en"
@@ -77,11 +78,12 @@ internal fun RoyalSmartScreensaver(
             .focusTarget(),
         contentAlignment = Alignment.Center
     ) {
-        if (selectedWallpaper == "fire") {
+        if (selectedWallpaper == "fire" && fireAnimationEnabled) {
             RoyalFireplaceBackground(modifier = Modifier.fillMaxSize())
         } else {
             RoyalMotionImage(
                 image = rememberRoyalBitmapPainter(when (selectedWallpaper) {
+                    "fire" -> R.drawable.royal_live_fire_4k
                     "forest" -> R.drawable.royal_wallpaper_forest_04
                     "green" -> R.drawable.royal_wallpaper_grreen_07
                     "lake" -> R.drawable.royal_wallpaper_lake_03
@@ -94,7 +96,7 @@ internal fun RoyalSmartScreensaver(
                     else -> R.drawable.royal_smart_screensaver
                 }, maxEdgePx = 2048),
                 modifier = Modifier.fillMaxSize(),
-                motionEnabled = motionEnabled
+                motionEnabled = motionEnabled && selectedWallpaper != "fire"
             )
         }
         if (selectedWallpaper == "ocean" && oceanAnimationEnabled) {
