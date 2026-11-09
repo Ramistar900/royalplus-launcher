@@ -1570,6 +1570,8 @@ private fun RoyalScenicBanner(
             WeatherGlassCard(
                 weather = weather,
                 currentTime = currentTime,
+                prayerTimes = prayerTimesForHome,
+                currentTimeMillis = currentTime,
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
