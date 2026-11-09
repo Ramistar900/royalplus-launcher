@@ -202,6 +202,10 @@ internal fun RoyalHomeScreen(
     var syriaFlagAnimationEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("syria_flag_animation_enabled", true))
     }
+    var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
+    var selectedScreensaverWallpaper by remember {
+        mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val shouldPlayLakeWaterSound = lakeWaterSoundEnabled &&
         (if (showSmartScreensaver) selectedScreensaverWallpaper == "lake" else selectedWallpaper == "lake")
@@ -239,10 +243,6 @@ internal fun RoyalHomeScreen(
             RoyalLakeAmbienceController.stop()
             RoyalFireAmbienceController.stop()
         }
-    }
-    var selectedWallpaper by remember { mutableStateOf(wallpaperPreferences.getString("launcher_wallpaper", "color") ?: "color") }
-    var selectedScreensaverWallpaper by remember {
-        mutableStateOf(wallpaperPreferences.getString("screensaver_wallpaper", "default") ?: "default")
     }
     var screensaverMotionEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
