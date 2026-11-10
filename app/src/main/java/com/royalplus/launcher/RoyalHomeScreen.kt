@@ -1377,7 +1377,6 @@ private fun IconStyleChoice(
     selectedStyle: String,
     icon: ImageVector = Icons.Rounded.Apps,
     iconRes: Int? = null,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val selected = style == selectedStyle
@@ -2050,7 +2049,8 @@ private fun RoyalSidePanel(
     val shape = RoundedCornerShape(19.dp)
     Column(
         modifier.clip(shape).background(Brush.verticalGradient(listOf(Color(0xE8080A0F), Color(0xF7080A0F))))
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = 9.dp, vertical = 12.dp),
+            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = 9.dp, vertical = 12.dp)
+            .focusGroup(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(5.dp))
@@ -2124,6 +2124,7 @@ private fun SidebarNavItem(
     icon: ImageVector,
     selected: Boolean,
     iconRes: Int? = null,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
