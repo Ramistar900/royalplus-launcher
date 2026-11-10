@@ -238,7 +238,7 @@ class FloatingTranslationOverlayService : Service() {
         if (voiceRecorder?.state == AudioRecord.STATE_INITIALIZED) return voiceRecorder
         runCatching { voiceRecorder?.release() }
         // Some Android TV firmware exposes only the generic microphone source.
-        AudioRecord(
+        return AudioRecord(
             MediaRecorder.AudioSource.MIC,
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,

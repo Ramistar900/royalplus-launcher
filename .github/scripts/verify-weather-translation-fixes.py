@@ -29,6 +29,7 @@ assert "weatherReceivedAtElapsedMs = null" in ambience
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
 assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "getMediaProjection(" in service and "VOICE_RECOGNITION" in service
+assert "return AudioRecord(" in service
 assert "hasMeaningfulAudio(" in service and "consecutiveSilentSegments" in service
 assert "START_NOT_STICKY" in service and "EXTRA_PROJECTION_DATA" in service
 activity = (JAVA / "MainActivity.kt").read_text(encoding="utf-8")
