@@ -40,8 +40,8 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Explicitly started microphone-caption service. Speech recognition is on-device;
- * only translated text is rendered in the overlay. Audio is never uploaded.
+ * Explicitly started local-caption service. Android 10+ captures eligible app playback;
+ * Android 8/9 use the device microphone. Speech recognition runs on-device and audio is never uploaded.
  */
 class FloatingTranslationOverlayService : Service() {
 
@@ -86,8 +86,8 @@ class FloatingTranslationOverlayService : Service() {
         }
         if (intent?.action == ACTION_SHOW && running.get()) {
             revealControl()
-            updateNotification("الترجمة العائمة تعمل")
-            return START_STICKY
+            updateNotification("الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة")
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) START_NOT_STICKY else START_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
