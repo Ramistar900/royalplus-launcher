@@ -218,7 +218,8 @@ internal fun WeatherDetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     WeatherAudioToggleRow(
-                        title = when (language) { "en" -> "All weather sounds"; "tr" -> "Tüm hava sesleri"; else -> "تشغيل أصوات الطقس" },
+                    language = language,
+                        title = when (language) { "en" -> "All nature & weather sounds"; "tr" -> "Tüm doğa ve hava sesleri"; else -> "جميع أصوات الطبيعة والطقس" },
                         enabled = masterAudioEnabled
                     ) {
                         masterAudioEnabled = !masterAudioEnabled
@@ -227,6 +228,7 @@ internal fun WeatherDetailsScreen(
                         )
                     }
                     WeatherAudioToggleRow(
+                    language = language,
                         title = when (language) { "en" -> "Natural rain"; "tr" -> "Doğal yağmur"; else -> "صوت المطر الطبيعي" },
                         enabled = rainAudioEnabled
                     ) {
@@ -236,6 +238,7 @@ internal fun WeatherDetailsScreen(
                         )
                     }
                     WeatherAudioToggleRow(
+                    language = language,
                         title = when (language) { "en" -> "Distant thunder"; "tr" -> "Uzak gök gürültüsü"; else -> "دوي الرعد البعيد" },
                         enabled = thunderAudioEnabled
                     ) {
@@ -245,6 +248,7 @@ internal fun WeatherDetailsScreen(
                         )
                     }
                     WeatherAudioToggleRow(
+                    language = language,
                         title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "صوت الرياح" },
                         enabled = windAudioEnabled
                     ) {
@@ -254,6 +258,7 @@ internal fun WeatherDetailsScreen(
                         )
                     }
                     WeatherAudioToggleRow(
+                    language = language,
                         title = when (language) { "en" -> "Morning birds"; "tr" -> "Sabah kuşları"; else -> "عصافير الصباح" },
                         enabled = birdsAudioEnabled
                     ) {
@@ -263,6 +268,7 @@ internal fun WeatherDetailsScreen(
                         )
                     }
                     WeatherAudioToggleRow(
+                    language = language,
                         title = when (language) { "en" -> "Night owl"; "tr" -> "Gece baykuşu"; else -> "صوت البومة ليلاً" },
                         enabled = owlAudioEnabled
                     ) {
@@ -485,6 +491,7 @@ private fun WeatherMetricCard(
 @Composable
 private fun WeatherAudioToggleRow(
     title: String,
+    language: String,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
@@ -502,7 +509,11 @@ private fun WeatherAudioToggleRow(
     ) {
         Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         Text(
-            if (enabled) "ON" else "OFF",
+            if (enabled) {
+                when (language) { "en" -> "ON"; "tr" -> "Açık"; else -> "مفعّل" }
+            } else {
+                when (language) { "en" -> "OFF"; "tr" -> "Kapalı"; else -> "متوقف" }
+            },
             color = if (enabled) Color(0xFFFFD36A) else Color(0xFF9299A5),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
