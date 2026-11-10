@@ -177,7 +177,9 @@ internal fun WeatherGlassCard(
         RoyalWeatherAtmosphereOverlay(
             weatherCode = weather.weatherCode,
             motionEnabled = motionEnabled,
-            windSpeedKmh = weather.windSpeedKmh
+            windSpeedKmh = weather.windSpeedKmh,
+            nightMode = isNight,
+            sunsetMode = hour != null && hour in 17..18
         )
         Column(
             modifier = Modifier
