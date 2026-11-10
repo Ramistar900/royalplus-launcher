@@ -72,6 +72,7 @@ internal fun AdhanOverlay(
     }
 
     BackHandler(onBack = {
+        playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
         context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
         onDismiss()
     })
