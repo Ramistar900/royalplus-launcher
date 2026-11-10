@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,7 +71,11 @@ internal fun WeatherDetailsScreen(
     onUseDeviceLocation: () -> Unit,
     motionEnabled: Boolean = true
 ) {
-    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    BackHandler(onBack = {
+        playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
+        onBack()
+    })
     var showCityPicker by remember { mutableStateOf(false) }
     var cityInput by remember(weather.city) {
         mutableStateOf(weather.city.substringBefore("،").substringBefore(","))
