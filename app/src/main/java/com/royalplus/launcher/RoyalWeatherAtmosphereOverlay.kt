@@ -119,8 +119,8 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 if (measuredWind >= 12) drawRoyalWind(progress, width, height, windStrength)
             }
             in 95..99 -> {
+                // Thunderstorm scenes keep the requested droplets-only rain treatment.
                 drawRoyalRain(progress, width, height, if (weatherCode == 95) 3 else 4, windStrength)
-                drawRoyalLightning(progress, width, height)
             }
         }
     }
