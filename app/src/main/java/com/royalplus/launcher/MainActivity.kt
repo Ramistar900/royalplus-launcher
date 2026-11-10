@@ -1,6 +1,5 @@
 package com.royalplus.launcher
 
-import com.royalplus.launcher.royalsounds.RoyalUiSound
 import com.royalplus.launcher.royalsounds.RoyalUiSounds
 
 import android.Manifest
@@ -209,15 +208,6 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         RoyalUiSounds.release()
         super.onDestroy()
-    }
-
-    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
-        if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
-            event.keyCode == android.view.KeyEvent.KEYCODE_BACK
-        ) {
-            playLauncherUiSound(this, RoyalUiSound.NAV_BACK)
-        }
-        return super.dispatchKeyEvent(event)
     }
 
     override fun onResume() {
