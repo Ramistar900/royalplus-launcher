@@ -105,6 +105,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -181,6 +184,22 @@ internal fun RoyalHomeScreen(
         }
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
+    val sidebarHomeFocusRequester = remember { FocusRequester() }
+    val customizationFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(150)
+        runCatching { sidebarHomeFocusRequester.requestFocus() }
+    }
+    LaunchedEffect(showWallpaperSettings) {
+        if (showWallpaperSettings) {
+            delay(120)
+            runCatching { customizationFocusRequester.requestFocus() }
+        } else {
+            delay(80)
+            runCatching { sidebarHomeFocusRequester.requestFocus() }
+        }
+    }
     var showWeatherDetails by remember { mutableStateOf(false) }
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -593,7 +612,8 @@ internal fun RoyalHomeScreen(
                                 selectedDestination = destination
                                 if (destination == LauncherDestination.HOME) { searchActive = false; searchQuery = "" }
                             },
-                            onOpenSettings = { showWallpaperSettings = true }
+                            onOpenSettings = { showWallpaperSettings = true },
+                            homeFocusRequester = sidebarHomeFocusRequester
                         )
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -739,7 +759,8 @@ internal fun RoyalHomeScreen(
                             .background(Color(0xFF10131B))
                             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
                             .padding(22.dp)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(rememberScrollState())
+                            .focusGroup(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(when (selectedLanguage) { "en" -> "Customize interface"; "tr" -> "Arayüzü özelleştir"; else -> "تخصيص الواجهة" }, color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -761,6 +782,7 @@ internal fun RoyalHomeScreen(
                                         prayerBannerUntil = 0L
                                     }
                                 }
+                                .focusRequester(customizationFocusRequester)
                                 .focusable()
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1355,6 +1377,7 @@ private fun IconStyleChoice(
     selectedStyle: String,
     icon: ImageVector = Icons.Rounded.Apps,
     iconRes: Int? = null,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val selected = style == selectedStyle
@@ -2016,7 +2039,8 @@ private fun fallbackAppIcon(label: String): ImageVector {
 @Composable
 private fun RoyalSidePanel(
     modifier: Modifier, selectedDestination: LauncherDestination, language: String,
-    onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
+    onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit,
+    homeFocusRequester: FocusRequester
 ) {
     val labels = when (language) {
         "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Gallery", "Songs", "Settings")
@@ -2030,7 +2054,7 @@ private fun RoyalSidePanel(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(5.dp))
-        SidebarNavItem(labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME) { onNavigate(LauncherDestination.HOME) }
+        SidebarNavItem(labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME, modifier = Modifier.focusRequester(homeFocusRequester)) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(8.dp))
         SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
@@ -2111,7 +2135,7 @@ private fun SidebarNavItem(
         label = "sidebar_focus_scale"
     )
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(42.dp)
             .graphicsLayer {
