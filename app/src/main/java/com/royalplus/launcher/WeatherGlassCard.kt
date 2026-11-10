@@ -83,8 +83,6 @@ internal fun WeatherGlassCard(
     language: String = "ar",
     motionEnabled: Boolean = true
 ) {
-    RoyalOwlAmbienceEffect(weather)
-    RoyalWeatherAmbienceEffect(weather)
     val prayerZone = java.util.TimeZone.getTimeZone(
         weather.timeZoneId ?: java.util.TimeZone.getDefault().id
     )
@@ -173,10 +171,6 @@ internal fun WeatherGlassCard(
                         listOf(Color(0x33000610), Color(0x66000610), Color(0xF0060A12))
                     )
                 )
-        )
-        RoyalWeatherAtmosphereOverlay(
-            weatherCode = weather.weatherCode,
-            motionEnabled = motionEnabled
         )
         Column(
             modifier = Modifier
