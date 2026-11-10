@@ -80,8 +80,7 @@ internal fun WeatherGlassCard(
     onRefreshWeather: () -> Unit,
     onOpenWeather: () -> Unit,
     modifier: Modifier = Modifier,
-    language: String = "ar",
-    motionEnabled: Boolean = true
+    language: String = "ar"
 ) {
     val prayerZone = java.util.TimeZone.getTimeZone(
         weather.timeZoneId ?: java.util.TimeZone.getDefault().id
@@ -161,7 +160,7 @@ internal fun WeatherGlassCard(
         RoyalMotionImage(
             image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 1280, maxPixels = 2_097_152L),
             modifier = Modifier.matchParentSize(),
-            motionEnabled = motionEnabled
+            motionEnabled = false
         )
         Box(
             modifier = Modifier
