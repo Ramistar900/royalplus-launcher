@@ -142,6 +142,7 @@ private enum class LauncherDestination {
     HOME, APPS, MANAGE_APPS, MUSLIM, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun RoyalHomeScreen(
     apps: List<LauncherApp>,
@@ -2036,6 +2037,7 @@ private fun fallbackAppIcon(label: String): ImageVector {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RoyalSidePanel(
     modifier: Modifier, selectedDestination: LauncherDestination, language: String,
