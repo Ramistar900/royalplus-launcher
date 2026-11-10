@@ -1914,6 +1914,7 @@ private fun AppTile(
     onLaunch: () -> Unit,
     onManage: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     var hasFocus by remember(app.packageName) { mutableStateOf(false) }
     val focusScale by animateFloatAsState(
         targetValue = if (hasFocus) 1.04f else 1f,
@@ -1939,8 +1940,14 @@ private fun AppTile(
             hasFocus = state.isFocused
             if (state.isFocused) onFocused(app.packageName)
         }.combinedClickable(
-            onClick = onLaunch,
-            onLongClick = onManage
+            onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onLaunch()
+            },
+            onLongClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_OPEN_MENU)
+                onManage?.invoke()
+            }
         ),
         shape = shape,
         colors = CardDefaults.cardColors(
