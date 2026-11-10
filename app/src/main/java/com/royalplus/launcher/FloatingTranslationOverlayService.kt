@@ -331,7 +331,7 @@ class FloatingTranslationOverlayService : Service() {
             squaredEnergy += sample * sample
         }
         val rms = sqrt(squaredEnergy / samples.size).toFloat()
-        return peak >= 0.008f && rms >= 0.0018f
+        return peak >= 0.0035f && rms >= 0.00075f
     }
 
     private fun translateCaption(text: String, detectedLanguage: String) {

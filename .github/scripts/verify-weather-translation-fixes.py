@@ -10,6 +10,7 @@ storm_branch = weather.split("in 95..99 -> {", 1)[1].split("\n            }", 1)
 rain_renderer = weather.split("private fun DrawScope.drawRoyalRain(", 1)[1].split("\nprivate fun DrawScope.drawRoyalSnow(", 1)[0]
 assert "drawRoyalClouds" not in rain_branch and "drawRoyalWind" not in rain_branch
 assert "drawRoyalClouds" not in storm_branch and "drawRoyalWind" not in storm_branch
+assert "isRainScene" in weather and "!isRainScene" in weather
 assert "cubicTo(" in rain_renderer and "drawPath(" in rain_renderer
 assert "drawLine(" not in rain_renderer and "drawRect(" not in rain_renderer
 

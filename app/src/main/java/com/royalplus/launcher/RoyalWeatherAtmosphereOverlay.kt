@@ -61,8 +61,11 @@ internal fun RoyalWeatherAtmosphereOverlay(
         val measuredWind = (windSpeedKmh ?: 8).coerceIn(0, 70)
         val windStrength = measuredWind / 70f
 
-        // Keep night skies coherent even when clouds, fog or precipitation cover the scene.
-        if (nightMode && weatherCode?.let { it !in 0..2 } == true) {
+        // Rain is intentionally rendered as droplets alone, even at night.
+        val isRainScene = weatherCode?.let {
+            it in 51..67 || it in 80..82 || it in 95..99
+        } == true
+        if (nightMode && !isRainScene && weatherCode?.let { it !in 0..2 } == true) {
             drawRoyalNightSky(progress, width, height)
         }
 
