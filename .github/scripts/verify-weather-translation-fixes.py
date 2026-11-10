@@ -14,6 +14,13 @@ assert "isRainScene" in weather and "!isRainScene" in weather
 assert "cubicTo(" in rain_renderer and "drawPath(" in rain_renderer
 assert "drawLine(" not in rain_renderer and "drawRect(" not in rain_renderer
 
+card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
+details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
+assert "RoyalWeatherAmbienceEffect(weather)" not in card
+assert "RoyalOwlAmbienceEffect(weather)" not in card
+assert "RoyalWeatherAmbienceEffect(weather)" in details
+assert "RoyalOwlAmbienceEffect(weather)" in details
+
 ambience = (JAVA / "RoyalWeatherAmbienceController.kt").read_text(encoding="utf-8")
 assert "foregroundOwner" in ambience and "latestWeather = null" in ambience
 assert "weatherReceivedAtElapsedMs = null" in ambience
