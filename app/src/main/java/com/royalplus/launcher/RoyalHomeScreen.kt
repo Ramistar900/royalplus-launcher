@@ -1264,6 +1264,7 @@ private fun RoyalFeatureToggleRow(
     checked: Boolean,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
@@ -1273,7 +1274,10 @@ private fun RoyalFeatureToggleRow(
                 if (checked) RoyalColors.Gold.copy(alpha = 0.55f) else RoyalColors.Gold.copy(alpha = 0.24f),
                 RoundedCornerShape(10.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, if (checked) RoyalUiSound.SELECT_TOGGLE_OFF else RoyalUiSound.SELECT_TOGGLE_ON)
+                onClick()
+            })
             .focusable()
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1354,6 +1358,7 @@ private fun IconStyleChoice(
     iconRes: Int? = null,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val selected = style == selectedStyle
     val shape = when (style) {
         "circle" -> RoundedCornerShape(50)
@@ -1370,7 +1375,10 @@ private fun IconStyleChoice(
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF080A0F))
             .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .focusable()
             .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1413,6 +1421,7 @@ private fun WallpaperChoice(
     image: androidx.compose.ui.graphics.painter.Painter,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
@@ -1422,7 +1431,10 @@ private fun WallpaperChoice(
                 color = if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(16.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .focusable()
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1735,6 +1747,7 @@ private fun HomeDashboard(
 private fun HomeFeatureCard(
     modifier: Modifier, title: String, subtitle: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
     val shape = RoundedCornerShape(18.dp)
@@ -1742,7 +1755,10 @@ private fun HomeFeatureCard(
         modifier.clip(shape)
             .background(if (emphasized) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
             .border(if (focused) 2.5.dp else if (selected) 2.dp else 1.dp, if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold.copy(alpha = 0.32f), shape)
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -2061,6 +2077,7 @@ private fun StatusIcon(
     description: String,
     onClick: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(50)
     val clickModifier = if (onClick == null) {
@@ -2074,7 +2091,10 @@ private fun StatusIcon(
                 color = if (focused) Color(0xFFFFD36A) else Color.Transparent,
                 shape = shape
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
     }
@@ -2099,6 +2119,7 @@ private fun SidebarNavItem(
     iconRes: Int? = null,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
     val shape = RoundedCornerShape(13.dp)
@@ -2126,7 +2147,10 @@ private fun SidebarNavItem(
                 if (focused) Color(0xFFFFD36A) else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
                 shape
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
             .padding(horizontal = 10.dp),
