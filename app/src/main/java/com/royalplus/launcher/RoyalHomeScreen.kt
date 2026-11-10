@@ -616,7 +616,6 @@ internal fun RoyalHomeScreen(
                                         onOpenWeather = { showWeatherDetails = true },
                                         onOpenSettings = { showWallpaperSettings = true },
                                         selectedLanguage = selectedLanguage,
-                                        weatherMotionEnabled = weatherMotionEnabled,
                                         prayerTimes = prayerTimesForHome,
                                         currentTimeMillis = currentTime
                                     )
@@ -1659,7 +1658,6 @@ private fun HomeDashboard(
     onRequestLocation: () -> Unit,
     onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
     onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String,
-    weatherMotionEnabled: Boolean
 ) {
     val quickAccessApps = remember(shortcuts, favorites) {
         (shortcuts + favorites).distinctBy { it.packageName }
@@ -1693,7 +1691,6 @@ private fun HomeDashboard(
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
                 onExploreApps = { onNavigate(LauncherDestination.APPS) },
-                motionEnabled = weatherMotionEnabled
             )
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -1771,8 +1768,7 @@ private fun RoyalScenicBanner(
     onOpenWeather: () -> Unit,
     onExploreApps: () -> Unit,
     prayerTimes: PrayerTimesData?,
-    currentTimeMillis: Long,
-    motionEnabled: Boolean = true
+    currentTimeMillis: Long
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
@@ -1808,8 +1804,7 @@ private fun RoyalScenicBanner(
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
                 modifier = Modifier.weight(1.05f).fillMaxHeight(),
-                language = language,
-                motionEnabled = motionEnabled
+                language = language
             )
         }
     }

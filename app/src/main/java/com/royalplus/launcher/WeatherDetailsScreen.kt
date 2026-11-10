@@ -6,6 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,12 +30,14 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Mosque
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.EditLocationAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -53,6 +61,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun WeatherDetailsScreen(
     weather: WeatherUiState,
@@ -68,8 +77,36 @@ internal fun WeatherDetailsScreen(
     onUseDeviceLocation: () -> Unit,
     motionEnabled: Boolean = true
 ) {
+    val context = LocalContext.current
+    RoyalOwlAmbienceEffect(weather)
+    RoyalWeatherAmbienceEffect(weather)
     BackHandler(onBack = onBack)
     var showCityPicker by remember { mutableStateOf(false) }
+    var showAudioSettings by remember { mutableStateOf(false) }
+    var masterAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY))
+    }
+    var rainAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.RAIN_ENABLED_KEY))
+    }
+    var thunderAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.THUNDER_ENABLED_KEY))
+    }
+    var windAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.WIND_ENABLED_KEY))
+    }
+    var birdsAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY))
+    }
+    var owlAudioEnabled by remember {
+        mutableStateOf(
+            context.getSharedPreferences(RoyalOwlAmbienceController.PREFERENCES_NAME, android.content.Context.MODE_PRIVATE)
+                .getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true)
+        )
+    }
+    var weatherAudioVolume by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.volume(context))
+    }
     var cityInput by remember(weather.city) {
         mutableStateOf(weather.city.substringBefore("،").substringBefore(","))
     }
@@ -159,6 +196,108 @@ internal fun WeatherDetailsScreen(
         )
     }
 
+    if (showAudioSettings) {
+        AlertDialog(
+            onDismissRequest = { showAudioSettings = false },
+            title = {
+                Text(
+                    when (language) {
+                        "en" -> "Weather sounds"
+                        "tr" -> "Hava durumu sesleri"
+                        else -> "أصوات الطقس"
+                    },
+                    color = gold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 520.dp)
+                        .verticalScroll(rememberScrollState())
+                        .focusGroup(),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    WeatherAudioToggleRow(
+                    language = language,
+                        title = when (language) { "en" -> "All nature & weather sounds"; "tr" -> "Tüm doğa ve hava sesleri"; else -> "جميع أصوات الطبيعة والطقس" },
+                        enabled = masterAudioEnabled
+                    ) {
+                        masterAudioEnabled = !masterAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY, masterAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                    language = language,
+                        title = when (language) { "en" -> "Natural rain"; "tr" -> "Doğal yağmur"; else -> "صوت المطر الطبيعي" },
+                        enabled = rainAudioEnabled
+                    ) {
+                        rainAudioEnabled = !rainAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.RAIN_ENABLED_KEY, rainAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                    language = language,
+                        title = when (language) { "en" -> "Distant thunder"; "tr" -> "Uzak gök gürültüsü"; else -> "دوي الرعد البعيد" },
+                        enabled = thunderAudioEnabled
+                    ) {
+                        thunderAudioEnabled = !thunderAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.THUNDER_ENABLED_KEY, thunderAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                    language = language,
+                        title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "صوت الرياح" },
+                        enabled = windAudioEnabled
+                    ) {
+                        windAudioEnabled = !windAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.WIND_ENABLED_KEY, windAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                    language = language,
+                        title = when (language) { "en" -> "Morning birds"; "tr" -> "Sabah kuşları"; else -> "عصافير الصباح" },
+                        enabled = birdsAudioEnabled
+                    ) {
+                        birdsAudioEnabled = !birdsAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY, birdsAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                    language = language,
+                        title = when (language) { "en" -> "Night owl"; "tr" -> "Gece baykuşu"; else -> "صوت البومة ليلاً" },
+                        enabled = owlAudioEnabled
+                    ) {
+                        owlAudioEnabled = !owlAudioEnabled
+                        RoyalOwlAmbienceController.setEnabled(context, owlAudioEnabled)
+                    }
+                    Text(
+                        when (language) { "en" -> "Volume"; "tr" -> "Ses seviyesi"; else -> "مستوى الصوت" },
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Slider(
+                        value = weatherAudioVolume,
+                        onValueChange = { value ->
+                            weatherAudioVolume = value
+                            RoyalWeatherAmbienceController.setVolume(context, value)
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAudioSettings = false }) {
+                    Text(when (language) { "en" -> "Done"; "tr" -> "Bitti"; else -> "تم" }, color = gold)
+                }
+            },
+            containerColor = Color(0xFF101722)
+        )
+    }
+
     Box(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
         RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
@@ -183,6 +322,10 @@ internal fun WeatherDetailsScreen(
                         Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
                             Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
+                        }
+                        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable { showAudioSettings = true }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Tune, null, tint = gold, modifier = Modifier.size(15.dp))
+                            Text(when (language) { "en" -> "Sounds"; "tr" -> "Sesler"; else -> "أصوات" }, color = Color.White, fontSize = 11.sp)
                         }
                         Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable {
                             cityInput = weather.city.substringBefore("،").substringBefore(",")
@@ -341,5 +484,39 @@ private fun WeatherMetricCard(
     ) {
         Text(title, color = Color.White.copy(alpha = 0.82f), fontSize = 10.sp, maxLines = 1)
         Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+
+@Composable
+private fun WeatherAudioToggleRow(
+    title: String,
+    language: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF080D15))
+            .border(1.dp, Color(0x66FFD36A), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .focusable()
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(
+            if (enabled) {
+                when (language) { "en" -> "ON"; "tr" -> "Açık"; else -> "مفعّل" }
+            } else {
+                when (language) { "en" -> "OFF"; "tr" -> "Kapalı"; else -> "متوقف" }
+            },
+            color = if (enabled) Color(0xFFFFD36A) else Color(0xFF9299A5),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
