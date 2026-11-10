@@ -159,8 +159,6 @@ internal object RoyalWeatherAmbienceController {
         RoyalLakeAmbienceController.setVolume(safeValue)
         if (safeValue <= 0f) {
             stopAllPlayback()
-            RoyalFireAmbienceController.stop()
-            RoyalLakeAmbienceController.stop()
         } else {
             applyPlayerVolume(1f)
             updatePlaybackForCurrentWeather()
