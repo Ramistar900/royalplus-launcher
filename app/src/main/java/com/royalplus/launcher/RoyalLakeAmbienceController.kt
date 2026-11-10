@@ -33,7 +33,8 @@ internal object RoyalLakeAmbienceController {
             )
             created.setDataSource(AUDIO_URL)
             created.isLooping = true
-            created.setVolume(VOLUME, VOLUME)
+            val level = VOLUME * RoyalWeatherAmbienceController.volume(context)
+            created.setVolume(level, level)
             created.setOnPreparedListener { prepared ->
                 if (player !== prepared) {
                     runCatching { prepared.release() }
@@ -50,6 +51,11 @@ internal object RoyalLakeAmbienceController {
         } catch (_: Exception) {
             release(created)
         }
+    }
+
+    fun setVolume(value: Float) {
+        val level = VOLUME * value.coerceIn(0f, 1f)
+        runCatching { player?.setVolume(level, level) }
     }
 
     fun stop() {
