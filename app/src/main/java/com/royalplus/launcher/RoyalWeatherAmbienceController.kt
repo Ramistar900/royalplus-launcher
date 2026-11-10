@@ -246,8 +246,8 @@ internal object RoyalWeatherAmbienceController {
     private fun selectScene(context: Context, weather: WeatherUiState): AmbienceScene? {
         val code = weather.weatherCode ?: return null
         return when {
-            // Thunderstorms use the separate distant-thunder one-shot track below.
-            // Do not layer the old storm-rain recording over it.
+            // Storms use natural rain ambience plus a separate distant-thunder one-shot.
+            // This avoids the legacy combined storm-rain-and-thunder recording.
             isRainCode(code) && isEnabled(context, RAIN_ENABLED_KEY) ->
                 AmbienceScene("rain", R.raw.weather_rain_natural)
             (weather.weatherCode in setOf(75, 86)) &&
@@ -268,7 +268,8 @@ internal object RoyalWeatherAmbienceController {
         }
     }
 
-    private fun isRainCode(code: Int): Boolean = code in 51..67 || code in 80..82
+    private fun isRainCode(code: Int): Boolean =
+        code in 51..67 || code in 80..82 || code in 95..99
 
     private fun isMorning(weather: WeatherUiState): Boolean {
         val zone = weather.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
