@@ -80,7 +80,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        RoyalUiSounds.initialize(applicationContext)
+        RoyalUiSounds.initialize(applicationContext, setOf(
+            RoyalUiSound.NAV_BACK,
+            RoyalUiSound.ACTION_DOWNLOAD,
+            RoyalUiSound.MEDIA_PAUSE,
+            RoyalUiSound.MEDIA_PLAY,
+            RoyalUiSound.ACTION_SUCCESS,
+            RoyalUiSound.ACTION_ERROR,
+            RoyalUiSound.NAV_SELECT,
+            RoyalUiSound.NAV_FOCUS_MOVE,
+            RoyalUiSound.SELECT_TOGGLE_OFF,
+            RoyalUiSound.SELECT_TOGGLE_ON,
+            RoyalUiSound.NAV_OPEN_MENU,
+            RoyalUiSound.NAV_CLOSE_MENU,
+            RoyalUiSound.ACTION_ADD,
+            RoyalUiSound.MEDIA_PREV,
+            RoyalUiSound.MEDIA_NEXT
+        ))
         val savedCrashReport = RoyalPlusApplication.readPendingReport(this)
         if (savedCrashReport != null) {
             showingCrashReport = true
