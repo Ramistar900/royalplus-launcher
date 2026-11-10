@@ -36,7 +36,9 @@ import kotlin.math.sin
 internal fun RoyalWeatherAtmosphereOverlay(
     weatherCode: Int?,
     motionEnabled: Boolean,
-    windSpeedKmh: Int? = null
+    windSpeedKmh: Int? = null,
+    nightMode: Boolean = false,
+    sunsetMode: Boolean = false
 ) {
     if (!motionEnabled || weatherCode == null) return
 
@@ -61,11 +63,19 @@ internal fun RoyalWeatherAtmosphereOverlay(
 
         when (weatherCode) {
             0 -> {
-                drawRoyalSun(progress, width, height, strong = true)
+                when {
+                    nightMode -> drawRoyalNightSky(progress, width, height)
+                    sunsetMode -> drawRoyalSunset(progress, width, height)
+                    else -> drawRoyalSun(progress, width, height, strong = true)
+                }
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
             1, 2 -> {
-                drawRoyalSun(progress, width, height, strong = false)
+                when {
+                    nightMode -> drawRoyalNightSky(progress, width, height)
+                    sunsetMode -> drawRoyalSunset(progress, width, height)
+                    else -> drawRoyalSun(progress, width, height, strong = false)
+                }
                 drawRoyalClouds(progress, width, height, count = 2, dense = false)
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
@@ -168,6 +178,72 @@ private fun DrawScope.drawRoyalSun(
         radius = radius * 0.72f,
         center = center
     )
+}
+
+private fun DrawScope.drawRoyalSunset(progress: Float, width: Float, height: Float) {
+    val center = Offset(width * 0.81f, height * 0.31f)
+    val pulse = 0.99f + 0.01f * sin(progress * PI * 2.0).toFloat()
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x66FFD18B), Color(0x36FF9B62), Color.Transparent),
+            center = center,
+            radius = width * 0.31f
+        ),
+        radius = width * 0.31f,
+        center = center
+    )
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFFFE1A1), Color(0xFFFFA66F), Color(0x00F06A55)),
+            center = center,
+            radius = width * 0.095f * pulse
+        ),
+        radius = width * 0.095f * pulse,
+        center = center
+    )
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color.Transparent, Color(0x18F58D69), Color.Transparent),
+            startY = height * 0.30f,
+            endY = height * 0.78f
+        ),
+        topLeft = Offset(0f, height * 0.30f),
+        size = Size(width, height * 0.48f)
+    )
+}
+
+private fun DrawScope.drawRoyalNightSky(progress: Float, width: Float, height: Float) {
+    val moon = Offset(width * 0.82f, height * 0.17f)
+    val radius = width * 0.055f
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x55D9E9FF), Color(0x18AFCDF1), Color.Transparent),
+            center = moon,
+            radius = radius * 3.2f
+        ),
+        radius = radius * 3.2f,
+        center = moon
+    )
+    val crescent = Path().apply {
+        moveTo(moon.x, moon.y - radius)
+        cubicTo(moon.x - radius * 1.12f, moon.y - radius * 0.42f, moon.x - radius * 0.70f, moon.y + radius * 0.92f, moon.x + radius * 0.02f, moon.y + radius)
+        cubicTo(moon.x + radius * 0.76f, moon.y + radius * 0.48f, moon.x + radius * 0.74f, moon.y - radius * 0.28f, moon.x, moon.y - radius)
+        close()
+    }
+    drawPath(crescent, Color(0xFFFFF1D2).copy(alpha = 0.86f))
+
+    repeat(30) { index ->
+        val x = width * ((index * 0.6180339f + 0.07f) % 1f)
+        val y = height * (0.035f + ((index * 0.371f) % 1f) * 0.43f)
+        val twinkle = 0.24f + 0.28f * (0.5f + 0.5f * sin(progress * PI * 2.0 + index * 1.7).toFloat())
+        val starRadius = (0.65f + (index % 3) * 0.42f).dp.toPx()
+        drawCircle(Color(0xFFE8F2FF).copy(alpha = twinkle), radius = starRadius, center = Offset(x, y))
+        if (index % 7 == 0) {
+            val ray = starRadius * 2.8f
+            drawLine(Color(0x99E8F2FF).copy(alpha = twinkle), Offset(x - ray, y), Offset(x + ray, y), strokeWidth = 0.7.dp.toPx())
+            drawLine(Color(0x99E8F2FF).copy(alpha = twinkle), Offset(x, y - ray), Offset(x, y + ray), strokeWidth = 0.7.dp.toPx())
+        }
+    }
 }
 
 private fun DrawScope.drawRoyalClouds(
