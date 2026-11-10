@@ -5,10 +5,8 @@ import android.media.AudioAttributes
 import android.media.SoundPool
 
 /**
- * Offline UI sound effects for ROYAL+ Launcher.
- *
- * Uses SoundPool + short PCM WAV resources, APIs available from Android 5.0.
- * The app modules currently support Android 7.0+; this remains compatible with Android 8.0 (API 26).
+ * Offline UI effects. Samples are preloaded selectively to stay below SoundPool's
+ * decoded-memory budget on older devices, including Android 8 (API 26).
  */
 enum class RoyalUiSound(val resourceId: Int) {
     NAV_FOCUS_MOVE(R.raw.royal_ui_nav_focus_move),
@@ -67,44 +65,88 @@ object RoyalUiSounds {
     private const val KEY_ENABLED = "enabled"
     private const val KEY_VOLUME = "volume"
     private const val DEFAULT_VOLUME = 0.62f
+    // Keep headroom below SoundPool's approximately 1 MiB decoded sample limit.
+    private const val MAX_CACHED_BYTES = 900 * 1024
 
     private val lock = Any()
     private var appContext: Context? = null
     private var soundPool: SoundPool? = null
     private val sampleIds = mutableMapOf<RoyalUiSound, Int>()
+    private val sampleBytes = mutableMapOf<RoyalUiSound, Int>()
     private val loadedSampleIds = mutableSetOf<Int>()
+    private val pendingPlaySampleIds = mutableSetOf<Int>()
+    private var reservedBytes = 0
     @Volatile private var enabled = true
     @Volatile private var volume = DEFAULT_VOLUME
 
-    fun initialize(context: Context) {
+    /**
+     * Preload only sounds that this app actually uses. The remaining effects are
+     * loaded on demand, so an app never decodes all 49 files into SoundPool.
+     */
+    fun initialize(
+        context: Context,
+        preloadSounds: Set<RoyalUiSound> = emptySet()
+    ) {
         val applicationContext = context.applicationContext
         synchronized(lock) {
-            if (soundPool != null) return
-            appContext = applicationContext
-            val preferences = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            enabled = preferences.getBoolean(KEY_ENABLED, true)
-            volume = preferences.getFloat(KEY_VOLUME, DEFAULT_VOLUME).coerceIn(0f, 1f)
+            if (soundPool == null) {
+                appContext = applicationContext
+                val preferences = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                enabled = preferences.getBoolean(KEY_ENABLED, true)
+                volume = preferences.getFloat(KEY_VOLUME, DEFAULT_VOLUME).coerceIn(0f, 1f)
 
-            val attributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-            val pool = SoundPool.Builder()
-                .setMaxStreams(4)
-                .setAudioAttributes(attributes)
-                .build()
-            soundPool = pool
-            pool.setOnLoadCompleteListener { completedPool, sampleId, status ->
-                if (status == 0) {
+                val attributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                val pool = SoundPool.Builder()
+                    .setMaxStreams(4)
+                    .setAudioAttributes(attributes)
+                    .build()
+                soundPool = pool
+                pool.setOnLoadCompleteListener { completedPool, sampleId, status ->
+                    var playPending = false
+                    var playVolume = 0f
                     synchronized(lock) {
-                        if (soundPool === completedPool) loadedSampleIds.add(sampleId)
+                        if (soundPool === completedPool) {
+                            val sound = sampleIds.entries.firstOrNull { it.value == sampleId }?.key
+                            if (status == 0) {
+                                loadedSampleIds.add(sampleId)
+                                playPending = enabled && pendingPlaySampleIds.remove(sampleId)
+                                playVolume = volume
+                            } else {
+                                pendingPlaySampleIds.remove(sampleId)
+                                if (sound != null) {
+                                    sampleIds.remove(sound)
+                                    reservedBytes = (reservedBytes - (sampleBytes.remove(sound) ?: 0)).coerceAtLeast(0)
+                                }
+                            }
+                        }
+                    }
+                    if (playPending) {
+                        runCatching { completedPool.play(sampleId, playVolume, playVolume, 1, 0, 1f) }
                     }
                 }
             }
-            RoyalUiSound.values().forEach { sound ->
-                sampleIds[sound] = pool.load(applicationContext, sound.resourceId, 1)
-            }
+            preloadSounds.forEach { loadSampleLocked(applicationContext, it) }
         }
+    }
+
+    private fun loadSampleLocked(context: Context, sound: RoyalUiSound): Int {
+        sampleIds[sound]?.let { return it }
+        val pool = soundPool ?: return 0
+        val bytes = runCatching {
+            context.resources.openRawResource(sound.resourceId).use { it.available() }
+        }.getOrDefault(0)
+        if (bytes <= 0 || reservedBytes + bytes > MAX_CACHED_BYTES) return 0
+
+        val sampleId = runCatching { pool.load(context, sound.resourceId, 1) }.getOrDefault(0)
+        if (sampleId != 0) {
+            sampleIds[sound] = sampleId
+            sampleBytes[sound] = bytes
+            reservedBytes += bytes
+        }
+        return sampleId
     }
 
     fun play(context: Context, sound: RoyalUiSound): Boolean {
@@ -113,19 +155,23 @@ object RoyalUiSounds {
     }
 
     fun play(sound: RoyalUiSound): Boolean {
-        val currentPool: SoundPool
+        val pool: SoundPool
         val sampleId: Int
         val level: Float
         synchronized(lock) {
             if (!enabled) return false
-            currentPool = soundPool ?: return false
-            sampleId = sampleIds[sound] ?: return false
-            if (sampleId !in loadedSampleIds) return false
+            pool = soundPool ?: return false
+            val context = appContext ?: return false
+            sampleId = sampleIds[sound] ?: loadSampleLocked(context, sound)
+            if (sampleId == 0) return false
+            if (sampleId !in loadedSampleIds) {
+                pendingPlaySampleIds.add(sampleId)
+                return true
+            }
             level = volume
         }
-        return runCatching {
-            currentPool.play(sampleId, level, level, 1, 0, 1f) != 0
-        }.getOrDefault(false)
+        return runCatching { pool.play(sampleId, level, level, 1, 0, 1f) != 0 }
+            .getOrDefault(false)
     }
 
     fun isEnabled(context: Context): Boolean {
@@ -136,6 +182,7 @@ object RoyalUiSounds {
     fun setEnabled(context: Context, value: Boolean) {
         initialize(context)
         enabled = value
+        if (!value) synchronized(lock) { pendingPlaySampleIds.clear() }
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putBoolean(KEY_ENABLED, value).apply()
     }
@@ -152,7 +199,10 @@ object RoyalUiSounds {
             val current = soundPool
             soundPool = null
             sampleIds.clear()
+            sampleBytes.clear()
             loadedSampleIds.clear()
+            pendingPlaySampleIds.clear()
+            reservedBytes = 0
             appContext = null
             current
         }
