@@ -304,6 +304,7 @@ internal fun RoyalHomeScreen(
     BackHandler(
         enabled = showWallpaperSettings || showWeatherDetails || showQuickControls || searchActive || selectedDestination != LauncherDestination.HOME
     ) {
+        playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
         when {
             showQuickControls -> showQuickControls = false
             showWallpaperSettings -> showWallpaperSettings = false
