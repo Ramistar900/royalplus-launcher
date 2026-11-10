@@ -94,19 +94,16 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
             in 51..57 -> {
-                drawRoyalClouds(progress, width, height, count = 4, dense = true)
+                // Rain scenes are deliberately limited to individual falling droplets.
                 drawRoyalRain(progress, width, height, intensity = if (weatherCode >= 55) 2 else 1, windStrength = windStrength)
-                if (measuredWind >= 18) drawRoyalWind(progress, width, height, windStrength)
             }
             in 61..67, in 80..82 -> {
-                drawRoyalClouds(progress, width, height, count = 4, dense = true)
                 val intensity = when (weatherCode) {
                     61, 66, 80 -> 2
                     63, 81 -> 3
                     else -> 4
                 }
                 drawRoyalRain(progress, width, height, intensity, windStrength)
-                if (measuredWind >= 18) drawRoyalWind(progress, width, height, windStrength)
             }
             in 71..77, 85, 86 -> {
                 drawRoyalClouds(progress, width, height, count = 4, dense = true)
@@ -119,7 +116,6 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 if (measuredWind >= 12) drawRoyalWind(progress, width, height, windStrength)
             }
             in 95..99 -> {
-                drawRoyalClouds(progress, width, height, count = 6, dense = true)
                 drawRoyalRain(progress, width, height, if (weatherCode == 95) 3 else 4, windStrength)
                 drawRoyalLightning(progress, width, height)
             }
@@ -324,75 +320,41 @@ private fun DrawScope.drawRoyalRain(
     intensity: Int,
     windStrength: Float
 ) {
-    // Long falling streaks with a wind-driven angle avoid the old horizontal dash effect.
-    val count = when (intensity) {
-        1 -> 38
-        2 -> 58
-        3 -> 82
-        else -> 108
-    }
-    val travel = height * 1.42f
-    val windTilt = (0.12f + windStrength * 0.78f)
+    // Filled teardrops only: no animated clouds, streaks, wind trails, or splash layer.
+    val count = when (intensity) { 1 -> 34; 2 -> 48; 3 -> 64; else -> 82 }
+    val dropLength = height * when (intensity) { 1 -> 0.020f; 2 -> 0.024f; 3 -> 0.029f; else -> 0.034f }
+    val horizontalDrift = width * windStrength.coerceIn(0f, 1f) * 0.11f
 
     repeat(count) { index ->
         val seed = (index * 0.6180339f) % 1f
         val phase = (index * 0.381966f + (index % 5) * 0.047f) % 1f
-        val speed = 0.76f + (index % 7) * 0.075f
-        val length = height * when (intensity) {
-            1 -> 0.020f + (index % 4) * 0.004f
-            2 -> 0.027f + (index % 5) * 0.0045f
-            3 -> 0.034f + (index % 5) * 0.0055f
-            else -> 0.042f + (index % 5) * 0.006f
-        }
-        val x = width * (0.015f + seed * 0.97f)
-        val y = (height * phase + progress * travel * speed) % (height + length) - length
-        val slant = length * windTilt * (if (index % 2 == 0) 1f else -0.20f)
-        val alpha = when (intensity) {
-            1 -> 0.22f + (index % 4) * 0.035f
-            2 -> 0.28f + (index % 5) * 0.032f
-            3 -> 0.34f + (index % 5) * 0.035f
-            else -> 0.39f + (index % 5) * 0.035f
-        }.coerceAtMost(0.58f)
-        val stroke = (0.8f + (index % 3) * 0.32f).dp.toPx()
+        val speed = 0.78f + (index % 7) * 0.07f
+        val y = (height * phase + progress * height * 1.35f * speed) % (height + dropLength) - dropLength
+        val baseX = width * (0.018f + seed * 0.964f)
+        val drift = progress * horizontalDrift * (if (index % 2 == 0) 1f else -0.36f)
+        val x = (baseX + drift + width) % width
+        val dropWidth = dropLength * (0.34f + (index % 4) * 0.035f)
+        val alpha = (0.54f + (index % 5) * 0.055f).coerceAtMost(0.78f)
 
-        drawLine(
-            color = Color(0xFFB9D9EE).copy(alpha = alpha * 0.26f),
-            start = Offset(x - slant * 0.25f, y - length * 0.12f),
-            end = Offset(x + slant * 1.18f, y + length * 1.10f),
-            strokeWidth = stroke * 2.2f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = Color(0xFFE8F5FF).copy(alpha = alpha),
-            start = Offset(x, y),
-            end = Offset(x + slant, y + length),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-    }
-
-    if (intensity >= 3) {
-        val sprayY = height * 0.88f
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, Color(0x142D526B), Color(0x359AB9CA)),
-                startY = sprayY,
-                endY = height
-            ),
-            topLeft = Offset(0f, sprayY),
-            size = Size(width, height - sprayY)
-        )
-        repeat(12) { index ->
-            val x = width * ((index * 0.173f + progress * 0.045f) % 1f)
-            val y = height * (0.91f + (index % 4) * 0.021f)
-            val radius = (2.0f + (index % 3) * 0.8f).dp.toPx()
-            drawCircle(
-                color = Color(0x55DCEEFF),
-                radius = radius,
-                center = Offset(x, y),
-                style = Stroke(width = 0.9.dp.toPx())
-            )
+        val droplet = Path().apply {
+            moveTo(x, y)
+            cubicTo(x - dropWidth * 0.20f, y + dropLength * 0.24f,
+                x - dropWidth * 0.92f, y + dropLength * 0.62f,
+                x - dropWidth * 0.68f, y + dropLength * 0.86f)
+            cubicTo(x - dropWidth * 0.34f, y + dropLength * 1.16f,
+                x + dropWidth * 0.34f, y + dropLength * 1.16f,
+                x + dropWidth * 0.68f, y + dropLength * 0.86f)
+            cubicTo(x + dropWidth * 0.92f, y + dropLength * 0.62f,
+                x + dropWidth * 0.20f, y + dropLength * 0.24f,
+                x, y)
+            close()
         }
+        drawPath(path = droplet, color = Color(0xFFDDF2FF).copy(alpha = alpha))
+        drawCircle(
+            color = Color.White.copy(alpha = alpha * 0.34f),
+            radius = dropWidth * 0.12f,
+            center = Offset(x - dropWidth * 0.17f, y + dropLength * 0.73f)
+        )
     }
 }
 

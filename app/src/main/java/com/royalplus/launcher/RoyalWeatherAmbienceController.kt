@@ -10,6 +10,7 @@ import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -24,30 +25,31 @@ internal fun RoyalWeatherAmbienceEffect(weather: WeatherUiState) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val latestWeather = rememberUpdatedState(weather)
+    val screenSession = remember(lifecycleOwner) { Any() }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, screenSession) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME ->
-                    RoyalWeatherAmbienceController.onForeground(context, latestWeather.value)
+                    RoyalWeatherAmbienceController.onForeground(context, latestWeather.value, screenSession)
                 Lifecycle.Event.ON_PAUSE ->
-                    RoyalWeatherAmbienceController.onBackground()
+                    RoyalWeatherAmbienceController.onBackground(screenSession)
                 else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            RoyalWeatherAmbienceController.onForeground(context, latestWeather.value)
+            RoyalWeatherAmbienceController.onForeground(context, latestWeather.value, screenSession)
         }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            RoyalWeatherAmbienceController.onBackground()
+            RoyalWeatherAmbienceController.onBackground(screenSession)
         }
     }
 
     SideEffect {
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            RoyalWeatherAmbienceController.onWeatherChanged(context, weather)
+            RoyalWeatherAmbienceController.onWeatherChanged(context, weather, screenSession)
         }
     }
 }
@@ -87,6 +89,7 @@ internal object RoyalWeatherAmbienceController {
     private var latestWeatherIdentity: WeatherUiState? = null
     private var weatherReceivedAtElapsedMs: Long? = null
     private var foreground = false
+    private var foregroundOwner: Any? = null
     private var activeSceneKey: String? = null
     private var activeSceneVolumeMultiplier = 1f
     private var loopPlayer: MediaPlayer? = null
@@ -166,21 +169,29 @@ internal object RoyalWeatherAmbienceController {
         RoyalOwlAmbienceController.onAudioVolumeChanged()
     }
 
-    fun onForeground(context: Context, weather: WeatherUiState) {
+    fun onForeground(context: Context, weather: WeatherUiState, owner: Any) {
         appContext = context.applicationContext
+        foregroundOwner = owner
         foreground = true
         updateWeatherIdentity(weather)
         updatePlaybackForCurrentWeather()
     }
 
-    fun onWeatherChanged(context: Context, weather: WeatherUiState) {
+    fun onWeatherChanged(context: Context, weather: WeatherUiState, owner: Any) {
+        if (foregroundOwner !== owner) return
         appContext = context.applicationContext
         val changed = updateWeatherIdentity(weather)
         if (changed && foreground) updatePlaybackForCurrentWeather()
     }
 
-    fun onBackground() {
+    fun onBackground(owner: Any? = null) {
+        if (owner != null && foregroundOwner !== owner) return
+        foregroundOwner = null
         foreground = false
+        latestWeather = null
+        latestWeatherIdentity = null
+        weatherReceivedAtElapsedMs = null
+        activeSceneVolumeMultiplier = 1f
         stopAllPlayback()
     }
 

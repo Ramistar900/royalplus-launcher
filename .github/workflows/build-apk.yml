@@ -136,6 +136,9 @@ jobs:
                   print("Keeping original fireplace loop; optimized video was not smaller.")
           PY
 
+      - name: Verify weather and translation regression guards
+        run: python3 .github/scripts/verify-weather-translation-fixes.py
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
