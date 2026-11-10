@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -136,7 +135,8 @@ private fun DrawScope.drawRoyalClouds(
     repeat(cloudCount) { index ->
         val scale = if (dense) 1f + (index % 2) * 0.16f else 0.72f + (index % 2) * 0.12f
         val baseX = width * (0.08f + index * 0.235f)
-        val x = (baseX + drift * if (index % 2 == 0) 1f else -0.65f + width) % (width * 1.18f) - width * 0.08f
+        val direction = if (index % 2 == 0) 1f else -0.65f
+        val x = (baseX + drift * direction + width) % (width * 1.18f) - width * 0.08f
         val y = height * (0.12f + (index % 3) * 0.09f) +
             sin(progress * PI * 2.0 + index * 1.7).toFloat() * height * 0.008f
         val radius = width * 0.105f * scale
