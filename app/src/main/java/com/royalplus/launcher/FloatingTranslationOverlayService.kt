@@ -225,12 +225,25 @@ class FloatingTranslationOverlayService : Service() {
     private fun createMicrophoneRecord(): AudioRecord {
         val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (minBuffer <= 0) throw IllegalStateException("الميكروفون لا يدعم معدل الصوت المطلوب")
-        return AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+        val bufferSize = maxOf(minBuffer * 3, SAMPLE_RATE * 4)
+        val voiceRecorder = runCatching {
+            AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+        }.getOrNull()
+        if (voiceRecorder?.state == AudioRecord.STATE_INITIALIZED) return voiceRecorder
+        runCatching { voiceRecorder?.release() }
+        // Some Android TV firmware exposes only the generic microphone source.
+        AudioRecord(
+            MediaRecorder.AudioSource.MIC,
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
-            maxOf(minBuffer * 3, SAMPLE_RATE * 4)
+            bufferSize
         )
     }
 

@@ -235,7 +235,8 @@ class MainActivity : ComponentActivity() {
                 val serviceIsRunning = (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
                     .getRunningServices(Int.MAX_VALUE)
                     .any { it.service.className == FloatingTranslationOverlayService::class.java.name }
-                if (serviceIsRunning) {
+                if (serviceIsRunning || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    // Android 8/9 can restart its microphone session; API 29+ requires a fresh system grant.
                     val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
                         action = FloatingTranslationOverlayService.ACTION_SHOW
                     }
