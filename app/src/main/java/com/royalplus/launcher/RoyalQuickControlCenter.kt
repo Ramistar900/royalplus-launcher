@@ -137,7 +137,10 @@ internal fun RoyalQuickControlCenter(
                 Box(
                     Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF1B202B))
-                        .clickable(onClick = onDismiss)
+                        .clickable(onClick = {
+                            playLauncherUiSound(context, RoyalUiSound.NAV_CLOSE_MENU)
+                            onDismiss()
+                        })
                         .focusable(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -188,6 +191,7 @@ private fun RoyalQuickControlTile(
     focusRequester: FocusRequester?,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var focused = remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
     Column(
