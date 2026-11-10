@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import androidx.activity.compose.BackHandler
 import android.os.Build
 
@@ -478,20 +480,15 @@ internal fun RoyalHomeScreen(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
-                        if (latestClickSoundsEnabled.value) {
-                            context.getSystemService(android.media.AudioManager::class.java)
-                                ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
-                        }
                         lastUserInteraction = System.currentTimeMillis()
                         showSmartScreensaver = false
                     }
                 }
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && latestClickSoundsEnabled.value &&
-                        event.key in setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
+                        event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
                     ) {
-                        context.getSystemService(android.media.AudioManager::class.java)
-                            ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+                        playLauncherUiSound(context, RoyalUiSound.NAV_FOCUS_MOVE)
                     }
                     lastUserInteraction = System.currentTimeMillis()
                     showSmartScreensaver = false
