@@ -43,7 +43,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 16_000, easing = LinearEasing),
+            animation = tween(durationMillis = 10_000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "weather-motion"
@@ -158,68 +158,90 @@ private fun DrawScope.drawRoyalClouds(
 }
 
 private fun DrawScope.drawRoyalRain(progress: Float, width: Float, height: Float, intensity: Int) {
+    // Keep the rain field varied and lightweight for older Android TV hardware.
     val count = when (intensity) {
-        1 -> 28
-        2 -> 46
-        3 -> 64
-        else -> 82
+        1 -> 34
+        2 -> 54
+        3 -> 74
+        else -> 90
     }
-    val windSlant = width * 0.018f
-    val lineAlpha = when (intensity) {
-        1 -> 0.30f
-        2 -> 0.38f
-        3 -> 0.46f
-        else -> 0.54f
-    }
-    val travel = height * if (intensity == 1) 0.78f else 1.25f
+    val travel = height * 1.45f
+
     repeat(count) { index ->
-        // Irrational spacing avoids visible particle columns without allocating arrays.
         val seed = (index * 0.6180339f) % 1f
-        val x = width * (0.02f + seed * 0.96f)
-        val phase = (index * 0.137f) % 1f
-        val y = (height * phase + progress * travel) % (height * 1.12f) - height * 0.06f
+        val phase = (index * 0.381966f + (index % 4) * 0.071f) % 1f
+        val speed = 0.78f + (index % 5) * 0.105f
         val length = height * when (intensity) {
-            1 -> 0.014f + (index % 3) * 0.003f
-            2 -> 0.022f + (index % 4) * 0.004f
-            3 -> 0.030f + (index % 4) * 0.005f
-            else -> 0.038f + (index % 5) * 0.005f
+            1 -> 0.018f + (index % 4) * 0.004f
+            2 -> 0.026f + (index % 5) * 0.005f
+            3 -> 0.034f + (index % 5) * 0.006f
+            else -> 0.042f + (index % 5) * 0.007f
         }
-        val start = Offset(x, y)
-        val end = Offset(x - windSlant, y + length)
-        drawLine(
-            color = Color(0xFFDCEEFF).copy(alpha = lineAlpha),
-            start = start,
-            end = end,
-            strokeWidth = (0.8f + intensity * 0.32f).dp.toPx(),
-            cap = StrokeCap.Round
-        )
-        if (intensity >= 3 && index % 9 == 0) {
+        val x = width * (0.015f + seed * 0.97f)
+        val y = (height * phase + progress * travel * speed) % (height + length) - length
+        val direction = if (index % 2 == 0) 1f else -1f
+        // Slant is now a fraction of the drop length, not of screen width.
+        // This prevents short horizontal dashes on wide TV displays.
+        val slant = length * (0.08f + (index % 4) * 0.045f) * direction
+        val dropWidth = (0.75f + (index % 4) * 0.22f).dp.toPx()
+        val alpha = when (intensity) {
+            1 -> 0.27f + (index % 4) * 0.035f
+            2 -> 0.32f + (index % 5) * 0.035f
+            3 -> 0.37f + (index % 5) * 0.04f
+            else -> 0.42f + (index % 5) * 0.045f
+        }
+
+        // A slim curved droplet has a rounded upper body and a tapered falling tail.
+        val drop = Path().apply {
+            moveTo(x, y)
+            cubicTo(
+                x + dropWidth * 0.9f, y + length * 0.18f,
+                x + slant + dropWidth * 0.65f, y + length * 0.72f,
+                x + slant, y + length
+            )
+            cubicTo(
+                x + slant - dropWidth * 0.55f, y + length * 0.79f,
+                x - dropWidth * 0.65f, y + length * 0.25f,
+                x, y
+            )
+            close()
+        }
+        drawPath(drop, Color(0xFFEAF6FF).copy(alpha = alpha))
+
+        // Occasional foreground drops add scale and depth instead of repeating one shape.
+        if (index % 7 == 0) {
+            val radius = (1.0f + (index % 3) * 0.45f).dp.toPx()
             drawCircle(
-                color = Color(0x99D8EEFF),
-                radius = 1.1.dp.toPx(),
-                center = Offset(end.x, end.y + 1.5.dp.toPx())
+                color = Color(0xFFD9EEFF).copy(alpha = (alpha * 0.72f).coerceAtMost(0.62f)),
+                radius = radius,
+                center = Offset(x + slant, y + length * 0.88f)
             )
         }
     }
 
-    // Fine ground-level spray adds depth without expensive blur effects.
+    // Soft ground spray and scattered splashes appear only in heavier rain.
     if (intensity >= 3) {
-        val sprayY = height * 0.91f
+        val sprayY = height * 0.90f
         drawRect(
             brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, Color(0x142D526B), Color(0x1D9AB9CA)),
+                colors = listOf(
+                    Color.Transparent,
+                    Color(0x102D526B),
+                    Color(0x269AB9CA)
+                ),
                 startY = sprayY,
                 endY = height
             ),
             topLeft = Offset(0f, sprayY),
             size = Size(width, height - sprayY)
         )
-        repeat(12) { index ->
-            val x = width * ((index * 0.173f + progress * 0.025f) % 1f)
-            val y = height * (0.91f + (index % 3) * 0.025f)
+        repeat(10) { index ->
+            val x = width * ((index * 0.173f + progress * 0.035f) % 1f)
+            val y = height * (0.92f + (index % 3) * 0.022f)
+            val radius = (1.3f + (index % 3) * 0.65f).dp.toPx()
             drawCircle(
-                color = Color(0x44DCEEFF),
-                radius = (1.2f + (index % 2) * 0.7f).dp.toPx(),
+                color = Color(0x3DDCEEFF),
+                radius = radius,
                 center = Offset(x, y),
                 style = Stroke(width = 0.8.dp.toPx())
             )
