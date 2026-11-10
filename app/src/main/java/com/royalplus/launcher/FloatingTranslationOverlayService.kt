@@ -130,6 +130,9 @@ class FloatingTranslationOverlayService : Service() {
 
     private fun prepareRecognizer() {
         try {
+            // Consume the one-use system audio grant immediately; Whisper may take
+            // time to download on first launch, so capture begins before model setup.
+            if (!startAudioCapture()) return
             val engine = WhisperModelRepository.createRecognizer(applicationContext) { message ->
                 updateStatus(message)
             }
@@ -138,7 +141,7 @@ class FloatingTranslationOverlayService : Service() {
                 return
             }
             recognizer = engine
-            startAudioCapture()
+            decodeThread = Thread({ decodeAudioSegments() }, "RoyalWhisperDecode").apply { start() }
         } catch (error: Exception) {
             if (running.get()) {
                 updateStatus(
@@ -150,7 +153,7 @@ class FloatingTranslationOverlayService : Service() {
         }
     }
 
-    private fun startAudioCapture() {
+    private fun startAudioCapture(): Boolean {
         val recorder = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) createPlaybackCaptureRecord()
             else createMicrophoneRecord()
@@ -163,24 +166,24 @@ class FloatingTranslationOverlayService : Service() {
                 }
             )
             mainHandler.postDelayed({ stopSelf() }, 8_000L)
-            return
+            return false
         }
         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
             recorder.release()
             updateStatus("لم يتمكن الجهاز من تهيئة مصدر الصوت")
             mainHandler.postDelayed({ stopSelf() }, 5_000L)
-            return
+            return false
         }
         audioRecord = recorder
         updateStatus(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                "تم ربط التقاط صوت التطبيقات. شغّل الفيديو ليبدأ التحويل إلى العربية."
+                "تم ربط التقاط صوت التطبيقات. جارٍ تجهيز محرك الترجمة…"
             } else {
                 "Android 8/9: الترجمة تستمع عبر ميكروفون التلفاز؛ ارفع صوت الفيديو وتأكد من وجود ميكروفون فعلي."
             }
         )
         captureThread = Thread({ captureAudio(recorder) }, "RoyalAudioCapture").apply { start() }
-        decodeThread = Thread({ decodeAudioSegments() }, "RoyalWhisperDecode").apply { start() }
+        return true
     }
 
     @Suppress("NewApi")
