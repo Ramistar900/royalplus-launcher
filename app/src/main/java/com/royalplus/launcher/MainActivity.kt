@@ -1,5 +1,6 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
 import com.royalplus.launcher.royalsounds.RoyalUiSounds
 
 import android.Manifest
