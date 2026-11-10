@@ -216,10 +216,33 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(this, "لم تكتمل أذونات الترجمة العائمة", Toast.LENGTH_LONG).show()
             }
         } else {
-            translationOverlayEnabled = getSharedPreferences(
+            val translationPreferences = getSharedPreferences(
                 FloatingTranslationOverlayService.PREFERENCES,
                 MODE_PRIVATE
-            ).getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
+            )
+            val savedOverlayEnabled = translationPreferences.getBoolean(
+                FloatingTranslationOverlayService.KEY_ENABLED,
+                false
+            )
+            translationOverlayEnabled = savedOverlayEnabled
+
+            // Restore the persistent overlay if the TV firmware stopped its service
+            // while another application was in the foreground.
+            if (savedOverlayEnabled &&
+                Settings.canDrawOverlays(this) &&
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            ) {
+                runCatching {
+                    val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+                        action = FloatingTranslationOverlayService.ACTION_SHOW
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(serviceIntent)
+                    } else {
+                        startService(serviceIntent)
+                    }
+                }
+            }
         }
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: checking default launcher")
         isDefaultHome = isRoyalPlusDefaultHome()
