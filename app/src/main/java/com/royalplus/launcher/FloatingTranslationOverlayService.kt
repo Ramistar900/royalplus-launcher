@@ -58,10 +58,6 @@ class FloatingTranslationOverlayService : Service() {
     private val captionHideRunnable = Runnable {
         captionView?.visibility = View.GONE
     }
-    private val controlHideRunnable = Runnable {
-        hideControlAndShowEdge()
-    }
-
     private var activeTranslator: Translator? = null
     private var activeSourceLanguage: String? = null
     private var translationModelReady = false
@@ -77,7 +73,7 @@ class FloatingTranslationOverlayService : Service() {
         if (intent?.action == ACTION_SHOW && running.get()) {
             revealControl()
             updateNotification("الترجمة العائمة تعمل")
-            return START_NOT_STICKY
+            return START_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
@@ -104,7 +100,7 @@ class FloatingTranslationOverlayService : Service() {
             updateStatus("يتم تجهيز الترجمة لأول استخدام…")
             modelThread = Thread({ prepareRecognizer() }, "RoyalWhisperSetup").apply { start() }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun prepareRecognizer() {
@@ -428,17 +424,8 @@ class FloatingTranslationOverlayService : Service() {
                 return
             }
         }
-        scheduleControlHide()
-    }
-
-    private fun scheduleControlHide() {
-        mainHandler.removeCallbacks(controlHideRunnable)
-        mainHandler.postDelayed(controlHideRunnable, CONTROL_IDLE_HIDE_MILLIS)
-    }
-
-    private fun hideControlAndShowEdge() {
-        removeControl()
-        showEdgeReveal()
+        // Keep the CC control visible while another app is in the foreground.
+        // The old auto-hide replaced it with a nearly invisible 12dp edge strip.
     }
 
     private fun showEdgeReveal() {
@@ -446,14 +433,19 @@ class FloatingTranslationOverlayService : Service() {
         if (edgeRevealView != null) return
 
         val edge = TextView(this).apply {
+            text = "CC"
+            textSize = 10f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
             isClickable = true
             contentDescription = "المس لإظهار أدوات الترجمة"
-            background = solidRoundedBackground(0x55000000, dp(8).toFloat())
+            background = solidRoundedBackground(0xCC1A1F28.toInt(), dp(10).toFloat())
             setOnClickListener { revealControl() }
         }
         val params = WindowManager.LayoutParams(
-            dp(12),
-            dp(92),
+            dp(34),
+            dp(88),
             overlayWindowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -631,8 +623,6 @@ class FloatingTranslationOverlayService : Service() {
         latestPendingCaption = null
 
         mainHandler.removeCallbacks(captionHideRunnable)
-        mainHandler.removeCallbacks(controlHideRunnable)
-
         listOfNotNull(captionView, controlView, edgeRevealView).forEach { view ->
             try {
                 windowManager?.removeView(view)
@@ -669,7 +659,6 @@ class FloatingTranslationOverlayService : Service() {
         const val KEY_ENABLED = "floating_translation_overlay_enabled"
         private const val CHANNEL_ID = "royal_translation_overlay"
         private const val NOTIFICATION_ID = 4101
-        private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val CAPTION_DISPLAY_MILLIS = 5_000L
         private const val SAMPLE_RATE = 16_000
         private const val SEGMENT_SECONDS = 8
