@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Handler
@@ -70,9 +71,15 @@ internal object RoyalWeatherAmbienceController {
 
     private data class AmbienceScene(
         val key: String,
-        val resourceId: Int,
-        val volumeMultiplier: Float = 1f
+        val resourceId: Int = 0,
+        val volumeMultiplier: Float = 1f,
+        val streamUrl: String? = null
     )
+
+    // CC0 recording by Tvabutzku1234 on Wikimedia Commons.
+    // Used only for heavy snowfall, where the existing gentle breeze is insufficient.
+    private const val HEAVY_SNOW_WIND_URL =
+        "https://upload.wikimedia.org/wikipedia/commons/2/2d/Howling_wind.ogg"
 
     private val handler = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
@@ -237,16 +244,18 @@ internal object RoyalWeatherAmbienceController {
     private fun selectScene(context: Context, weather: WeatherUiState): AmbienceScene? {
         val code = weather.weatherCode ?: return null
         return when {
-            code in 95..99 ->
-                if (isEnabled(context, RAIN_ENABLED_KEY)) {
-                    AmbienceScene("storm-rain", R.raw.weather_thunderstorm_rain)
-                } else null
+            // Thunderstorms use the separate distant-thunder one-shot track below.
+            // Do not layer the old storm-rain recording over it.
             isRainCode(code) && isEnabled(context, RAIN_ENABLED_KEY) ->
                 AmbienceScene("rain", R.raw.weather_rain_natural)
             (weather.weatherCode in setOf(75, 86)) &&
                 (weather.windSpeedKmh ?: 0) >= 15 &&
                 isEnabled(context, WIND_ENABLED_KEY) ->
-                AmbienceScene("heavy-snow-wind", R.raw.nature_wind_gentle, 1.35f)
+                AmbienceScene(
+                    key = "heavy-snow-wind",
+                    volumeMultiplier = 0.88f,
+                    streamUrl = HEAVY_SNOW_WIND_URL
+                )
             (weather.windSpeedKmh ?: 0) >= WIND_THRESHOLD_KMH &&
                 isEnabled(context, WIND_ENABLED_KEY) ->
                 AmbienceScene("wind", R.raw.nature_wind_gentle)
@@ -274,7 +283,10 @@ internal object RoyalWeatherAmbienceController {
 
     private fun startLoopPlayer(context: Context, scene: AmbienceScene) {
         if (currentMediaVolumeIsMuted(context) || !requestAudioFocus(context)) return
-        val player = runCatching { MediaPlayer.create(context, scene.resourceId) }.getOrNull() ?: return
+        val player = runCatching {
+            if (scene.streamUrl == null) MediaPlayer.create(context, scene.resourceId)
+            else MediaPlayer()
+        }.getOrNull() ?: return
         loopPlayer = player
         player.isLooping = true
         val level = (effectiveVolume(context) * scene.volumeMultiplier).coerceIn(0f, 1f)
@@ -285,10 +297,38 @@ internal object RoyalWeatherAmbienceController {
             maybeAbandonAudioFocus()
             true
         }
-        runCatching { player.start() }.onFailure {
-            if (loopPlayer === player) loopPlayer = null
-            releasePlayer(player)
-            maybeAbandonAudioFocus()
+        if (scene.streamUrl != null) {
+            try {
+                player.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                player.setDataSource(scene.streamUrl)
+                player.setOnPreparedListener { prepared ->
+                    if (loopPlayer === prepared && foreground) {
+                        runCatching { prepared.start() }.onFailure {
+                            if (loopPlayer === prepared) loopPlayer = null
+                            releasePlayer(prepared)
+                            maybeAbandonAudioFocus()
+                        }
+                    } else {
+                        releasePlayer(prepared)
+                    }
+                }
+                player.prepareAsync()
+            } catch (_: Exception) {
+                if (loopPlayer === player) loopPlayer = null
+                releasePlayer(player)
+                maybeAbandonAudioFocus()
+            }
+        } else {
+            runCatching { player.start() }.onFailure {
+                if (loopPlayer === player) loopPlayer = null
+                releasePlayer(player)
+                maybeAbandonAudioFocus()
+            }
         }
     }
 
