@@ -155,8 +155,12 @@ internal object RoyalWeatherAmbienceController {
             .putFloat(VOLUME_KEY, safeValue)
             .apply()
         appContext = applicationContext
+        RoyalFireAmbienceController.setVolume(safeValue)
+        RoyalLakeAmbienceController.setVolume(safeValue)
         if (safeValue <= 0f) {
             stopAllPlayback()
+            RoyalFireAmbienceController.stop()
+            RoyalLakeAmbienceController.stop()
         } else {
             applyPlayerVolume(1f)
             updatePlaybackForCurrentWeather()
@@ -295,6 +299,12 @@ internal object RoyalWeatherAmbienceController {
             if (loopPlayer === failed) loopPlayer = null
             releasePlayer(failed)
             maybeAbandonAudioFocus()
+            if (scene.streamUrl != null && foreground) {
+                startLoopPlayer(
+                    context,
+                    scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = 1.05f)
+                )
+            }
             true
         }
         if (scene.streamUrl != null) {
@@ -321,7 +331,14 @@ internal object RoyalWeatherAmbienceController {
             } catch (_: Exception) {
                 if (loopPlayer === player) loopPlayer = null
                 releasePlayer(player)
-                maybeAbandonAudioFocus()
+                if (foreground) {
+                    startLoopPlayer(
+                        context,
+                        scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = 1.05f)
+                    )
+                } else {
+                    maybeAbandonAudioFocus()
+                }
             }
         } else {
             runCatching { player.start() }.onFailure {
