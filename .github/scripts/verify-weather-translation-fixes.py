@@ -25,10 +25,7 @@ assert "RoyalOwlAmbienceEffect(weather)" in details
 ambience = (JAVA / "RoyalWeatherAmbienceController.kt").read_text(encoding="utf-8")
 assert "foregroundOwner" in ambience and "latestWeather = null" in ambience
 assert "weatherReceivedAtElapsedMs = null" in ambience
-home = (JAVA / "RoyalHomeScreen.kt").read_text(encoding="utf-8")
-assert "RoyalWeatherAmbienceController.onBackground()" in home
-assert "weatherDetailsAreTheOnlyForegroundWeatherScreen" in home
-
+# Audio effects must be owned by the details screen, never by the home card.
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
 assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "getMediaProjection(" in service and "VOICE_RECOGNITION" in service

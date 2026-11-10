@@ -261,14 +261,6 @@ internal fun RoyalHomeScreen(
             RoyalFireAmbienceController.stop()
         }
     }
-    LaunchedEffect(showWeatherDetails, showSmartScreensaver, showWallpaperSettings, showQuickControls) {
-        val weatherDetailsAreTheOnlyForegroundWeatherScreen =
-            showWeatherDetails && !showSmartScreensaver && !showWallpaperSettings && !showQuickControls
-        if (!weatherDetailsAreTheOnlyForegroundWeatherScreen) {
-            RoyalWeatherAmbienceController.onBackground()
-        }
-    }
-
     var screensaverMotionEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("motion_screensaver", true))
     }
