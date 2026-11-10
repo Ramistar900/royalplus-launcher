@@ -95,7 +95,10 @@ internal fun WeatherDetailsScreen(
         mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY))
     }
     var owlAudioEnabled by remember {
-        mutableStateOf(RoyalOwlAmbienceController.isEnabled(context))
+        mutableStateOf(
+            context.getSharedPreferences(RoyalOwlAmbienceController.PREFERENCES_NAME, android.content.Context.MODE_PRIVATE)
+                .getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true)
+        )
     }
     var weatherAudioVolume by remember {
         mutableStateOf(RoyalWeatherAmbienceController.volume(context))
