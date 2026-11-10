@@ -1768,8 +1768,7 @@ private fun RoyalScenicBanner(
     onOpenWeather: () -> Unit,
     onExploreApps: () -> Unit,
     prayerTimes: PrayerTimesData?,
-    currentTimeMillis: Long,
-    motionEnabled: Boolean = true
+    currentTimeMillis: Long
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
@@ -1805,8 +1804,7 @@ private fun RoyalScenicBanner(
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
                 modifier = Modifier.weight(1.05f).fillMaxHeight(),
-                language = language,
-                motionEnabled = motionEnabled
+                language = language
             )
         }
     }
