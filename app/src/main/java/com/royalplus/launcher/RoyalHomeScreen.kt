@@ -107,6 +107,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusGroup
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -184,20 +185,20 @@ internal fun RoyalHomeScreen(
         }
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
-    val sidebarHomeFocusRequester = remember { FocusRequester() }
+    val sidebarFocusRequesters = remember { List(9) { FocusRequester() } }
     val customizationFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(150)
-        runCatching { sidebarHomeFocusRequester.requestFocus() }
+        delay(180)
+        runCatching { sidebarFocusRequesters.first().requestFocus() }
     }
     LaunchedEffect(showWallpaperSettings) {
         if (showWallpaperSettings) {
-            delay(120)
+            delay(180)
             runCatching { customizationFocusRequester.requestFocus() }
         } else {
-            delay(80)
-            runCatching { sidebarHomeFocusRequester.requestFocus() }
+            delay(120)
+            runCatching { sidebarFocusRequesters.first().requestFocus() }
         }
     }
     var showWeatherDetails by remember { mutableStateOf(false) }
@@ -613,7 +614,7 @@ internal fun RoyalHomeScreen(
                                 if (destination == LauncherDestination.HOME) { searchActive = false; searchQuery = "" }
                             },
                             onOpenSettings = { showWallpaperSettings = true },
-                            homeFocusRequester = sidebarHomeFocusRequester
+                            focusRequesters = sidebarFocusRequesters
                         )
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -2039,8 +2040,16 @@ private fun fallbackAppIcon(label: String): ImageVector {
 private fun RoyalSidePanel(
     modifier: Modifier, selectedDestination: LauncherDestination, language: String,
     onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit,
-    homeFocusRequester: FocusRequester
+    focusRequesters: List<FocusRequester>
 ) {
+    val navigationFocusModifiers = remember(focusRequesters) {
+        focusRequesters.mapIndexed { index, requester ->
+            Modifier.focusRequester(requester).focusProperties {
+                up = focusRequesters[(index + focusRequesters.size - 1) % focusRequesters.size]
+                down = focusRequesters[(index + 1) % focusRequesters.size]
+            }
+        }
+    }
     val labels = when (language) {
         "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Gallery", "Songs", "Settings")
         "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Galeri", "Şarkılar", "Ayarlar")
@@ -2054,23 +2063,23 @@ private fun RoyalSidePanel(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(5.dp))
-        SidebarNavItem(labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME, modifier = Modifier.focusRequester(homeFocusRequester)) { onNavigate(LauncherDestination.HOME) }
+        SidebarNavItem(labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME, modifier = navigationFocusModifiers[0]) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, modifier = navigationFocusModifiers[1], onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
+        SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, modifier = navigationFocusModifiers[2], onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
+        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, modifier = navigationFocusModifiers[3], onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
+        SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[6], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
+        SidebarNavItem(labels[6], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, modifier = navigationFocusModifiers[6], onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[7], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
+        SidebarNavItem(labels[7], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS, modifier = navigationFocusModifiers[7]) { onNavigate(LauncherDestination.SONGS) }
         Spacer(Modifier.height(8.dp))
-        SidebarNavItem(labels[8], Icons.Rounded.Settings, false, onClick = onOpenSettings)
+        SidebarNavItem(labels[8], Icons.Rounded.Settings, false, modifier = navigationFocusModifiers[8], onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
