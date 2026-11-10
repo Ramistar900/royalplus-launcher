@@ -80,7 +80,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
             }
             in 51..57 -> {
                 drawRoyalClouds(progress, width, height, count = 4, dense = true)
-                drawRoyalRain(progress, width, height, intensity = if (weatherCode >= 55) 2 else 1, windStrength)
+                drawRoyalRain(progress, width, height, intensity = if (weatherCode >= 55) 2 else 1, windStrength = windStrength)
                 if (measuredWind >= 18) drawRoyalWind(progress, width, height, windStrength)
             }
             in 61..67, in 80..82 -> {
