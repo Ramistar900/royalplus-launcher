@@ -54,8 +54,9 @@ data class RoyalAdaptiveProfile(
         deviceClass == RoyalDeviceClass.TABLET ||
             deviceClass == RoyalDeviceClass.LARGE_DISPLAY
     val isTelevision: Boolean get() = deviceClass == RoyalDeviceClass.TELEVISION
+    // A tablet running in a narrow multi-window area must still use a compact layout.
     val prefersWideLayout: Boolean get() =
-        isTelevision || widthClass != RoyalWindowWidthClass.COMPACT || isTablet
+        isTelevision || widthClass != RoyalWindowWidthClass.COMPACT
     val prefersRailNavigation: Boolean get() =
         isTelevision || widthClass == RoyalWindowWidthClass.EXPANDED
     val prefersRemoteFocus: Boolean get() =
@@ -90,7 +91,12 @@ data class RoyalAdaptiveProfile(
     }
 
     fun launcherAppColumns(width: Dp = windowWidthDp): Int =
-        columnsFor(width, 100.dp, minColumns = 3, maxColumns = 6)
+        columnsFor(
+            width,
+            100.dp,
+            minColumns = if (isPhone && width < 480.dp) 2 else 3,
+            maxColumns = 6
+        )
 
     fun iconSize(base: Dp): Dp {
         val scale = when {
@@ -322,10 +328,10 @@ private fun createRoyalAdaptiveProfile(
         else -> 680.dp
     }
     val appTileHeight = when {
-        deviceClass == RoyalDeviceClass.TELEVISION -> 112.dp
-        widthClass == RoyalWindowWidthClass.EXPANDED -> 100.dp
-        widthClass == RoyalWindowWidthClass.MEDIUM -> 92.dp
-        else -> 82.dp
+        deviceClass == RoyalDeviceClass.TELEVISION -> 136.dp
+        widthClass == RoyalWindowWidthClass.EXPANDED -> 124.dp
+        widthClass == RoyalWindowWidthClass.MEDIUM -> 116.dp
+        else -> 108.dp
     }
 
     val metrics = context.resources.displayMetrics

@@ -2,6 +2,7 @@ package com.royal.adaptive
 
 import android.content.res.Configuration
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class RoyalAdaptiveProfileTest {
@@ -43,6 +44,21 @@ class RoyalAdaptiveProfileTest {
                 Configuration.UI_MODE_TYPE_NORMAL, false, false, true, 600, 560f
             )
         )
+    }
+
+    @Test
+    fun compactWindowOnTabletDoesNotForceWideLayout() {
+        val tabletInCompactWindow = RoyalAdaptiveProfile.Default.copy(
+            deviceClass = RoyalDeviceClass.TABLET,
+            widthClass = RoyalWindowWidthClass.COMPACT
+        )
+        assertFalse(tabletInCompactWindow.prefersWideLayout)
+    }
+
+    @Test
+    fun smallPhoneLauncherGridCanUseTwoColumns() {
+        val phone = RoyalAdaptiveProfile.Default
+        assertEquals(2, phone.launcherAppColumns(360.dp))
     }
 
     @Test
