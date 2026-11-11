@@ -187,7 +187,15 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     @Suppress("NewApi")
+    @android.annotation.SuppressLint("MissingPermission")
     private fun createPlaybackCaptureRecord(): AudioRecord {
+        // Re-check at the exact privileged API boundary; service startup checks are not
+        // sufficient for lint or for permission changes while the service is alive.
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            throw SecurityException("يلزم إذن الميكروفون لالتقاط صوت التطبيقات")
+        }
         val data = projectionResultData ?: throw IllegalStateException("يلزم موافقة النظام على التقاط الصوت")
         val manager = getSystemService(MediaProjectionManager::class.java)
             ?: throw IllegalStateException("خدمة مشاركة الشاشة والصوت غير متاحة")
