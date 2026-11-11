@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import androidx.activity.compose.BackHandler
 import android.os.Build
 
@@ -309,6 +311,7 @@ internal fun RoyalHomeScreen(
     BackHandler(
         enabled = showWallpaperSettings || showWeatherDetails || showQuickControls || searchActive || selectedDestination != LauncherDestination.HOME
     ) {
+        playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
         when {
             showQuickControls -> showQuickControls = false
             showWallpaperSettings -> showWallpaperSettings = false
@@ -485,20 +488,15 @@ internal fun RoyalHomeScreen(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
-                        if (latestClickSoundsEnabled.value) {
-                            context.getSystemService(android.media.AudioManager::class.java)
-                                ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
-                        }
                         lastUserInteraction = System.currentTimeMillis()
                         showSmartScreensaver = false
                     }
                 }
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && latestClickSoundsEnabled.value &&
-                        event.key in setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
+                        event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
                     ) {
-                        context.getSystemService(android.media.AudioManager::class.java)
-                            ?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+                        playLauncherUiSound(context, RoyalUiSound.NAV_FOCUS_MOVE)
                     }
                     lastUserInteraction = System.currentTimeMillis()
                     showSmartScreensaver = false
@@ -1279,6 +1277,7 @@ private fun RoyalFeatureToggleRow(
     checked: Boolean,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
@@ -1288,7 +1287,10 @@ private fun RoyalFeatureToggleRow(
                 if (checked) RoyalColors.Gold.copy(alpha = 0.55f) else RoyalColors.Gold.copy(alpha = 0.24f),
                 RoundedCornerShape(10.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, if (checked) RoyalUiSound.SELECT_TOGGLE_OFF else RoyalUiSound.SELECT_TOGGLE_ON)
+                onClick()
+            })
             .focusable()
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1374,6 +1376,7 @@ private fun IconStyleChoice(
     iconRes: Int? = null,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val selected = style == selectedStyle
     val shape = when (style) {
         "circle" -> RoundedCornerShape(50)
@@ -1390,7 +1393,10 @@ private fun IconStyleChoice(
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF080A0F))
             .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .focusable()
             .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1433,6 +1439,7 @@ private fun WallpaperChoice(
     image: androidx.compose.ui.graphics.painter.Painter,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
@@ -1442,7 +1449,10 @@ private fun WallpaperChoice(
                 color = if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(16.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .focusable()
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1755,6 +1765,7 @@ private fun HomeDashboard(
 private fun HomeFeatureCard(
     modifier: Modifier, title: String, subtitle: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
     val shape = RoundedCornerShape(18.dp)
@@ -1762,7 +1773,10 @@ private fun HomeFeatureCard(
         modifier.clip(shape)
             .background(if (emphasized) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
             .border(if (focused) 2.5.dp else if (selected) 2.dp else 1.dp, if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold.copy(alpha = 0.32f), shape)
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1918,6 +1932,7 @@ private fun AppTile(
     onLaunch: () -> Unit,
     onManage: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     var hasFocus by remember(app.packageName) { mutableStateOf(false) }
     val focusScale by animateFloatAsState(
         targetValue = if (hasFocus) 1.04f else 1f,
@@ -1943,8 +1958,14 @@ private fun AppTile(
             hasFocus = state.isFocused
             if (state.isFocused) onFocused(app.packageName)
         }.combinedClickable(
-            onClick = onLaunch,
-            onLongClick = onManage
+            onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onLaunch()
+            },
+            onLongClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_OPEN_MENU)
+                onManage?.invoke()
+            }
         ),
         shape = shape,
         colors = CardDefaults.cardColors(
@@ -2081,6 +2102,7 @@ private fun StatusIcon(
     description: String,
     onClick: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(50)
     val clickModifier = if (onClick == null) {
@@ -2094,7 +2116,10 @@ private fun StatusIcon(
                 color = if (focused) Color(0xFFFFD36A) else Color.Transparent,
                 shape = shape
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
     }
@@ -2119,6 +2144,7 @@ private fun SidebarNavItem(
     iconRes: Int? = null,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
     val shape = RoundedCornerShape(13.dp)
@@ -2146,7 +2172,10 @@ private fun SidebarNavItem(
                 if (focused) Color(0xFFFFD36A) else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
                 shape
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
             .padding(horizontal = 10.dp),

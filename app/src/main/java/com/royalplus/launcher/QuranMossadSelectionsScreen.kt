@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import androidx.compose.foundation.background
@@ -85,7 +87,10 @@ internal fun QuranMossadSelectionsScreen(onClose: () -> Unit) {
                     Modifier.size(42.dp).clip(CircleShape)
                         .background(Color(0xFF1C2937))
                         .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
-                        .clickable(onClick = onClose)
+                        .clickable(onClick = {
+                            playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
+                            onClose()
+                        })
                         .focusable(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -137,15 +142,23 @@ internal fun QuranMossadSelectionsScreen(onClose: () -> Unit) {
                                 .background(Color(0xFF203B3A))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(9.dp))
                                 .clickable(enabled = downloadingId == null) {
+                                    playLauncherUiSound(
+                                        context,
+                                        if (!isDownloaded) RoyalUiSound.ACTION_DOWNLOAD
+                                        else if (isPlaying) RoyalUiSound.MEDIA_PAUSE
+                                        else RoyalUiSound.MEDIA_PLAY
+                                    )
                                     if (!isDownloaded) {
                                         downloadingId = selection.id
                                         status = "جارٍ تنزيل ${selection.title}…"
                                         scope.launch {
                                             val file = QuranMossadSelectionsRepository.download(context.applicationContext, selection)
                                             if (file != null) {
+                                                playLauncherUiSound(context, RoyalUiSound.ACTION_SUCCESS)
                                                 downloaded = downloaded + selection.id
                                                 status = "اكتمل التنزيل • أصبحت التلاوة متاحة دون إنترنت"
                                             } else {
+                                                playLauncherUiSound(context, RoyalUiSound.ACTION_ERROR)
                                                 status = "تعذر تنزيل التلاوة. تحقق من الاتصال ثم أعد المحاولة"
                                             }
                                             downloadingId = null

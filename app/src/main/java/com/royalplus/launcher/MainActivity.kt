@@ -1,5 +1,8 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+import com.royalplus.launcher.royalsounds.RoyalUiSounds
+
 import android.Manifest
 import android.app.ActivityManager
 import android.content.ClipData
@@ -90,6 +93,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RoyalUiSounds.initialize(applicationContext, setOf(
+            RoyalUiSound.NAV_BACK,
+            RoyalUiSound.ACTION_DOWNLOAD,
+            RoyalUiSound.MEDIA_PAUSE,
+            RoyalUiSound.MEDIA_PLAY,
+            RoyalUiSound.ACTION_SUCCESS,
+            RoyalUiSound.ACTION_ERROR,
+            RoyalUiSound.NAV_SELECT,
+            RoyalUiSound.NAV_FOCUS_MOVE,
+            RoyalUiSound.SELECT_TOGGLE_OFF,
+            RoyalUiSound.SELECT_TOGGLE_ON,
+            RoyalUiSound.NAV_OPEN_MENU,
+            RoyalUiSound.NAV_CLOSE_MENU,
+            RoyalUiSound.ACTION_ADD,
+            RoyalUiSound.MEDIA_PREV,
+            RoyalUiSound.MEDIA_NEXT
+        ))
         val savedCrashReport = RoyalPlusApplication.readPendingReport(this)
         if (savedCrashReport != null) {
             showingCrashReport = true
@@ -212,6 +232,11 @@ class MainActivity : ComponentActivity() {
         root.addView(copyButton)
         root.addView(clearButton)
         setContentView(root)
+    }
+
+    override fun onDestroy() {
+        RoyalUiSounds.release()
+        super.onDestroy()
     }
 
     override fun onResume() {

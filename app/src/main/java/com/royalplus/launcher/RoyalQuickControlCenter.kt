@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -105,7 +107,10 @@ internal fun RoyalQuickControlCenter(
     Box(
         Modifier.fillMaxSize()
             .background(Color(0xD9000000))
-            .clickable(onClick = onDismiss),
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_CLOSE_MENU)
+                onDismiss()
+            }),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -132,7 +137,10 @@ internal fun RoyalQuickControlCenter(
                 Box(
                     Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF1B202B))
-                        .clickable(onClick = onDismiss)
+                        .clickable(onClick = {
+                            playLauncherUiSound(context, RoyalUiSound.NAV_CLOSE_MENU)
+                            onDismiss()
+                        })
                         .focusable(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -183,6 +191,7 @@ private fun RoyalQuickControlTile(
     focusRequester: FocusRequester?,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var focused = remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
     Column(
@@ -195,7 +204,10 @@ private fun RoyalQuickControlTile(
                 shape
             )
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
-            .clickable(onClick = onClick)
+            .clickable(onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .onFocusChanged { focused.value = it.isFocused }
             .focusable()
             .padding(horizontal = 8.dp, vertical = 7.dp),

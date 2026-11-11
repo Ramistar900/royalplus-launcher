@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -76,7 +78,10 @@ internal fun WeatherDetailsScreen(
     val context = LocalContext.current.applicationContext
     RoyalWeatherAmbienceEffect(weather)
     RoyalOwlAmbienceEffect(weather)
-    BackHandler(onBack = onBack)
+    BackHandler(onBack = {
+        playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
+        onBack()
+    })
     var showCityPicker by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var masterAudioEnabled by remember {

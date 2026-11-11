@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -208,10 +210,14 @@ private fun SettingsInfoRow(
     detail: String,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .background(Color(0xFF080A0F))
         .border(1.dp, RoyalColors.Gold.copy(alpha = .28f), RoundedCornerShape(12.dp))
-        .clickable(onClick = onClick).focusable()
+        .clickable(onClick = {
+            playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+            onClick()
+        }).focusable()
         .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
