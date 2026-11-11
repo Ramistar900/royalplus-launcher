@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
@@ -161,6 +163,7 @@ internal fun RoyalHomeScreen(
     translationOverlayEnabled: Boolean,
     onToggleTranslationOverlay: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var prayerTimesForHome by remember { mutableStateOf<PrayerTimesData?>(null) }
     var prayerTimeBanner by remember { mutableStateOf<String?>(null) }
@@ -595,7 +598,7 @@ internal fun RoyalHomeScreen(
                         )
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
-                                val columns = when { maxWidth >= 700.dp -> 6; maxWidth >= 570.dp -> 5; maxWidth >= 440.dp -> 4; else -> 3 }
+                                val columns = adaptiveProfile.launcherAppColumns(maxWidth)
                                 val favoriteTileWidth = ((maxWidth - 50.dp) / 6).coerceIn(82.dp, 124.dp)
                                 when (selectedDestination) {
                                     LauncherDestination.HOME -> HomeDashboard(

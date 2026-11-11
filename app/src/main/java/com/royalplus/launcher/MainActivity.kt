@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.RoyalAdaptiveHost
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 import com.royalplus.launcher.royalsounds.RoyalUiSounds
 
@@ -124,8 +126,9 @@ class MainActivity : ComponentActivity() {
 
         RoyalPlusApplication.markStage(this, "MainActivity.onCreate: attaching Compose home screen")
         setContent {
-            MaterialTheme {
-                RoyalHomeScreen(
+            RoyalAdaptiveHost {
+                MaterialTheme {
+                    RoyalHomeScreen(
                     apps = installedApps,
                     weather = weatherState,
                     onRequestLocation = { requestLocationPermission() },
@@ -160,8 +163,9 @@ class MainActivity : ComponentActivity() {
                     voiceSearchAvailable = voiceSearchAvailable,
                     voiceSearchResult = voiceSearchResult,
                     translationOverlayEnabled = translationOverlayEnabled,
-                    onToggleTranslationOverlay = { toggleTranslationOverlay() }
-                )
+                        onToggleTranslationOverlay = { toggleTranslationOverlay() }
+                    )
+                }
             }
         }
 

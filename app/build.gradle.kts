@@ -77,6 +77,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":royal-adaptive-ui"))
     implementation(project(":royal-ui-sounds"))
     val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
     implementation(composeBom)
