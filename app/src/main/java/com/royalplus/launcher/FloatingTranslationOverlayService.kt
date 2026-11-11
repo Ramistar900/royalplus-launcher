@@ -402,6 +402,8 @@ class FloatingTranslationOverlayService : Service() {
                 return@post
             }
             if (sourceLanguage == TranslateLanguage.ARABIC) {
+                // A newer Arabic segment supersedes any translation still in flight.
+                translationRequest++
                 showCaption(text, detectedLanguage)
                 return@post
             }
@@ -452,12 +454,12 @@ class FloatingTranslationOverlayService : Service() {
         val requestId = ++translationRequest
         translator.translate(text)
             .addOnSuccessListener { translated ->
-                if (running.get() && translator === activeTranslator) {
+                if (running.get() && translator === activeTranslator && requestId == translationRequest) {
                     showCaption(translated, language)
                 }
             }
             .addOnFailureListener { error ->
-                if (running.get() && translator === activeTranslator) {
+                if (running.get() && translator === activeTranslator && requestId == translationRequest) {
                     updateStatus("فشلت ترجمة المقطع: ${error.localizedMessage ?: "أعد المحاولة بعد اكتمال تنزيل نموذج اللغة"}")
                 }
             }
