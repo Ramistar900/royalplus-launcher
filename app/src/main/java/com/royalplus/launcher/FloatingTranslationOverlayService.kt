@@ -233,7 +233,15 @@ class FloatingTranslationOverlayService : Service() {
             .build()
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     private fun createMicrophoneRecord(): AudioRecord {
+        // Runtime permission can be revoked after service startup; check again immediately
+        // before either microphone-backed AudioRecord constructor.
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            throw SecurityException("يلزم منح إذن الميكروفون لتشغيل الترجمة")
+        }
         val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (minBuffer <= 0) throw IllegalStateException("الميكروفون لا يدعم معدل الصوت المطلوب")
         val bufferSize = maxOf(minBuffer * 3, SAMPLE_RATE * 4)
