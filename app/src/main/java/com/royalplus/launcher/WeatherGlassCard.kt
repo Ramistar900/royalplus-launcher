@@ -174,6 +174,7 @@ internal fun WeatherGlassCard(
         )
         RoyalWeatherAtmosphereOverlay(
             weatherCode = weather.weatherCode,
+            weatherDescription = weather.description,
             motionEnabled = motionEnabled,
             windSpeedKmh = weather.windSpeedKmh,
             nightMode = isNight,
