@@ -1768,7 +1768,7 @@ private fun HomeFeatureCard(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, title, tint = if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold, modifier = Modifier.size(fallbackIconSize))
+        Icon(icon, title, tint = if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold, modifier = Modifier.size(38.dp))
         Spacer(Modifier.height(7.dp))
         Text(title, color = if (emphasized) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
@@ -2010,7 +2010,7 @@ private fun AppTile(
                         imageVector = fallbackAppIcon(app.label),
                         contentDescription = app.label,
                         tint = if (iconStyle == "neon") Color(0xFF42E8E0) else RoyalColors.Gold,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(fallbackIconSize)
                     )
                 }
             }
