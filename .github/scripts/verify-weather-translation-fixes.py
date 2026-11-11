@@ -5,13 +5,12 @@ ROOT = Path(__file__).resolve().parents[2]
 JAVA = ROOT / "app/src/main/java/com/royalplus/launcher"
 
 weather = (JAVA / "RoyalWeatherAtmosphereOverlay.kt").read_text(encoding="utf-8")
-rain_branch = weather.split("in 51..57 -> {", 1)[1].split("in 71..77", 1)[0]
-storm_branch = weather.split("in 95..99 -> {", 1)[1].split("\n            }", 1)[0]
+rain_guard = weather.split("if (isRainScene) {", 1)[1].split("return@Canvas", 1)[0]
 rain_renderer = weather.split("private fun DrawScope.drawRoyalRain(", 1)[1].split("\nprivate fun DrawScope.drawRoyalSnow(", 1)[0]
-assert "drawRoyalClouds" not in rain_branch and "drawRoyalWind" not in rain_branch
-assert "drawRoyalClouds" not in storm_branch and "drawRoyalWind" not in storm_branch
-assert "drawRoyalLightning" not in storm_branch
-assert "isRainScene" in weather and "!isRainScene" in weather
+assert "drawRoyalRain(" in rain_guard
+assert "return@Canvas" in weather.split("if (isRainScene) {", 1)[1].split("\n        }", 1)[0]
+assert "drawRoyalClouds" not in rain_guard and "drawRoyalWind" not in rain_guard
+assert "descriptionIndicatesRain" in weather
 assert "cubicTo(" in rain_renderer and "drawPath(" in rain_renderer
 assert "drawLine(" not in rain_renderer and "drawRect(" not in rain_renderer
 
