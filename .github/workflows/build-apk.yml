@@ -220,21 +220,27 @@ jobs:
 
           Both variants use separate test package IDs, so they can be installed alongside each other and do not overwrite the production app. This is an unpublished test draft, not a production release."
 
+          DEBUG_UPLOAD="$RUNNER_TEMP/royalplus-test-apks/royalplus-debug.apk"
+          cp "$DEBUG_APK" "$DEBUG_UPLOAD"
+          test -s "$DEBUG_UPLOAD"
+
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
             if [[ "$IS_DRAFT" != "true" ]]; then
               echo "::error::Refusing to overwrite an already published release."
               exit 1
             fi
+            # Older runs uploaded app-debug.apk and used the requested filename as a label.
+            gh release delete-asset "$TAG" app-debug.apk --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
             gh release upload "$TAG" \
-              "$DEBUG_APK#royalplus-debug.apk" \
-              "$RELEASE_APK#royalplus-release-test.apk" \
+              "$DEBUG_UPLOAD" \
+              "$RELEASE_APK" \
               --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
             gh release create "$TAG" \
-              "$DEBUG_APK#royalplus-debug.apk" \
-              "$RELEASE_APK#royalplus-release-test.apk" \
+              "$DEBUG_UPLOAD" \
+              "$RELEASE_APK" \
               --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" \
               --notes "$NOTES" --target "$GITHUB_SHA"
           fi
