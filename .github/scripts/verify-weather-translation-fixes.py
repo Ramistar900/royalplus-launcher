@@ -47,3 +47,13 @@ assert "FOREGROUND_SERVICE_MEDIA_PROJECTION" in manifest
 assert 'foregroundServiceType="microphone|mediaProjection"' in manifest
 
 print("Weather isolation and translation capture regression checks passed.")
+
+# Home and smart screensaver must hard-stop weather ambience; details is the sole owner.
+home = (JAVA / "RoyalHomeScreen.kt").read_text(encoding="utf-8")
+assert "LaunchedEffect(showWeatherDetails, showSmartScreensaver)" in home
+assert "RoyalWeatherAmbienceController.onBackground()" in home
+# Normalize Whisper language labels before requesting the ML Kit Arabic model.
+assert "normalizeDetectedLanguage" in service
+assert "TranslateLanguage.fromLanguageTag(normalizedLanguage)" in service
+# Successful async translations must not be discarded by a newer audio segment.
+assert "translator === activeTranslator" in service
