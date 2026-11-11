@@ -108,12 +108,12 @@ internal fun RoyalWeatherAtmosphereOverlay(
             }
             45, 48 -> {
                 drawRoyalClouds(progress, width, height, count = 4, dense = true)
-                drawRoyalFog(progress, width, height, dense = weatherCode == 48)
+                drawRoyalFog(progress, width, height, dense = effectiveWeatherCode == 48)
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
             in 71..77, 85, 86 -> {
                 drawRoyalClouds(progress, width, height, count = 4, dense = true)
-                val intensity = when (weatherCode) {
+                val intensity = when (effectiveWeatherCode) {
                     71, 85 -> 1
                     73 -> 2
                     else -> 3
