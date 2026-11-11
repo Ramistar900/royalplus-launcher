@@ -1768,7 +1768,7 @@ private fun HomeFeatureCard(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, title, tint = if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold, modifier = Modifier.size(38.dp))
+        Icon(icon, title, tint = if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold, modifier = Modifier.size(fallbackIconSize))
         Spacer(Modifier.height(7.dp))
         Text(title, color = if (emphasized) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
@@ -1852,7 +1852,7 @@ private fun AppCatalog(
         AppGrid(
             apps = apps,
             columns = columns,
-            tileHeight = 88.dp,
+            tileHeight = LocalRoyalAdaptiveProfile.current.appTileHeight,
             modifier = Modifier.fillMaxSize(),
             focusedAppPackage = focusedAppPackage,
             onAppFocused = onAppFocused,
@@ -1877,6 +1877,7 @@ private fun AppGrid(
     iconStyle: String,
     initialHighlight: Boolean
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     if (apps.isEmpty()) {
         EmptyAppsMessage(
             message = "لا توجد تطبيقات لعرضها هنا",
@@ -1887,8 +1888,8 @@ private fun AppGrid(
             columns = GridCells.Fixed(columns),
             modifier = modifier,
             contentPadding = PaddingValues(bottom = 4.dp, top = 1.dp, end = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing),
+            verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)
         ) {
             items(apps, key = { it.packageName }) { app ->
                 val highlighted = focusedAppPackage == app.packageName ||
@@ -1919,6 +1920,9 @@ private fun AppTile(
     onManage: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val appIconSize = adaptiveProfile.iconSize(68.dp).coerceIn(60.dp, 84.dp)
+    val fallbackIconSize = adaptiveProfile.iconSize(38.dp).coerceIn(34.dp, 52.dp)
     var hasFocus by remember(app.packageName) { mutableStateOf(false) }
     val focusScale by animateFloatAsState(
         targetValue = if (hasFocus) 1.04f else 1f,
@@ -1982,7 +1986,7 @@ private fun AppTile(
             }
             Box(
                 modifier = Modifier
-                    .size(68.dp)
+                    .size(appIconSize)
                     .graphicsLayer {
                         scaleX = iconFocusScale
                         scaleY = iconFocusScale
