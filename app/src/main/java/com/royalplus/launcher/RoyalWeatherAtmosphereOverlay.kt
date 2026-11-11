@@ -35,12 +35,18 @@ import kotlin.math.sin
 @Composable
 internal fun RoyalWeatherAtmosphereOverlay(
     weatherCode: Int?,
+    weatherDescription: String? = null,
     motionEnabled: Boolean,
     windSpeedKmh: Int? = null,
     nightMode: Boolean = false,
     sunsetMode: Boolean = false
 ) {
-    if (!motionEnabled || weatherCode == null) return
+    val description = weatherDescription.orEmpty().lowercase()
+    val descriptionIndicatesRain = listOf("rain", "drizzle", "مطر", "أمطار", "رذاذ", "yağmur", "çisenti")
+        .any(description::contains)
+    val numericRainCode = weatherCode?.let { it in 51..67 || it in 80..82 || it in 95..99 } == true
+    val effectiveWeatherCode = if (descriptionIndicatesRain && !numericRainCode) 61 else weatherCode
+    if (!motionEnabled || effectiveWeatherCode == null) return
 
     val transition = rememberInfiniteTransition(label = "royal-weather-atmosphere")
     val progress by transition.animateFloat(
@@ -62,14 +68,23 @@ internal fun RoyalWeatherAtmosphereOverlay(
         val windStrength = measuredWind / 70f
 
         // Rain is intentionally rendered as droplets alone, even at night.
-        val isRainScene = weatherCode?.let {
-            it in 51..67 || it in 80..82 || it in 95..99
-        } == true
-        if (nightMode && !isRainScene && weatherCode?.let { it !in 0..2 } == true) {
+        val isRainScene = effectiveWeatherCode in 51..67 || effectiveWeatherCode in 80..82 || effectiveWeatherCode in 95..99
+        if (isRainScene) {
+            // Rain has a strict visual contract: falling droplets only. Exit before
+            // night-sky, cloud, fog, wind, lightning, or any other weather layer.
+            val intensity = when (effectiveWeatherCode) {
+                51, 53, 61, 66, 80 -> 2
+                55, 63, 67, 81, 95 -> 3
+                else -> 4
+            }
+            drawRoyalRain(progress, width, height, intensity, windStrength)
+            return@Canvas
+        }
+        if (nightMode && effectiveWeatherCode !in 0..2) {
             drawRoyalNightSky(progress, width, height)
         }
 
-        when (weatherCode) {
+        when (effectiveWeatherCode) {
             0 -> {
                 when {
                     nightMode -> drawRoyalNightSky(progress, width, height)
@@ -96,18 +111,6 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 drawRoyalFog(progress, width, height, dense = weatherCode == 48)
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
-            in 51..57 -> {
-                // Rain scenes are deliberately limited to individual falling droplets.
-                drawRoyalRain(progress, width, height, intensity = if (weatherCode >= 55) 2 else 1, windStrength = windStrength)
-            }
-            in 61..67, in 80..82 -> {
-                val intensity = when (weatherCode) {
-                    61, 66, 80 -> 2
-                    63, 81 -> 3
-                    else -> 4
-                }
-                drawRoyalRain(progress, width, height, intensity, windStrength)
-            }
             in 71..77, 85, 86 -> {
                 drawRoyalClouds(progress, width, height, count = 4, dense = true)
                 val intensity = when (weatherCode) {
@@ -117,10 +120,6 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 }
                 drawRoyalSnow(progress, width, height, intensity, windStrength)
                 if (measuredWind >= 12) drawRoyalWind(progress, width, height, windStrength)
-            }
-            in 95..99 -> {
-                // Thunderstorm scenes keep the requested droplets-only rain treatment.
-                drawRoyalRain(progress, width, height, if (weatherCode == 95) 3 else 4, windStrength)
             }
         }
     }
