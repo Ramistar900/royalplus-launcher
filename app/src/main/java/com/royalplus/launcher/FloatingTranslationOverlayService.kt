@@ -361,12 +361,36 @@ class FloatingTranslationOverlayService : Service() {
         return peak >= 0.0035f && rms >= 0.00075f
     }
 
+    private fun normalizeDetectedLanguage(rawLanguage: String): String {
+        val normalized = rawLanguage.trim().lowercase(Locale.ROOT)
+            .replace('_', '-')
+            .substringBefore('-')
+        return when (normalized) {
+            "english" -> "en"
+            "turkish" -> "tr"
+            "arabic" -> "ar"
+            "spanish" -> "es"
+            "french" -> "fr"
+            "german" -> "de"
+            "russian" -> "ru"
+            "chinese" -> "zh"
+            "japanese" -> "ja"
+            "korean" -> "ko"
+            "portuguese" -> "pt"
+            "italian" -> "it"
+            "hindi" -> "hi"
+            "ukrainian" -> "uk"
+            else -> normalized
+        }
+    }
+
     private fun translateCaption(text: String, detectedLanguage: String) {
         mainHandler.post {
             if (!running.get()) return@post
-            val sourceLanguage = TranslateLanguage.fromLanguageTag(detectedLanguage)
+            val normalizedLanguage = normalizeDetectedLanguage(detectedLanguage)
+            val sourceLanguage = TranslateLanguage.fromLanguageTag(normalizedLanguage)
             if (sourceLanguage.isNullOrBlank()) {
-                updateStatus("تم التقاط الكلام ($detectedLanguage)، لكن لغة هذا المقطع غير مدعومة للترجمة. جرّب لغة واضحة مثل الإنجليزية.")
+                updateStatus("تم التقاط الكلام ($detectedLanguage)، لكن تعذر تحديد رمز لغة مدعوم. أعد المحاولة مع كلام أوضح.")
                 return@post
             }
             if (sourceLanguage == TranslateLanguage.ARABIC) {
@@ -394,7 +418,7 @@ class FloatingTranslationOverlayService : Service() {
                 if (translationModelPending) return@post
 
                 translationModelPending = true
-                updateStatus("تنزيل نموذج الترجمة ${detectedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
+                updateStatus("تنزيل نموذج الترجمة ${normalizedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
                 translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
                     .addOnSuccessListener {
                         if (!running.get() || translator !== activeTranslator) return@addOnSuccessListener
@@ -402,7 +426,7 @@ class FloatingTranslationOverlayService : Service() {
                         translationModelReady = true
                         val latest = latestPendingCaption
                         latestPendingCaption = null
-                        if (latest != null) translateWithReadyModel(translator, latest.first, latest.second)
+                        if (latest != null) translateWithReadyModel(translator, latest.first, normalizeDetectedLanguage(latest.second))
                     }
                     .addOnFailureListener { error ->
                         if (running.get() && translator === activeTranslator) {
@@ -412,7 +436,7 @@ class FloatingTranslationOverlayService : Service() {
                     }
                 return@post
             }
-            translateWithReadyModel(translator, text, detectedLanguage)
+            translateWithReadyModel(translator, text, normalizedLanguage)
         }
     }
 
@@ -420,12 +444,12 @@ class FloatingTranslationOverlayService : Service() {
         val requestId = ++translationRequest
         translator.translate(text)
             .addOnSuccessListener { translated ->
-                if (running.get() && requestId == translationRequest) {
+                if (running.get() && translator === activeTranslator) {
                     showCaption(translated, language)
                 }
             }
             .addOnFailureListener { error ->
-                if (running.get() && requestId == translationRequest) {
+                if (running.get() && translator === activeTranslator) {
                     updateStatus("فشلت ترجمة المقطع: ${error.localizedMessage ?: "أعد المحاولة بعد اكتمال تنزيل نموذج اللغة"}")
                 }
             }
