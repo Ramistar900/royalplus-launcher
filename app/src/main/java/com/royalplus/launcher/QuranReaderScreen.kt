@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
@@ -535,6 +537,7 @@ internal fun QuranReaderScreen(
                         .background(if (audioPlaying) Color(0xFF7A2424) else Color(0xFF253345))
                         .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
                         .clickable(enabled = !audioLoading && !audioDownloadInProgress && downloadedAudioSurahs.contains(surah.number)) {
+                            playLauncherUiSound(context, if (audioPlaying) RoyalUiSound.MEDIA_PAUSE else RoyalUiSound.MEDIA_PLAY)
                             if (audioReady) {
                                 if (audioPlaying) {
                                     runCatching { audioPlayer.pause() }
@@ -634,6 +637,7 @@ internal fun QuranReaderScreen(
                         .background(Color(0xFF183E43))
                         .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), CircleShape)
                         .clickable(enabled = !audioDownloadInProgress && surah.number !in downloadedAudioSurahs) {
+                            playLauncherUiSound(context, RoyalUiSound.ACTION_DOWNLOAD)
                             audioDownloadInProgress = true
                             audioMessage = "جارٍ تنزيل السورة وحفظها على الجهاز…"
                             val downloadReader = selectedReader
@@ -1081,6 +1085,7 @@ private fun QuranReaderAction(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Box(
         modifier.clip(RoundedCornerShape(10.dp))
             .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF1B2735))
@@ -1089,7 +1094,10 @@ private fun QuranReaderAction(
                 if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = if (enabled) 0.4f else 0.15f),
                 RoundedCornerShape(10.dp)
             )
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, onClick = {
+                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                onClick()
+            })
             .focusable(enabled = enabled)
             .padding(horizontal = 9.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center

@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -70,6 +72,7 @@ internal fun AdhanOverlay(
     }
 
     BackHandler(onBack = {
+        playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
         context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
         onDismiss()
     })
@@ -163,6 +166,7 @@ internal fun AdhanOverlay(
                 focused = focused,
                 onFocusChanged = { focused = it },
                 onClick = {
+                    playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
                     context.stopService(android.content.Intent(context, RoyalAdhanPlaybackService::class.java))
                     onDismiss()
                 }

@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royalplus.launcher.royalsounds.RoyalUiSound
+
 import android.media.MediaPlayer
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -129,7 +131,10 @@ internal fun RoyalSongsScreen() {
             fontSize = 13.sp
         )
         Button(
-            onClick = { picker.launch(arrayOf("audio/*")) },
+            onClick = {
+                playLauncherUiSound(context, RoyalUiSound.ACTION_ADD)
+                picker.launch(arrayOf("audio/*"))
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF76551F), contentColor = RoyalColors.Pearl)
         ) {
             Icon(Icons.Rounded.FolderOpen, contentDescription = null)
@@ -156,7 +161,10 @@ internal fun RoyalSongsScreen() {
                     Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                             .background(if (index == currentIndex) Color(0xFF3B2D16) else Color(0xAA10131B))
-                            .clickable { playSong(index) }.focusable().padding(13.dp),
+                            .clickable {
+                                playLauncherUiSound(context, RoyalUiSound.MEDIA_PLAY)
+                                playSong(index)
+                            }.focusable().padding(13.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold)
@@ -177,11 +185,17 @@ internal fun RoyalSongsScreen() {
             ) {
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = "السابق",
                     tint = if (currentIndex > 0) RoyalColors.Gold else RoyalColors.Muted,
-                    modifier = Modifier.size(34.dp).clickable { if (currentIndex > 0) playSong(currentIndex - 1) })
+                    modifier = Modifier.size(34.dp).clickable {
+                        if (currentIndex > 0) {
+                            playLauncherUiSound(context, RoyalUiSound.MEDIA_PREV)
+                            playSong(currentIndex - 1)
+                        }
+                    })
                 Spacer(Modifier.size(22.dp))
                 Icon(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) "إيقاف مؤقت" else "تشغيل",
                     tint = RoyalColors.Gold, modifier = Modifier.size(38.dp).clickable {
+                        playLauncherUiSound(context, if (isPlaying) RoyalUiSound.MEDIA_PAUSE else RoyalUiSound.MEDIA_PLAY)
                         val active = player
                         if (active != null && currentIndex >= 0) {
                             if (isPlaying) { active.pause(); isPlaying = false }
@@ -191,7 +205,12 @@ internal fun RoyalSongsScreen() {
                 Spacer(Modifier.size(22.dp))
                 Icon(Icons.Rounded.SkipNext, contentDescription = "التالي",
                     tint = if (currentIndex < songs.lastIndex) RoyalColors.Gold else RoyalColors.Muted,
-                    modifier = Modifier.size(34.dp).clickable { if (currentIndex < songs.lastIndex) playSong(currentIndex + 1) })
+                    modifier = Modifier.size(34.dp).clickable {
+                        if (currentIndex < songs.lastIndex) {
+                            playLauncherUiSound(context, RoyalUiSound.MEDIA_NEXT)
+                            playSong(currentIndex + 1)
+                        }
+                    })
             }
         }
         playbackError?.let { Text(it, color = Color(0xFFFF8A80), fontSize = 12.sp) }
