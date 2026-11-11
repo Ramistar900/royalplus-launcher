@@ -56,3 +56,6 @@ assert "normalizeDetectedLanguage" in service
 assert "TranslateLanguage.fromLanguageTag(normalizedLanguage)" in service
 # Successful async translations must not be discarded by a newer audio segment.
 assert "translator === activeTranslator" in service
+# Normalized weather classification must drive fog and snow intensity.
+assert "drawRoyalFog(progress, width, height, dense = effectiveWeatherCode == 48)" in weather
+assert "val intensity = when (effectiveWeatherCode)" in weather
