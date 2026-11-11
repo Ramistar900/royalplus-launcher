@@ -182,6 +182,13 @@ internal fun RoyalHomeScreen(
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     var showWeatherDetails by remember { mutableStateOf(false) }
+    // Weather ambience is allowed only while the dedicated Weather Details screen is open.
+    // Hard-stop stale players whenever the user returns home or opens the smart screensaver.
+    LaunchedEffect(showWeatherDetails, showSmartScreensaver) {
+        if (!showWeatherDetails || showSmartScreensaver) {
+            RoyalWeatherAmbienceController.onBackground()
+        }
+    }
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
