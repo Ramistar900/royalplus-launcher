@@ -90,13 +90,15 @@ data class RoyalAdaptiveProfile(
         }
     }
 
-    fun launcherAppColumns(width: Dp = windowWidthDp): Int =
-        columnsFor(
+    fun launcherAppColumns(width: Dp = windowWidthDp): Int {
+        val compactPhone = isPhone && width < 480.dp
+        return columnsFor(
             width,
-            100.dp,
-            minColumns = if (isPhone && width < 480.dp) 2 else 3,
+            minCellWidth = if (compactPhone) 160.dp else 100.dp,
+            minColumns = if (compactPhone) 2 else 3,
             maxColumns = 6
         )
+    }
 
     fun iconSize(base: Dp): Dp {
         val scale = when {
