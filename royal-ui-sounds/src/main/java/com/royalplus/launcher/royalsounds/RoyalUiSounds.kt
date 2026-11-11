@@ -64,7 +64,7 @@ object RoyalUiSounds {
     private const val PREFS_NAME = "royal_ui_sounds"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_VOLUME = "volume"
-    private const val DEFAULT_VOLUME = 0.62f
+    private const val DEFAULT_VOLUME = 0.18f
     // Keep headroom below SoundPool's approximately 1 MiB decoded sample limit.
     private const val MAX_CACHED_BYTES = 900 * 1024
 
