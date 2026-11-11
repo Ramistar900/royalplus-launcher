@@ -72,6 +72,9 @@ class FloatingTranslationOverlayService : Service() {
     private val captionHideRunnable = Runnable {
         captionView?.visibility = View.GONE
     }
+    private val controlHideRunnable = Runnable {
+        hideControlAndShowEdge()
+    }
     private var activeTranslator: Translator? = null
     private var activeSourceLanguage: String? = null
     private var translationModelReady = false
@@ -545,8 +548,17 @@ class FloatingTranslationOverlayService : Service() {
                 return
             }
         }
-        // Keep the CC control visible while another app is in the foreground.
-        // The old auto-hide replaced it with a nearly invisible 12dp edge strip.
+        scheduleControlHide()
+    }
+
+    private fun scheduleControlHide() {
+        mainHandler.removeCallbacks(controlHideRunnable)
+        mainHandler.postDelayed(controlHideRunnable, CONTROL_IDLE_HIDE_MILLIS)
+    }
+
+    private fun hideControlAndShowEdge() {
+        removeControl()
+        showEdgeReveal()
     }
 
     private fun showEdgeReveal() {
@@ -595,6 +607,7 @@ class FloatingTranslationOverlayService : Service() {
         }
         controlView = null
         controlWindowParams = null
+        mainHandler.removeCallbacks(controlHideRunnable)
     }
 
     private fun removeEdgeReveal() {
@@ -750,6 +763,7 @@ class FloatingTranslationOverlayService : Service() {
         latestPendingCaption = null
 
         mainHandler.removeCallbacks(captionHideRunnable)
+        mainHandler.removeCallbacks(controlHideRunnable)
         listOfNotNull(captionView, controlView, edgeRevealView).forEach { view ->
             try {
                 windowManager?.removeView(view)
@@ -790,6 +804,7 @@ class FloatingTranslationOverlayService : Service() {
         private const val NOTIFICATION_ID = 4101
         private const val CAPTION_DISPLAY_MILLIS = 5_000L
         private const val STATUS_DISPLAY_MILLIS = 7_000L
+        private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
         private const val SEGMENT_SECONDS = 8
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
