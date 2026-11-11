@@ -16,9 +16,14 @@ assert "cubicTo(" in rain_renderer and "drawPath(" in rain_renderer
 assert "drawLine(" not in rain_renderer and "drawRect(" not in rain_renderer
 
 card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
+smart = (JAVA / "RoyalSmartScreensaver.kt").read_text(encoding="utf-8")
 details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
+assert "RoyalWeatherAtmosphereOverlay(" in card
+assert "RoyalWeatherAtmosphereOverlay(" in smart
 assert "RoyalWeatherAmbienceEffect(weather)" not in card
 assert "RoyalOwlAmbienceEffect(weather)" not in card
+assert "RoyalWeatherAmbienceEffect(weather)" not in smart
+assert "RoyalOwlAmbienceEffect(weather)" not in smart
 assert "RoyalWeatherAmbienceEffect(weather)" in details
 assert "RoyalOwlAmbienceEffect(weather)" in details
 
@@ -31,6 +36,9 @@ assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "getMediaProjection(" in service and "VOICE_RECOGNITION" in service
 assert "return AudioRecord(" in service
 assert "hasMeaningfulAudio(" in service and "consecutiveSilentSegments" in service
+assert "checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)" in service
+assert "CONTROL_IDLE_HIDE_MILLIS = 10_000L" in service
+assert "scheduleControlHide()" in service and "hideControlAndShowEdge()" in service
 assert "START_NOT_STICKY" in service and "EXTRA_PROJECTION_DATA" in service
 activity = (JAVA / "MainActivity.kt").read_text(encoding="utf-8")
 assert "createScreenCaptureIntent()" in activity
