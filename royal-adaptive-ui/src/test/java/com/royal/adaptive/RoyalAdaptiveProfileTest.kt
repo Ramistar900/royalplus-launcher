@@ -10,7 +10,7 @@ class RoyalAdaptiveProfileTest {
         assertEquals(
             RoyalDeviceClass.TELEVISION,
             resolveRoyalDeviceClass(
-                Configuration.UI_MODE_TYPE_TELEVISION, false, true, 720, 1280f
+                Configuration.UI_MODE_TYPE_TELEVISION, false, false, true, 720, 1280f
             )
         )
     }
@@ -20,7 +20,17 @@ class RoyalAdaptiveProfileTest {
         assertEquals(
             RoyalDeviceClass.TELEVISION,
             resolveRoyalDeviceClass(
-                Configuration.UI_MODE_TYPE_NORMAL, true, false, 0, 960f
+                Configuration.UI_MODE_TYPE_NORMAL, true, false, false, 0, 960f
+            )
+        )
+    }
+
+    @Test
+    fun televisionHardwareFeatureDetectsTvWithGenericUiMode() {
+        assertEquals(
+            RoyalDeviceClass.TELEVISION,
+            resolveRoyalDeviceClass(
+                Configuration.UI_MODE_TYPE_NORMAL, false, true, true, 720, 1280f
             )
         )
     }
@@ -30,7 +40,7 @@ class RoyalAdaptiveProfileTest {
         assertEquals(
             RoyalDeviceClass.TABLET,
             resolveRoyalDeviceClass(
-                Configuration.UI_MODE_TYPE_NORMAL, false, true, 600, 560f
+                Configuration.UI_MODE_TYPE_NORMAL, false, false, true, 600, 560f
             )
         )
     }

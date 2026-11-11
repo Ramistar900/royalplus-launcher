@@ -183,6 +183,7 @@ fun rememberRoyalAdaptiveProfile(): RoyalAdaptiveProfile =
 internal fun resolveRoyalDeviceClass(
     uiModeType: Int,
     hasLeanback: Boolean,
+    hasTelevision: Boolean,
     hasTouchscreen: Boolean,
     smallestScreenWidthDp: Int,
     windowWidthDp: Float
@@ -190,6 +191,7 @@ internal fun resolveRoyalDeviceClass(
     val tvSignal =
         uiModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
             hasLeanback ||
+            hasTelevision ||
             (!hasTouchscreen && windowWidthDp >= 720f)
     return when {
         tvSignal -> RoyalDeviceClass.TELEVISION
@@ -235,11 +237,13 @@ private fun createRoyalAdaptiveProfile(
 
     val packageManager = context.packageManager
     val hasLeanback = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+    val hasTelevision = packageManager.hasSystemFeature("android.hardware.type.television")
     val hasTouchscreen = packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
     val uiModeType = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
     val deviceClass = resolveRoyalDeviceClass(
         uiModeType,
         hasLeanback,
+        hasTelevision,
         hasTouchscreen,
         configuration.smallestScreenWidthDp,
         safeWidth
