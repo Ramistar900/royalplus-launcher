@@ -13,6 +13,10 @@ internal fun playLauncherUiSound(context: Context, sound: RoyalUiSound) {
         "royalplus_launcher_preferences",
         Context.MODE_PRIVATE
     )
-    if (!preferences.getBoolean("ui_click_sounds_enabled", false)) return
+    val enabled = preferences.getBoolean("ui_click_sounds_enabled", false)
+    if (RoyalUiSounds.isEnabled(context) != enabled) {
+        RoyalUiSounds.setEnabled(context, enabled)
+    }
+    if (!enabled) return
     RoyalUiSounds.play(context, sound)
 }
