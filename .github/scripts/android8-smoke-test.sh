@@ -2,6 +2,8 @@
 set -euo pipefail
 
 PACKAGE="com.royalplus.launcher"
+TEST_LABEL="${ANDROID_TEST_LABEL:-Android emulator}"
+EXPECTED_API_LEVEL="${EXPECTED_API_LEVEL:-}"
 APK_ROOT="$GITHUB_WORKSPACE/app/build/outputs/apk"
 APK="$(find "$APK_ROOT" -type f -path "*/release/*x86_64*.apk" -print -quit)"
 BUILD_TYPE="minified x86_64 Release"
@@ -24,7 +26,7 @@ adb_limited() {
 
 collect_diagnostics() {
   set +e
-  echo "::group::Android 8 emulator diagnostics"
+  echo "::group::$TEST_LABEL diagnostics"
   echo "Connected devices:"
   adb_limited 20 devices -l
   echo "Emulator API level:"
@@ -46,9 +48,20 @@ test -n "$PACKAGE"
 test -n "$ACTIVITY"
 
 API_LEVEL="$(adb_limited 20 shell getprop ro.build.version.sdk | tr -d '\r')"
+echo "$TEST_LABEL reports Android API $API_LEVEL"
+if [[ -n "$EXPECTED_API_LEVEL" && "$API_LEVEL" != "$EXPECTED_API_LEVEL" ]]; then
+  echo "::error::$TEST_LABEL expected API $EXPECTED_API_LEVEL but emulator reports API $API_LEVEL."
+  collect_diagnostics
+  exit 1
+fi
+
 echo "Installing Android API $API_LEVEL $BUILD_TYPE APK: $APK ($PACKAGE)"
-if ! adb_limited 120 install -r "$APK"; then
-  echo "::error::APK installation failed or exceeded 120 seconds."
+INSTALL_OUTPUT=""
+INSTALL_STATUS=0
+INSTALL_OUTPUT="$(adb_limited 240 install --no-streaming -r "$APK" 2>&1)" || INSTALL_STATUS=$?
+printf '%s\n' "$INSTALL_OUTPUT"
+if [[ "$INSTALL_STATUS" -ne 0 ]]; then
+  echo "::error::APK installation failed (adb exit $INSTALL_STATUS) or exceeded 240 seconds."
   collect_diagnostics
   exit 1
 fi
