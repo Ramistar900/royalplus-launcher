@@ -182,7 +182,11 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Smoke test on Android 7 (API 24)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 7 (API 24)
+          EXPECTED_API_LEVEL: "24"
         with:
           api-level: 24
           arch: x86_64
@@ -194,6 +198,9 @@ jobs:
       - name: Smoke test on Android 8 (API 26)
         timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 8 (API 26)
+          EXPECTED_API_LEVEL: "26"
         with:
           api-level: 26
           arch: x86_64
@@ -473,7 +480,11 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Smoke test on Android 7 (API 24)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 7 (API 24)
+          EXPECTED_API_LEVEL: "24"
         with:
           api-level: 24
           arch: x86_64
@@ -483,11 +494,16 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Smoke test on Android 8 (API 26)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 8 (API 26)
+          EXPECTED_API_LEVEL: "26"
         with:
           api-level: 26
           arch: x86_64
           profile: Nexus 6
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
