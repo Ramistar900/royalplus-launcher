@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "feature/royalplus-sports-integration" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/feature/royalplus-sports-integration'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -202,7 +202,7 @@ jobs:
           script: bash .github/scripts/android7-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/feature/royalplus-sports-integration')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -227,9 +227,14 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          TAG="royalplus-test-installers"
-          TITLE="ROYAL+ Launcher • Latest Test Installers"
-          NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after the Android 8 (API 26) smoke test passed.
+          if [[ "$GITHUB_REF" == "refs/heads/feature/royalplus-sports-integration" ]]; then
+            TAG="royalplus-sports-test"
+            TITLE="ROYAL+ Sports Integration • Test APKs"
+          else
+            TAG="royalplus-test-installers"
+            TITLE="ROYAL+ Launcher • Latest Test Installers"
+          fi
+          NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after Android 7 (API 24) and Android 8 (API 26) smoke tests passed.
 
           1. royalplus-debug.apk — debug test build, package com.royalplus.launcher.debug.
           2. royalplus-release-test.apk — minified universal test build, package com.royalplus.launcher.test.
