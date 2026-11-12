@@ -184,6 +184,13 @@ internal fun RoyalHomeScreen(
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     var showWeatherDetails by remember { mutableStateOf(false) }
+    // Weather ambience is allowed only while the dedicated Weather Details screen is open.
+    // Hard-stop stale players whenever the user returns home or opens the smart screensaver.
+    LaunchedEffect(showWeatherDetails, showSmartScreensaver) {
+        if (!showWeatherDetails || showSmartScreensaver) {
+            RoyalWeatherAmbienceController.onBackground()
+        }
+    }
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
@@ -873,6 +880,11 @@ internal fun RoyalHomeScreen(
                             Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
                             Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
+                            Triple("city_night", if (selectedLanguage == "en") "Night city" else if (selectedLanguage == "tr") "Gece şehri" else "مدينة ليلية", R.drawable.royal_city_night),
+                            Triple("space", if (selectedLanguage == "en") "Space" else if (selectedLanguage == "tr") "Uzay" else "الفضاء", R.drawable.royal_space),
+                            Triple("rami_golden_nature", if (selectedLanguage == "en") "Rami's golden nature" else if (selectedLanguage == "tr") "Rami'nin altın doğası" else "طبيعة ذهبية من رامي", R.drawable.royal_rami_golden_nature),
+                            Triple("mountain_nature", if (selectedLanguage == "en") "Mountain nature" else if (selectedLanguage == "tr") "Dağ doğası" else "طبيعة جبلية", R.drawable.royal_mountain_nature),
+                            Triple("blue_gold_magic", if (selectedLanguage == "en") "Blue & gold magic" else if (selectedLanguage == "tr") "Mavi ve altın büyüsü" else "السحر الأزرق الذهبي", R.drawable.royal_blue_gold_magic),
                             Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
                             Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k),
                             Triple("syria", if (selectedLanguage == "en") "Syrian flag" else if (selectedLanguage == "tr") "Suriye bayrağı" else "علم سوريا", R.drawable.royal_syria_flag_4k)
@@ -1316,6 +1328,11 @@ private fun RoyalBackdrop(
                 "mountains" -> R.drawable.royal_wallpaper_mountains_02
                 "sunset" -> R.drawable.royal_wallpaper_sunset_05
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                "city_night" -> R.drawable.royal_city_night
+                "space" -> R.drawable.royal_space
+                "rami_golden_nature" -> R.drawable.royal_rami_golden_nature
+                "mountain_nature" -> R.drawable.royal_mountain_nature
+                "blue_gold_magic" -> R.drawable.royal_blue_gold_magic
                 "ocean" -> R.drawable.royal_ocean_4k
                 "syria" -> R.drawable.royal_syria_flag_4k
                 else -> R.drawable.royal_color_wallpaper

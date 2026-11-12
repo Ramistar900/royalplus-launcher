@@ -91,6 +91,11 @@ internal fun RoyalSmartScreensaver(
                     "nature" -> R.drawable.royal_wallpaper_nature_01
                     "sunset" -> R.drawable.royal_wallpaper_sunset_05
                     "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                    "city_night" -> R.drawable.royal_city_night
+                    "space" -> R.drawable.royal_space
+                    "rami_golden_nature" -> R.drawable.royal_rami_golden_nature
+                    "mountain_nature" -> R.drawable.royal_mountain_nature
+                    "blue_gold_magic" -> R.drawable.royal_blue_gold_magic
                     "ocean" -> R.drawable.royal_ocean_4k
                     "syria" -> R.drawable.royal_syria_flag_4k
                     else -> R.drawable.royal_smart_screensaver
@@ -105,7 +110,7 @@ internal fun RoyalSmartScreensaver(
         if (selectedWallpaper == "syria" && syriaFlagAnimationEnabled) {
             RoyalFlagOverlay(modifier = Modifier.fillMaxSize())
         }
-        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
+        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, weatherDescription = weather.description, motionEnabled = motionEnabled, windSpeedKmh = weather.windSpeedKmh, nightMode = (timeText.substringBefore(":").toIntOrNull()?.let { it >= 19 || it < 6 } == true), sunsetMode = (timeText.substringBefore(":").toIntOrNull()?.let { it in 17..18 } == true))
         Box(
             modifier = Modifier
                 .fillMaxSize()

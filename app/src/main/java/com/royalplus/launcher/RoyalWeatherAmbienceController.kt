@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Handler
@@ -9,6 +10,7 @@ import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -23,30 +25,31 @@ internal fun RoyalWeatherAmbienceEffect(weather: WeatherUiState) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val latestWeather = rememberUpdatedState(weather)
+    val screenSession = remember(lifecycleOwner) { Any() }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, screenSession) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME ->
-                    RoyalWeatherAmbienceController.onForeground(context, latestWeather.value)
+                    RoyalWeatherAmbienceController.onForeground(context, latestWeather.value, screenSession)
                 Lifecycle.Event.ON_PAUSE ->
-                    RoyalWeatherAmbienceController.onBackground()
+                    RoyalWeatherAmbienceController.onBackground(screenSession)
                 else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            RoyalWeatherAmbienceController.onForeground(context, latestWeather.value)
+            RoyalWeatherAmbienceController.onForeground(context, latestWeather.value, screenSession)
         }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            RoyalWeatherAmbienceController.onBackground()
+            RoyalWeatherAmbienceController.onBackground(screenSession)
         }
     }
 
     SideEffect {
         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            RoyalWeatherAmbienceController.onWeatherChanged(context, weather)
+            RoyalWeatherAmbienceController.onWeatherChanged(context, weather, screenSession)
         }
     }
 }
@@ -70,9 +73,15 @@ internal object RoyalWeatherAmbienceController {
 
     private data class AmbienceScene(
         val key: String,
-        val resourceId: Int,
-        val volumeMultiplier: Float = 1f
+        val resourceId: Int = 0,
+        val volumeMultiplier: Float = 1f,
+        val streamUrl: String? = null
     )
+
+    // CC0 recording by Tvabutzku1234 on Wikimedia Commons.
+    // Used only for heavy snowfall, where the existing gentle breeze is insufficient.
+    private const val HEAVY_SNOW_WIND_URL =
+        "https://upload.wikimedia.org/wikipedia/commons/2/2d/Howling_wind.ogg"
 
     private val handler = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
@@ -80,6 +89,7 @@ internal object RoyalWeatherAmbienceController {
     private var latestWeatherIdentity: WeatherUiState? = null
     private var weatherReceivedAtElapsedMs: Long? = null
     private var foreground = false
+    private var foregroundOwner: Any? = null
     private var activeSceneKey: String? = null
     private var activeSceneVolumeMultiplier = 1f
     private var loopPlayer: MediaPlayer? = null
@@ -148,6 +158,8 @@ internal object RoyalWeatherAmbienceController {
             .putFloat(VOLUME_KEY, safeValue)
             .apply()
         appContext = applicationContext
+        RoyalFireAmbienceController.setVolume(safeValue)
+        RoyalLakeAmbienceController.setVolume(safeValue)
         if (safeValue <= 0f) {
             stopAllPlayback()
         } else {
@@ -157,21 +169,29 @@ internal object RoyalWeatherAmbienceController {
         RoyalOwlAmbienceController.onAudioVolumeChanged()
     }
 
-    fun onForeground(context: Context, weather: WeatherUiState) {
+    fun onForeground(context: Context, weather: WeatherUiState, owner: Any) {
         appContext = context.applicationContext
+        foregroundOwner = owner
         foreground = true
         updateWeatherIdentity(weather)
         updatePlaybackForCurrentWeather()
     }
 
-    fun onWeatherChanged(context: Context, weather: WeatherUiState) {
+    fun onWeatherChanged(context: Context, weather: WeatherUiState, owner: Any) {
+        if (foregroundOwner !== owner) return
         appContext = context.applicationContext
         val changed = updateWeatherIdentity(weather)
         if (changed && foreground) updatePlaybackForCurrentWeather()
     }
 
-    fun onBackground() {
+    fun onBackground(owner: Any? = null) {
+        if (owner != null && foregroundOwner !== owner) return
+        foregroundOwner = null
         foreground = false
+        latestWeather = null
+        latestWeatherIdentity = null
+        weatherReceivedAtElapsedMs = null
+        activeSceneVolumeMultiplier = 1f
         stopAllPlayback()
     }
 
@@ -237,16 +257,18 @@ internal object RoyalWeatherAmbienceController {
     private fun selectScene(context: Context, weather: WeatherUiState): AmbienceScene? {
         val code = weather.weatherCode ?: return null
         return when {
-            code in 95..99 ->
-                if (isEnabled(context, RAIN_ENABLED_KEY)) {
-                    AmbienceScene("storm-rain", R.raw.weather_thunderstorm_rain)
-                } else null
+            // Storms use natural rain ambience plus a separate distant-thunder one-shot.
+            // This avoids the legacy combined storm-rain-and-thunder recording.
             isRainCode(code) && isEnabled(context, RAIN_ENABLED_KEY) ->
                 AmbienceScene("rain", R.raw.weather_rain_natural)
             (weather.weatherCode in setOf(75, 86)) &&
                 (weather.windSpeedKmh ?: 0) >= 15 &&
                 isEnabled(context, WIND_ENABLED_KEY) ->
-                AmbienceScene("heavy-snow-wind", R.raw.nature_wind_gentle, 1.35f)
+                AmbienceScene(
+                    key = "heavy-snow-wind",
+                    volumeMultiplier = 0.88f,
+                    streamUrl = HEAVY_SNOW_WIND_URL
+                )
             (weather.windSpeedKmh ?: 0) >= WIND_THRESHOLD_KMH &&
                 isEnabled(context, WIND_ENABLED_KEY) ->
                 AmbienceScene("wind", R.raw.nature_wind_gentle)
@@ -257,7 +279,8 @@ internal object RoyalWeatherAmbienceController {
         }
     }
 
-    private fun isRainCode(code: Int): Boolean = code in 51..67 || code in 80..82
+    private fun isRainCode(code: Int): Boolean =
+        code in 51..67 || code in 80..82 || code in 95..99
 
     private fun isMorning(weather: WeatherUiState): Boolean {
         val zone = weather.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
@@ -274,7 +297,10 @@ internal object RoyalWeatherAmbienceController {
 
     private fun startLoopPlayer(context: Context, scene: AmbienceScene) {
         if (currentMediaVolumeIsMuted(context) || !requestAudioFocus(context)) return
-        val player = runCatching { MediaPlayer.create(context, scene.resourceId) }.getOrNull() ?: return
+        val player = runCatching {
+            if (scene.streamUrl == null) MediaPlayer.create(context, scene.resourceId)
+            else MediaPlayer()
+        }.getOrNull() ?: return
         loopPlayer = player
         player.isLooping = true
         val level = (effectiveVolume(context) * scene.volumeMultiplier).coerceIn(0f, 1f)
@@ -283,12 +309,53 @@ internal object RoyalWeatherAmbienceController {
             if (loopPlayer === failed) loopPlayer = null
             releasePlayer(failed)
             maybeAbandonAudioFocus()
+            if (scene.streamUrl != null && foreground) {
+                startLoopPlayer(
+                    context,
+                    scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = 1.05f)
+                )
+            }
             true
         }
-        runCatching { player.start() }.onFailure {
-            if (loopPlayer === player) loopPlayer = null
-            releasePlayer(player)
-            maybeAbandonAudioFocus()
+        if (scene.streamUrl != null) {
+            try {
+                player.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                player.setDataSource(scene.streamUrl)
+                player.setOnPreparedListener { prepared ->
+                    if (loopPlayer === prepared && foreground) {
+                        runCatching { prepared.start() }.onFailure {
+                            if (loopPlayer === prepared) loopPlayer = null
+                            releasePlayer(prepared)
+                            maybeAbandonAudioFocus()
+                        }
+                    } else {
+                        releasePlayer(prepared)
+                    }
+                }
+                player.prepareAsync()
+            } catch (_: Exception) {
+                if (loopPlayer === player) loopPlayer = null
+                releasePlayer(player)
+                if (foreground) {
+                    startLoopPlayer(
+                        context,
+                        scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = 1.05f)
+                    )
+                } else {
+                    maybeAbandonAudioFocus()
+                }
+            }
+        } else {
+            runCatching { player.start() }.onFailure {
+                if (loopPlayer === player) loopPlayer = null
+                releasePlayer(player)
+                maybeAbandonAudioFocus()
+            }
         }
     }
 

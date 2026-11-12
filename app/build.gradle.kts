@@ -37,6 +37,10 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // Keep the debug test APK installable beside the production and minified test apps.
+            applicationIdSuffix = ".debug"
+        }
         getByName("release") {
             // PR/manual validation can use the debug certificate; main releases
             // always use the repository's private signing key.
