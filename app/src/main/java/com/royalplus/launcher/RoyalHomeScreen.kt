@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import com.royal.adaptive.LocalRoyalAdaptiveProfile
+import com.royal.adaptive.RoyalWindowHeightClass
 import com.royal.adaptive.RoyalWindowWidthClass
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
@@ -2167,6 +2168,12 @@ private fun SidebarNavItem(
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
+    val navItemHeight = when {
+        compactPhone -> 42.dp
+        adaptiveProfile.isTelevision && adaptiveProfile.heightClass == RoyalWindowHeightClass.EXPANDED -> 56.dp
+        adaptiveProfile.isTelevision -> 48.dp
+        else -> maxOf(42.dp, adaptiveProfile.minimumFocusTarget)
+    }
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
@@ -2179,7 +2186,7 @@ private fun SidebarNavItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(42.dp)
+            .height(navItemHeight)
             .graphicsLayer {
                 scaleX = focusScale
                 scaleY = focusScale
@@ -2372,20 +2379,28 @@ private fun RoyalAppManagementScreen(
     onLaunchApp: (LauncherApp) -> Unit,
     onManageApp: (LauncherApp) -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val managementCardHeight = when {
+        adaptiveProfile.isTelevision -> (adaptiveProfile.appTileHeight + 40.dp).coerceIn(156.dp, 184.dp)
+        adaptiveProfile.isTablet -> 164.dp
+        adaptiveProfile.isPhone -> 132.dp
+        else -> 150.dp
+    }
+    val managementIconSize = adaptiveProfile.iconSize(42.dp).coerceIn(38.dp, 58.dp)
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            Modifier.fillMaxWidth().padding(bottom = adaptiveProfile.itemSpacing),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
                 Text(
                     when (language) { "en" -> "App management"; "tr" -> "Uygulama yönetimi"; else -> "إدارة التطبيقات" },
-                    color = RoyalColors.Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold
+                    color = RoyalColors.Gold, fontSize = if (adaptiveProfile.isPhone) 18.sp else if (adaptiveProfile.isTelevision) 26.sp else 22.sp, fontWeight = FontWeight.Bold
                 )
                 Text(
                     when (language) { "en" -> "Pin favorites, hide apps and arrange your quick access"; "tr" -> "Favorileri sabitleyin, uygulamaları gizleyin ve sıralayın"; else -> "أضف للمفضلة أو أخفِ التطبيقات ورتّب الوصول السريع" },
-                    color = RoyalColors.Pearl.copy(alpha = 0.78f), fontSize = 10.sp
+                    color = RoyalColors.Pearl.copy(alpha = 0.78f), fontSize = if (adaptiveProfile.isPhone) 9.sp else 10.sp
                 )
             }
             Text(
@@ -2402,15 +2417,15 @@ private fun RoyalAppManagementScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 14.dp, end = 3.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.itemSpacing),
+                horizontalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing),
+                verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)
             ) {
                 items(apps, key = { it.packageName }) { app ->
                     val isFavorite = app.packageName in favoritePackages
                     val isHidden = app.packageName in hiddenPackages
                     Card(
-                        modifier = Modifier.fillMaxWidth().height(150.dp)
+                        modifier = Modifier.fillMaxWidth().height(managementCardHeight)
                             .combinedClickable(
                                 onClick = { onLaunchApp(app) },
                                 onLongClick = { onManageApp(app) }
@@ -2432,13 +2447,13 @@ private fun RoyalAppManagementScreen(
                                         painter = remember(app.icon) { BitmapPainter(app.icon.asImageBitmap()) },
                                         contentDescription = app.label,
                                         contentScale = ContentScale.Fit,
-                                        modifier = Modifier.size(42.dp)
+                                        modifier = Modifier.size(managementIconSize)
                                     )
                                 } else {
                                     Icon(Icons.Rounded.Apps, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(42.dp))
                                 }
                                 Column(Modifier.weight(1f)) {
-                                    Text(app.label, color = RoyalColors.Pearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(app.label, color = RoyalColors.Pearl, fontSize = if (adaptiveProfile.isPhone) 11.sp else 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     Text(app.packageName, color = RoyalColors.Muted, fontSize = 7.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
