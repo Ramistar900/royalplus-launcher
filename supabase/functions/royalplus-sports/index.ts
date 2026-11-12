@@ -91,7 +91,6 @@ Deno.serve(async (req: Request) => {
   }
 
   const { data: budget, error: budgetError } = await admin
-    .schema("private")
     .rpc("consume_royalplus_sports_request");
 
   if (budgetError || !budget) {
