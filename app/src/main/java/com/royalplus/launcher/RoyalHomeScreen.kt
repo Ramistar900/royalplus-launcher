@@ -684,13 +684,9 @@ internal fun RoyalHomeScreen(
                                         otherApps = otherApps, columns = columns, favoriteTileWidth = favoriteTileWidth,
                                         focusedAppPackage = focusedAppPackage, onAppFocused = { focusedAppPackage = it },
                                         onLaunchApp = onLaunchApp, onManageApp = { appForManagement = it }, iconStyle = selectedIconStyle,
-                                        currentTime = timeText, dateText = dateText, showDate = showDateOnHome, weather = weather,
+                                        currentTime = timeText, weather = weather,
                                         onRequestLocation = onRequestLocation,
                                         onNavigate = { selectedDestination = it },
-                                        onToggleDate = {
-                                            showDateOnHome = !showDateOnHome
-                                            wallpaperPreferences.edit().putBoolean("launcher_show_date", showDateOnHome).apply()
-                                        },
                                         onRefreshWeather = onRefreshWeather,
                                         onOpenWeather = { showWeatherDetails = true },
                                         onOpenSettings = { showWallpaperSettings = true },
@@ -1758,10 +1754,10 @@ private fun HomeDashboard(
     columns: Int, favoriteTileWidth: Dp, iconStyle: String, focusedAppPackage: String?,
     onAppFocused: (String) -> Unit, onLaunchApp: (LauncherApp) -> Unit,
     onManageApp: (LauncherApp) -> Unit,
-    currentTime: String, dateText: String, showDate: Boolean, weather: WeatherUiState,
+    currentTime: String, weather: WeatherUiState,
     prayerTimes: PrayerTimesData?, currentTimeMillis: Long,
     onRequestLocation: () -> Unit,
-    onNavigate: (LauncherDestination) -> Unit, onToggleDate: () -> Unit,
+    onNavigate: (LauncherDestination) -> Unit,
     onRefreshWeather: () -> Unit, onOpenWeather: () -> Unit, onOpenSettings: () -> Unit, selectedLanguage: String,
     weatherMotionEnabled: Boolean
 ) {
@@ -1816,12 +1812,13 @@ private fun HomeDashboard(
                     AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
                         highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { onManageApp(app) })
                 }
-            }
-            Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), when (selectedLanguage) { "en" -> "Apps"; "tr" -> "Uygulamalar"; else -> "التطبيقات" }, when (selectedLanguage) { "en" -> "All your apps in one place"; "tr" -> "Tüm uygulamalarınız tek yerde"; else -> "جميع تطبيقاتك في مكان واحد" }, Icons.Rounded.Apps, false) { onNavigate(LauncherDestination.APPS) }
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), when (selectedLanguage) { "en" -> "Muslim"; "tr" -> "Müslüman"; else -> "مسلم" }, when (selectedLanguage) { "en" -> "Prayer times and Hijri calendar"; "tr" -> "Namaz vakitleri ve Hicri takvim"; else -> "مواقيت الصلاة والتاريخ الهجري" }, Icons.Rounded.Star, true) { onNavigate(LauncherDestination.MUSLIM) }
-                HomeFeatureCard(Modifier.weight(1f).fillMaxHeight(), when (selectedLanguage) { "en" -> "Time & date"; "tr" -> "Saat ve tarih"; else -> "الوقت والتاريخ" }, if (showDate) dateText else currentTime, Icons.Rounded.Schedule, false, onToggleDate)
+                item(key = "royal_muslim_section") {
+                    MuslimLauncherCard(
+                        modifier = Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
+                        language = selectedLanguage,
+                        onClick = { onNavigate(LauncherDestination.MUSLIM) }
+                    )
+                }
             }
         }
         // Draw the greeting last so it stays visible above the banner, only during Ramadan.
@@ -1839,31 +1836,60 @@ private fun HomeDashboard(
 }
 
 @Composable
-private fun HomeFeatureCard(
-    modifier: Modifier, title: String, subtitle: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit
+private fun MuslimLauncherCard(
+    modifier: Modifier,
+    language: String,
+    onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     var focused by remember { mutableStateOf(false) }
-    val emphasized = selected || focused
-    val shape = RoundedCornerShape(18.dp)
-    Column(
-        modifier.clip(shape)
-            .background(if (emphasized) Brush.verticalGradient(listOf(Color(0xFF211A0A), Color(0xFF0A0C12))) else Brush.verticalGradient(listOf(Color(0xFF151B25), Color(0xFF090C12))))
-            .border(if (focused) 2.5.dp else if (selected) 2.dp else 1.dp, if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold.copy(alpha = 0.32f), shape)
-            .clickable(onClick = {
+    val label = when (language) {
+        "en" -> "Muslim"
+        "tr" -> "Müslüman"
+        else -> "مسلم"
+    }
+    val iconSize = adaptiveProfile.iconSize(96.dp).coerceIn(72.dp, 112.dp)
+    val shape = RoundedCornerShape(16.dp)
+    Card(
+        modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
+            .clickable {
                 playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
                 onClick()
-            })
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.Center
+            }
+            .focusable(),
+        shape = shape,
+        colors = CardDefaults.cardColors(
+            containerColor = if (focused) Color(0xFF211A0D) else Color(0xFF070A0E).copy(alpha = 0.93f)
+        ),
+        border = BorderStroke(
+            if (focused) 2.5.dp else 1.dp,
+            if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.48f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (focused) 12.dp else 2.dp)
     ) {
-        Icon(icon, title, tint = if (emphasized) Color(0xFFFFD56D) else RoyalColors.Gold, modifier = Modifier.size(38.dp))
-        Spacer(Modifier.height(7.dp))
-        Text(title, color = if (emphasized) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(3.dp))
-        Text(subtitle, color = RoyalColors.Pearl.copy(alpha = 0.78f), fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_muslim_mosque),
+                contentDescription = label,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(iconSize)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = label,
+                color = if (focused) RoyalColors.Gold else RoyalColors.Pearl,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
