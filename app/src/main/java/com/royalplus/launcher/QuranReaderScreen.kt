@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import android.media.AudioAttributes
@@ -78,6 +80,7 @@ internal fun QuranReaderScreen(
     language: String,
     onClose: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     val preferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
@@ -180,7 +183,7 @@ internal fun QuranReaderScreen(
         Column(
             Modifier.fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.42f))
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
         Row(
@@ -853,7 +856,7 @@ internal fun QuranReaderScreen(
             },
             text = {
                 LazyColumn(
-                    modifier = Modifier.height(420.dp),
+                    modifier = Modifier.height((adaptiveProfile.windowHeightDp * 0.54f).coerceIn(260.dp, 520.dp)),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     item { Text("اختيار القارئ", color = RoyalColors.Gold, fontWeight = FontWeight.Bold) }
@@ -985,7 +988,7 @@ internal fun QuranReaderScreen(
                     )
                 } else {
                     LazyColumn(
-                        modifier = Modifier.height(380.dp),
+                        modifier = Modifier.height((adaptiveProfile.windowHeightDp * 0.48f).coerceIn(240.dp, 480.dp)),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         items(librarySurahs, key = { it.number }) { chapter ->

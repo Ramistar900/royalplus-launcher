@@ -68,10 +68,11 @@ data class RoyalAdaptiveProfile(
         width: Dp = windowWidthDp,
         minCellWidth: Dp = gridMinCellWidth,
         minColumns: Int = 1,
-        maxColumns: Int = 8
+        maxColumns: Int = 8,
+        horizontalPadding: Dp = 0.dp
     ): Int = calculateGridColumns(
         widthDp = width.value,
-        horizontalPaddingDp = pageHorizontalPadding.value,
+        horizontalPaddingDp = horizontalPadding.value,
         minCellWidthDp = minCellWidth.value,
         minColumns = minColumns,
         maxColumns = maxColumns
@@ -79,7 +80,7 @@ data class RoyalAdaptiveProfile(
 
     fun customerProductColumns(width: Dp = windowWidthDp): Int {
         if (isTelevision) {
-            return columnsFor(width, 240.dp, minColumns = 2, maxColumns = 6)
+            return columnsFor(width, 240.dp, minColumns = 2, maxColumns = 6, horizontalPadding = 8.dp)
         }
         return when {
             width < 480.dp -> 2
@@ -94,9 +95,14 @@ data class RoyalAdaptiveProfile(
         val compactPhone = isPhone && width < 480.dp
         return columnsFor(
             width,
-            minCellWidth = if (compactPhone) 160.dp else 100.dp,
-            minColumns = if (compactPhone) 2 else 3,
-            maxColumns = 6
+            minCellWidth = when {
+                compactPhone -> 160.dp
+                isTelevision -> 140.dp
+                else -> 170.dp
+            },
+            minColumns = if (compactPhone || !isTelevision) 2 else 3,
+            maxColumns = if (isTelevision) 6 else 5,
+            horizontalPadding = 8.dp
         )
     }
 

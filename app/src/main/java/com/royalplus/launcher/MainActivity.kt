@@ -1,17 +1,18 @@
 package com.royalplus.launcher
 
 import com.royal.adaptive.RoyalAdaptiveHost
-
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 import com.royalplus.launcher.royalsounds.RoyalUiSounds
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.widget.Button
 import android.widget.LinearLayout
@@ -74,10 +75,20 @@ class MainActivity : ComponentActivity() {
 
     private val translationMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                continueTranslationPermissionFlow()
+            if (granted) continueTranslationPermissionFlow()
+            else Toast.makeText(this, "يلزم إذن الميكروفون لتشغيل الترجمة", Toast.LENGTH_LONG).show()
+        }
+
+    private val translationProjectionPermission =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val projectionData = result.data
+            if (result.resultCode == RESULT_OK && projectionData != null) {
+                startTranslationOverlayService(result.resultCode, projectionData)
             } else {
-                Toast.makeText(this, "يلزم إذن الميكروفون لالتقاط صوت الفيديو محلياً", Toast.LENGTH_LONG).show()
+                translationOverlayEnabled = false
+                getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+                    .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
+                Toast.makeText(this, "لم تمنح إذن التقاط صوت التطبيقات؛ لم يتم تشغيل الترجمة.", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -163,7 +174,7 @@ class MainActivity : ComponentActivity() {
                     voiceSearchAvailable = voiceSearchAvailable,
                     voiceSearchResult = voiceSearchResult,
                     translationOverlayEnabled = translationOverlayEnabled,
-                        onToggleTranslationOverlay = { toggleTranslationOverlay() }
+                    onToggleTranslationOverlay = { toggleTranslationOverlay() }
                     )
                 }
             }
@@ -239,16 +250,33 @@ class MainActivity : ComponentActivity() {
             pendingTranslationOverlayStart = false
             if (Settings.canDrawOverlays(this) &&
                 checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-            ) {
-                startTranslationOverlayService()
-            } else {
-                Toast.makeText(this, "لم تكتمل أذونات الترجمة العائمة", Toast.LENGTH_LONG).show()
-            }
+            ) continueTranslationPermissionFlow()
+            else Toast.makeText(this, "لم تكتمل أذونات الترجمة العائمة", Toast.LENGTH_LONG).show()
         } else {
-            translationOverlayEnabled = getSharedPreferences(
-                FloatingTranslationOverlayService.PREFERENCES,
-                MODE_PRIVATE
-            ).getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
+            val translationPreferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+            val savedOverlayEnabled = translationPreferences.getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
+            translationOverlayEnabled = savedOverlayEnabled
+            if (savedOverlayEnabled &&
+                Settings.canDrawOverlays(this) &&
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            ) {
+                val serviceIsRunning = (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
+                    .getRunningServices(Int.MAX_VALUE)
+                    .any { it.service.className == FloatingTranslationOverlayService::class.java.name }
+                if (serviceIsRunning || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    // Android 8/9 can restart its microphone session; API 29+ requires a fresh system grant.
+                    val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+                        action = FloatingTranslationOverlayService.ACTION_SHOW
+                    }
+                    runCatching {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
+                        else startService(serviceIntent)
+                    }
+                } else {
+                    translationPreferences.edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
+                    translationOverlayEnabled = false
+                }
+            }
         }
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: checking default launcher")
         isDefaultHome = isRoyalPlusDefaultHome()
@@ -276,9 +304,9 @@ class MainActivity : ComponentActivity() {
             android.app.AlertDialog.Builder(this)
                 .setTitle("تشغيل الترجمة العربية العائمة")
                 .setMessage(
-                    "تلتقط الميزة صوت الفيديو عبر ميكروفون الجهاز وتعالجه محلياً دون رفع الصوت إلى الإنترنت. " +
-                        "يتطلب أول تشغيل تنزيل نموذج صوت متعدد اللغات بحجم يقارب 104 ميغابايت، " +
-                        "وقد تُنزّل نماذج ترجمة اللغات عند الحاجة. بعد ذلك يعمل المحرك دون اتصال."
+                    "على Android 10 فأحدث تطلب الميزة إذن النظام لالتقاط صوت التطبيقات مباشرةً. " +
+                        "على Android 8/9 تستخدم ميكروفون التلفاز؛ لا يتيح هذان الإصداران التقاط الصوت الداخلي للتطبيقات. " +
+                        "يُعالج الصوت محلياً دون رفعه، ويتطلب أول تشغيل تنزيل نموذج الصوت (~104 ميغابايت) ونموذج ترجمة اللغة عند الحاجة."
                 )
                 .setPositiveButton("متابعة") { _, _ ->
                     preferences.edit().putBoolean(KEY_TRANSLATION_CONSENT, true).apply()
@@ -311,19 +339,34 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        startTranslationOverlayService()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val projectionManager = getSystemService(MediaProjectionManager::class.java)
+            if (projectionManager == null) {
+                Toast.makeText(this, "التقاط صوت التطبيقات غير مدعوم من نظام هذا الجهاز", Toast.LENGTH_LONG).show()
+                return
+            }
+            translationProjectionPermission.launch(projectionManager.createScreenCaptureIntent())
+        } else startTranslationOverlayService()
     }
 
-    private fun startTranslationOverlayService() {
+    private fun startTranslationOverlayService(projectionResultCode: Int? = null, projectionData: Intent? = null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            (projectionResultCode != RESULT_OK || projectionData == null)
+        ) {
+            translationOverlayEnabled = false
+            Toast.makeText(this, "يلزم إذن النظام لالتقاط صوت التطبيقات.", Toast.LENGTH_LONG).show()
+            return
+        }
         try {
             val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
                 action = FloatingTranslationOverlayService.ACTION_SHOW
+                if (projectionResultCode != null && projectionData != null) {
+                    putExtra(FloatingTranslationOverlayService.EXTRA_PROJECTION_RESULT_CODE, projectionResultCode)
+                    putExtra(FloatingTranslationOverlayService.EXTRA_PROJECTION_DATA, projectionData)
+                }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
+            else startService(serviceIntent)
             getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
                 .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, true).apply()
             translationOverlayEnabled = true

@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/fix/complete-royal-audio-fireplace')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -136,8 +136,25 @@ jobs:
                   print("Keeping original fireplace loop; optimized video was not smaller.")
           PY
 
+      - name: Verify weather and translation regression guards
+        run: python3 .github/scripts/verify-weather-translation-fixes.py
+
+      - name: Run adaptive display unit tests
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
+
+      - name: Build universal installable test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=false assembleRelease
+          mkdir -p "$RUNNER_TEMP/royalplus-test-apks"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
+          test -s "$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
+          sha256sum "$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
+
 
       - name: Build minified ABI-split test APKs
         run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
@@ -171,29 +188,83 @@ jobs:
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
 
-      - name: Create or update Android 8 test draft release
-        if: github.event.pull_request.head.repo.full_name == github.repository
+      - name: Publish two installable test APKs to the latest draft release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/complete-royal-audio-fireplace'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="royalplus-test-pr${{ github.event.pull_request.number }}"
-          mapfile -t TEST_APKS < <(find app/build/outputs/apk/release -type f -name '*.apk' | sort)
-          test "${#TEST_APKS[@]}" -gt 0
-          TITLE="ROYAL+ Launcher • PR #${{ github.event.pull_request.number }} Android 8 test"
-          NOTES="Minified, resource-shrunk ABI-specific test APKs from commit ${GITHUB_SHA}. The x86_64 variant was installed and launched on Android 8 (API 26). PR test builds use a separate .test application ID and temporary debug certificate, so they do not replace or overwrite the production app or its data. The production build uses the private release key. Media optimization is applied in the build workspace only; repository source assets remain unchanged. This is a draft for testing, not a production release."
+
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          RELEASE_APK="$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
+          test -s "$DEBUG_APK"
+          test -s "$RELEASE_APK"
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          test -n "$APKSIGNER"
+
+          DEBUG_PACKAGE="$("$AAPT" dump badging "$DEBUG_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          RELEASE_PACKAGE="$("$AAPT" dump badging "$RELEASE_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          test "$DEBUG_PACKAGE" = "com.royalplus.launcher.debug"
+          test "$RELEASE_PACKAGE" = "com.royalplus.launcher.test"
+
+          "$APKSIGNER" verify --verbose "$DEBUG_APK"
+          "$APKSIGNER" verify --verbose "$RELEASE_APK"
+
+          TAG="royalplus-test-installers"
+          TITLE="ROYAL+ Launcher • Latest Test Installers"
+          NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after the Android 8 (API 26) smoke test passed.
+
+          1. royalplus-debug.apk — debug test build, package com.royalplus.launcher.debug.
+          2. royalplus-release-test.apk — minified universal test build, package com.royalplus.launcher.test.
+
+          Both variants use separate test package IDs, so they can be installed alongside each other and do not overwrite the production app. This is an unpublished test draft, not a production release."
+
+          DEBUG_UPLOAD="$RUNNER_TEMP/royalplus-test-apks/royalplus-debug.apk"
+          cp "$DEBUG_APK" "$DEBUG_UPLOAD"
+          test -s "$DEBUG_UPLOAD"
+
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
             if [[ "$IS_DRAFT" != "true" ]]; then
-              echo "::error::Refusing to modify an already published release."
+              echo "::error::Refusing to overwrite an already published release."
               exit 1
             fi
-            gh release upload "$TAG" "${TEST_APKS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            # Older runs uploaded app-debug.apk and used the requested filename as a label.
+            gh release delete-asset "$TAG" app-debug.apk --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
+            gh release upload "$TAG" \
+              "$DEBUG_UPLOAD" \
+              "$RELEASE_APK" \
+              --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
-            gh release create "$TAG" "${TEST_APKS[@]}" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            gh release create "$TAG" \
+              "$DEBUG_UPLOAD" \
+              "$RELEASE_APK" \
+              --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" \
+              --notes "$NOTES" --target "$GITHUB_SHA"
           fi
+
+          ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | sort | join(",")')"
+          EXPECTED="royalplus-debug.apk,royalplus-release-test.apk"
+          if [[ "$ASSETS" != "$EXPECTED" ]]; then
+            echo "::error::Expected both installable APK assets; found: $ASSETS"
+            exit 1
+          fi
+
+          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          {
+            echo "### ROYAL+ test APKs are ready"
+            echo
+            echo "- [Download debug APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-debug.apk)"
+            echo "- [Download minified test APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-release-test.apk)"
+            echo
+            echo "Draft release: $RELEASE_URL"
+            echo "Source commit: ${GITHUB_SHA}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release-main:
     name: Build signed APK and create GitHub draft release

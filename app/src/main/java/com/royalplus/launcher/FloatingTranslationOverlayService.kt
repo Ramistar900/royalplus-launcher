@@ -1,16 +1,22 @@
 package com.royalplus.launcher
 
+import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -28,12 +34,14 @@ import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.sqrt
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Explicitly started microphone-caption service. Speech recognition is on-device;
- * only translated text is rendered in the overlay. Audio is never uploaded.
+ * Explicitly started local-caption service. Android 10+ captures eligible app playback;
+ * Android 8/9 use the device microphone. Speech recognition runs on-device and audio is never uploaded.
  */
 class FloatingTranslationOverlayService : Service() {
 
@@ -43,6 +51,12 @@ class FloatingTranslationOverlayService : Service() {
 
     @Volatile private var recognizer: OfflineRecognizer? = null
     @Volatile private var audioRecord: AudioRecord? = null
+    @Volatile private var mediaProjection: MediaProjection? = null
+    private var mediaProjectionCallback: MediaProjection.Callback? = null
+    private var projectionResultCode: Int = Activity.RESULT_CANCELED
+    private var projectionResultData: Intent? = null
+    private var consecutiveSilentSegments = 0
+    private var consecutiveUnrecognizedSegments = 0
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
     private var decodeThread: Thread? = null
@@ -61,7 +75,6 @@ class FloatingTranslationOverlayService : Service() {
     private val controlHideRunnable = Runnable {
         hideControlAndShowEdge()
     }
-
     private var activeTranslator: Translator? = null
     private var activeSourceLanguage: String? = null
     private var translationModelReady = false
@@ -76,8 +89,8 @@ class FloatingTranslationOverlayService : Service() {
         }
         if (intent?.action == ACTION_SHOW && running.get()) {
             revealControl()
-            updateNotification("الترجمة العائمة تعمل")
-            return START_NOT_STICKY
+            updateNotification("الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة")
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) START_NOT_STICKY else START_STICKY
         }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
@@ -90,8 +103,19 @@ class FloatingTranslationOverlayService : Service() {
             return START_NOT_STICKY
         }
 
+        val usePlaybackCapture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        if (usePlaybackCapture) {
+            projectionResultCode = intent?.getIntExtra(EXTRA_PROJECTION_RESULT_CODE, Activity.RESULT_CANCELED)
+                ?: Activity.RESULT_CANCELED
+            projectionResultData = intent?.getParcelableExtra(EXTRA_PROJECTION_DATA)
+            if (projectionResultCode != Activity.RESULT_OK || projectionResultData == null) {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+        }
+
         createNotificationChannel()
-        startTranslationForeground()
+        startTranslationForeground(usePlaybackCapture)
         if (captionView == null) {
             try {
                 showOverlay()
@@ -104,11 +128,14 @@ class FloatingTranslationOverlayService : Service() {
             updateStatus("يتم تجهيز الترجمة لأول استخدام…")
             modelThread = Thread({ prepareRecognizer() }, "RoyalWhisperSetup").apply { start() }
         }
-        return START_NOT_STICKY
+        return if (usePlaybackCapture) START_NOT_STICKY else START_STICKY
     }
 
     private fun prepareRecognizer() {
         try {
+            // Consume the one-use system audio grant immediately; Whisper may take
+            // time to download on first launch, so capture begins before model setup.
+            if (!startAudioCapture()) return
             val engine = WhisperModelRepository.createRecognizer(applicationContext) { message ->
                 updateStatus(message)
             }
@@ -117,7 +144,7 @@ class FloatingTranslationOverlayService : Service() {
                 return
             }
             recognizer = engine
-            startAudioCapture()
+            decodeThread = Thread({ decodeAudioSegments() }, "RoyalWhisperDecode").apply { start() }
         } catch (error: Exception) {
             if (running.get()) {
                 updateStatus(
@@ -129,53 +156,114 @@ class FloatingTranslationOverlayService : Service() {
         }
     }
 
-    private fun startAudioCapture() {
-        // Permissions can be revoked after the service starts; re-check immediately
-        // before opening AudioRecord to avoid a runtime SecurityException.
+    private fun startAudioCapture(): Boolean {
+        val recorder = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) createPlaybackCaptureRecord()
+            else createMicrophoneRecord()
+        } catch (error: Exception) {
+            updateStatus(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    "تعذر التقاط صوت التطبيق: ${error.localizedMessage ?: "لم يمنح النظام إذن مشاركة الصوت"}"
+                } else {
+                    "تعذر تشغيل ميكروفون التلفاز: ${error.localizedMessage ?: "تحقق من وجود ميكروفون ومنح الإذن"}"
+                }
+            )
+            mainHandler.postDelayed({ stopSelf() }, 8_000L)
+            return false
+        }
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            recorder.release()
+            updateStatus("لم يتمكن الجهاز من تهيئة مصدر الصوت")
+            mainHandler.postDelayed({ stopSelf() }, 5_000L)
+            return false
+        }
+        audioRecord = recorder
+        updateStatus(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                "تم ربط التقاط صوت التطبيقات. جارٍ تجهيز محرك الترجمة…"
+            } else {
+                "Android 8/9: الترجمة تستمع عبر ميكروفون التلفاز؛ ارفع صوت الفيديو وتأكد من وجود ميكروفون فعلي."
+            }
+        )
+        captureThread = Thread({ captureAudio(recorder) }, "RoyalAudioCapture").apply { start() }
+        return true
+    }
+
+    @Suppress("NewApi")
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun createPlaybackCaptureRecord(): AudioRecord {
+        // Re-check at the exact privileged API boundary; service startup checks are not
+        // sufficient for lint or for permission changes while the service is alive.
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            updateStatus("تم سحب إذن الميكروفون؛ فعّله من إعدادات التطبيق ثم أعد المحاولة")
-            mainHandler.postDelayed({ stopSelf() }, 2_000L)
-            return
+            throw SecurityException("يلزم إذن الميكروفون لالتقاط صوت التطبيقات")
         }
-
-        val minBuffer = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
-        if (minBuffer <= 0) {
-            updateStatus("الميكروفون لا يدعم إعداد الصوت المطلوب على هذا الجهاز")
-            mainHandler.postDelayed({ stopSelf() }, 4_000L)
-            return
+        val data = projectionResultData ?: throw IllegalStateException("يلزم موافقة النظام على التقاط الصوت")
+        val manager = getSystemService(MediaProjectionManager::class.java)
+            ?: throw IllegalStateException("خدمة مشاركة الشاشة والصوت غير متاحة")
+        val projection = manager.getMediaProjection(projectionResultCode, data)
+            ?: throw IllegalStateException("رفض النظام إذن التقاط الصوت")
+        mediaProjection = projection
+        val callback = object : MediaProjection.Callback() {
+            override fun onStop() {
+                updateStatus("أوقف النظام مشاركة صوت التطبيقات. أعد تشغيل الترجمة لمنح الإذن مجدداً.")
+                stopSelf()
+            }
         }
+        mediaProjectionCallback = callback
+        projection.registerCallback(callback, mainHandler)
 
-        val recorder = try {
+        val captureConfig = AudioPlaybackCaptureConfiguration.Builder(projection)
+            .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+            .addMatchingUsage(AudioAttributes.USAGE_GAME)
+            .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+            .build()
+        val format = AudioFormat.Builder()
+            .setSampleRate(SAMPLE_RATE)
+            .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .build()
+        val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        if (minBuffer <= 0) throw IllegalStateException("إعداد صوت النظام غير مدعوم على هذا الجهاز")
+        return AudioRecord.Builder()
+            .setAudioFormat(format)
+            .setBufferSizeInBytes(maxOf(minBuffer * 3, SAMPLE_RATE * 4))
+            .setAudioPlaybackCaptureConfig(captureConfig)
+            .build()
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun createMicrophoneRecord(): AudioRecord {
+        // Runtime permission can be revoked after service startup; check again immediately
+        // before either microphone-backed AudioRecord constructor.
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            throw SecurityException("يلزم منح إذن الميكروفون لتشغيل الترجمة")
+        }
+        val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        if (minBuffer <= 0) throw IllegalStateException("الميكروفون لا يدعم معدل الصوت المطلوب")
+        val bufferSize = maxOf(minBuffer * 3, SAMPLE_RATE * 4)
+        val voiceRecorder = runCatching {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                maxOf(minBuffer * 2, SAMPLE_RATE * 2)
+                bufferSize
             )
-        } catch (error: Exception) {
-            updateStatus("تعذر فتح الميكروفون: ${error.localizedMessage ?: "تحقق من الإذن"}")
-            mainHandler.postDelayed({ stopSelf() }, 4_000L)
-            return
-        }
-
-        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-            recorder.release()
-            updateStatus("لم يتمكن الجهاز من تهيئة الميكروفون")
-            mainHandler.postDelayed({ stopSelf() }, 4_000L)
-            return
-        }
-
-        audioRecord = recorder
-        updateStatus("الاستماع إلى صوت الفيديو عبر الميكروفون…")
-        captureThread = Thread({ captureAudio(recorder) }, "RoyalAudioCapture").apply { start() }
-        decodeThread = Thread({ decodeAudioSegments() }, "RoyalWhisperDecode").apply { start() }
+        }.getOrNull()
+        if (voiceRecorder?.state == AudioRecord.STATE_INITIALIZED) return voiceRecorder
+        runCatching { voiceRecorder?.release() }
+        // Some Android TV firmware exposes only the generic microphone source.
+        return AudioRecord(
+            MediaRecorder.AudioSource.MIC,
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            bufferSize
+        )
     }
 
     private fun captureAudio(recorder: AudioRecord) {
@@ -224,6 +312,20 @@ class FloatingTranslationOverlayService : Service() {
         while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
                 val samples = audioSegments.take()
+                if (!hasMeaningfulAudio(samples)) {
+                    consecutiveSilentSegments++
+                    if (consecutiveSilentSegments == 2) {
+                        updateStatus(
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                "لا يصل صوت من التطبيق. قد يمنع التطبيق المصدر التقاط صوته؛ جرّب مشغّلاً يسمح بمشاركة الصوت."
+                            } else {
+                                "لم يلتقط ميكروفون التلفاز صوتاً واضحاً. يلزم ميكروفون فعلي قريب من السماعة؛ Android 8/9 لا يتيح التقاط الصوت الداخلي."
+                            }
+                        )
+                    }
+                    continue
+                }
+                consecutiveSilentSegments = 0
                 val engine = recognizer ?: continue
                 val stream = engine.createStream()
                 val result = try {
@@ -237,7 +339,13 @@ class FloatingTranslationOverlayService : Service() {
                 val recognized = result.text.replace(Regex("\\s+"), " ").trim()
                 val language = result.lang.trim().lowercase(Locale.ROOT)
                 if (recognized.isNotBlank()) {
+                    consecutiveUnrecognizedSegments = 0
                     translateCaption(recognized, language)
+                } else {
+                    consecutiveUnrecognizedSegments++
+                    if (consecutiveUnrecognizedSegments == 3) {
+                        updateStatus("وصل صوت إلى المحرك، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار وخفّض الموسيقى.")
+                    }
                 }
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
@@ -248,15 +356,54 @@ class FloatingTranslationOverlayService : Service() {
         }
     }
 
+    private fun hasMeaningfulAudio(samples: FloatArray): Boolean {
+        if (samples.isEmpty()) return false
+        var squaredEnergy = 0.0
+        var peak = 0f
+        for (sample in samples) {
+            val magnitude = abs(sample)
+            if (magnitude > peak) peak = magnitude
+            squaredEnergy += sample * sample
+        }
+        val rms = sqrt(squaredEnergy / samples.size).toFloat()
+        return peak >= 0.0035f && rms >= 0.00075f
+    }
+
+    private fun normalizeDetectedLanguage(rawLanguage: String): String {
+        val normalized = rawLanguage.trim().lowercase(Locale.ROOT)
+            .replace('_', '-')
+            .substringBefore('-')
+        return when (normalized) {
+            "english" -> "en"
+            "turkish" -> "tr"
+            "arabic" -> "ar"
+            "spanish" -> "es"
+            "french" -> "fr"
+            "german" -> "de"
+            "russian" -> "ru"
+            "chinese" -> "zh"
+            "japanese" -> "ja"
+            "korean" -> "ko"
+            "portuguese" -> "pt"
+            "italian" -> "it"
+            "hindi" -> "hi"
+            "ukrainian" -> "uk"
+            else -> normalized
+        }
+    }
+
     private fun translateCaption(text: String, detectedLanguage: String) {
         mainHandler.post {
             if (!running.get()) return@post
-            val sourceLanguage = TranslateLanguage.fromLanguageTag(detectedLanguage)
+            val normalizedLanguage = normalizeDetectedLanguage(detectedLanguage)
+            val sourceLanguage = TranslateLanguage.fromLanguageTag(normalizedLanguage)
             if (sourceLanguage.isNullOrBlank()) {
-                updateStatus("تعرّف الصوت على اللغة، لكن ML Kit لا يوفّر ترجمتها حالياً")
+                updateStatus("تم التقاط الكلام ($detectedLanguage)، لكن تعذر تحديد رمز لغة مدعوم. أعد المحاولة مع كلام أوضح.")
                 return@post
             }
             if (sourceLanguage == TranslateLanguage.ARABIC) {
+                // A newer Arabic segment supersedes any translation still in flight.
+                translationRequest++
                 showCaption(text, detectedLanguage)
                 return@post
             }
@@ -281,7 +428,7 @@ class FloatingTranslationOverlayService : Service() {
                 if (translationModelPending) return@post
 
                 translationModelPending = true
-                updateStatus("تنزيل نموذج الترجمة ${detectedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
+                updateStatus("تنزيل نموذج الترجمة ${normalizedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
                 translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
                     .addOnSuccessListener {
                         if (!running.get() || translator !== activeTranslator) return@addOnSuccessListener
@@ -289,17 +436,17 @@ class FloatingTranslationOverlayService : Service() {
                         translationModelReady = true
                         val latest = latestPendingCaption
                         latestPendingCaption = null
-                        if (latest != null) translateWithReadyModel(translator, latest.first, latest.second)
+                        if (latest != null) translateWithReadyModel(translator, latest.first, normalizeDetectedLanguage(latest.second))
                     }
-                    .addOnFailureListener {
+                    .addOnFailureListener { error ->
                         if (running.get() && translator === activeTranslator) {
                             translationModelPending = false
-                            updateStatus("تعذر تنزيل نموذج الترجمة لهذه اللغة")
+                            updateStatus("تعذر تنزيل نموذج الترجمة: ${error.localizedMessage ?: "تحقق من الإنترنت ثم أعد المحاولة"}")
                         }
                     }
                 return@post
             }
-            translateWithReadyModel(translator, text, detectedLanguage)
+            translateWithReadyModel(translator, text, normalizedLanguage)
         }
     }
 
@@ -307,13 +454,13 @@ class FloatingTranslationOverlayService : Service() {
         val requestId = ++translationRequest
         translator.translate(text)
             .addOnSuccessListener { translated ->
-                if (running.get() && requestId == translationRequest) {
+                if (running.get() && translator === activeTranslator && requestId == translationRequest) {
                     showCaption(translated, language)
                 }
             }
-            .addOnFailureListener {
-                if (running.get() && requestId == translationRequest) {
-                    updateStatus("تعذرت ترجمة هذا المقطع؛ ستستمر المحاولة مع المقطع التالي")
+            .addOnFailureListener { error ->
+                if (running.get() && translator === activeTranslator && requestId == translationRequest) {
+                    updateStatus("فشلت ترجمة المقطع: ${error.localizedMessage ?: "أعد المحاولة بعد اكتمال تنزيل نموذج اللغة"}")
                 }
             }
     }
@@ -325,12 +472,19 @@ class FloatingTranslationOverlayService : Service() {
             caption.visibility = View.VISIBLE
             mainHandler.removeCallbacks(captionHideRunnable)
             mainHandler.postDelayed(captionHideRunnable, CAPTION_DISPLAY_MILLIS)
-            updateNotification("الترجمة العائمة تعمل")
+            updateNotification("تمت الترجمة إلى العربية")
         }
     }
 
     private fun updateStatus(message: String) {
         updateNotification(message)
+        mainHandler.post {
+            val caption = captionView ?: return@post
+            caption.text = message
+            caption.visibility = View.VISIBLE
+            mainHandler.removeCallbacks(captionHideRunnable)
+            mainHandler.postDelayed(captionHideRunnable, STATUS_DISPLAY_MILLIS)
+        }
     }
 
     /**
@@ -446,14 +600,19 @@ class FloatingTranslationOverlayService : Service() {
         if (edgeRevealView != null) return
 
         val edge = TextView(this).apply {
+            text = "CC"
+            textSize = 10f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
             isClickable = true
             contentDescription = "المس لإظهار أدوات الترجمة"
-            background = solidRoundedBackground(0x55000000, dp(8).toFloat())
+            background = solidRoundedBackground(0xCC1A1F28.toInt(), dp(10).toFloat())
             setOnClickListener { revealControl() }
         }
         val params = WindowManager.LayoutParams(
-            dp(12),
-            dp(92),
+            dp(34),
+            dp(88),
             overlayWindowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -482,6 +641,7 @@ class FloatingTranslationOverlayService : Service() {
         }
         controlView = null
         controlWindowParams = null
+        mainHandler.removeCallbacks(controlHideRunnable)
     }
 
     private fun removeEdgeReveal() {
@@ -516,14 +676,10 @@ class FloatingTranslationOverlayService : Service() {
         }
     }
 
-    private fun startTranslationForeground() {
-        val notification = buildNotification("يتم تجهيز الترجمة")
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            )
+    private fun startTranslationForeground(usePlaybackCapture: Boolean) {
+        val notification = buildNotification(if (usePlaybackCapture) "تهيئة التقاط صوت التطبيقات" else "تهيئة ميكروفون التلفاز")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && usePlaybackCapture) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -592,6 +748,16 @@ class FloatingTranslationOverlayService : Service() {
             // The capture device may already have been released by the system.
         }
         audioRecord = null
+        val projection = mediaProjection
+        val projectionCallback = mediaProjectionCallback
+        mediaProjection = null
+        mediaProjectionCallback = null
+        if (projection != null) {
+            if (projectionCallback != null) runCatching { projection.unregisterCallback(projectionCallback) }
+            runCatching { projection.stop() }
+        }
+        projectionResultData = null
+
         val engineToRelease = recognizer
         recognizer = null
         if (engineToRelease != null) {
@@ -632,7 +798,6 @@ class FloatingTranslationOverlayService : Service() {
 
         mainHandler.removeCallbacks(captionHideRunnable)
         mainHandler.removeCallbacks(controlHideRunnable)
-
         listOfNotNull(captionView, controlView, edgeRevealView).forEach { view ->
             try {
                 windowManager?.removeView(view)
@@ -667,10 +832,13 @@ class FloatingTranslationOverlayService : Service() {
         const val ACTION_STOP = "com.royalplus.launcher.action.STOP_TRANSLATION_OVERLAY"
         const val PREFERENCES = "royalplus_launcher_preferences"
         const val KEY_ENABLED = "floating_translation_overlay_enabled"
+        const val EXTRA_PROJECTION_RESULT_CODE = "royal_projection_result_code"
+        const val EXTRA_PROJECTION_DATA = "royal_projection_result_data"
         private const val CHANNEL_ID = "royal_translation_overlay"
         private const val NOTIFICATION_ID = 4101
-        private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val CAPTION_DISPLAY_MILLIS = 5_000L
+        private const val STATUS_DISPLAY_MILLIS = 7_000L
+        private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
         private const val SEGMENT_SECONDS = 8
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS

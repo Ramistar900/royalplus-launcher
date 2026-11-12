@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -83,8 +85,7 @@ internal fun WeatherGlassCard(
     language: String = "ar",
     motionEnabled: Boolean = true
 ) {
-    RoyalOwlAmbienceEffect(weather)
-    RoyalWeatherAmbienceEffect(weather)
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val prayerZone = java.util.TimeZone.getTimeZone(
         weather.timeZoneId ?: java.util.TimeZone.getDefault().id
     )
@@ -176,19 +177,23 @@ internal fun WeatherGlassCard(
         )
         RoyalWeatherAtmosphereOverlay(
             weatherCode = weather.weatherCode,
-            motionEnabled = motionEnabled
+            weatherDescription = weather.description,
+            motionEnabled = motionEnabled,
+            windSpeedKmh = weather.windSpeedKmh,
+            nightMode = isNight,
+            sunsetMode = hour != null && hour in 17..18
         )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 9.dp, vertical = 8.dp),
+                .padding(horizontal = if (adaptiveProfile.isPhone) 7.dp else 9.dp, vertical = if (adaptiveProfile.isPhone) 6.dp else 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(4.dp))
             Text(
                 text = weather.temperatureC?.let { "$it°C" } ?: if (weather.isLoading) "…" else "—°C",
                 color = Color.White,
-                fontSize = 23.sp,
+                fontSize = if (adaptiveProfile.isPhone) 19.sp else if (adaptiveProfile.isTelevision) 26.sp else 23.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )

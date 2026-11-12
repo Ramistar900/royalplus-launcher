@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
@@ -8,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,12 +31,14 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Mosque
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.EditLocationAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,12 +46,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,12 +77,40 @@ internal fun WeatherDetailsScreen(
     onUseDeviceLocation: () -> Unit,
     motionEnabled: Boolean = true
 ) {
-    val context = LocalContext.current
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val context = LocalContext.current.applicationContext
+    RoyalWeatherAmbienceEffect(weather)
+    RoyalOwlAmbienceEffect(weather)
     BackHandler(onBack = {
         playLauncherUiSound(context, RoyalUiSound.NAV_BACK)
         onBack()
     })
     var showCityPicker by remember { mutableStateOf(false) }
+    var showAudioSettings by remember { mutableStateOf(false) }
+    var masterAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY))
+    }
+    var rainAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.RAIN_ENABLED_KEY))
+    }
+    var thunderAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.THUNDER_ENABLED_KEY))
+    }
+    var windAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.WIND_ENABLED_KEY))
+    }
+    var birdsAudioEnabled by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.isEnabled(context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY))
+    }
+    var owlAudioEnabled by remember {
+        mutableStateOf(
+            context.getSharedPreferences(RoyalOwlAmbienceController.PREFERENCES_NAME, android.content.Context.MODE_PRIVATE)
+                .getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true)
+        )
+    }
+    var weatherAudioVolume by remember {
+        mutableStateOf(RoyalWeatherAmbienceController.volume(context))
+    }
     var cityInput by remember(weather.city) {
         mutableStateOf(weather.city.substringBefore("،").substringBefore(","))
     }
@@ -123,6 +157,103 @@ internal fun WeatherDetailsScreen(
     val outline = Color(0x99E7F4FF)
     val gold = Color(0xFFFFD36A)
 
+    if (showAudioSettings) {
+        AlertDialog(
+            onDismissRequest = { showAudioSettings = false },
+            title = {
+                Text(
+                    when (language) { "en" -> "Nature & weather sounds"; "tr" -> "Doğa ve hava sesleri"; else -> "أصوات الطبيعة والطقس" },
+                    color = gold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    WeatherAudioToggleRow(
+                        language = language,
+                        title = when (language) { "en" -> "All ambient sounds"; "tr" -> "Tüm ortam sesleri"; else -> "تشغيل جميع الأصوات" },
+                        enabled = masterAudioEnabled
+                    ) {
+                        masterAudioEnabled = !masterAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.MASTER_ENABLED_KEY, masterAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                        language = language,
+                        title = when (language) { "en" -> "Natural rain"; "tr" -> "Doğal yağmur"; else -> "المطر الطبيعي" },
+                        enabled = rainAudioEnabled
+                    ) {
+                        rainAudioEnabled = !rainAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.RAIN_ENABLED_KEY, rainAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                        language = language,
+                        title = when (language) { "en" -> "Distant thunder"; "tr" -> "Uzak gök gürültüsü"; else -> "دوي الرعد البعيد" },
+                        enabled = thunderAudioEnabled
+                    ) {
+                        thunderAudioEnabled = !thunderAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.THUNDER_ENABLED_KEY, thunderAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                        language = language,
+                        title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "الرياح" },
+                        enabled = windAudioEnabled
+                    ) {
+                        windAudioEnabled = !windAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.WIND_ENABLED_KEY, windAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                        language = language,
+                        title = when (language) { "en" -> "Morning birds"; "tr" -> "Sabah kuşları"; else -> "عصافير الصباح" },
+                        enabled = birdsAudioEnabled
+                    ) {
+                        birdsAudioEnabled = !birdsAudioEnabled
+                        RoyalWeatherAmbienceController.setSoundEnabled(
+                            context, RoyalWeatherAmbienceController.BIRDS_ENABLED_KEY, birdsAudioEnabled
+                        )
+                    }
+                    WeatherAudioToggleRow(
+                        language = language,
+                        title = when (language) { "en" -> "Night owl"; "tr" -> "Gece baykuşu"; else -> "بومة الليل" },
+                        enabled = owlAudioEnabled
+                    ) {
+                        owlAudioEnabled = !owlAudioEnabled
+                        RoyalOwlAmbienceController.setEnabled(context, owlAudioEnabled)
+                    }
+                    Text(
+                        when (language) { "en" -> "Volume"; "tr" -> "Ses seviyesi"; else -> "مستوى الصوت" },
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Slider(
+                        value = weatherAudioVolume,
+                        onValueChange = { value ->
+                            weatherAudioVolume = value
+                            RoyalWeatherAmbienceController.setVolume(context, value)
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAudioSettings = false }) {
+                    Text(when (language) { "en" -> "Done"; "tr" -> "Bitti"; else -> "تم" }, color = gold)
+                }
+            },
+            containerColor = Color(0xFF101722)
+        )
+    }
+
     if (showCityPicker) {
         AlertDialog(
             onDismissRequest = { showCityPicker = false },
@@ -168,25 +299,36 @@ internal fun WeatherDetailsScreen(
 
     Box(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
-        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled)
+        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled, windSpeedKmh = weather.windSpeedKmh, nightMode = night, sunsetMode = hour in 17..18)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59)))))
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 18.dp)) {
+        Column(Modifier.fillMaxSize().padding(horizontal = if (adaptiveProfile.isPhone) 12.dp else adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
             Row(Modifier.fillMaxWidth().weight(0.30f), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(weather.city.ifBlank { "الموقع الحالي" }, color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(weather.city.ifBlank { "الموقع الحالي" }, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 21.sp else 27.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(10.dp))
                         Icon(Icons.Rounded.LocationOn, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text(weatherSymbol(weather.weatherCode), fontSize = 48.sp)
+                        Text(weatherSymbol(weather.weatherCode), fontSize = if (adaptiveProfile.isPhone) 34.sp else 48.sp)
                         Column {
                             Text(weather.description, color = Color.White, fontSize = 18.sp, maxLines = 1)
-                            Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+                            Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = if (adaptiveProfile.isPhone) 30.sp else 38.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.16f))
+                                .clickable { showAudioSettings = true }
+                                .focusable()
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Tune, null, tint = gold, modifier = Modifier.size(15.dp))
+                            Text(when (language) { "en" -> "Sounds"; "tr" -> "Sesler"; else -> "الأصوات" }, color = Color.White, fontSize = 11.sp)
+                        }
                         Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
                             Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
@@ -225,7 +367,7 @@ internal fun WeatherDetailsScreen(
                     }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
-                    Text(timeText, color = Color.White, fontSize = 52.sp, fontWeight = FontWeight.Bold)
+                    Text(timeText, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 38.sp else 52.sp, fontWeight = FontWeight.Bold)
                     Text(prayerTimes?.gregorianDate ?: dateText, color = Color.White, fontSize = 16.sp, maxLines = 1)
                     Text(prayerTimes?.hijriDate ?: "", color = Color.White, fontSize = 15.sp, maxLines = 1)
                     if (nextPrayer != null) Text(
@@ -235,7 +377,7 @@ internal fun WeatherDetailsScreen(
                 }
             }
             Row(Modifier.fillMaxWidth().weight(0.70f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Column(Modifier.weight(0.36f).fillMaxHeight().clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(if (adaptiveProfile.isPhone) 0.44f else 0.36f).fillMaxHeight().clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Text(if (language == "en") "Prayer times" else if (language == "tr") "Namaz vakitleri" else "مواقيت الصلاة", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(8.dp))
@@ -260,7 +402,7 @@ internal fun WeatherDetailsScreen(
                         }
                     }
                 }
-                Column(Modifier.weight(0.64f).fillMaxHeight()) {
+                Column(Modifier.weight(if (adaptiveProfile.isPhone) 0.56f else 0.64f).fillMaxHeight()) {
                     Box(Modifier.fillMaxWidth().weight(0.30f), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", color = Color.White, fontSize = 21.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -348,5 +490,39 @@ private fun WeatherMetricCard(
     ) {
         Text(title, color = Color.White.copy(alpha = 0.82f), fontSize = 10.sp, maxLines = 1)
         Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+
+@Composable
+private fun WeatherAudioToggleRow(
+    title: String,
+    language: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF080D15))
+            .border(1.dp, Color(0x66FFD36A), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .focusable()
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(
+            if (enabled) {
+                when (language) { "en" -> "ON"; "tr" -> "Açık"; else -> "مفعّل" }
+            } else {
+                when (language) { "en" -> "OFF"; "tr" -> "Kapalı"; else -> "متوقف" }
+            },
+            color = if (enabled) Color(0xFFFFD36A) else Color(0xFF9299A5),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

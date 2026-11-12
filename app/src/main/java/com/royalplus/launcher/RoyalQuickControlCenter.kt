@@ -1,5 +1,8 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+import com.royal.adaptive.RoyalWindowWidthClass
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import android.content.Context
@@ -71,6 +74,8 @@ internal fun RoyalQuickControlCenter(
     onRefreshWeather: () -> Unit
 ) {
     val context = LocalContext.current
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val firstTileFocusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { firstTileFocusRequester.requestFocus() }
     val controls = listOf(
@@ -114,13 +119,13 @@ internal fun RoyalQuickControlCenter(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            Modifier.fillMaxWidth(0.92f)
-                .widthIn(max = 850.dp)
+            Modifier.fillMaxWidth(if (compactPhone) 0.97f else 0.92f)
+                .widthIn(max = adaptiveProfile.boundedContentWidth(850.dp))
                 .clip(RoundedCornerShape(26.dp))
                 .background(Color(0xFF0C1018))
                 .border(1.5.dp, Color(0xFFD6B25E).copy(alpha = 0.78f), RoundedCornerShape(26.dp))
                 .clickable(enabled = false) {}
-                .padding(horizontal = 22.dp, vertical = 18.dp)
+                .padding(horizontal = if (compactPhone) 12.dp else 22.dp, vertical = if (compactPhone) 10.dp else 18.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
@@ -150,10 +155,10 @@ internal fun RoyalQuickControlCenter(
             }
             Spacer(Modifier.height(16.dp))
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxWidth().height(390.dp),
+                columns = GridCells.Adaptive(if (adaptiveProfile.isTelevision) 160.dp else 132.dp),
+                modifier = Modifier.fillMaxWidth().height((adaptiveProfile.windowHeightDp * 0.58f).coerceIn(220.dp, 390.dp)),
                 contentPadding = PaddingValues(2.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(controls) { control ->
@@ -192,10 +197,11 @@ private fun RoyalQuickControlTile(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     var focused = remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
     Column(
-        Modifier.fillMaxWidth().height(82.dp)
+        Modifier.fillMaxWidth().height(adaptiveProfile.controlHeight(82.dp))
             .clip(shape)
             .background(if (focused.value) Color(0xFF2A2110) else Color(0xFF151B25))
             .border(
@@ -218,7 +224,7 @@ private fun RoyalQuickControlTile(
             painter = painterResource(icon),
             contentDescription = title,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier.size(adaptiveProfile.iconSize(30.dp))
         )
         Spacer(Modifier.height(5.dp))
         Text(title, color = if (focused.value) Color(0xFFFFD36A) else Color(0xFFF2F0E9),

@@ -1,7 +1,7 @@
 package com.royalplus.launcher
 
 import com.royal.adaptive.LocalRoyalAdaptiveProfile
-
+import com.royal.adaptive.RoyalWindowWidthClass
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
@@ -187,6 +187,13 @@ internal fun RoyalHomeScreen(
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     var showWeatherDetails by remember { mutableStateOf(false) }
+    // Weather ambience is allowed only while the dedicated Weather Details screen is open.
+    // Hard-stop stale players whenever the user returns home or opens the smart screensaver.
+    LaunchedEffect(showWeatherDetails, showSmartScreensaver) {
+        if (!showWeatherDetails || showSmartScreensaver) {
+            RoyalWeatherAmbienceController.onBackground()
+        }
+    }
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
@@ -543,9 +550,14 @@ internal fun RoyalHomeScreen(
                     textContentColor = RoyalColors.Pearl
                 )
             }
-            val sidebarWidth = if (maxWidth >= 900.dp) 188.dp else (maxWidth * 0.205f).coerceIn(148.dp, 188.dp)
+            val compactPhoneLayout = adaptiveProfile.isPhone && maxWidth < 600.dp
+            val sidebarWidth = when {
+                compactPhoneLayout -> 64.dp
+                maxWidth >= 900.dp -> 188.dp
+                else -> (maxWidth * 0.205f).coerceIn(120.dp, 188.dp)
+            }
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
-                Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp)) {
+                Column(Modifier.fillMaxSize().padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome,
@@ -599,7 +611,8 @@ internal fun RoyalHomeScreen(
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
                                 val columns = adaptiveProfile.launcherAppColumns(maxWidth)
-                                val favoriteTileWidth = ((maxWidth - 50.dp) / 6).coerceIn(82.dp, 124.dp)
+                                val favoriteTileWidth = ((maxWidth - 16.dp - adaptiveProfile.itemSpacing * 5f) / 6)
+                                    .coerceIn(82.dp, if (adaptiveProfile.isTelevision) 168.dp else 124.dp)
                                 when (selectedDestination) {
                                     LauncherDestination.HOME -> HomeDashboard(
                                         favorites = favorites, shortcuts = apps.filter { it.packageName in selectedShortcutPackages },
@@ -876,6 +889,11 @@ internal fun RoyalHomeScreen(
                             Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
                             Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
                             Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
+                            Triple("city_night", if (selectedLanguage == "en") "Night city" else if (selectedLanguage == "tr") "Gece şehri" else "مدينة ليلية", R.drawable.royal_city_night),
+                            Triple("space", if (selectedLanguage == "en") "Space" else if (selectedLanguage == "tr") "Uzay" else "الفضاء", R.drawable.royal_space),
+                            Triple("rami_golden_nature", if (selectedLanguage == "en") "Rami's golden nature" else if (selectedLanguage == "tr") "Rami'nin altın doğası" else "طبيعة ذهبية من رامي", R.drawable.royal_rami_golden_nature),
+                            Triple("mountain_nature", if (selectedLanguage == "en") "Mountain nature" else if (selectedLanguage == "tr") "Dağ doğası" else "طبيعة جبلية", R.drawable.royal_mountain_nature),
+                            Triple("blue_gold_magic", if (selectedLanguage == "en") "Blue & gold magic" else if (selectedLanguage == "tr") "Mavi ve altın büyüsü" else "السحر الأزرق الذهبي", R.drawable.royal_blue_gold_magic),
                             Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
                             Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k),
                             Triple("syria", if (selectedLanguage == "en") "Syrian flag" else if (selectedLanguage == "tr") "Suriye bayrağı" else "علم سوريا", R.drawable.royal_syria_flag_4k)
@@ -1319,6 +1337,11 @@ private fun RoyalBackdrop(
                 "mountains" -> R.drawable.royal_wallpaper_mountains_02
                 "sunset" -> R.drawable.royal_wallpaper_sunset_05
                 "waterfall" -> R.drawable.royal_wallpaper_waterfall_06
+                "city_night" -> R.drawable.royal_city_night
+                "space" -> R.drawable.royal_space
+                "rami_golden_nature" -> R.drawable.royal_rami_golden_nature
+                "mountain_nature" -> R.drawable.royal_mountain_nature
+                "blue_gold_magic" -> R.drawable.royal_blue_gold_magic
                 "ocean" -> R.drawable.royal_ocean_4k
                 "syria" -> R.drawable.royal_syria_flag_4k
                 else -> R.drawable.royal_color_wallpaper
@@ -1473,16 +1496,19 @@ private fun RoyalBrandHeader(
     onToggleTranslationOverlay: () -> Unit,
     selectedLanguage: String
 ) {
-    Row(Modifier.fillMaxWidth().height(57.dp), verticalAlignment = Alignment.CenterVertically) {
-        CrownMark(Modifier.size(width = 45.dp, height = 34.dp))
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
+    val headerHeight = if (compactPhone) 44.dp else if (adaptiveProfile.isTelevision) 64.dp else 57.dp
+    Row(Modifier.fillMaxWidth().height(headerHeight), verticalAlignment = Alignment.CenterVertically) {
+        CrownMark(Modifier.size(width = if (compactPhone) 30.dp else 45.dp, height = if (compactPhone) 24.dp else 34.dp))
         Spacer(Modifier.width(10.dp))
         Column {
-            Text("ROYAL+", color = RoyalColors.Gold, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.1.sp, maxLines = 1)
-            Text("SMART TV LAUNCHER", color = RoyalColors.Pearl.copy(alpha = 0.85f), fontSize = 8.sp, letterSpacing = 2.sp, maxLines = 1)
+            Text("ROYAL+", color = RoyalColors.Gold, fontSize = if (compactPhone) 20.sp else if (adaptiveProfile.isTelevision) 32.sp else 29.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.1.sp, maxLines = 1)
+            if (!compactPhone) Text("SMART TV LAUNCHER", color = RoyalColors.Pearl.copy(alpha = 0.85f), fontSize = 8.sp, letterSpacing = 2.sp, maxLines = 1)
         }
         Spacer(Modifier.weight(1f))
         if (searchActive) {
-            Row(Modifier.width(175.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(RoyalColors.Panel)
+            Row(Modifier.width(if (compactPhone) 104.dp else 175.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(RoyalColors.Panel)
                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), RoundedCornerShape(10.dp)).padding(horizontal = 9.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Search, null, tint = RoyalColors.Gold, modifier = Modifier.size(18.dp))
@@ -1496,9 +1522,9 @@ private fun RoyalBrandHeader(
             }
             Spacer(Modifier.width(10.dp))
         }
-        Text(currentTime, color = RoyalColors.Gold, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(currentTime, color = RoyalColors.Gold, fontSize = if (compactPhone) 16.sp else if (adaptiveProfile.isTelevision) 28.sp else 24.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Spacer(Modifier.width(9.dp))
-        if (showDate) {
+        if (showDate && !compactPhone) {
             Column(modifier = Modifier.widthIn(max = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(dateText, color = RoyalColors.Pearl, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(when (selectedLanguage) { "en" -> "Local date"; "tr" -> "Yerel tarih"; else -> "التاريخ المحلي" }, color = RoyalColors.Muted, fontSize = 8.sp, maxLines = 1)
@@ -1887,7 +1913,7 @@ private fun AppGrid(
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             modifier = modifier,
-            contentPadding = PaddingValues(bottom = 4.dp, top = 1.dp, end = 2.dp),
+            contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 4.dp, top = 1.dp),
             horizontalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing),
             verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)
         ) {
@@ -1921,8 +1947,8 @@ private fun AppTile(
 ) {
     val context = LocalContext.current
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
-    val appIconSize = adaptiveProfile.iconSize(68.dp).coerceIn(60.dp, 84.dp)
-    val fallbackIconSize = adaptiveProfile.iconSize(38.dp).coerceIn(34.dp, 52.dp)
+    val appIconSize = adaptiveProfile.iconSize(68.dp).coerceIn(60.dp, 88.dp)
+    val fallbackIconSize = adaptiveProfile.iconSize(38.dp).coerceIn(34.dp, 54.dp)
     var hasFocus by remember(app.packageName) { mutableStateOf(false) }
     val focusScale by animateFloatAsState(
         targetValue = if (hasFocus) 1.04f else 1f,
@@ -2046,6 +2072,9 @@ private fun RoyalSidePanel(
     modifier: Modifier, selectedDestination: LauncherDestination, language: String,
     onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
+    val itemGap = if (compactPhone) 3.dp else 8.dp
     val labels = when (language) {
         "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Gallery", "Songs", "Settings")
         "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Galeri", "Şarkılar", "Ayarlar")
@@ -2054,26 +2083,26 @@ private fun RoyalSidePanel(
     val shape = RoundedCornerShape(19.dp)
     Column(
         modifier.clip(shape).background(Brush.verticalGradient(listOf(Color(0xE8080A0F), Color(0xF7080A0F))))
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = 9.dp, vertical = 12.dp),
+            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = if (compactPhone) 5.dp else 9.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(5.dp))
         SidebarNavItem(labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME) { onNavigate(LauncherDestination.HOME) }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[6], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[7], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[8], Icons.Rounded.Settings, false, onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
@@ -2092,6 +2121,8 @@ private fun StatusIcon(
     description: String,
     onClick: (() -> Unit)? = null
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(50)
@@ -2114,14 +2145,14 @@ private fun StatusIcon(
             .focusable()
     }
     Box(
-        modifier = Modifier.size(32.dp).then(clickModifier),
+        modifier = Modifier.size(if (compactPhone) 27.dp else 32.dp).then(clickModifier),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = description,
             tint = if (onClick == null) RoyalColors.Pearl.copy(alpha = 0.90f) else RoyalColors.Gold,
-            modifier = Modifier.size(19.dp)
+            modifier = Modifier.size(if (compactPhone) 16.dp else 19.dp)
         )
     }
 }
@@ -2134,6 +2165,8 @@ private fun SidebarNavItem(
     iconRes: Int? = null,
     onClick: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val emphasized = selected || focused
@@ -2168,11 +2201,11 @@ private fun SidebarNavItem(
             })
             .onFocusChanged { focused = it.isFocused }
             .focusable()
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = if (compactPhone) 0.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = if (compactPhone) Arrangement.Center else Arrangement.SpaceBetween
     ) {
-        Text(
+        if (!compactPhone) Text(
             text = title,
             color = if (emphasized) Color(0xFFFFE2A1) else RoyalColors.Pearl,
             fontSize = 12.sp,
@@ -2184,7 +2217,7 @@ private fun SidebarNavItem(
                 imageVector = icon,
                 contentDescription = title,
                 tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(if (compactPhone) 22.dp else 20.dp)
             )
         } else {
             Image(

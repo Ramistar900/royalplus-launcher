@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import android.media.MediaPlayer
@@ -52,6 +54,7 @@ private data class RoyalSong(val uri: Uri, val title: String)
 
 @Composable
 internal fun RoyalSongsScreen() {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     val songs = remember { mutableStateListOf<RoyalSong>() }
     var currentIndex by remember { mutableStateOf(-1) }
@@ -118,8 +121,8 @@ internal fun RoyalSongsScreen() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding),
+        verticalArrangement = Arrangement.spacedBy(adaptiveProfile.sectionSpacing)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(28.dp))

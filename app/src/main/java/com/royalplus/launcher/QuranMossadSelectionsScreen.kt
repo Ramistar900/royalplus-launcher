@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import android.media.AudioAttributes
@@ -43,6 +45,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 internal fun QuranMossadSelectionsScreen(onClose: () -> Unit) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val player = remember { MediaPlayer() }
@@ -76,7 +79,7 @@ internal fun QuranMossadSelectionsScreen(onClose: () -> Unit) {
     Box(
         Modifier.fillMaxSize()
             .background(Color(0xF00A111B))
-            .padding(horizontal = 22.dp, vertical = 16.dp)
+            .padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)
     ) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
@@ -138,7 +141,7 @@ internal fun QuranMossadSelectionsScreen(onClose: () -> Unit) {
                             Text(selection.category, color = RoyalColors.Muted, fontSize = 10.sp)
                         }
                         Box(
-                            Modifier.width(82.dp).clip(RoundedCornerShape(9.dp))
+                            Modifier.width(if (adaptiveProfile.isTelevision) 104.dp else 82.dp).clip(RoundedCornerShape(9.dp))
                                 .background(Color(0xFF203B3A))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(9.dp))
                                 .clickable(enabled = downloadingId == null) {

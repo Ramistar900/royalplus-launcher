@@ -1,6 +1,7 @@
 package com.royal.adaptive
 
 import android.content.res.Configuration
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -67,4 +68,34 @@ class RoyalAdaptiveProfileTest {
         assertEquals(4, calculateGridColumns(500f, 16f, 110f, 1, 6))
         assertEquals(6, calculateGridColumns(1280f, 40f, 100f, 1, 6))
     }
+ 
+    @Test
+    fun launcherColumnsAdaptAcrossPhoneTabletAndTelevisionWidths() {
+        val phone = RoyalAdaptiveProfile.Default
+        assertEquals(2, phone.launcherAppColumns(320.dp))
+        assertEquals(2, phone.launcherAppColumns(390.dp))
+
+        val tablet = phone.copy(
+            deviceClass = RoyalDeviceClass.TABLET,
+            widthClass = RoyalWindowWidthClass.EXPANDED
+        )
+        assertEquals(4, tablet.launcherAppColumns(840.dp))
+
+        val television = phone.copy(
+            deviceClass = RoyalDeviceClass.TELEVISION,
+            widthClass = RoyalWindowWidthClass.EXPANDED
+        )
+        assertEquals(6, television.launcherAppColumns(1280.dp))
+    }
+
+    @Test
+    fun televisionProfilePreservesComfortableRemoteTargets() {
+        val television = RoyalAdaptiveProfile.Default.copy(
+            deviceClass = RoyalDeviceClass.TELEVISION,
+            widthClass = RoyalWindowWidthClass.EXPANDED
+        )
+        assertEquals(64.dp, television.minimumFocusTarget)
+        assertEquals(60.dp, television.controlHeight())
+    }
+
 }
