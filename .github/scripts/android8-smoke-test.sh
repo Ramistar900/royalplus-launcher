@@ -16,6 +16,28 @@ if [[ -z "$APK" || ! -s "$APK" ]]; then
   exit 1
 fi
 
+ADB_TIMEOUT_SECONDS=30
+adb_limited() {
+  local seconds="$1"
+  shift
+  timeout --foreground --signal=TERM --kill-after=10s "${seconds}s" adb "$@"
+}
+
+collect_diagnostics() {
+  set +e
+  echo "::group::Android 8 emulator diagnostics"
+  echo "Connected devices:"
+  adb_limited 20 devices -l
+  echo "Emulator API level:"
+  adb_limited 20 shell getprop ro.build.version.sdk
+  echo "Recent AndroidRuntime and system errors:"
+  adb_limited 30 logcat -d -t 250 -v brief AndroidRuntime:E ActivityManager:E System.err:W
+  echo "Foreground activity:"
+  adb_limited 20 shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | tail -n 10
+  echo "::endgroup::"
+  set -e
+}
+
 AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
 test -n "$AAPT"
 BADGING="$("$AAPT" dump badging "$APK")"
@@ -24,15 +46,20 @@ ACTIVITY="$(printf '%s\n' "$BADGING" | sed -n "s/^launchable-activity: name='\\(
 test -n "$PACKAGE"
 test -n "$ACTIVITY"
 
-API_LEVEL="$(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+API_LEVEL="$(adb_limited 20 shell getprop ro.build.version.sdk | tr -d '\r')"
 echo "Installing Android API $API_LEVEL $BUILD_TYPE APK: $APK ($PACKAGE)"
-adb install -r "$APK"
+if ! adb_limited 120 install -r "$APK"; then
+  echo "::error::APK installation failed or exceeded 120 seconds."
+  collect_diagnostics
+  exit 1
+fi
 
-# Stop any previous instance before starting a fresh, live log capture.
-adb shell am force-stop "$PACKAGE"
+if ! adb_limited 20 shell am force-stop "$PACKAGE"; then
+  echo "::error::Could not stop the previous launcher process."
+  collect_diagnostics
+  exit 1
+fi
 
-# Do not run 'adb logcat -c': Android 8 emulator images may deny clearing
-# log buffers. Stream only new AndroidRuntime errors from this point onward.
 LOG_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 LOG_FILE="$LOG_DIR/android8-runtime-errors.log"
 : > "$LOG_FILE"
@@ -49,29 +76,32 @@ sleep 1
 if ! kill -0 "$LOGCAT_PID" >/dev/null 2>&1; then
   echo "::error::Could not start AndroidRuntime log capture."
   cat "$LOG_FILE" || true
+  collect_diagnostics
   exit 1
 fi
 
 echo "Launching $ACTIVITY"
-START_OUTPUT="$(adb shell am start -W -n "$PACKAGE/$ACTIVITY" 2>&1)" || {
+if ! START_OUTPUT="$(adb_limited 60 shell am start -W -n "$PACKAGE/$ACTIVITY" 2>&1)"; then
   printf '%s\n' "$START_OUTPUT"
-  echo "::error::Activity launch command failed."
+  echo "::error::Activity launch failed or exceeded 60 seconds."
   cat "$LOG_FILE" || true
+  collect_diagnostics
   exit 1
-}
+fi
 printf '%s\n' "$START_OUTPUT"
 
 sleep 8
-PID="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+PID="$(adb_limited 20 shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
 if [[ -z "${PID//[[:space:]]/}" ]]; then
   echo "::error::ROYAL+ Launcher process did not remain alive after startup."
   cat "$LOG_FILE" || true
-  adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" || true
+  collect_diagnostics
   exit 1
 fi
 
-if grep -E 'FATAL EXCEPTION|Process: com\.royalplus\.launcher' "$LOG_FILE"; then
+if grep -E 'FATAL EXCEPTION|Process: com\\.royalplus\\.launcher' "$LOG_FILE"; then
   echo "::error::AndroidRuntime reported a launcher crash during startup."
+  collect_diagnostics
   exit 1
 fi
 
