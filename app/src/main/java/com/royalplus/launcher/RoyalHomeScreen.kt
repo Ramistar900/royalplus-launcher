@@ -21,7 +21,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -500,9 +499,8 @@ internal fun RoyalHomeScreen(
                     }
                 }
                 .onPreviewKeyEvent { event ->
-                    val nativeEvent = event.nativeKeyEvent
                     val isKeyDown = event.type == KeyEventType.KeyDown
-                    val isInitialPress = nativeEvent.repeatCount == 0
+                    val isInitialPress = event.repeatCount == 0
 
                     if (isKeyDown && latestClickSoundsEnabled.value &&
                         event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
@@ -511,7 +509,7 @@ internal fun RoyalHomeScreen(
                     }
 
                     val handledRemoteKey = if (isKeyDown) {
-                        when (RemoteKeys.fromKeyCode(nativeEvent.keyCode)) {
+                        when (RemoteKeys.fromKeyCode(event.keyCode)) {
                             RemoteKey.MENU, RemoteKey.BLUE -> {
                                 if (isInitialPress) {
                                     showQuickControls = !showQuickControls
