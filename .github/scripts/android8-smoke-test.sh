@@ -16,7 +16,6 @@ if [[ -z "$APK" || ! -s "$APK" ]]; then
   exit 1
 fi
 
-ADB_TIMEOUT_SECONDS=30
 adb_limited() {
   local seconds="$1"
   shift
