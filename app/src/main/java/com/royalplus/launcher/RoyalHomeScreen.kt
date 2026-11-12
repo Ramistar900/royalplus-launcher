@@ -74,6 +74,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Thunderstorm
@@ -140,7 +141,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -738,6 +739,7 @@ internal fun RoyalHomeScreen(
                                         onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
+                                    LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
                                     LauncherDestination.SONGS -> RoyalSongsScreen()
                                     LauncherDestination.FAVORITES -> AppCatalog(
@@ -2141,9 +2143,9 @@ private fun RoyalSidePanel(
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Gallery", "Songs", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Galeri", "Şarkılar", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "القنوات", "المعرض", "الأغاني", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Sports", "Gallery", "Songs", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Spor", "Galeri", "Şarkılar", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "القنوات", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
@@ -2164,11 +2166,13 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[6], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
+        SidebarNavItem(labels[6], Icons.Rounded.SportsSoccer, selectedDestination == LauncherDestination.SPORTS, onClick = { onNavigate(LauncherDestination.SPORTS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[7], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
+        SidebarNavItem(labels[7], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[8], Icons.Rounded.Settings, false, onClick = onOpenSettings)
+        SidebarNavItem(labels[8], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(labels[9], Icons.Rounded.Settings, false, onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
