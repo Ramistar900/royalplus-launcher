@@ -717,9 +717,14 @@ private fun SportsFixtureCard(
 private fun formatFixtureTime(value: String): String {
     if (value.isBlank()) return "—"
     return try {
-        val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
-        input.timeZone = TimeZone.getTimeZone("UTC")
-        val date = input.parse(value) ?: return value
+        // Java's ISO-8601 X pattern starts at API 24. Normalize the colonized
+        // offset and use RFC-822 Z so Android 6/API 23 remains supported.
+        val normalized = value
+            .replace(Regex("([+-]\\d{2}):(\\d{2})$"), "$1$2")
+            .replace(Regex("Z$"), "+0000")
+        val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US)
+        input.isLenient = false
+        val date = input.parse(normalized) ?: return value
         SimpleDateFormat("EEE, HH:mm", Locale.getDefault()).format(date)
     } catch (_: Exception) {
         value
