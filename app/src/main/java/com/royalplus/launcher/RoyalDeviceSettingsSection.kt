@@ -213,6 +213,7 @@ private fun SettingsInfoRow(
     detail: String,
     onClick: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .background(Color(0xFF080A0F))

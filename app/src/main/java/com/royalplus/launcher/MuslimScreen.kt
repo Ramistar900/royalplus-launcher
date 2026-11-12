@@ -494,6 +494,7 @@ private fun MuslimNavigationTile(
     section: String, language: String,
     modifier: Modifier = Modifier, onClick: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val title = when (section) {
         "quran" -> when (language) { "en" -> "Holy Quran"; "tr" -> "Kur'an-ı Kerim"; else -> "القرآن الكريم" }
         "duas" -> when (language) { "en" -> "Duas & Adhkar"; "tr" -> "Dualar ve Zikirler"; else -> "الأدعية والأذكار" }
@@ -524,6 +525,7 @@ private fun MuslimSubSectionScreen(
     section: String, language: String, latitude: Double?, longitude: Double?,
     onRequestLocation: () -> Unit, onBack: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     if (section == "quran") {
         QuranReaderScreen(language = language, onClose = onBack)
         return

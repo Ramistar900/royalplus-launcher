@@ -229,6 +229,7 @@ private fun WorshipAction(
 
 @Composable
 private fun QiblaDirectionDial(bearing: Double) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     Box(Modifier.size(adaptiveProfile.iconSize(118.dp)), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(adaptiveProfile.iconSize(118.dp))) {
             val radius = size.minDimension * 0.46f

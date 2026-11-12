@@ -83,7 +83,8 @@ class RoyalAdaptiveProfileTest {
 
         val television = phone.copy(
             deviceClass = RoyalDeviceClass.TELEVISION,
-            widthClass = RoyalWindowWidthClass.EXPANDED
+            widthClass = RoyalWindowWidthClass.EXPANDED,
+            minimumFocusTarget = 64.dp
         )
         assertEquals(6, television.launcherAppColumns(1280.dp))
     }
