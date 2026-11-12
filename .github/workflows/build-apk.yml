@@ -139,6 +139,9 @@ jobs:
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 
+      - name: Verify bundled V21 animated weather icons
+        run: python3 .github/scripts/verify-v21-weather-icons.py
+
       - name: Run launcher and adaptive display unit tests
         run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
@@ -178,12 +181,32 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Smoke test on Android 8 (API 26)
+      - name: Smoke test on Android 7 (API 24)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 7 (API 24)
+          EXPECTED_API_LEVEL: "24"
         with:
-          api-level: 26
+          api-level: 24
           arch: x86_64
           profile: Nexus 6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android8-smoke-test.sh
+
+      - name: Smoke test on Android 8 (API 26)
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 8 (API 26)
+          EXPECTED_API_LEVEL: "26"
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
@@ -457,12 +480,31 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Smoke test on Android 8 (API 26)
+      - name: Smoke test on Android 7 (API 24)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 7 (API 24)
+          EXPECTED_API_LEVEL: "24"
+        with:
+          api-level: 24
+          arch: x86_64
+          profile: Nexus 6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android8-smoke-test.sh
+
+      - name: Smoke test on Android 8 (API 26)
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 8 (API 26)
+          EXPECTED_API_LEVEL: "26"
         with:
           api-level: 26
           arch: x86_64
           profile: Nexus 6
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
