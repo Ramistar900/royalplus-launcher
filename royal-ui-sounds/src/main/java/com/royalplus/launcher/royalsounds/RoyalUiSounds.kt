@@ -9,9 +9,9 @@ import android.media.SoundPool
  * decoded-memory budget on older devices, including Android 8 (API 26).
  */
 enum class RoyalUiSound(val resourceId: Int) {
-    NAV_FOCUS_MOVE(R.raw.royal_ui_nav_focus_move),
-    NAV_SELECT(R.raw.royal_ui_nav_select),
-    NAV_BACK(R.raw.royal_ui_nav_back),
+    NAV_FOCUS_MOVE(R.raw.royal_ui_nav_focus_move_custom),
+    NAV_SELECT(R.raw.royal_ui_nav_select_custom),
+    NAV_BACK(R.raw.royal_ui_nav_back_custom),
     NAV_OPEN_MENU(R.raw.royal_ui_nav_open_menu),
     NAV_CLOSE_MENU(R.raw.royal_ui_nav_close_menu),
     NAV_HOME(R.raw.royal_ui_nav_home),
