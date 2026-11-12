@@ -24,7 +24,8 @@ ACTIVITY="$(printf '%s\n' "$BADGING" | sed -n "s/^launchable-activity: name='\\(
 test -n "$PACKAGE"
 test -n "$ACTIVITY"
 
-echo "Installing Android 8 $BUILD_TYPE APK: $APK ($PACKAGE)"
+API_LEVEL="$(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+echo "Installing Android API $API_LEVEL $BUILD_TYPE APK: $APK ($PACKAGE)"
 adb install -r "$APK"
 
 # Stop any previous instance before starting a fresh, live log capture.
@@ -74,4 +75,4 @@ if grep -E 'FATAL EXCEPTION|Process: com\.royalplus\.launcher' "$LOG_FILE"; then
   exit 1
 fi
 
-echo "Android 8 API 26 $BUILD_TYPE install, activity launch, process liveness, and crash-log checks passed (PID: $PID)."
+echo "Android API $API_LEVEL $BUILD_TYPE install, activity launch, process liveness, and crash-log checks passed (PID: $PID)."
