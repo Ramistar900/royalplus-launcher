@@ -98,7 +98,7 @@ if [[ -z "${PID//[[:space:]]/}" ]]; then
   exit 1
 fi
 
-if grep -E 'FATAL EXCEPTION|Process: com\\.royalplus\\.launcher' "$LOG_FILE"; then
+if grep -E 'FATAL EXCEPTION|Process: com\.royalplus\\.launcher' "$LOG_FILE"; then
   echo "::error::AndroidRuntime reported a launcher crash during startup."
   collect_diagnostics
   exit 1
