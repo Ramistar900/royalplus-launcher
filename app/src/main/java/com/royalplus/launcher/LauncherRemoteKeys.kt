@@ -1,6 +1,6 @@
 package com.royalplus.launcher
 
-import android.view.KeyEvent
+import androidx.compose.ui.input.key.Key
 
 internal enum class RemoteKey {
     MENU, BACK, SEARCH, VOICE, INFO, GUIDE, INPUT,
@@ -9,33 +9,42 @@ internal enum class RemoteKey {
 }
 
 internal object RemoteKeys {
-    fun fromKeyCode(keyCode: Int): RemoteKey? = when (keyCode) {
-        KeyEvent.KEYCODE_MENU -> RemoteKey.MENU
-        KeyEvent.KEYCODE_BACK -> RemoteKey.BACK
-        KeyEvent.KEYCODE_SEARCH -> RemoteKey.SEARCH
-        KeyEvent.KEYCODE_VOICE_ASSIST -> RemoteKey.VOICE
-        KeyEvent.KEYCODE_INFO -> RemoteKey.INFO
-        KeyEvent.KEYCODE_GUIDE -> RemoteKey.GUIDE
-        KeyEvent.KEYCODE_TV_INPUT -> RemoteKey.INPUT
-        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> RemoteKey.PLAY_PAUSE
-        KeyEvent.KEYCODE_MEDIA_PLAY -> RemoteKey.PLAY
-        KeyEvent.KEYCODE_MEDIA_PAUSE -> RemoteKey.PAUSE
-        KeyEvent.KEYCODE_MEDIA_STOP -> RemoteKey.STOP
-        KeyEvent.KEYCODE_MEDIA_REWIND -> RemoteKey.REWIND
-        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> RemoteKey.FAST_FORWARD
-        KeyEvent.KEYCODE_MEDIA_NEXT -> RemoteKey.NEXT
-        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> RemoteKey.PREVIOUS
-        KeyEvent.KEYCODE_CHANNEL_UP -> RemoteKey.CHANNEL_UP
-        KeyEvent.KEYCODE_CHANNEL_DOWN -> RemoteKey.CHANNEL_DOWN
-        KeyEvent.KEYCODE_PROG_RED -> RemoteKey.RED
-        KeyEvent.KEYCODE_PROG_GREEN -> RemoteKey.GREEN
-        KeyEvent.KEYCODE_PROG_YELLOW -> RemoteKey.YELLOW
-        KeyEvent.KEYCODE_PROG_BLUE -> RemoteKey.BLUE
+    fun fromComposeKey(key: Key): RemoteKey? = when (key) {
+        Key.Menu -> RemoteKey.MENU
+        Key.Back -> RemoteKey.BACK
+        Key.Search -> RemoteKey.SEARCH
+        Key.VoiceAssist -> RemoteKey.VOICE
+        Key.Info -> RemoteKey.INFO
+        Key.Guide -> RemoteKey.GUIDE
+        Key.TvInput -> RemoteKey.INPUT
+        Key.MediaPlayPause -> RemoteKey.PLAY_PAUSE
+        Key.MediaPlay -> RemoteKey.PLAY
+        Key.MediaPause -> RemoteKey.PAUSE
+        Key.MediaStop -> RemoteKey.STOP
+        Key.MediaRewind -> RemoteKey.REWIND
+        Key.MediaFastForward -> RemoteKey.FAST_FORWARD
+        Key.MediaNext -> RemoteKey.NEXT
+        Key.MediaPrevious -> RemoteKey.PREVIOUS
+        Key.ChannelUp -> RemoteKey.CHANNEL_UP
+        Key.ChannelDown -> RemoteKey.CHANNEL_DOWN
+        Key.ProgramRed -> RemoteKey.RED
+        Key.ProgramGreen -> RemoteKey.GREEN
+        Key.ProgramYellow -> RemoteKey.YELLOW
+        Key.ProgramBlue -> RemoteKey.BLUE
         else -> null
     }
 
-    fun digitOf(keyCode: Int): Int? =
-        if (keyCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) {
-            keyCode - KeyEvent.KEYCODE_0
-        } else null
+    fun digitOf(key: Key): Int? = when (key) {
+        Key.Zero -> 0
+        Key.One -> 1
+        Key.Two -> 2
+        Key.Three -> 3
+        Key.Four -> 4
+        Key.Five -> 5
+        Key.Six -> 6
+        Key.Seven -> 7
+        Key.Eight -> 8
+        Key.Nine -> 9
+        else -> null
+    }
 }

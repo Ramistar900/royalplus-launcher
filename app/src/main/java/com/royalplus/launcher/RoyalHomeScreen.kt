@@ -178,6 +178,7 @@ internal fun RoyalHomeScreen(
     var focusedAppPackage by remember { mutableStateOf<String?>(null) }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    val pressedRemoteKeys = remember { mutableSetOf<Key>() }
     var showSmartScreensaver by remember { mutableStateOf(false) }
     var lastUserInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(voiceSearchResult) {
@@ -500,7 +501,14 @@ internal fun RoyalHomeScreen(
                 }
                 .onPreviewKeyEvent { event ->
                     val isKeyDown = event.type == KeyEventType.KeyDown
-                    val isInitialPress = event.repeatCount == 0
+                    val isInitialPress = when (event.type) {
+                        KeyEventType.KeyDown -> pressedRemoteKeys.add(event.key)
+                        KeyEventType.KeyUp -> {
+                            pressedRemoteKeys.remove(event.key)
+                            false
+                        }
+                        else -> false
+                    }
 
                     if (isKeyDown && latestClickSoundsEnabled.value &&
                         event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
@@ -509,7 +517,7 @@ internal fun RoyalHomeScreen(
                     }
 
                     val handledRemoteKey = if (isKeyDown) {
-                        when (RemoteKeys.fromKeyCode(event.keyCode)) {
+                        when (RemoteKeys.fromComposeKey(event.key)) {
                             RemoteKey.MENU, RemoteKey.BLUE -> {
                                 if (isInitialPress) {
                                     showQuickControls = !showQuickControls
