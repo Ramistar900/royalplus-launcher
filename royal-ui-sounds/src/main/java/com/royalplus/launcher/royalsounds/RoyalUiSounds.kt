@@ -64,7 +64,8 @@ object RoyalUiSounds {
     private const val PREFS_NAME = "royal_ui_sounds"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_VOLUME = "volume"
-    private const val DEFAULT_VOLUME = 0.62f
+    private const val DEFAULT_ENABLED = false
+    private const val DEFAULT_VOLUME = 0.18f
     // Keep headroom below SoundPool's approximately 1 MiB decoded sample limit.
     private const val MAX_CACHED_BYTES = 900 * 1024
 
@@ -76,7 +77,7 @@ object RoyalUiSounds {
     private val loadedSampleIds = mutableSetOf<Int>()
     private val pendingPlaySampleIds = mutableSetOf<Int>()
     private var reservedBytes = 0
-    @Volatile private var enabled = true
+    @Volatile private var enabled = DEFAULT_ENABLED
     @Volatile private var volume = DEFAULT_VOLUME
 
     /**
@@ -92,7 +93,7 @@ object RoyalUiSounds {
             if (soundPool == null) {
                 appContext = applicationContext
                 val preferences = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                enabled = preferences.getBoolean(KEY_ENABLED, true)
+                enabled = preferences.getBoolean(KEY_ENABLED, DEFAULT_ENABLED)
                 volume = preferences.getFloat(KEY_VOLUME, DEFAULT_VOLUME).coerceIn(0f, 1f)
 
                 val attributes = AudioAttributes.Builder()
@@ -128,7 +129,7 @@ object RoyalUiSounds {
                     }
                 }
             }
-            preloadSounds.forEach { loadSampleLocked(applicationContext, it) }
+            if (enabled) preloadSounds.forEach { loadSampleLocked(applicationContext, it) }
         }
     }
 
