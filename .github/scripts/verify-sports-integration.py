@@ -7,9 +7,10 @@ HOME = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalHomeScreen.kt"
 MANIFEST = ROOT / "app/src/main/AndroidManifest.xml"
 BACKEND = ROOT / "supabase/functions/royalplus-sports/index.ts"
 CACHE_MIGRATION = ROOT / "supabase/migrations/20261112043947_royalplus_sports_response_cache.sql"
+PUBLIC_RPC_MIGRATION = ROOT / "supabase/migrations/20261112045800_royalplus_sports_public_budget_rpc.sql"
 APP_GRADLE = ROOT / "app/build.gradle.kts"
 
-for path in (SPORTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, APP_GRADLE):
+for path in (SPORTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRATION, APP_GRADLE):
     assert path.is_file(), f"Required file is missing: {path.relative_to(ROOT)}"
 
 sports = SPORTS.read_text(encoding="utf-8")
@@ -17,6 +18,7 @@ home = HOME.read_text(encoding="utf-8")
 manifest = MANIFEST.read_text(encoding="utf-8")
 backend = BACKEND.read_text(encoding="utf-8")
 migration = CACHE_MIGRATION.read_text(encoding="utf-8")
+public_rpc_migration = PUBLIC_RPC_MIGRATION.read_text(encoding="utf-8")
 gradle = APP_GRADLE.read_text(encoding="utf-8")
 
 # The mobile app must contain only the public Supabase client key.
@@ -36,6 +38,8 @@ assert "minSdk = 23" in gradle
 # Server-side authentication, global budget, query bounds and cache must remain enforced.
 assert "admin.auth.getUser(token)" in backend
 assert "consume_royalplus_sports_request" in backend
+assert '.rpc("consume_royalplus_sports_request")' in backend
+assert '.schema("private")' not in backend
 assert "royalplus_sports_response_cache" in backend
 assert "canonicalQuery.length > 512" in backend
 assert "API_SPORTS_KEY" in backend and "x-apisports-key" in backend
@@ -45,5 +49,7 @@ assert "verify_jwt" not in backend  # Gateway verification is configured as true
 assert "enable row level security" in migration.lower()
 assert "revoke all" in migration.lower()
 assert "grant select, insert, update, delete" in migration.lower()
+assert "security invoker" in public_rpc_migration.lower()
+assert "grant execute" in public_rpc_migration.lower()
 
 print("ROYAL+ sports security, backend cache, launcher navigation and Android compatibility guards passed.")
