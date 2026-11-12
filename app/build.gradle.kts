@@ -81,6 +81,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":royal-adaptive-ui"))
     implementation(project(":royal-ui-sounds"))
     val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
     implementation(composeBom)
@@ -97,4 +98,5 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
 }

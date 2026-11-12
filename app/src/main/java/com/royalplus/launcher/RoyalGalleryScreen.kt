@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import android.content.Intent
 import android.database.Cursor
 import android.graphics.Bitmap
@@ -45,6 +47,7 @@ private data class RoyalMediaItem(val id: Long, val uri: Uri, val mime: String, 
 
 @Composable
 internal fun RoyalGalleryScreen() {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     var items by remember { mutableStateOf<List<RoyalMediaItem>>(emptyList()) }
     var granted by remember { mutableStateOf(hasRoyalMediaPermission(context)) }
@@ -73,7 +76,7 @@ internal fun RoyalGalleryScreen() {
         items = withContext(Dispatchers.IO) { queryRoyalMedia(context.contentResolver) }
         loading = false
     }
-    Column(Modifier.fillMaxSize().padding(12.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
         Text("المعرض", color = RoyalColors.Gold, fontSize = 23.sp, fontWeight = FontWeight.Bold)
         Text("الصور ومقاطع الفيديو على الجهاز", color = RoyalColors.Pearl.copy(alpha = .75f), fontSize = 12.sp)
         when {
@@ -81,8 +84,8 @@ internal fun RoyalGalleryScreen() {
             loading -> GalleryEmpty("جارٍ تحميل الوسائط…", "", null, Icons.Rounded.Collections, null)
             items.isEmpty() -> GalleryEmpty("لا توجد وسائط", "لم يتم العثور على صور أو فيديوهات في الذاكرة المتاحة", null, Icons.Rounded.Collections, null)
             else -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(126.dp), modifier = Modifier.fillMaxSize().padding(top = 12.dp),
-                contentPadding = PaddingValues(4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
+                columns = GridCells.Adaptive(if (adaptiveProfile.isTelevision) 220.dp else if (adaptiveProfile.isTablet) 170.dp else 132.dp), modifier = Modifier.fillMaxSize().padding(top = 12.dp),
+                contentPadding = PaddingValues(4.dp), horizontalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(items, key = { it.id.toString() + it.mime }) { item ->

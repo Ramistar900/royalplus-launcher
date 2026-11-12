@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -93,6 +95,7 @@ internal fun MuslimScreen(
     onRequestLocation: () -> Unit,
     language: String = "ar"
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     var selectedSection by remember { mutableStateOf("home") }
     var showCityPicker by remember { mutableStateOf(false) }
@@ -242,8 +245,8 @@ internal fun MuslimScreen(
         modifier = Modifier.fillMaxSize()
             .background(RoyalColors.Black)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding),
+        verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -491,6 +494,7 @@ private fun MuslimNavigationTile(
     section: String, language: String,
     modifier: Modifier = Modifier, onClick: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val title = when (section) {
         "quran" -> when (language) { "en" -> "Holy Quran"; "tr" -> "Kur'an-ı Kerim"; else -> "القرآن الكريم" }
         "duas" -> when (language) { "en" -> "Duas & Adhkar"; "tr" -> "Dualar ve Zikirler"; else -> "الأدعية والأذكار" }
@@ -511,7 +515,7 @@ private fun MuslimNavigationTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Icon(painter = painterResource(iconRes), contentDescription = title, tint = Color.Unspecified, modifier = Modifier.size(36.dp))
+        Icon(painter = painterResource(iconRes), contentDescription = title, tint = Color.Unspecified, modifier = Modifier.size(adaptiveProfile.iconSize(36.dp)))
         Text(title, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
@@ -521,6 +525,7 @@ private fun MuslimSubSectionScreen(
     section: String, language: String, latitude: Double?, longitude: Double?,
     onRequestLocation: () -> Unit, onBack: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     if (section == "quran") {
         QuranReaderScreen(language = language, onClose = onBack)
         return
@@ -528,7 +533,7 @@ private fun MuslimSubSectionScreen(
     Column(
         Modifier.fillMaxSize().background(RoyalColors.Black)
             .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SmallPrayerAction(when (language) { "en" -> "Back"; "tr" -> "Geri"; else -> "رجوع" }, Icons.Rounded.Refresh, onBack)

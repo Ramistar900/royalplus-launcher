@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import android.content.Context
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun RoyalDeviceSettingsSection(language: String) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     val audioPreferences = remember(context) {
         context.getSharedPreferences(RoyalWeatherAmbienceController.PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -80,7 +83,7 @@ internal fun RoyalDeviceSettingsSection(language: String) {
     val connection = connectionSummary(context, language)
     val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
     val androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)) {
         Text(if (language == "en") "Device & system" else if (language == "tr") "Cihaz ve sistem" else "الجهاز والنظام",
             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
         SettingsInfoRow(Icons.Rounded.Storage,
@@ -210,6 +213,7 @@ private fun SettingsInfoRow(
     detail: String,
     onClick: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .background(Color(0xFF080A0F))
@@ -218,9 +222,9 @@ private fun SettingsInfoRow(
             playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
             onClick()
         }).focusable()
-        .padding(horizontal = 12.dp, vertical = 11.dp),
+        .padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
+        Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(adaptiveProfile.iconSize(25.dp)))
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)

@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
@@ -75,6 +77,7 @@ internal fun WeatherDetailsScreen(
     onUseDeviceLocation: () -> Unit,
     motionEnabled: Boolean = true
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current.applicationContext
     RoyalWeatherAmbienceEffect(weather)
     RoyalOwlAmbienceEffect(weather)
@@ -298,20 +301,20 @@ internal fun WeatherDetailsScreen(
         RoyalMotionImage(image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
         RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled, windSpeedKmh = weather.windSpeedKmh, nightMode = night, sunsetMode = hour in 17..18)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59)))))
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 18.dp)) {
+        Column(Modifier.fillMaxSize().padding(horizontal = if (adaptiveProfile.isPhone) 12.dp else adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
             Row(Modifier.fillMaxWidth().weight(0.30f), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(weather.city.ifBlank { "الموقع الحالي" }, color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(weather.city.ifBlank { "الموقع الحالي" }, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 21.sp else 27.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(10.dp))
                         Icon(Icons.Rounded.LocationOn, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text(weatherSymbol(weather.weatherCode), fontSize = 48.sp)
+                        Text(weatherSymbol(weather.weatherCode), fontSize = if (adaptiveProfile.isPhone) 34.sp else 48.sp)
                         Column {
                             Text(weather.description, color = Color.White, fontSize = 18.sp, maxLines = 1)
-                            Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Bold)
+                            Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = if (adaptiveProfile.isPhone) 30.sp else 38.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -364,7 +367,7 @@ internal fun WeatherDetailsScreen(
                     }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
-                    Text(timeText, color = Color.White, fontSize = 52.sp, fontWeight = FontWeight.Bold)
+                    Text(timeText, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 38.sp else 52.sp, fontWeight = FontWeight.Bold)
                     Text(prayerTimes?.gregorianDate ?: dateText, color = Color.White, fontSize = 16.sp, maxLines = 1)
                     Text(prayerTimes?.hijriDate ?: "", color = Color.White, fontSize = 15.sp, maxLines = 1)
                     if (nextPrayer != null) Text(
@@ -374,7 +377,7 @@ internal fun WeatherDetailsScreen(
                 }
             }
             Row(Modifier.fillMaxWidth().weight(0.70f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Column(Modifier.weight(0.36f).fillMaxHeight().clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(if (adaptiveProfile.isPhone) 0.44f else 0.36f).fillMaxHeight().clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Text(if (language == "en") "Prayer times" else if (language == "tr") "Namaz vakitleri" else "مواقيت الصلاة", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(8.dp))
@@ -399,7 +402,7 @@ internal fun WeatherDetailsScreen(
                         }
                     }
                 }
-                Column(Modifier.weight(0.64f).fillMaxHeight()) {
+                Column(Modifier.weight(if (adaptiveProfile.isPhone) 0.56f else 0.64f).fillMaxHeight()) {
                     Box(Modifier.fillMaxWidth().weight(0.30f), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", color = Color.White, fontSize = 21.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)

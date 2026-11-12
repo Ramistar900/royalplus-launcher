@@ -1,5 +1,6 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.RoyalAdaptiveHost
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 import com.royalplus.launcher.royalsounds.RoyalUiSounds
 
@@ -23,6 +24,8 @@ import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.View
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +40,8 @@ class MainActivity : ComponentActivity() {
     private var pendingTranslationOverlayStart = false
     private var weatherState by mutableStateOf(WeatherUiState())
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
+    private val installedAppsExecutor = Executors.newSingleThreadExecutor()
+    private var installedAppsLoadGeneration = 0
     private var isDefaultHome by mutableStateOf(false)
     private var voiceSearchAvailable by mutableStateOf(false)
     private var voiceSearchResult by mutableStateOf("")
@@ -136,12 +141,14 @@ class MainActivity : ComponentActivity() {
 
         RoyalPlusApplication.markStage(this, "MainActivity.onCreate: attaching Compose home screen")
         setContent {
-            MaterialTheme {
-                RoyalHomeScreen(
+            RoyalAdaptiveHost {
+                MaterialTheme {
+                    RoyalHomeScreen(
                     apps = installedApps,
                     weather = weatherState,
                     onRequestLocation = { requestLocationPermission() },
                     onRefreshWeather = { refreshWeather() },
+                    onRefreshApps = { loadInstalledApps(forceRefresh = true) },
                     onChooseWeatherCity = { city -> saveAndLoadManualWeatherCity(city) },
                     onUseDeviceLocation = { clearManualWeatherCityAndUseDeviceLocation() },
                     onLaunchApp = { app ->
@@ -173,7 +180,8 @@ class MainActivity : ComponentActivity() {
                     voiceSearchResult = voiceSearchResult,
                     translationOverlayEnabled = translationOverlayEnabled,
                     onToggleTranslationOverlay = { toggleTranslationOverlay() }
-                )
+                    )
+                }
             }
         }
 
@@ -235,6 +243,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        installedAppsLoadGeneration++
+        installedAppsExecutor.shutdownNow()
         RoyalUiSounds.release()
         super.onDestroy()
     }
@@ -277,13 +287,44 @@ class MainActivity : ComponentActivity() {
         }
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: checking default launcher")
         isDefaultHome = isRoyalPlusDefaultHome()
-        RoyalPlusApplication.markStage(this, "MainActivity.onResume: loading installed applications")
-        installedApps = LauncherAppsRepository.load(
-            packageManager = packageManager,
-            ownPackageName = packageName
-        )
-        RoyalPlusApplication.markStage(this, "MainActivity.onResume: startup checks completed")
+        RoyalPlusApplication.markStage(this, "MainActivity.onResume: scheduling background app scan")
+        loadInstalledApps(forceRefresh = true)
         RoyalAdhanScheduler.scheduleNext(this)
+    }
+
+    private fun loadInstalledApps(forceRefresh: Boolean) {
+        val requestGeneration = ++installedAppsLoadGeneration
+        try {
+            installedAppsExecutor.execute {
+                val apps = runCatching {
+                    LauncherAppsRepository.load(
+                        packageManager = packageManager,
+                        ownPackageName = packageName,
+                        forceRefresh = forceRefresh
+                    )
+                }.getOrNull() ?: return@execute
+
+                runOnUiThread {
+                    if (
+                        requestGeneration == installedAppsLoadGeneration &&
+                        !isFinishing &&
+                        !isDestroyed
+                    ) {
+                        installedApps = apps
+                        RoyalPlusApplication.markStage(
+                            this,
+                            "MainActivity.onResume: installed applications loaded"
+                        )
+                        RoyalPlusApplication.markStage(
+                            this,
+                            "MainActivity.onResume: startup checks completed"
+                        )
+                    }
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            // The Activity is already shutting down; no UI update is needed.
+        }
     }
 
     private fun toggleTranslationOverlay() {

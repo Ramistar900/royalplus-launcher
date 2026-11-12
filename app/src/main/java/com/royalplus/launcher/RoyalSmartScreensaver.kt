@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +50,8 @@ internal fun RoyalSmartScreensaver(
     fireAnimationEnabled: Boolean = true,
     fireCrackleSoundEnabled: Boolean = true
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val screensaverArtworkSize = (minOf(adaptiveProfile.windowWidthDp, adaptiveProfile.windowHeightDp) * 0.56f).coerceIn(220.dp, 420.dp)
     val isEnglish = language == "en"
     val isTurkish = language == "tr"
     val headline = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ"
@@ -119,14 +123,14 @@ internal fun RoyalSmartScreensaver(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(340.dp)
+                .size(screensaverArtworkSize)
                 .clip(RoundedCornerShape(50))
                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.10f), RoundedCornerShape(50))
         )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 28.dp)
+            modifier = Modifier.padding(horizontal = adaptiveProfile.pageHorizontalPadding)
         ) {
             Box(
                 modifier = Modifier
@@ -145,7 +149,7 @@ internal fun RoyalSmartScreensaver(
             Text(
                 timeText,
                 color = Color(0xFFFFF5DE),
-                fontSize = 88.sp,
+                fontSize = if (adaptiveProfile.isPhone) 58.sp else if (adaptiveProfile.isTelevision) 96.sp else 76.sp,
                 fontWeight = FontWeight.Light,
                 letterSpacing = 2.sp,
                 textAlign = TextAlign.Center,

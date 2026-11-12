@@ -1,5 +1,7 @@
 package com.royalplus.launcher
 
+import com.royal.adaptive.LocalRoyalAdaptiveProfile
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,6 +50,7 @@ internal fun RoyalWorshipToolsSection(
     language: String,
     onRequestLocation: () -> Unit
 ) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     val preferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
@@ -68,7 +71,7 @@ internal fun RoyalWorshipToolsSection(
             .clip(RoundedCornerShape(16.dp))
             .background(Color(0xFF111820))
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
-            .padding(14.dp),
+            .padding(adaptiveProfile.pageHorizontalPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
@@ -142,7 +145,7 @@ internal fun RoyalWorshipToolsSection(
             }
 
             Box(
-                Modifier.width(1.dp).height(154.dp).background(RoyalColors.Gold.copy(alpha = 0.25f))
+                Modifier.width(1.dp).height((adaptiveProfile.windowHeightDp * 0.22f).coerceIn(124.dp, 190.dp)).background(RoyalColors.Gold.copy(alpha = 0.25f))
             )
 
             Column(
@@ -226,8 +229,9 @@ private fun WorshipAction(
 
 @Composable
 private fun QiblaDirectionDial(bearing: Double) {
-    Box(Modifier.size(118.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(118.dp)) {
+    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    Box(Modifier.size(adaptiveProfile.iconSize(118.dp)), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(adaptiveProfile.iconSize(118.dp))) {
             val radius = size.minDimension * 0.46f
             val center = Offset(size.width / 2f, size.height / 2f)
             drawCircle(

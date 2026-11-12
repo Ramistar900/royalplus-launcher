@@ -16,4 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "ROYALPlusLauncher"
 include(":app")
+include(":royal-adaptive-ui")
 include(":royal-ui-sounds" )
