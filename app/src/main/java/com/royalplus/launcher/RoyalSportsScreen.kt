@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +40,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -485,6 +488,9 @@ internal fun RoyalSportsScreen(language: String) {
         }
     }
 
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
+    ) {
     Column(
         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))
             .background(Brush.verticalGradient(listOf(Color(0xF0121721), Color(0xF9080C12))))
@@ -589,6 +595,7 @@ internal fun RoyalSportsScreen(language: String) {
             }
         }
     }
+    }
 }
 
 @Composable
@@ -652,7 +659,27 @@ private fun SportsFixtureCard(
             turkish -> "İptal"
             else -> "Cancelled"
         }
-        else -> formatFixtureTime(fixture.date)
+        "NS", "TBD" -> when {
+            arabic -> "لم تبدأ"
+            turkish -> "Başlamadı"
+            else -> "Not started"
+        }
+        "SUSP", "INT" -> when {
+            arabic -> "متوقفة"
+            turkish -> "Durduruldu"
+            else -> "Suspended"
+        }
+        "AWD", "WO" -> when {
+            arabic -> "حُسمت إدارياً"
+            turkish -> "Hükmen sonuçlandı"
+            else -> "Awarded"
+        }
+        "BT" -> when {
+            arabic -> "استراحة"
+            turkish -> "Devre arası"
+            else -> "Break"
+        }
+        else -> formatFixtureTime(fixture.date, arabic, turkish)
     }
     val score = if (fixture.homeGoals == null || fixture.awayGoals == null) {
         "—"
@@ -671,7 +698,12 @@ private fun SportsFixtureCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                if (fixture.country.isBlank()) fixture.league else fixture.league + " • " + fixture.country,
+                if (fixture.country.isBlank()) {
+                    localizedFootballName(fixture.league, arabic, turkish)
+                } else {
+                    localizedFootballName(fixture.league, arabic, turkish) + " • " +
+                        localizedFootballName(fixture.country, arabic, turkish)
+                },
                 color = RoyalColors.Gold,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -690,7 +722,7 @@ private fun SportsFixtureCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                fixture.homeTeam,
+                localizedFootballName(fixture.homeTeam, arabic, turkish),
                 color = RoyalColors.Pearl,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -700,7 +732,7 @@ private fun SportsFixtureCard(
             )
             Text(score, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(
-                fixture.awayTeam,
+                localizedFootballName(fixture.awayTeam, arabic, turkish),
                 color = RoyalColors.Pearl,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -714,19 +746,76 @@ private fun SportsFixtureCard(
     }
 }
 
-private fun formatFixtureTime(value: String): String {
+private fun formatFixtureTime(value: String, arabic: Boolean, turkish: Boolean): String {
     if (value.isBlank()) return "—"
     return try {
-        // Java's ISO-8601 X pattern starts at API 24. Normalize the colonized
-        // offset and use RFC-822 Z so Android 6/API 23 remains supported.
+        // Keep API 23 compatibility: avoid the API-24-only ISO X pattern.
         val normalized = value
             .replace(Regex("([+-]\\d{2}):(\\d{2})$"), "$1$2")
             .replace(Regex("Z$"), "+0000")
         val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US)
         input.isLenient = false
         val date = input.parse(normalized) ?: return value
-        SimpleDateFormat("EEE, HH:mm", Locale.getDefault()).format(date)
+        val outputLocale = when {
+            arabic -> Locale("ar")
+            turkish -> Locale("tr")
+            else -> Locale.US
+        }
+        val pattern = when {
+            arabic -> "EEEE، d MMMM، HH:mm"
+            turkish -> "d MMMM EEE, HH:mm"
+            else -> "EEE, MMM d, HH:mm"
+        }
+        SimpleDateFormat(pattern, outputLocale).format(date)
     } catch (_: Exception) {
         value
+    }
+}
+
+private fun localizedFootballName(name: String, arabic: Boolean, turkish: Boolean): String {
+    val key = name.trim().lowercase(Locale.ROOT)
+    if (key.isEmpty()) return name
+    val arabicNames = mapOf(
+        "premier league" to "الدوري الإنجليزي الممتاز", "english premier league" to "الدوري الإنجليزي الممتاز",
+        "la liga" to "الدوري الإسباني", "laliga" to "الدوري الإسباني", "serie a" to "الدوري الإيطالي",
+        "bundesliga" to "الدوري الألماني", "ligue 1" to "الدوري الفرنسي",
+        "uefa champions league" to "دوري أبطال أوروبا", "champions league" to "دوري أبطال أوروبا",
+        "uefa europa league" to "الدوري الأوروبي", "europa league" to "الدوري الأوروبي",
+        "uefa conference league" to "دوري المؤتمر الأوروبي", "fifa world cup" to "كأس العالم", "world cup" to "كأس العالم",
+        "fa cup" to "كأس الاتحاد الإنجليزي", "efl cup" to "كأس الرابطة الإنجليزية",
+        "super lig" to "الدوري التركي الممتاز", "süper lig" to "الدوري التركي الممتاز",
+        "turkey" to "تركيا", "türkiye" to "تركيا", "england" to "إنجلترا", "spain" to "إسبانيا",
+        "italy" to "إيطاليا", "germany" to "ألمانيا", "france" to "فرنسا", "saudi arabia" to "السعودية",
+        "united arab emirates" to "الإمارات", "qatar" to "قطر", "iraq" to "العراق", "syria" to "سوريا",
+        "egypt" to "مصر", "morocco" to "المغرب", "argentina" to "الأرجنتين", "brazil" to "البرازيل",
+        "portugal" to "البرتغال", "netherlands" to "هولندا", "belgium" to "بلجيكا",
+        "manchester city" to "مانشستر سيتي", "manchester united" to "مانشستر يونايتد",
+        "liverpool" to "ليفربول", "arsenal" to "أرسنال", "chelsea" to "تشيلسي", "tottenham" to "توتنهام",
+        "newcastle" to "نيوكاسل", "real madrid" to "ريال مدريد", "barcelona" to "برشلونة",
+        "atletico madrid" to "أتلتيكو مدريد", "sevilla" to "إشبيلية", "girona" to "جيرونا",
+        "inter" to "إنتر ميلان", "inter milan" to "إنتر ميلان", "ac milan" to "ميلان",
+        "juventus" to "يوفنتوس", "napoli" to "نابولي", "roma" to "روما", "lazio" to "لاتسيو",
+        "bayern munich" to "بايرن ميونخ", "borussia dortmund" to "بوروسيا دورتموند", "rb leipzig" to "لايبزيغ",
+        "paris saint germain" to "باريس سان جيرمان", "paris saint-germain" to "باريس سان جيرمان", "psg" to "باريس سان جيرمان",
+        "marseille" to "مارسيليا", "galatasaray" to "غلطة سراي", "fenerbahce" to "فنربخشة",
+        "fenerbahçe" to "فنربخشة", "besiktas" to "بشكتاش", "beşiktaş" to "بشكتاش",
+        "trabzonspor" to "طرابزون سبور", "al hilal" to "الهلال", "al nassr" to "النصر",
+        "al ittihad" to "الاتحاد", "al ahli" to "الأهلي", "al ahli saudi" to "الأهلي السعودي"
+    )
+    val turkishNames = mapOf(
+        "premier league" to "İngiltere Premier Ligi", "la liga" to "İspanya La Liga",
+        "serie a" to "İtalya Serie A", "bundesliga" to "Almanya Bundesliga", "ligue 1" to "Fransa Ligue 1",
+        "uefa champions league" to "UEFA Şampiyonlar Ligi", "champions league" to "Şampiyonlar Ligi",
+        "uefa europa league" to "UEFA Avrupa Ligi", "europa league" to "Avrupa Ligi",
+        "england" to "İngiltere", "spain" to "İspanya", "italy" to "İtalya", "germany" to "Almanya",
+        "france" to "Fransa", "saudi arabia" to "Suudi Arabistan",
+        "manchester city" to "Manchester City", "manchester united" to "Manchester United",
+        "real madrid" to "Real Madrid", "barcelona" to "Barcelona", "bayern munich" to "Bayern Münih",
+        "galatasaray" to "Galatasaray", "fenerbahce" to "Fenerbahçe", "besiktas" to "Beşiktaş"
+    )
+    return when {
+        arabic -> arabicNames[key] ?: name
+        turkish -> turkishNames[key] ?: name
+        else -> name
     }
 }
