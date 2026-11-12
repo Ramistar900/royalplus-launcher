@@ -21,6 +21,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -149,6 +150,7 @@ internal fun RoyalHomeScreen(
     weather: WeatherUiState,
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
+    onRefreshApps: () -> Unit,
     onChooseWeatherCity: (String) -> Unit,
     onUseDeviceLocation: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
@@ -459,25 +461,26 @@ internal fun RoyalHomeScreen(
         }
     }
     val favoritePackages = remember(favorites) { favorites.map { it.packageName }.toSet() }
-    val filteredApps = remember(visibleApps, searchQuery) {
-        if (searchQuery.isBlank()) {
+    val normalizedSearchQuery = remember(searchQuery) {
+        LauncherAppSearch.normalize(searchQuery)
+    }
+    val filteredApps = remember(visibleApps, normalizedSearchQuery) {
+        if (normalizedSearchQuery.isBlank()) {
             visibleApps
         } else {
-            val query = searchQuery.trim().lowercase(Locale.getDefault())
             visibleApps.filter {
-                it.label.lowercase(Locale.getDefault()).contains(query) ||
-                    it.packageName.lowercase(Locale.getDefault()).contains(query)
+                LauncherAppSearch.normalize(it.label).contains(normalizedSearchQuery) ||
+                    LauncherAppSearch.normalize(it.packageName).contains(normalizedSearchQuery)
             }
         }
     }
-    val filteredFavorites = remember(favorites, searchQuery) {
-        if (searchQuery.isBlank()) {
+    val filteredFavorites = remember(favorites, normalizedSearchQuery) {
+        if (normalizedSearchQuery.isBlank()) {
             favorites
         } else {
-            val query = searchQuery.trim().lowercase(Locale.getDefault())
             favorites.filter {
-                it.label.lowercase(Locale.getDefault()).contains(query) ||
-                    it.packageName.lowercase(Locale.getDefault()).contains(query)
+                LauncherAppSearch.normalize(it.label).contains(normalizedSearchQuery) ||
+                    LauncherAppSearch.normalize(it.packageName).contains(normalizedSearchQuery)
             }
         }
     }
@@ -497,14 +500,69 @@ internal fun RoyalHomeScreen(
                     }
                 }
                 .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && latestClickSoundsEnabled.value &&
+                    val nativeEvent = event.nativeKeyEvent
+                    val isKeyDown = event.type == KeyEventType.KeyDown
+                    val isInitialPress = nativeEvent.repeatCount == 0
+
+                    if (isKeyDown && latestClickSoundsEnabled.value &&
                         event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
                     ) {
                         playLauncherUiSound(context, RoyalUiSound.NAV_FOCUS_MOVE)
                     }
+
+                    val handledRemoteKey = if (isKeyDown) {
+                        when (RemoteKeys.fromKeyCode(nativeEvent.keyCode)) {
+                            RemoteKey.MENU, RemoteKey.BLUE -> {
+                                if (isInitialPress) {
+                                    showQuickControls = !showQuickControls
+                                    showSmartScreensaver = false
+                                }
+                                true
+                            }
+                            RemoteKey.SEARCH -> {
+                                if (isInitialPress) {
+                                    searchActive = true
+                                    selectedDestination = LauncherDestination.APPS
+                                    showQuickControls = false
+                                }
+                                true
+                            }
+                            RemoteKey.VOICE -> {
+                                if (isInitialPress) {
+                                    if (voiceSearchAvailable) onVoiceSearch()
+                                    else {
+                                        searchActive = true
+                                        selectedDestination = LauncherDestination.APPS
+                                    }
+                                }
+                                true
+                            }
+                            RemoteKey.RED -> {
+                                if (isInitialPress) {
+                                    showQuickControls = false
+                                    showWallpaperSettings = true
+                                }
+                                true
+                            }
+                            RemoteKey.GREEN -> {
+                                if (isInitialPress) onOpenSettings()
+                                true
+                            }
+                            RemoteKey.YELLOW -> {
+                                if (isInitialPress) onRefreshApps()
+                                true
+                            }
+                            // BACK remains owned by BackHandler. Other media/channel keys
+                            // are not consumed by the launcher.
+                            else -> false
+                        }
+                    } else {
+                        false
+                    }
+
                     lastUserInteraction = System.currentTimeMillis()
                     showSmartScreensaver = false
-                    false
+                    handledRemoteKey
                 }
         ) {
             RoyalBackdrop(

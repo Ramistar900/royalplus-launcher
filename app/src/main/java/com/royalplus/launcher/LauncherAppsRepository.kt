@@ -6,13 +6,33 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.os.SystemClock
 
 internal object LauncherAppsRepository {
+    private const val CACHE_TTL_MILLIS = 10_000L
+
+    @Volatile
+    private var cachedApps: List<LauncherApp>? = null
+    @Volatile
+    private var cachedForPackage: String? = null
+    @Volatile
+    private var cachedAtElapsedMillis = 0L
+
     @Suppress("DEPRECATION")
+    @Synchronized
     fun load(
         packageManager: PackageManager,
-        ownPackageName: String
+        ownPackageName: String,
+        forceRefresh: Boolean = false
     ): List<LauncherApp> {
+        val now = SystemClock.elapsedRealtime()
+        if (
+            !forceRefresh &&
+            cachedForPackage == ownPackageName &&
+            now - cachedAtElapsedMillis < CACHE_TTL_MILLIS
+        ) {
+            cachedApps?.let { return it }
+        }
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val leanbackIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
 
@@ -27,7 +47,7 @@ internal object LauncherAppsRepository {
                 "${activity.packageName}/${activity.name}"
             }
 
-        return activities
+        val loadedApps = activities
             .mapNotNull { info ->
                 val activity = info.activityInfo ?: return@mapNotNull null
                 val appPackageName = activity.packageName
@@ -47,6 +67,19 @@ internal object LauncherAppsRepository {
             }
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase() }
+            .toList()
+
+        cachedForPackage = ownPackageName
+        cachedAtElapsedMillis = SystemClock.elapsedRealtime()
+        cachedApps = loadedApps
+        return loadedApps
+    }
+
+    @Synchronized
+    fun invalidate() {
+        cachedApps = null
+        cachedForPackage = null
+        cachedAtElapsedMillis = 0L
     }
 
     private fun loadIconBitmap(
