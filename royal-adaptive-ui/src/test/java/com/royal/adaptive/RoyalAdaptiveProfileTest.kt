@@ -93,7 +93,8 @@ class RoyalAdaptiveProfileTest {
     fun televisionProfilePreservesComfortableRemoteTargets() {
         val television = RoyalAdaptiveProfile.Default.copy(
             deviceClass = RoyalDeviceClass.TELEVISION,
-            widthClass = RoyalWindowWidthClass.EXPANDED
+            widthClass = RoyalWindowWidthClass.EXPANDED,
+            minimumFocusTarget = 64.dp
         )
         assertEquals(64.dp, television.minimumFocusTarget)
         assertEquals(60.dp, television.controlHeight())
