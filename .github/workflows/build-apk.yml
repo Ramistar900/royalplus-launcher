@@ -192,11 +192,13 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Smoke test on Android 8 (API 26)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 26
           arch: x86_64
           profile: Nexus 6
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
