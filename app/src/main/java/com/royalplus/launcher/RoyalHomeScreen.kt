@@ -1812,18 +1812,13 @@ private fun HomeDashboard(
                     AppTile(app, Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
                         highlighted, iconStyle, onAppFocused, { onLaunchApp(app) }, { onManageApp(app) })
                 }
-            }
-            Spacer(Modifier.height(18.dp))
-            Row(
-                Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MuslimLauncherCard(
-                    modifier = Modifier.width(176.dp).fillMaxHeight(),
-                    language = selectedLanguage,
-                    onClick = { onNavigate(LauncherDestination.MUSLIM) }
-                )
+                item(key = "royal_muslim_section") {
+                    MuslimLauncherCard(
+                        modifier = Modifier.width(favoriteTileWidth.coerceAtLeast(88.dp)).height(favoriteHeight - 4.dp),
+                        language = selectedLanguage,
+                        onClick = { onNavigate(LauncherDestination.MUSLIM) }
+                    )
+                }
             }
         }
         // Draw the greeting last so it stays visible above the banner, only during Ramadan.
