@@ -288,7 +288,7 @@ class MainActivity : ComponentActivity() {
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: checking default launcher")
         isDefaultHome = isRoyalPlusDefaultHome()
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: scheduling background app scan")
-        loadInstalledApps(forceRefresh = false)
+        loadInstalledApps(forceRefresh = true)
         RoyalAdhanScheduler.scheduleNext(this)
     }
 

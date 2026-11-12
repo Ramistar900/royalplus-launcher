@@ -139,8 +139,8 @@ jobs:
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 
-      - name: Run adaptive display unit tests
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest
+      - name: Run launcher and adaptive display unit tests
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
