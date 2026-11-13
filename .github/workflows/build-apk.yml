@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "feature/royalplus-sports-integration" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/feature/royalplus-sports-integration'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -139,6 +139,9 @@ jobs:
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 
+      - name: Verify bundled V21 animated weather icons
+        run: python3 .github/scripts/verify-v21-weather-icons.py
+
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
 
@@ -181,28 +184,38 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Smoke test on Android 8 (API 26)
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 26
-          arch: x86_64
-          profile: Nexus 6
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          script: bash .github/scripts/android8-smoke-test.sh
-
       - name: Smoke test on Android 7 (API 24)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 7 (API 24)
+          EXPECTED_API_LEVEL: "24"
         with:
           api-level: 24
           arch: x86_64
           profile: Nexus 6
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: bash .github/scripts/android7-smoke-test.sh
+          script: bash .github/scripts/android8-smoke-test.sh
+
+      - name: Smoke test on Android 8 (API 26)
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 8 (API 26)
+          EXPECTED_API_LEVEL: "26"
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/feature/royalplus-sports-integration')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -227,37 +240,18 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          if [[ "$GITHUB_REF" == "refs/heads/feature/royalplus-sports-integration" ]]; then
-            TAG="royalplus-sports-test"
-            TITLE="ROYAL+ Sports Integration • Test APKs"
-          else
-            TAG="royalplus-test-installers"
-            TITLE="ROYAL+ Launcher • Latest Test Installers"
-          fi
-          NOTES="Architecture-specific, minified test APKs built from commit ${GITHUB_SHA} after Android 7 (API 24) and Android 8 (API 26) smoke tests passed.
+          TAG="royalplus-test-installers"
+          TITLE="ROYAL+ Launcher • Latest Test Installers"
+          NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after the Android 8 (API 26) smoke test passed.
 
-          - royalplus-arm64-v8a-test.apk — for 64-bit ARM Android TVs and devices.
-          - royalplus-armeabi-v7a-test.apk — for 32-bit ARM Android 7/8 TVs and devices.
+          1. royalplus-debug.apk — debug test build, package com.royalplus.launcher.debug.
+          2. royalplus-release-test.apk — minified universal test build, package com.royalplus.launcher.test.
 
-          Choose the APK matching the device CPU architecture. These test builds use package com.royalplus.launcher.test and do not overwrite the production app. This is an unpublished test draft, not a production release."
+          Both variants use separate test package IDs, so they can be installed alongside each other and do not overwrite the production app. This is an unpublished test draft, not a production release."
 
-          ARM64_APK="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*arm64-v8a*release.apk' | head -n 1)"
-          ARM32_APK="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*armeabi-v7a*release.apk' | head -n 1)"
-          test -s "$ARM64_APK"
-          test -s "$ARM32_APK"
-          cp "$ARM64_APK" "$RUNNER_TEMP/royalplus-test-apks/royalplus-arm64-v8a-test.apk"
-          cp "$ARM32_APK" "$RUNNER_TEMP/royalplus-test-apks/royalplus-armeabi-v7a-test.apk"
-
-          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
-          test -n "$AAPT"
-          test -n "$APKSIGNER"
-          for APK in "$RUNNER_TEMP/royalplus-test-apks/royalplus-arm64-v8a-test.apk" "$RUNNER_TEMP/royalplus-test-apks/royalplus-armeabi-v7a-test.apk"; do
-            PACKAGE="$("$AAPT" dump badging "$APK" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
-            test "$PACKAGE" = "com.royalplus.launcher.test"
-            "$APKSIGNER" verify --verbose "$APK"
-            sha256sum "$APK"
-          done
+          DEBUG_UPLOAD="$RUNNER_TEMP/royalplus-test-apks/royalplus-debug.apk"
+          cp "$DEBUG_APK" "$DEBUG_UPLOAD"
+          test -s "$DEBUG_UPLOAD"
 
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
@@ -265,38 +259,35 @@ jobs:
               echo "::error::Refusing to overwrite an already published release."
               exit 1
             fi
-            # Remove previous universal/debug APKs so users cannot accidentally install the oversized package.
-            for OLD_ASSET in app-debug.apk royalplus-debug.apk royalplus-release-test.apk; do
-              gh release delete-asset "$TAG" "$OLD_ASSET" --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
-            done
+            # Older runs uploaded app-debug.apk and used the requested filename as a label.
+            gh release delete-asset "$TAG" app-debug.apk --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
             gh release upload "$TAG" \
-              "$RUNNER_TEMP/royalplus-test-apks/royalplus-arm64-v8a-test.apk" \
-              "$RUNNER_TEMP/royalplus-test-apks/royalplus-armeabi-v7a-test.apk" \
+              "$DEBUG_UPLOAD" \
+              "$RELEASE_APK" \
               --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
             gh release create "$TAG" \
-              "$RUNNER_TEMP/royalplus-test-apks/royalplus-arm64-v8a-test.apk" \
-              "$RUNNER_TEMP/royalplus-test-apks/royalplus-armeabi-v7a-test.apk" \
+              "$DEBUG_UPLOAD" \
+              "$RELEASE_APK" \
               --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" \
               --notes "$NOTES" --target "$GITHUB_SHA"
           fi
 
           ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | sort | join(",")')"
-          EXPECTED="royalplus-arm64-v8a-test.apk,royalplus-armeabi-v7a-test.apk"
+          EXPECTED="royalplus-debug.apk,royalplus-release-test.apk"
           if [[ "$ASSETS" != "$EXPECTED" ]]; then
-            echo "::error::Expected the two ARM architecture APK assets; found: $ASSETS"
+            echo "::error::Expected both installable APK assets; found: $ASSETS"
             exit 1
           fi
 
           RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
           {
-            echo "### ROYAL+ compact architecture-specific test APKs are ready"
+            echo "### ROYAL+ test APKs are ready"
             echo
-            echo "- [Download 64-bit ARM APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-arm64-v8a-test.apk)"
-            echo "- [Download 32-bit ARM APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-armeabi-v7a-test.apk)"
+            echo "- [Download debug APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-debug.apk)"
+            echo "- [Download minified test APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-release-test.apk)"
             echo
-            echo "Choose the APK matching the TV/device CPU architecture."
             echo "Draft release: $RELEASE_URL"
             echo "Source commit: ${GITHUB_SHA}"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -492,12 +483,31 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Smoke test on Android 8 (API 26)
+      - name: Smoke test on Android 7 (API 24)
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 7 (API 24)
+          EXPECTED_API_LEVEL: "24"
+        with:
+          api-level: 24
+          arch: x86_64
+          profile: Nexus 6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/android8-smoke-test.sh
+
+      - name: Smoke test on Android 8 (API 26)
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_TEST_LABEL: Android 8 (API 26)
+          EXPECTED_API_LEVEL: "26"
         with:
           api-level: 26
           arch: x86_64
           profile: Nexus 6
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
