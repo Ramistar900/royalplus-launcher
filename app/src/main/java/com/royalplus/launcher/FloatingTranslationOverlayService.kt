@@ -22,6 +22,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Process
+import android.util.Log
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -145,15 +146,29 @@ class FloatingTranslationOverlayService : Service() {
             }
             recognizer = engine
             decodeThread = Thread({ decodeAudioSegments() }, "RoyalWhisperDecode").apply { start() }
+        } catch (error: OutOfMemoryError) {
+            reportRecognizerInitializationFailure(error)
+        } catch (error: LinkageError) {
+            reportRecognizerInitializationFailure(error)
         } catch (error: Exception) {
-            if (running.get()) {
-                updateStatus(
-                    if (error is InterruptedException) "تم إيقاف تجهيز الترجمة"
-                    else "تعذر تجهيز المحرك: ${error.localizedMessage ?: "تحقق من الإنترنت والمساحة"}"
-                )
-                mainHandler.postDelayed({ stopSelf() }, 4_000L)
+            if (error is InterruptedException) {
+                if (running.get()) updateStatus("تم إيقاف تجهيز الترجمة")
+            } else {
+                reportRecognizerInitializationFailure(error)
             }
         }
+    }
+
+    private fun reportRecognizerInitializationFailure(error: Throwable) {
+        if (!running.get()) return
+        Log.e(TAG, "Whisper recognizer initialization failed", error)
+        val detail = when (error) {
+            is OutOfMemoryError -> "ذاكرة الجهاز لا تكفي لتهيئة نموذج الصوت. أغلق التطبيقات الأخرى ثم أعد المحاولة."
+            is LinkageError -> "تعذر تحميل مكتبة المحرك الأصلية لهذا الجهاز: ${error.javaClass.simpleName}"
+            else -> "${error.javaClass.simpleName}: ${error.localizedMessage ?: "لا توجد تفاصيل إضافية"}"
+        }
+        updateStatus("تعذر تجهيز محرك الترجمة: $detail")
+        mainHandler.postDelayed({ if (running.get()) stopSelf() }, 9_000L)
     }
 
     private fun startAudioCapture(): Boolean {
@@ -834,6 +849,7 @@ class FloatingTranslationOverlayService : Service() {
         const val KEY_ENABLED = "floating_translation_overlay_enabled"
         const val EXTRA_PROJECTION_RESULT_CODE = "royal_projection_result_code"
         const val EXTRA_PROJECTION_DATA = "royal_projection_result_data"
+        private const val TAG = "RoyalTranslation"
         private const val CHANNEL_ID = "royal_translation_overlay"
         private const val NOTIFICATION_ID = 4101
         private const val CAPTION_DISPLAY_MILLIS = 5_000L
