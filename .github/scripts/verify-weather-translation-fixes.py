@@ -3,6 +3,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 JAVA = ROOT / "app/src/main/java/com/royalplus/launcher"
+GRADLE = ROOT / "app/build.gradle.kts"
+PROGUARD = ROOT / "app/proguard-rules.pro"
+
+gradle = GRADLE.read_text(encoding="utf-8")
+proguard = PROGUARD.read_text(encoding="utf-8")
+assert "proguard-rules.pro" in gradle, "Release must load the app ProGuard rules"
+assert "-keep class com.k2fsa.sherpa.onnx.** { *; }" in proguard
+assert "-keep interface com.k2fsa.sherpa.onnx.** { *; }" in proguard
 
 weather = (JAVA / "RoyalWeatherAtmosphereOverlay.kt").read_text(encoding="utf-8")
 rain_guard = weather.split("if (isRainScene) {", 1)[1].split("return@Canvas", 1)[0]
