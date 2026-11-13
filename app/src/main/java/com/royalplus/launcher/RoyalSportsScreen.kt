@@ -652,7 +652,7 @@ private fun SportsCategoryStrip(language: String) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                Image(
+                RoyalSportsV20AnimatedIcon(
                     fileName = category.iconFileName,
                     contentDescription = label,
                     modifier = Modifier.size(36.dp)
