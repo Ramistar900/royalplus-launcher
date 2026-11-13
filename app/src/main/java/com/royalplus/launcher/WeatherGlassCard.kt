@@ -141,6 +141,13 @@ internal fun WeatherGlassCard(
     }
     val hour = currentTime.substringBefore(":").toIntOrNull()
     val isNight = hour != null && (hour >= 19 || hour < 6)
+    val currentWeatherIcon = RoyalV21WeatherIconResolver.resolve(
+        weatherCode = weather.weatherCode,
+        description = weather.description,
+        apparentTemperatureC = weather.apparentTemperatureC,
+        windSpeedKmh = weather.windSpeedKmh,
+        hour = hour
+    )
     val imageRes = when (visual) {
         WeatherVisual.SUNNY -> if (isNight) R.drawable.weather_clear_night else if (hour != null && hour in 17..18) R.drawable.weather_sunset else R.drawable.weather_clear_day
         WeatherVisual.CLOUDY -> if (isNight) R.drawable.weather_partly_cloudy_night else R.drawable.weather_partly_cloudy_day
@@ -190,26 +197,36 @@ internal fun WeatherGlassCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = weather.temperatureC?.let { "$it°C" } ?: if (weather.isLoading) "…" else "—°C",
-                color = Color.White,
-                fontSize = if (adaptiveProfile.isPhone) 19.sp else if (adaptiveProfile.isTelevision) 26.sp else 23.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
-            Text(
-                text = when {
-                    weather.isLoading -> when (language) { "en" -> "Updating weather"; "tr" -> "Hava durumu güncelleniyor"; else -> "جارٍ تحديث الطقس" }
-                    weather.needsPermission -> when (language) { "en" -> "Location required for weather"; "tr" -> "Hava durumu için konum gerekli"; else -> "الموقع مطلوب لعرض الطقس" }
-                    else -> localizedDescription
-                },
-                color = Color.White.copy(alpha = 0.96f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                RoyalV21WeatherAnimatedIcon(
+                    icon = currentWeatherIcon,
+                    modifier = Modifier.size(if (adaptiveProfile.isPhone) 34.dp else if (adaptiveProfile.isTelevision) 50.dp else 42.dp),
+                    motionEnabled = motionEnabled,
+                    contentDescription = localizedDescription
+                )
+                Column(horizontalAlignment = Alignment.Start) {
+                    Text(
+                        text = weather.temperatureC?.let { "$it°C" } ?: if (weather.isLoading) "…" else "—°C",
+                        color = Color.White,
+                        fontSize = if (adaptiveProfile.isPhone) 19.sp else if (adaptiveProfile.isTelevision) 26.sp else 23.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = when {
+                            weather.isLoading -> when (language) { "en" -> "Updating weather"; "tr" -> "Hava durumu güncelleniyor"; else -> "جارٍ تحديث الطقس" }
+                            weather.needsPermission -> when (language) { "en" -> "Location required for weather"; "tr" -> "Hava durumu için konum gerekli"; else -> "الموقع مطلوب لعرض الطقس" }
+                            else -> localizedDescription
+                        },
+                        color = Color.White.copy(alpha = 0.96f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
             Text(
                 text = weather.city,
                 color = Color.White.copy(alpha = 0.86f),

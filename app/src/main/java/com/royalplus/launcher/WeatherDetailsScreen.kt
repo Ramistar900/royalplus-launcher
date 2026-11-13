@@ -119,6 +119,13 @@ internal fun WeatherDetailsScreen(
         SimpleDateFormat("H", Locale.US).apply { timeZone = zone }.format(Date(currentTimeMillis)).toIntOrNull() ?: 12
     }
     val night = hour >= 19 || hour < 6
+    val currentWeatherIcon = RoyalV21WeatherIconResolver.resolve(
+        weatherCode = weather.weatherCode,
+        description = weather.description,
+        apparentTemperatureC = weather.apparentTemperatureC,
+        windSpeedKmh = weather.windSpeedKmh,
+        hour = hour
+    )
     val backgroundRes = when (weather.weatherCode) {
         0, 1 -> if (night) R.drawable.weather_clear_night else if (hour in 17..18) R.drawable.weather_sunset else R.drawable.weather_clear_day
         2 -> if (night) R.drawable.weather_partly_cloudy_night else R.drawable.weather_partly_cloudy_day
@@ -311,7 +318,12 @@ internal fun WeatherDetailsScreen(
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text(weatherSymbol(weather.weatherCode), fontSize = if (adaptiveProfile.isPhone) 34.sp else 48.sp)
+                        RoyalV21WeatherAnimatedIcon(
+                            icon = currentWeatherIcon,
+                            modifier = Modifier.size(if (adaptiveProfile.isPhone) 50.dp else 68.dp),
+                            motionEnabled = motionEnabled,
+                            contentDescription = weather.description
+                        )
                         Column {
                             Text(weather.description, color = Color.White, fontSize = 18.sp, maxLines = 1)
                             Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = if (adaptiveProfile.isPhone) 30.sp else 38.sp, fontWeight = FontWeight.Bold)
@@ -414,7 +426,6 @@ internal fun WeatherDetailsScreen(
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
                             Text(if (language == "en") "5-day forecast" else if (language == "tr") "5 günlük hava durumu" else "حالة الطقس - 5 أيام", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(8.dp))
-                            Text(weatherSymbol(weather.weatherCode), fontSize = 20.sp)
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -428,7 +439,17 @@ internal fun WeatherDetailsScreen(
                                     }
                                     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = 0.12f)).border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(17.dp)).padding(horizontal = 5.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
                                         Text(dayLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(weatherSymbol(day.weatherCode), fontSize = 29.sp)
+                                        RoyalV21WeatherAnimatedIcon(
+                                            icon = RoyalV21WeatherIconResolver.resolve(
+                                                weatherCode = day.weatherCode,
+                                                description = weatherDescriptionFor(day.weatherCode, language),
+                                                apparentTemperatureC = (day.maxTemperatureC + day.minTemperatureC) / 2,
+                                                hour = 12
+                                            ),
+                                            modifier = Modifier.size(42.dp),
+                                            motionEnabled = motionEnabled,
+                                            contentDescription = weatherDescriptionFor(day.weatherCode, language)
+                                        )
                                         Text(weatherDescriptionFor(day.weatherCode, language), color = Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(day.maxTemperatureC.toString() + "° / " + day.minTemperatureC + "°", color = Color.White, fontSize = 13.sp, maxLines = 1)
                                     }
@@ -452,25 +473,21 @@ internal fun WeatherDetailsScreen(
     }
 }
 
-private fun weatherSymbol(code: Int?): String = when (code) {
-    0 -> "☀️"
-    1, 2 -> "🌤️"
-    3 -> "☁️"
-    45, 48 -> "🌫️"
-    in 51..67, in 80..82 -> "🌧️"
-    in 71..77, 85, 86 -> "❄️"
-    in 95..99 -> "⛈️"
-    else -> "🌤️"
-}
-
 private fun weatherDescriptionFor(code: Int, language: String): String = when (code) {
     0 -> if (language == "en") "Clear" else if (language == "tr") "Açık" else "صحو"
-    1, 2 -> if (language == "en") "Cloudy" else if (language == "tr") "Bulutlu" else "غائم جزئياً"
-    3 -> if (language == "en") "Overcast" else if (language == "tr") "Kapalı" else "غائم"
+    1 -> if (language == "en") "Mainly clear" else if (language == "tr") "Az bulutlu" else "صحو غالباً"
+    2 -> if (language == "en") "Partly cloudy" else if (language == "tr") "Parçalı bulutlu" else "غائم جزئياً"
+    3 -> if (language == "en") "Overcast" else if (language == "tr") "Kapalı" else "غائم كلياً"
     45, 48 -> if (language == "en") "Fog" else if (language == "tr") "Sis" else "ضباب"
-    in 51..67, in 80..82 -> if (language == "en") "Rain" else if (language == "tr") "Yağmur" else "مطر"
-    in 71..77, 85, 86 -> if (language == "en") "Snow" else if (language == "tr") "Kar" else "ثلج"
-    in 95..99 -> if (language == "en") "Storm" else if (language == "tr") "Fırtına" else "عاصفة"
+    51, 53, 55 -> if (language == "en") "Drizzle" else if (language == "tr") "Çisenti" else "رذاذ"
+    56, 57 -> if (language == "en") "Freezing drizzle" else if (language == "tr") "Donan çisenti" else "رذاذ متجمد"
+    61, 63, 80, 81 -> if (language == "en") "Rain" else if (language == "tr") "Yağmur" else "مطر"
+    65, 82 -> if (language == "en") "Heavy rain" else if (language == "tr") "Kuvvetli yağmur" else "أمطار غزيرة"
+    66, 67 -> if (language == "en") "Freezing rain" else if (language == "tr") "Donan yağmur" else "مطر متجمد"
+    71, 73, 77, 85 -> if (language == "en") "Snow" else if (language == "tr") "Kar" else "ثلج"
+    75, 86 -> if (language == "en") "Heavy snow" else if (language == "tr") "Yoğun kar" else "ثلوج كثيفة"
+    95 -> if (language == "en") "Thunderstorm" else if (language == "tr") "Gök gürültülü fırtına" else "عاصفة رعدية"
+    96, 99 -> if (language == "en") "Thunderstorm with hail" else if (language == "tr") "Dolu ve gök gürültülü fırtına" else "عاصفة رعدية مع بَرَد"
     else -> if (language == "en") "Weather" else if (language == "tr") "Hava" else "الطقس"
 }
 
