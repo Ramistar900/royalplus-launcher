@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SportsSoccer
+import androidx.compose.material.icons.rounded.SportsBasketball
+import androidx.compose.material.icons.rounded.SportsTennis
+import androidx.compose.material.icons.rounded.SportsVolleyball
+import androidx.compose.material.icons.rounded.SportsHandball
+import androidx.compose.material.icons.rounded.SportsGymnastics
+import androidx.compose.material.icons.rounded.SportsMotorsports
+import androidx.compose.material.icons.rounded.SportsMma
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -547,7 +557,9 @@ internal fun RoyalSportsScreen(language: String) {
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.SCHEDULE }
         }
-        Spacer(Modifier.height(11.dp))
+        Spacer(Modifier.height(10.dp))
+        SportsCategoryStrip(language = language)
+        Spacer(Modifier.height(10.dp))
 
         val result = loaded
         if (result?.stale == true) {
@@ -600,6 +612,93 @@ internal fun RoyalSportsScreen(language: String) {
         }
     }
     }
+}
+
+private data class RoyalSportsCategory(
+    val icon: ImageVector,
+    val arabicName: String,
+    val turkishName: String,
+    val englishName: String,
+    val available: Boolean = false
+)
+
+@Composable
+private fun SportsCategoryStrip(language: String) {
+    val arabic = language == "ar"
+    val turkish = language == "tr"
+    val categories = listOf(
+        RoyalSportsCategory(Icons.Rounded.SportsSoccer, "كرة القدم", "Futbol", "Football", available = true),
+        RoyalSportsCategory(Icons.Rounded.SportsBasketball, "كرة السلة", "Basketbol", "Basketball"),
+        RoyalSportsCategory(Icons.Rounded.SportsTennis, "التنس", "Tenis", "Tennis"),
+        RoyalSportsCategory(Icons.Rounded.SportsVolleyball, "الكرة الطائرة", "Voleybol", "Volleyball"),
+        RoyalSportsCategory(Icons.Rounded.SportsHandball, "كرة اليد", "Hentbol", "Handball"),
+        RoyalSportsCategory(Icons.Rounded.SportsGymnastics, "الجمباز", "Jimnastik", "Gymnastics"),
+        RoyalSportsCategory(Icons.Rounded.SportsMotorsports, "رياضة المحركات", "Motor sporları", "Motorsports"),
+        RoyalSportsCategory(Icons.Rounded.SportsMma, "الفنون القتالية", "Dövüş sporları", "Martial arts")
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        categories.forEach { category ->
+            val selected = category.available
+            val label = when {
+                arabic -> category.arabicName
+                turkish -> category.turkishName
+                else -> category.englishName
+            }
+            Column(
+                modifier = Modifier.width(82.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (selected) Color(0xFF3A2D17) else Color(0x66171D27))
+                    .border(
+                        1.dp,
+                        if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.16f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 5.dp, vertical = 7.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Icon(
+                    imageVector = category.icon,
+                    contentDescription = label,
+                    tint = if (selected) RoyalColors.Gold else RoyalColors.Muted,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    label,
+                    color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                    fontSize = 9.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!selected) {
+                    Text(
+                        when {
+                            arabic -> "قريباً"
+                            turkish -> "Yakında"
+                            else -> "Soon"
+                        },
+                        color = RoyalColors.Muted,
+                        fontSize = 8.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+    Text(
+        when {
+            arabic -> "بيانات المباريات والنتائج متاحة حالياً لكرة القدم فقط."
+            turkish -> "Maç ve sonuç verileri şu anda yalnızca futbol için kullanılabilir."
+            else -> "Live match and result data is currently available for football only."
+        },
+        color = RoyalColors.Muted,
+        fontSize = 9.sp,
+        modifier = Modifier.padding(top = 5.dp)
+    )
 }
 
 @Composable
