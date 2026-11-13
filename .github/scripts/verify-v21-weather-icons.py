@@ -32,6 +32,9 @@ assert "file:///android_asset/weather_v21/" in component
 glass = (KOTLIN / "WeatherGlassCard.kt").read_text(encoding="utf-8")
 details = (KOTLIN / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
 assert "RoyalV21WeatherAnimatedIcon(" in glass and "RoyalV21WeatherAnimatedIcon(" in details
+assert "weatherFallbackVector(icon)" in component
+assert "Native Compose artwork stays visible" in component
+assert "AndroidView(" in component and "Box(" in component
 assert "weatherSymbol(" not in details, "Old emoji weather helper remains"
 
 gradle = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
