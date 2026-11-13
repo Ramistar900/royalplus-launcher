@@ -32,15 +32,15 @@ assert "/functions/v1/royalplus-sports" in sports
 # Sports must be a first-party launcher destination; weather, audio and wallpapers are not replaced.
 assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in home
 assert "Icons.Rounded.SportsSoccer" in home
-sports_assets = ROOT / "app/src/main/res/drawable-nodpi"
+sports_assets = ROOT / "app/src/main/assets/sports_v20"
 for icon in ("football", "basketball", "tennis", "volleyball", "cricket",
              "today_matches", "fixtures"):
-    asset = sports_assets / f"royal_sports_{icon}.webp"
-    assert asset.is_file(), f"Missing ROYAL DESIGN V20 asset: {asset.name}"
-    assert f"R.drawable.royal_sports_{icon}" in sports, f"Unbound sports asset: {icon}"
-assert "painterResource(id = category.iconRes)" in sports
-assert "painterResource(id = iconRes)" in sports
+    asset = sports_assets / f"{icon}.svg"
+    assert asset.is_file(), f"Missing bundled ROYAL DESIGN V20 SVG: {asset.name}"
+    assert f'"{icon}.svg"' in sports, f"Unbound V20 sports asset: {icon}"
+assert "RoyalSportsV20AnimatedIcon(" in sports
 assert "SportsCategoryStrip(language = language)" in sports
+assert "painterResource" not in sports
 assert "available = true" in sports
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert "minSdk = 23" in gradle
