@@ -1,10 +1,12 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import android.graphics.Color as AndroidColor
+import android.view.View
+import android.webkit.WebView
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -538,13 +541,13 @@ internal fun RoyalSportsScreen(language: String) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             SportsTabButton(
                 label = matchesLabel,
-                iconRes = R.drawable.royal_sports_today_matches,
+                iconFileName = "today_matches.svg",
                 selected = selectedTab == RoyalSportsTab.MATCHES,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.MATCHES }
             SportsTabButton(
                 label = scheduleLabel,
-                iconRes = R.drawable.royal_sports_fixtures,
+                iconFileName = "fixtures.svg",
                 selected = selectedTab == RoyalSportsTab.SCHEDULE,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.SCHEDULE }
@@ -607,7 +610,7 @@ internal fun RoyalSportsScreen(language: String) {
 }
 
 private data class RoyalSportsCategory(
-    val iconRes: Int,
+    val iconFileName: String,
     val arabicName: String,
     val turkishName: String,
     val englishName: String,
@@ -619,11 +622,11 @@ private fun SportsCategoryStrip(language: String) {
     val arabic = language == "ar"
     val turkish = language == "tr"
     val categories = listOf(
-        RoyalSportsCategory(R.drawable.royal_sports_football, "كرة القدم", "Futbol", "Football", available = true),
-        RoyalSportsCategory(R.drawable.royal_sports_basketball, "كرة السلة", "Basketbol", "Basketball"),
-        RoyalSportsCategory(R.drawable.royal_sports_tennis, "التنس", "Tenis", "Tennis"),
-        RoyalSportsCategory(R.drawable.royal_sports_volleyball, "الكرة الطائرة", "Voleybol", "Volleyball"),
-        RoyalSportsCategory(R.drawable.royal_sports_cricket, "الكريكيت", "Kriket", "Cricket")
+        RoyalSportsCategory("football.svg", "كرة القدم", "Futbol", "Football", available = true),
+        RoyalSportsCategory("basketball.svg", "كرة السلة", "Basketbol", "Basketball"),
+        RoyalSportsCategory("tennis.svg", "التنس", "Tenis", "Tennis"),
+        RoyalSportsCategory("volleyball.svg", "الكرة الطائرة", "Voleybol", "Volleyball"),
+        RoyalSportsCategory("cricket.svg", "الكريكيت", "Kriket", "Cricket")
     )
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -650,7 +653,7 @@ private fun SportsCategoryStrip(language: String) {
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Image(
-                    painter = painterResource(id = category.iconRes),
+                    fileName = category.iconFileName,
                     contentDescription = label,
                     modifier = Modifier.size(36.dp)
                 )
@@ -690,9 +693,66 @@ private fun SportsCategoryStrip(language: String) {
 }
 
 @Composable
+private fun RoyalSportsV20AnimatedIcon(
+    fileName: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        // Keep a native icon visible when a TV WebView cannot render animated SVG.
+        Icon(
+            imageVector = Icons.Rounded.SportsSoccer,
+            contentDescription = contentDescription,
+            tint = RoyalColors.Gold,
+            modifier = Modifier.fillMaxSize().padding(1.dp)
+        )
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                WebView(context).apply {
+                    setBackgroundColor(AndroidColor.TRANSPARENT)
+                    settings.javaScriptEnabled = false
+                    settings.domStorageEnabled = false
+                    settings.allowFileAccess = true
+                    settings.allowContentAccess = false
+                    settings.blockNetworkLoads = true
+                    isHorizontalScrollBarEnabled = false
+                    isVerticalScrollBarEnabled = false
+                    overScrollMode = View.OVER_SCROLL_NEVER
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                }
+            },
+            update = { webView ->
+                if (webView.tag != fileName) {
+                    webView.tag = fileName
+                    val html = """
+                        <!doctype html><html><head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+                        <style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent}
+                        img{display:block;width:100%;height:100%;object-fit:contain}</style>
+                        </head><body><img src="$fileName" alt=""></body></html>
+                    """.trimIndent()
+                    webView.loadDataWithBaseURL(
+                        "file:///android_asset/sports_v20/", html, "text/html", "UTF-8", null
+                    )
+                }
+                webView.onResume()
+            },
+            onRelease = { webView ->
+                webView.stopLoading()
+                webView.onPause()
+                webView.destroy()
+            }
+        )
+    }
+}
+
+@Composable
 private fun SportsTabButton(
     label: String,
-    iconRes: Int,
+    iconFileName: String,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -708,9 +768,9 @@ private fun SportsTabButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Image(
-            painter = painterResource(id = iconRes),
-            contentDescription = null,
+        RoyalSportsV20AnimatedIcon(
+            fileName = iconFileName,
+            contentDescription = label,
             modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.width(6.dp))
