@@ -19,10 +19,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material3.Icon
@@ -534,11 +536,13 @@ internal fun RoyalSportsScreen(language: String) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             SportsTabButton(
                 label = matchesLabel,
+                icon = Icons.Rounded.SportsSoccer,
                 selected = selectedTab == RoyalSportsTab.MATCHES,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.MATCHES }
             SportsTabButton(
                 label = scheduleLabel,
+                icon = Icons.Rounded.CalendarToday,
                 selected = selectedTab == RoyalSportsTab.SCHEDULE,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.SCHEDULE }
@@ -601,20 +605,29 @@ internal fun RoyalSportsScreen(language: String) {
 @Composable
 private fun SportsTabButton(
     label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(13.dp)
-    Box(
+    Row(
         modifier = modifier.clip(shape)
             .background(if (selected) Color(0xFF3A2D17) else Color(0x99171D27))
             .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.18f), shape)
             .clickable(onClick = onClick)
             .focusable()
             .padding(horizontal = 10.dp, vertical = 11.dp),
-        contentAlignment = Alignment.Center
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(Modifier.width(6.dp))
         Text(
             label,
             color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
