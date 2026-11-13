@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,16 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.SportsSoccer
-import androidx.compose.material.icons.rounded.SportsBasketball
-import androidx.compose.material.icons.rounded.SportsTennis
-import androidx.compose.material.icons.rounded.SportsVolleyball
-import androidx.compose.material.icons.rounded.SportsHandball
-import androidx.compose.material.icons.rounded.SportsGymnastics
-import androidx.compose.material.icons.rounded.SportsMotorsports
-import androidx.compose.material.icons.rounded.SportsMma
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,7 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -546,13 +538,13 @@ internal fun RoyalSportsScreen(language: String) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             SportsTabButton(
                 label = matchesLabel,
-                icon = Icons.Rounded.SportsSoccer,
+                iconRes = R.drawable.royal_sports_today_matches,
                 selected = selectedTab == RoyalSportsTab.MATCHES,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.MATCHES }
             SportsTabButton(
                 label = scheduleLabel,
-                icon = Icons.Rounded.CalendarToday,
+                iconRes = R.drawable.royal_sports_fixtures,
                 selected = selectedTab == RoyalSportsTab.SCHEDULE,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.SCHEDULE }
@@ -615,7 +607,7 @@ internal fun RoyalSportsScreen(language: String) {
 }
 
 private data class RoyalSportsCategory(
-    val icon: ImageVector,
+    val iconRes: Int,
     val arabicName: String,
     val turkishName: String,
     val englishName: String,
@@ -627,14 +619,11 @@ private fun SportsCategoryStrip(language: String) {
     val arabic = language == "ar"
     val turkish = language == "tr"
     val categories = listOf(
-        RoyalSportsCategory(Icons.Rounded.SportsSoccer, "كرة القدم", "Futbol", "Football", available = true),
-        RoyalSportsCategory(Icons.Rounded.SportsBasketball, "كرة السلة", "Basketbol", "Basketball"),
-        RoyalSportsCategory(Icons.Rounded.SportsTennis, "التنس", "Tenis", "Tennis"),
-        RoyalSportsCategory(Icons.Rounded.SportsVolleyball, "الكرة الطائرة", "Voleybol", "Volleyball"),
-        RoyalSportsCategory(Icons.Rounded.SportsHandball, "كرة اليد", "Hentbol", "Handball"),
-        RoyalSportsCategory(Icons.Rounded.SportsGymnastics, "الجمباز", "Jimnastik", "Gymnastics"),
-        RoyalSportsCategory(Icons.Rounded.SportsMotorsports, "رياضة المحركات", "Motor sporları", "Motorsports"),
-        RoyalSportsCategory(Icons.Rounded.SportsMma, "الفنون القتالية", "Dövüş sporları", "Martial arts")
+        RoyalSportsCategory(R.drawable.royal_sports_football, "كرة القدم", "Futbol", "Football", available = true),
+        RoyalSportsCategory(R.drawable.royal_sports_basketball, "كرة السلة", "Basketbol", "Basketball"),
+        RoyalSportsCategory(R.drawable.royal_sports_tennis, "التنس", "Tenis", "Tennis"),
+        RoyalSportsCategory(R.drawable.royal_sports_volleyball, "الكرة الطائرة", "Voleybol", "Volleyball"),
+        RoyalSportsCategory(R.drawable.royal_sports_cricket, "الكريكيت", "Kriket", "Cricket")
     )
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -660,11 +649,10 @@ private fun SportsCategoryStrip(language: String) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                Icon(
-                    imageVector = category.icon,
+                Image(
+                    painter = painterResource(id = category.iconRes),
                     contentDescription = label,
-                    tint = if (selected) RoyalColors.Gold else RoyalColors.Muted,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(36.dp)
                 )
                 Text(
                     label,
@@ -704,7 +692,7 @@ private fun SportsCategoryStrip(language: String) {
 @Composable
 private fun SportsTabButton(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconRes: Int,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -720,11 +708,10 @@ private fun SportsTabButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = icon,
+        Image(
+            painter = painterResource(id = iconRes),
             contentDescription = null,
-            tint = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.width(6.dp))
         Text(
