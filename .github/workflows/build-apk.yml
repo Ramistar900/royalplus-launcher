@@ -142,6 +142,9 @@ jobs:
       - name: Verify bundled V21 animated weather icons
         run: python3 .github/scripts/verify-v21-weather-icons.py
 
+      - name: Verify sports integration security and navigation
+        run: python3 .github/scripts/verify-sports-integration.py
+
       - name: Run launcher and adaptive display unit tests
         run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
