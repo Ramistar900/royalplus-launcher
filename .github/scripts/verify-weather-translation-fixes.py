@@ -18,10 +18,12 @@ card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
 smart = (JAVA / "RoyalSmartScreensaver.kt").read_text(encoding="utf-8")
 details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
 assert "RoyalWeatherAtmosphereOverlay(" in card
+assert "RoyalWeatherAtmosphereOverlay(" in smart and "RoyalWeatherAtmosphereOverlay(" in details
 assert "drawClouds = false" in card, "Home weather card must hide only the drawn decorative clouds"
 assert "drawClouds = false" not in smart and "drawClouds = false" not in details
 assert "drawClouds: Boolean = true" in weather
-assert "if (drawClouds) drawRoyalClouds(" in weather
+cloud_calls = [line.strip() for line in weather.splitlines() if "drawRoyalClouds(progress" in line]
+assert len(cloud_calls) == 4 and all(line.startswith("if (drawClouds)") for line in cloud_calls)
 assert "RoyalWeatherAmbienceEffect(weather)" not in card
 assert "RoyalOwlAmbienceEffect(weather)" not in card
 assert "RoyalWeatherAmbienceEffect(weather)" not in smart
