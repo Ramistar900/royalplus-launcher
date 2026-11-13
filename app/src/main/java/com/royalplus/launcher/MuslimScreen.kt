@@ -2,6 +2,7 @@ package com.royalplus.launcher
 
 import com.royal.adaptive.LocalRoyalAdaptiveProfile
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -43,6 +43,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -351,7 +352,12 @@ internal fun MuslimScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
+                Image(
+                    painter = painterResource(R.drawable.prayer_icon),
+                    contentDescription = when (language) { "en" -> "Prayer icon"; "tr" -> "Namaz ikonu"; else -> "أيقونة الصلاة" },
+                    modifier = Modifier.size(adaptiveProfile.iconSize(52.dp)),
+                    contentScale = ContentScale.Fit
+                )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(when (language) { "en" -> "Next prayer"; "tr" -> "Sonraki namaz"; else -> "الصلاة القادمة" }, color = Color.White, fontSize = 11.sp)
