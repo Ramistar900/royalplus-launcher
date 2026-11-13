@@ -18,7 +18,10 @@ card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
 smart = (JAVA / "RoyalSmartScreensaver.kt").read_text(encoding="utf-8")
 details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
 assert "RoyalWeatherAtmosphereOverlay(" in card
-assert "RoyalWeatherAtmosphereOverlay(" in smart
+assert "drawClouds = false" in card, "Home weather card must hide only the drawn decorative clouds"
+assert "drawClouds = false" not in smart and "drawClouds = false" not in details
+assert "drawClouds: Boolean = true" in weather
+assert "if (drawClouds) drawRoyalClouds(" in weather
 assert "RoyalWeatherAmbienceEffect(weather)" not in card
 assert "RoyalOwlAmbienceEffect(weather)" not in card
 assert "RoyalWeatherAmbienceEffect(weather)" not in smart
@@ -31,6 +34,9 @@ assert "foregroundOwner" in ambience and "latestWeather = null" in ambience
 assert "weatherReceivedAtElapsedMs = null" in ambience
 # Audio effects must be owned by the details screen, never by the home card.
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
+assert "reportRecognizerInitializationFailure" in service
+assert "OutOfMemoryError" in service and "LinkageError" in service
+assert "Log.e(TAG, \"Whisper recognizer initialization failed\", error)" in service
 assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "getMediaProjection(" in service and "VOICE_RECOGNITION" in service
 assert "return AudioRecord(" in service
