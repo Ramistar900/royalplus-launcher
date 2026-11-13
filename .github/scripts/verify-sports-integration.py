@@ -32,6 +32,13 @@ assert "/functions/v1/royalplus-sports" in sports
 # Sports must be a first-party launcher destination; weather, audio and wallpapers are not replaced.
 assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in home
 assert "Icons.Rounded.SportsSoccer" in home
+for icon in (
+    "SportsSoccer", "SportsBasketball", "SportsTennis", "SportsVolleyball",
+    "SportsHandball", "SportsGymnastics", "SportsMotorsports", "SportsMma"
+):
+    assert f"Icons.Rounded.{icon}" in sports, f"Missing sports category icon: {icon}"
+assert "SportsCategoryStrip(language = language)" in sports
+assert "available = true" in sports
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert "minSdk = 23" in gradle
 
