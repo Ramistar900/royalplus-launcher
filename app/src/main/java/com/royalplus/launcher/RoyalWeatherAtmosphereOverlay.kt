@@ -39,7 +39,8 @@ internal fun RoyalWeatherAtmosphereOverlay(
     motionEnabled: Boolean,
     windSpeedKmh: Int? = null,
     nightMode: Boolean = false,
-    sunsetMode: Boolean = false
+    sunsetMode: Boolean = false,
+    drawClouds: Boolean = true
 ) {
     val description = weatherDescription.orEmpty().lowercase()
     val descriptionIndicatesRain = listOf("rain", "drizzle", "مطر", "أمطار", "رذاذ", "yağmur", "çisenti")
@@ -99,20 +100,20 @@ internal fun RoyalWeatherAtmosphereOverlay(
                     sunsetMode -> drawRoyalSunset(progress, width, height)
                     else -> drawRoyalSun(progress, width, height, strong = false)
                 }
-                drawRoyalClouds(progress, width, height, count = 2, dense = false)
+                if (drawClouds) drawRoyalClouds(progress, width, height, count = 2, dense = false)
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
             3 -> {
-                drawRoyalClouds(progress, width, height, count = 5, dense = true)
+                if (drawClouds) drawRoyalClouds(progress, width, height, count = 5, dense = true)
                 if (measuredWind >= 18) drawRoyalWind(progress, width, height, windStrength)
             }
             45, 48 -> {
-                drawRoyalClouds(progress, width, height, count = 4, dense = true)
+                if (drawClouds) drawRoyalClouds(progress, width, height, count = 4, dense = true)
                 drawRoyalFog(progress, width, height, dense = effectiveWeatherCode == 48)
                 if (measuredWind >= 24) drawRoyalWind(progress, width, height, windStrength)
             }
             in 71..77, 85, 86 -> {
-                drawRoyalClouds(progress, width, height, count = 4, dense = true)
+                if (drawClouds) drawRoyalClouds(progress, width, height, count = 4, dense = true)
                 val intensity = when (effectiveWeatherCode) {
                     71, 85 -> 1
                     73 -> 2
