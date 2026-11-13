@@ -186,6 +186,7 @@ internal fun WeatherGlassCard(
             weatherCode = weather.weatherCode,
             weatherDescription = weather.description,
             motionEnabled = motionEnabled,
+            drawClouds = false,
             windSpeedKmh = weather.windSpeedKmh,
             nightMode = isNight,
             sunsetMode = hour != null && hour in 17..18
