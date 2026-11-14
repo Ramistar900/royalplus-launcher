@@ -500,7 +500,7 @@ internal fun RoyalSportsScreen(language: String) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            RoyalV20SportsIcon(RoyalV20SportsIconId.FOOTBALL, modifier = Modifier.size(34.dp), contentDescription = title)
+            RoyalV20SportsIcon(RoyalV20SportsIconId.FOOTBALL, modifier = Modifier.size(royalV20SportsIconSize(52.dp)), contentDescription = title)
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
@@ -523,7 +523,7 @@ internal fun RoyalSportsScreen(language: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                RoyalV20SportsIcon(RoyalV20SportsIconId.REPLAY, modifier = Modifier.size(20.dp), contentDescription = refreshLabel)
+                RoyalV20SportsIcon(RoyalV20SportsIconId.REPLAY, modifier = Modifier.size(royalV20SportsIconSize(24.dp)), contentDescription = refreshLabel)
                 Text(refreshLabel, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
         }
@@ -617,7 +617,7 @@ private fun SportsTabButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        RoyalV20SportsIcon(icon = icon, modifier = Modifier.size(22.dp), contentDescription = label)
+        RoyalV20SportsIcon(icon = icon, modifier = Modifier.size(royalV20SportsIconSize(30.dp)), contentDescription = label)
         Spacer(Modifier.width(6.dp))
         Text(
             label,
@@ -706,7 +706,7 @@ private fun SportsFixtureCard(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RoyalV20SportsIcon(statusIcon, modifier = Modifier.size(22.dp), contentDescription = statusText)
+            RoyalV20SportsIcon(statusIcon, modifier = Modifier.size(royalV20SportsIconSize(28.dp)), contentDescription = statusText)
             Text(
                 if (fixture.country.isBlank()) {
                     localizedFootballName(fixture.league, arabic, turkish)
@@ -731,7 +731,7 @@ private fun SportsFixtureCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            RoyalV20SportsIcon(RoyalV20SportsIconId.TEAMS, modifier = Modifier.size(21.dp))
+            RoyalV20SportsIcon(RoyalV20SportsIconId.TEAMS, modifier = Modifier.size(royalV20SportsIconSize(24.dp)))
             Text(
                 localizedFootballName(fixture.homeTeam, arabic, turkish),
                 color = RoyalColors.Pearl,
@@ -741,7 +741,7 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            RoyalV20SportsIcon(RoyalV20SportsIconId.GOAL, modifier = Modifier.size(22.dp), contentDescription = score)
+            RoyalV20SportsIcon(RoyalV20SportsIconId.GOAL, modifier = Modifier.size(royalV20SportsIconSize(26.dp)), contentDescription = score)
             Text(score, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(
                 localizedFootballName(fixture.awayTeam, arabic, turkish),
@@ -752,7 +752,7 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            RoyalV20SportsIcon(RoyalV20SportsIconId.TEAMS, modifier = Modifier.size(21.dp))
+            RoyalV20SportsIcon(RoyalV20SportsIconId.TEAMS, modifier = Modifier.size(royalV20SportsIconSize(24.dp)))
         }
         Spacer(Modifier.height(6.dp))
         Text(statusText, color = RoyalColors.Muted, fontSize = 10.sp)

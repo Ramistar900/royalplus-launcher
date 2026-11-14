@@ -2349,7 +2349,7 @@ private fun SidebarNavItem(
         when {
             sportsIconId != null -> RoyalV20SportsIcon(
                 sportsIconId,
-                modifier = Modifier.size(if (compactPhone) 25.dp else 23.dp),
+                modifier = Modifier.size(royalV20SportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
                 contentDescription = title
             )
             iconRes == null -> {

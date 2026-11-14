@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.WbSunny
@@ -92,17 +91,6 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             )
         )
     }
-    val sportsIconPreferences = remember(context) {
-        context.getSharedPreferences(RoyalV20SportsIconPreferences.PREFERENCES_NAME, Context.MODE_PRIVATE)
-    }
-    var sportsIconsAnimated by remember(sportsIconPreferences) {
-        mutableStateOf(
-            sportsIconPreferences.getBoolean(
-                RoyalV20SportsIconPreferences.KEY_ANIMATED,
-                RoyalV20SportsIconPreferences.DEFAULT_ANIMATED
-            )
-        )
-    }
     val storage = storageSummary(language)
     val connection = connectionSummary(context, language)
     val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
@@ -154,18 +142,6 @@ internal fun RoyalDeviceSettingsSection(language: String) {
         ) {
             weatherIconsAnimated = !weatherIconsAnimated
             RoyalV21WeatherIconPreferences.setAnimated(context, weatherIconsAnimated)
-        }
-        SettingsInfoRow(
-            Icons.Rounded.SportsSoccer,
-            if (language == "en") "V20 sports icon style" else if (language == "tr") "V20 spor simge biçimi" else "نمط أيقونات الرياضة V20",
-            when (language) {
-                "en" -> if (sportsIconsAnimated) "Animated • tap to switch to static" else "Static • tap to enable animation"
-                "tr" -> if (sportsIconsAnimated) "Hareketli • sabit moda geçmek için dokun" else "Sabit • hareketi açmak için dokun"
-                else -> if (sportsIconsAnimated) "متحركة • اضغط للتحويل إلى ثابتة" else "ثابتة • اضغط لتفعيل الحركة"
-            }
-        ) {
-            sportsIconsAnimated = !sportsIconsAnimated
-            RoyalV20SportsIconPreferences.setAnimated(context, sportsIconsAnimated)
         }
         Text(
             if (language == "en") "Nature & weather sounds" else if (language == "tr") "Doğa ve hava sesleri" else "أصوات الطبيعة والطقس",

@@ -40,7 +40,7 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/amiri_regular.ttf --output app/src/main/res/font/amiri_regular.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
 
-      - name: Fetch pinned ROYAL Design V20 sports icon set
+      - name: Fetch pinned ROYAL Design V20 static sports icons
         run: python3 .github/scripts/prepare-v20-sports-icons.py
 
       - name: Download and verify offline Quran text
