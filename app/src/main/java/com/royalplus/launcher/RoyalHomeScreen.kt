@@ -495,9 +495,28 @@ internal fun RoyalHomeScreen(
             modifier = Modifier.fillMaxSize()
                 .pointerInput(Unit) {
                     awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
+                        val down = awaitFirstDown(requireUnconsumed = false)
                         lastUserInteraction = System.currentTimeMillis()
                         showSmartScreensaver = false
+
+                        var deltaX = 0f
+                        var deltaY = 0f
+                        while (true) {
+                            val pointerEvent = awaitPointerEvent()
+                            val change = pointerEvent.changes.firstOrNull { it.id == down.id } ?: break
+                            deltaX = change.position.x - down.position.x
+                            deltaY = change.position.y - down.position.y
+                            if (!change.pressed) break
+                        }
+
+                        val touchSlop = viewConfiguration.touchSlop
+                        if (deltaX * deltaX + deltaY * deltaY >= touchSlop * touchSlop) {
+                            if (kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY)) {
+                                playLauncherUiSound(context, RoyalUiSound.NAV_SWIPE)
+                            } else {
+                                playLauncherUiSound(context, RoyalUiSound.NAV_SCROLL_TICK)
+                            }
+                        }
                     }
                 }
                 .onPreviewKeyEvent { event ->
@@ -514,7 +533,11 @@ internal fun RoyalHomeScreen(
                     if (isKeyDown && latestClickSoundsEnabled.value &&
                         event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
                     ) {
-                        playLauncherUiSound(context, RoyalUiSound.NAV_FOCUS_MOVE)
+                        playLauncherUiSound(
+                            context,
+                            if (adaptiveProfile.isTelevision) RoyalUiSound.NAV_TV_FOCUS
+                            else RoyalUiSound.NAV_FOCUS_MOVE
+                        )
                     }
 
                     val handledRemoteKey = if (isKeyDown) {
@@ -669,8 +692,12 @@ internal fun RoyalHomeScreen(
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
                             onNavigate = { destination ->
+                                if (destination == LauncherDestination.HOME) {
+                                    playLauncherUiSound(context, RoyalUiSound.NAV_HOME)
+                                    searchActive = false
+                                    searchQuery = ""
+                                }
                                 selectedDestination = destination
-                                if (destination == LauncherDestination.HOME) { searchActive = false; searchQuery = "" }
                             },
                             onOpenSettings = { showWallpaperSettings = true }
                         )
