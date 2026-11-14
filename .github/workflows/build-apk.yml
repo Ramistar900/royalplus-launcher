@@ -25,13 +25,20 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Fetch verified ROYAL DESIGN V19 prayer icon
+      - name: Fetch ROYAL Design V19 static Muslim icons only
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/res/drawable
-          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/royal-design/f784e3a1b9bdf350cd30b37f18a86efba023cc7a/preview/royal-design/v19/muslim/static/file_000000001218820a8a39eaae196b66e0.png --output app/src/main/res/drawable/prayer_icon.png
-          echo "39b074c63dde313937f6dc680c2a787b183ba0c458604ca9e1ba1589fe3b84f3  app/src/main/res/drawable/prayer_icon.png" | sha256sum --check
+          ASSET_DIR="app/src/main/assets/muslim_v19/static"
+          BASE_URL="https://raw.githubusercontent.com/Ramistar900/royal-design/f784e3a1b9bdf350cd30b37f18a86efba023cc7a/preview/royal-design/v19/muslim/static"
+          mkdir -p "$ASSET_DIR"
+          for icon in charity dhikr eid evening_azkar fasting hadith hijri_calendar islamic_events morning_azkar mosque prayer_times qibla quran_audio quran_bookmark ramadan tasbih wudu zakat; do
+            curl --fail --location --retry 3 "$BASE_URL/$icon.svg" --output "$ASSET_DIR/$icon.svg"
+          done
+          for icon in file_000000001218820a8a39eaae196b66e0.png file_000000007dc0820aa6c0f334ad42bca4.png quran_icon.png qaris_icon.png; do
+            curl --fail --location --retry 3 "$BASE_URL/$icon" --output "$ASSET_DIR/$icon"
+          done
+          python3 .github/scripts/verify_muslim_v19_static_icons.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -310,13 +317,20 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Fetch verified ROYAL DESIGN V19 prayer icon
+      - name: Fetch ROYAL Design V19 static Muslim icons only
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/res/drawable
-          curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/royal-design/f784e3a1b9bdf350cd30b37f18a86efba023cc7a/preview/royal-design/v19/muslim/static/file_000000001218820a8a39eaae196b66e0.png --output app/src/main/res/drawable/prayer_icon.png
-          echo "39b074c63dde313937f6dc680c2a787b183ba0c458604ca9e1ba1589fe3b84f3  app/src/main/res/drawable/prayer_icon.png" | sha256sum --check
+          ASSET_DIR="app/src/main/assets/muslim_v19/static"
+          BASE_URL="https://raw.githubusercontent.com/Ramistar900/royal-design/f784e3a1b9bdf350cd30b37f18a86efba023cc7a/preview/royal-design/v19/muslim/static"
+          mkdir -p "$ASSET_DIR"
+          for icon in charity dhikr eid evening_azkar fasting hadith hijri_calendar islamic_events morning_azkar mosque prayer_times qibla quran_audio quran_bookmark ramadan tasbih wudu zakat; do
+            curl --fail --location --retry 3 "$BASE_URL/$icon.svg" --output "$ASSET_DIR/$icon.svg"
+          done
+          for icon in file_000000001218820a8a39eaae196b66e0.png file_000000007dc0820aa6c0f334ad42bca4.png quran_icon.png qaris_icon.png; do
+            curl --fail --location --retry 3 "$BASE_URL/$icon" --output "$ASSET_DIR/$icon"
+          done
+          python3 .github/scripts/verify_muslim_v19_static_icons.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v4

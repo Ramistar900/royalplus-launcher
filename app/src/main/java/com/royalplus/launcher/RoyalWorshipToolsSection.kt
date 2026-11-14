@@ -91,16 +91,11 @@ internal fun RoyalWorshipToolsSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    when {
-                        isArabic -> "المسبحة الإلكترونية"
-                        isTurkish -> "Dijital tesbih"
-                        else -> "Digital tasbeeh"
-                    },
-                    color = RoyalColors.Pearl,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RoyalV19MuslimIcon(RoyalV19MuslimIconId.TASBIH, Modifier.size(royalV19MuslimIconSize(34.dp, 46.dp)))
+                    Text(when { isArabic -> "المسبحة الإلكترونية"; isTurkish -> "Dijital tesbih"; else -> "Digital tasbeeh" },
+                        color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
                 Text(
                     tasbeehCount.toString(),
                     color = RoyalColors.Gold,
@@ -153,12 +148,11 @@ internal fun RoyalWorshipToolsSection(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    when { isArabic -> "اتجاه القبلة"; isTurkish -> "Kıble yönü"; else -> "Qibla direction" },
-                    color = RoyalColors.Pearl,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RoyalV19MuslimIcon(RoyalV19MuslimIconId.QIBLA, Modifier.size(royalV19MuslimIconSize(34.dp, 46.dp)))
+                    Text(when { isArabic -> "اتجاه القبلة"; isTurkish -> "Kıble yönü"; else -> "Qibla direction" },
+                        color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
                 if (qiblaBearing == null) {
                     Text(
                         when {
