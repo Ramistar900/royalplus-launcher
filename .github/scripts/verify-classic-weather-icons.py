@@ -22,7 +22,10 @@ assert "RoyalClassicWeatherIcon(" in card
 assert details.count("RoyalClassicWeatherIcon(") >= 2, "Current and forecast icons must use the classic renderer"
 assert "RoyalClassicWeatherIcon(" in screensaver, "Screensaver must use the classic renderer"
 assert "RoyalV21Weather" not in card + details + screensaver + settings + component
-assert "rememberInfiniteTransition" not in component
+# The classic renderer keeps its vector/Canvas artwork while the sun disc rotates.
+assert "rememberInfiniteTransition" in component, "Sun rotation animation must remain enabled"
+assert "animateFloat" in component and "rotationDegrees = sunRotation" in component, "Sun rotation must be wired into the icon renderer"
+assert "rotate(degrees = rotationDegrees, pivot = center)" in component, "The complete sun disc must rotate around its center"
 assert "BitmapFactory" not in component and "SVG.getFromAsset" not in component
 
 # Keep the scenic weather backgrounds and independent atmosphere motion intact.
@@ -37,4 +40,4 @@ for name in (
 assert "RoyalMotionImage(" in card and "RoyalWeatherAtmosphereOverlay(" in card
 assert "RoyalWeatherAtmosphereOverlay(" in details
 
-print("Verified static classic sun/cloud/rain/snow/fog drawings, V21 and 11 PNG icon removal, and preserved weather backgrounds/effects.")
+print("Verified classic Canvas weather artwork, rotating sun disc, V21 and 11 PNG icon removal, and preserved weather backgrounds/effects.")
