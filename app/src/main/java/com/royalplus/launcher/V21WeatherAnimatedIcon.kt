@@ -2,6 +2,7 @@ package com.royalplus.launcher
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas as AndroidCanvas
 import android.util.LruCache
 import androidx.compose.animation.core.LinearEasing
@@ -125,11 +126,26 @@ private object RoyalV21WeatherBitmapCache {
         cache.get(icon.fileName)?.let { return it }
         return synchronized(cache) {
             cache.get(icon.fileName) ?: runCatching {
-                val svg = SVG.getFromAsset(context.assets, "weather_v21/${icon.fileName}")
-                val bitmap = Bitmap.createBitmap(EDGE_PX, EDGE_PX, Bitmap.Config.ARGB_8888)
-                svg.renderToCanvas(AndroidCanvas(bitmap))
-                cache.put(icon.fileName, bitmap)
-                bitmap
+                // Prefer the owner's newly uploaded premium PNG artwork when present.
+                // Keep the original V21 SVG as a safe fallback for icons not uploaded yet.
+                val pngName = "weather_${icon.name.lowercase(java.util.Locale.ROOT)}.png"
+                val bitmap = if (context.assets.list("weather")?.contains(pngName) == true) {
+                    context.assets.open("weather/$pngName").use { input ->
+                        BitmapFactory.decodeStream(input)
+                    } ?: error("Unable to decode $pngName")
+                } else {
+                    val svg = SVG.getFromAsset(context.assets, "weather_v21/${icon.fileName}")
+                    Bitmap.createBitmap(EDGE_PX, EDGE_PX, Bitmap.Config.ARGB_8888).also {
+                        svg.renderToCanvas(AndroidCanvas(it))
+                    }
+                }
+                val fitted = if (bitmap.width > EDGE_PX || bitmap.height > EDGE_PX) {
+                    Bitmap.createScaledBitmap(bitmap, EDGE_PX, EDGE_PX, true).also {
+                        if (it !== bitmap) bitmap.recycle()
+                    }
+                } else bitmap
+                cache.put(icon.fileName, fitted)
+                fitted
             }.getOrNull()
         }
     }
