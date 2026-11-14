@@ -18,8 +18,6 @@ jobs:
   build-pr:
     name: Verify pull request build
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/regression-icons-clouds-translation'))
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     permissions:
       contents: write
