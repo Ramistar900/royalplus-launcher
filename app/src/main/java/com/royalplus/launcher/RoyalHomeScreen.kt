@@ -102,6 +102,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -110,6 +111,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -189,6 +193,13 @@ internal fun RoyalHomeScreen(
         }
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
+    val settingsInitialFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(showWallpaperSettings) {
+        if (showWallpaperSettings) {
+            withFrameNanos { }
+            settingsInitialFocusRequester.requestFocus()
+        }
+    }
     var showWeatherDetails by remember { mutableStateOf(false) }
     // Weather ambience is allowed only while the dedicated Weather Details screen is open.
     // Hard-stop stale players whenever the user returns home or opens the smart screensaver.
@@ -838,6 +849,7 @@ internal fun RoyalHomeScreen(
                             .background(Color(0xFF10131B))
                             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
                             .padding(22.dp)
+                            .focusGroup()
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -850,6 +862,8 @@ internal fun RoyalHomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
+                                .focusRequester(settingsInitialFocusRequester)
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     isAdhanEnabled = !isAdhanEnabled
                                     wallpaperPreferences.edit().putBoolean("adhan_enabled", isAdhanEnabled).apply()
@@ -860,7 +874,7 @@ internal fun RoyalHomeScreen(
                                         prayerBannerUntil = 0L
                                     }
                                 }
-                                .focusable()
+                                
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -889,6 +903,7 @@ internal fun RoyalHomeScreen(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
                                         !RoyalAdhanScheduler.canScheduleExactAlarms(context)
@@ -912,7 +927,7 @@ internal fun RoyalHomeScreen(
                                         ).show()
                                     }
                                 }
-                                .focusable()
+                                
                                 .padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -947,6 +962,7 @@ internal fun RoyalHomeScreen(
                         ).forEach { (key, label, enabled) ->
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F)).border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     val next = !enabled
                                     when (key) {
@@ -954,7 +970,7 @@ internal fun RoyalHomeScreen(
                                         "adhan" -> { adhanMotionEnabled = next; wallpaperPreferences.edit().putBoolean("motion_adhan", next).apply() }
                                         else -> { weatherMotionEnabled = next; wallpaperPreferences.edit().putBoolean("motion_weather", next).apply() }
                                     }
-                                }.focusable().padding(horizontal = 14.dp, vertical = 10.dp),
+                                }.padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(label, color = RoyalColors.Pearl, fontSize = 13.sp)
@@ -1067,11 +1083,12 @@ internal fun RoyalHomeScreen(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     screensaverMotionEnabled = !screensaverMotionEnabled
                                     wallpaperPreferences.edit().putBoolean("motion_screensaver", screensaverMotionEnabled).apply()
                                 }
-                                .focusable()
+                                
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -1105,12 +1122,13 @@ internal fun RoyalHomeScreen(
                                     Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
                                         .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF080A0F))
                                         .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f), RoundedCornerShape(9.dp))
+                                        .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                         .clickable {
                                             screensaverDelaySeconds = seconds
                                             wallpaperPreferences.edit().putInt("screensaver_delay_seconds", seconds).apply()
                                             showSmartScreensaver = false
                                         }
-                                        .focusable()
+                                        
                                         .padding(vertical = 9.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -1168,8 +1186,9 @@ internal fun RoyalHomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(RoyalColors.Gold.copy(alpha = 0.14f))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable { onChooseDefaultHome() }
-                                .focusable()
+                                
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -1198,11 +1217,12 @@ internal fun RoyalHomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     use24HourClock = !use24HourClock
                                     wallpaperPreferences.edit().putBoolean("launcher_24_hour_clock", use24HourClock).apply()
                                 }
-                                .focusable()
+                                
                                 .padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -1222,11 +1242,12 @@ internal fun RoyalHomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     showDateOnHome = !showDateOnHome
                                     wallpaperPreferences.edit().putBoolean("launcher_show_date", showDateOnHome).apply()
                                 }
-                                .focusable()
+                                
                                 .padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -1331,8 +1352,9 @@ internal fun RoyalHomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(RoyalColors.Gold.copy(alpha = 0.14f))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable { showWallpaperSettings = false }
-                                .focusable()
+                                
                                 .padding(horizontal = 24.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1381,11 +1403,11 @@ private fun RoyalFeatureToggleRow(
                 if (checked) RoyalColors.Gold.copy(alpha = 0.55f) else RoyalColors.Gold.copy(alpha = 0.24f),
                 RoundedCornerShape(10.dp)
             )
+            .then(royalGlassFocus(RoundedCornerShape(10.dp)))
             .clickable(onClick = {
                 playLauncherUiSound(context, if (checked) RoyalUiSound.SELECT_TOGGLE_OFF else RoyalUiSound.SELECT_TOGGLE_ON)
                 onClick()
             })
-            .focusable()
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -1487,11 +1509,11 @@ private fun IconStyleChoice(
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF080A0F))
             .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
+            .then(royalGlassFocus(RoundedCornerShape(12.dp)))
             .clickable(onClick = {
                 playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
                 onClick()
             })
-            .focusable()
             .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -1543,11 +1565,11 @@ private fun WallpaperChoice(
                 color = if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(16.dp)
             )
+            .then(royalGlassFocus(RoundedCornerShape(16.dp)))
             .clickable(onClick = {
                 playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
                 onClick()
             })
-            .focusable()
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -2197,7 +2219,7 @@ private fun RoyalSidePanel(
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
-        modifier.clip(shape).background(Brush.verticalGradient(listOf(Color(0xE8080A0F), Color(0xF7080A0F))))
+        modifier.focusGroup().clip(shape).background(Brush.verticalGradient(listOf(Color(0xE8080A0F), Color(0xF7080A0F))))
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = if (compactPhone) 5.dp else 9.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -2263,12 +2285,11 @@ private fun StatusIcon(
                 color = if (focused) Color(0xFFFFD36A) else Color.Transparent,
                 shape = shape
             )
+            .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = {
                 playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
                 onClick()
             })
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
     }
     Box(
         modifier = Modifier.size(if (compactPhone) 27.dp else 32.dp).then(clickModifier),
@@ -2303,7 +2324,6 @@ private fun SidebarNavItem(
     }
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
-    val emphasized = selected || focused
     val shape = RoundedCornerShape(13.dp)
     val focusScale by animateFloatAsState(
         targetValue = if (focused) 1.045f else 1f,
@@ -2320,30 +2340,36 @@ private fun SidebarNavItem(
             }
             .clip(shape)
             .background(
-                if (emphasized) Brush.horizontalGradient(
-                    listOf(Color(0xFFD5A64F).copy(alpha = if (selected) 0.78f else 0.48f), Color(0xFF6D4C1A).copy(alpha = 0.55f), Color.Transparent)
-                ) else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                when {
+                    focused -> Brush.horizontalGradient(
+                        listOf(Color(0x8143C9FF), Color(0x57398FD4), Color(0x222A628F), Color.Transparent)
+                    )
+                    selected -> Brush.horizontalGradient(
+                        listOf(Color(0xFFD5A64F).copy(alpha = 0.28f), Color(0xFF6D4C1A).copy(alpha = 0.22f), Color.Transparent)
+                    )
+                    else -> Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                }
             )
             .border(
-                if (focused) 2.dp else if (selected) 1.2.dp else 0.6.dp,
+                if (focused) 2.2.dp else if (selected) 1.2.dp else 0.6.dp,
                 if (focused) Color(0xFFFFD36A) else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
                 shape
             )
+            .then(if (focused) Modifier.border(1.dp, Color(0xFF8DEBFF).copy(alpha = 0.92f), shape) else Modifier)
+            .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = {
                 playLauncherUiSound(context, sound)
                 onClick()
             })
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
             .padding(horizontal = if (compactPhone) 0.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (compactPhone) Arrangement.Center else Arrangement.SpaceBetween
     ) {
         if (!compactPhone) Text(
             text = title,
-            color = if (emphasized) Color(0xFFFFE2A1) else RoyalColors.Pearl,
+            color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFE2A1) else RoyalColors.Pearl,
             fontSize = 12.sp,
-            fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (focused || selected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
         when {
@@ -2357,7 +2383,7 @@ private fun SidebarNavItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
+                        tint = if (focused) Color(0xFFBDEEFF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
                         modifier = Modifier.size(royalAdaptiveIconSize(if (compactPhone) 22.dp else 20.dp))
                     )
                 }
