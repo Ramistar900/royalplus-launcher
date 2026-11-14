@@ -2369,7 +2369,7 @@ private fun SidebarNavItem(
             text = title,
             color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFE2A1) else RoyalColors.Pearl,
             fontSize = 12.sp,
-            fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (focused || selected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
         when {
