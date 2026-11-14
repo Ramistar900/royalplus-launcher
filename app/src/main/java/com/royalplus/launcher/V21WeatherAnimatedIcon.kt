@@ -84,10 +84,17 @@ internal object RoyalV21WeatherIconResolver {
 internal fun RoyalV21WeatherAnimatedIcon(icon: RoyalV21WeatherIcon, modifier: Modifier = Modifier,
     motionEnabled: Boolean = true, contentDescription: String? = null) {
     val transition = rememberInfiniteTransition(label = "royal-native-weather")
-    val animatedPhase by transition.animateFloat(0f, 1f,
+    val shouldAnimate = motionEnabled && icon in setOf(
+        RoyalV21WeatherIcon.RAIN, RoyalV21WeatherIcon.DRIZZLE, RoyalV21WeatherIcon.HEAVY_RAIN,
+        RoyalV21WeatherIcon.SNOW, RoyalV21WeatherIcon.HEAVY_SNOW,
+        RoyalV21WeatherIcon.WIND, RoyalV21WeatherIcon.STRONG_WIND
+    )
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (shouldAnimate) 1f else 0f,
         animationSpec = infiniteRepeatable(tween(1_800, easing = LinearEasing), RepeatMode.Restart),
-        label = "weather-symbol-phase")
-    val phase = if (motionEnabled) animatedPhase else 0f
+        label = "weather-symbol-phase"
+    )
     Canvas(modifier.semantics { this.contentDescription = contentDescription ?: icon.label }) {
         val u = size.minDimension.coerceAtLeast(1f)
         val cx = size.width / 2f
@@ -97,9 +104,9 @@ internal fun RoyalV21WeatherAnimatedIcon(icon: RoyalV21WeatherIcon, modifier: Mo
         val pale = Color(0xFFEAF5FF)
         when (icon) {
             RoyalV21WeatherIcon.SUNNY, RoyalV21WeatherIcon.HOT ->
-                drawNativeSun(cx, cy, u, gold, stroke, phase)
+                drawNativeSun(cx, cy, u, gold, stroke)
             RoyalV21WeatherIcon.PARTLY_CLOUDY, RoyalV21WeatherIcon.CLOUDY,
-            RoyalV21WeatherIcon.FOG, RoyalV21WeatherIcon.MIST -> drawNativeHaze(cx, cy, u, pale, stroke, phase)
+            RoyalV21WeatherIcon.FOG, RoyalV21WeatherIcon.MIST -> drawNativeHaze(cx, cy, u, pale, stroke)
             RoyalV21WeatherIcon.RAIN, RoyalV21WeatherIcon.DRIZZLE, RoyalV21WeatherIcon.HEAVY_RAIN,
             RoyalV21WeatherIcon.SLEET, RoyalV21WeatherIcon.HAIL -> {
                 drawNativeRain(cx, cy, u, pale, stroke, phase,
@@ -108,7 +115,7 @@ internal fun RoyalV21WeatherAnimatedIcon(icon: RoyalV21WeatherIcon, modifier: Mo
                     Offset(cx + (it - 1) * u * 0.22f, cy + u * 0.35f)) }
             }
             RoyalV21WeatherIcon.THUNDERSTORM, RoyalV21WeatherIcon.LIGHTNING ->
-                drawNativeLightning(cx, cy, u, gold, stroke, phase)
+                drawNativeLightning(cx, cy, u, gold, stroke)
             RoyalV21WeatherIcon.SNOW, RoyalV21WeatherIcon.HEAVY_SNOW, RoyalV21WeatherIcon.COLD ->
                 drawNativeSnow(cx, cy, u, pale, stroke, phase, if (icon == RoyalV21WeatherIcon.HEAVY_SNOW) 5 else 3)
             RoyalV21WeatherIcon.WIND, RoyalV21WeatherIcon.STRONG_WIND,
@@ -124,10 +131,10 @@ internal fun RoyalV21WeatherAnimatedIcon(icon: RoyalV21WeatherIcon, modifier: Mo
     }
 }
 
-private fun DrawScope.drawNativeSun(cx: Float, cy: Float, u: Float, c: Color, s: Float, phase: Float) {
+private fun DrawScope.drawNativeSun(cx: Float, cy: Float, u: Float, c: Color, s: Float) {
     val r = u * 0.20f
     drawCircle(c, r, Offset(cx, cy), style = Stroke(s))
-    val pulse = 1f + 0.04f * sin(phase * PI * 2).toFloat()
+    val pulse = 1f
     repeat(8) { i ->
         val a = i * PI / 4
         val dx = cos(a).toFloat(); val dy = sin(a).toFloat()
@@ -136,10 +143,10 @@ private fun DrawScope.drawNativeSun(cx: Float, cy: Float, u: Float, c: Color, s:
     }
 }
 
-private fun DrawScope.drawNativeHaze(cx: Float, cy: Float, u: Float, c: Color, s: Float, phase: Float) {
+private fun DrawScope.drawNativeHaze(cx: Float, cy: Float, u: Float, c: Color, s: Float) {
     repeat(3) { i ->
         val y = cy + (i - 1) * u * 0.22f
-        val shift = sin(phase * PI * 2 + i).toFloat() * u * 0.06f
+        val shift = 0f
         drawLine(c, Offset(cx - u * 0.39f + shift, y), Offset(cx + u * 0.39f + shift, y),
             s * 0.9f, StrokeCap.Round)
     }
@@ -179,8 +186,7 @@ private fun DrawScope.drawNativeWind(cx: Float, cy: Float, u: Float, c: Color, s
     }
 }
 
-private fun DrawScope.drawNativeLightning(cx: Float, cy: Float, u: Float, c: Color, s: Float, phase: Float) {
-    val pulse = if (phase < 0.25f) 1f else 0.72f
+private fun DrawScope.drawNativeLightning(cx: Float, cy: Float, u: Float, c: Color, s: Float) {
     val path = Path().apply {
         moveTo(cx + u * 0.10f, cy - u * 0.34f)
         lineTo(cx - u * 0.16f, cy + u * 0.05f)
@@ -190,8 +196,7 @@ private fun DrawScope.drawNativeLightning(cx: Float, cy: Float, u: Float, c: Col
         lineTo(cx + u * 0.035f, cy - u * 0.02f)
         close()
     }
-    drawPath(path, c.copy(alpha = pulse))
-    drawCircle(c.copy(alpha = pulse * 0.35f), u * 0.36f, Offset(cx, cy), style = Stroke(s))
+    drawPath(path, c)
 }
 
 private fun DrawScope.drawNativeHorizon(cx: Float, cy: Float, u: Float, c: Color, s: Float) {
