@@ -15,7 +15,6 @@ import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -242,10 +241,11 @@ private fun SettingsInfoRow(
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .background(Color(0xFF080A0F))
         .border(1.dp, RoyalColors.Gold.copy(alpha = .28f), RoundedCornerShape(12.dp))
+        .then(royalGlassFocus(RoundedCornerShape(12.dp)))
         .clickable(onClick = {
             playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
             onClick()
-        }).focusable()
+        })
         .padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(adaptiveProfile.iconSize(25.dp)))
