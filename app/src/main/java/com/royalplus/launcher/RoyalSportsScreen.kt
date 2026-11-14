@@ -11,8 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -553,8 +551,6 @@ internal fun RoyalSportsScreen(language: String) {
             ) { selectedTab = RoyalSportsTab.SCHEDULE }
         }
         Spacer(Modifier.height(10.dp))
-        SportsCategoryStrip(language = language)
-        Spacer(Modifier.height(10.dp))
 
         val result = loaded
         if (result?.stale == true) {
@@ -606,146 +602,6 @@ internal fun RoyalSportsScreen(language: String) {
             }
         }
     }
-    }
-}
-
-private data class RoyalSportsCategory(
-    val iconFileName: String,
-    val arabicName: String,
-    val turkishName: String,
-    val englishName: String,
-    val available: Boolean = false
-)
-
-@Composable
-private fun SportsCategoryStrip(language: String) {
-    val arabic = language == "ar"
-    val turkish = language == "tr"
-    val categories = listOf(
-        RoyalSportsCategory("football.svg", "كرة القدم", "Futbol", "Football", available = true),
-        RoyalSportsCategory("basketball.svg", "كرة السلة", "Basketbol", "Basketball"),
-        RoyalSportsCategory("tennis.svg", "التنس", "Tenis", "Tennis"),
-        RoyalSportsCategory("volleyball.svg", "الكرة الطائرة", "Voleybol", "Volleyball"),
-        RoyalSportsCategory("cricket.svg", "الكريكيت", "Kriket", "Cricket")
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(7.dp)
-    ) {
-        categories.forEach { category ->
-            val selected = category.available
-            val label = when {
-                arabic -> category.arabicName
-                turkish -> category.turkishName
-                else -> category.englishName
-            }
-            Column(
-                modifier = Modifier.width(82.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (selected) Color(0xFF3A2D17) else Color(0x66171D27))
-                    .border(
-                        1.dp,
-                        if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.16f),
-                        RoundedCornerShape(12.dp)
-                    )
-                    .padding(horizontal = 5.dp, vertical = 7.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                RoyalSportsV20AnimatedIcon(
-                    fileName = category.iconFileName,
-                    contentDescription = label,
-                    modifier = Modifier.size(36.dp)
-                )
-                Text(
-                    label,
-                    color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
-                    fontSize = 9.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (!selected) {
-                    Text(
-                        when {
-                            arabic -> "قريباً"
-                            turkish -> "Yakında"
-                            else -> "Soon"
-                        },
-                        color = RoyalColors.Muted,
-                        fontSize = 8.sp,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-    }
-    Text(
-        when {
-            arabic -> "بيانات المباريات والنتائج متاحة حالياً لكرة القدم فقط."
-            turkish -> "Maç ve sonuç verileri şu anda yalnızca futbol için kullanılabilir."
-            else -> "Live match and result data is currently available for football only."
-        },
-        color = RoyalColors.Muted,
-        fontSize = 9.sp,
-        modifier = Modifier.padding(top = 5.dp)
-    )
-}
-
-@Composable
-private fun RoyalSportsV20AnimatedIcon(
-    fileName: String,
-    contentDescription: String?,
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        // Keep a native icon visible when a TV WebView cannot render animated SVG.
-        Icon(
-            imageVector = Icons.Rounded.SportsSoccer,
-            contentDescription = contentDescription,
-            tint = RoyalColors.Gold,
-            modifier = Modifier.fillMaxSize().padding(1.dp)
-        )
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                WebView(context).apply {
-                    setBackgroundColor(AndroidColor.TRANSPARENT)
-                    settings.javaScriptEnabled = false
-                    settings.domStorageEnabled = false
-                    settings.allowFileAccess = true
-                    settings.allowContentAccess = false
-                    settings.blockNetworkLoads = true
-                    isHorizontalScrollBarEnabled = false
-                    isVerticalScrollBarEnabled = false
-                    overScrollMode = View.OVER_SCROLL_NEVER
-                    isFocusable = false
-                    isFocusableInTouchMode = false
-                    setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                }
-            },
-            update = { webView ->
-                if (webView.tag != fileName) {
-                    webView.tag = fileName
-                    val html = """
-                        <!doctype html><html><head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-                        <style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent}
-                        img{display:block;width:100%;height:100%;object-fit:contain}</style>
-                        </head><body><img src="$fileName" alt=""></body></html>
-                    """.trimIndent()
-                    webView.loadDataWithBaseURL(
-                        "file:///android_asset/sports_v20/", html, "text/html", "UTF-8", null
-                    )
-                }
-                webView.onResume()
-            },
-            onRelease = { webView ->
-                webView.stopLoading()
-                webView.onPause()
-                webView.destroy()
-            }
-        )
     }
 }
 

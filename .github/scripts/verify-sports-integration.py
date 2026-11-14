@@ -33,13 +33,15 @@ assert "/functions/v1/royalplus-sports" in sports
 assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in home
 assert "Icons.Rounded.SportsSoccer" in home
 sports_assets = ROOT / "app/src/main/assets/sports_v20"
-for icon in ("football", "basketball", "tennis", "volleyball", "cricket",
-             "today_matches", "fixtures"):
+for icon in ("football", "today_matches", "fixtures"):
     asset = sports_assets / f"{icon}.svg"
     assert asset.is_file(), f"Missing bundled ROYAL DESIGN V20 SVG: {asset.name}"
     assert f'"{icon}.svg"' in sports, f"Unbound V20 sports asset: {icon}"
 assert "RoyalSportsV20AnimatedIcon(" in sports
-assert "SportsCategoryStrip(language = language)" in sports
+assert "SportsCategoryStrip" not in sports
+assert "RoyalSportsCategory" not in sports
+for removed_sport in ("basketball.svg", "tennis.svg", "volleyball.svg", "cricket.svg"):
+    assert removed_sport not in sports, f"Removed sport is still referenced: {removed_sport}"
 assert "painterResource" not in sports
 assert "available = true" in sports
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
