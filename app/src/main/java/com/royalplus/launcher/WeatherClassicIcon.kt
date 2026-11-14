@@ -142,9 +142,7 @@ internal fun RoyalClassicWeatherIcon(
             }
             RoyalClassicWeatherKind.CLOUDY,
             RoyalClassicWeatherKind.COLD,
-            RoyalClassicWeatherKind.HOT -> drawWeatherCloud(
-                size.width * 0.10f, size.height * 0.28f, size.width * 0.82f, size.height * 0.48f
-            )
+            RoyalClassicWeatherKind.HOT -> drawStandaloneCloud(edge)
             RoyalClassicWeatherKind.FOG -> {
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.16f, size.width * 0.78f, size.height * 0.53f)
                 drawFogLines(edge)
@@ -234,6 +232,39 @@ private fun DrawScope.drawSun(
             center = Offset(center.x + radius * 0.30f, center.y - radius * 0.16f)
         )
     }
+}
+
+private fun DrawScope.drawStandaloneCloud(edge: Float) {
+    // A dedicated centered silhouette for a cloud-only forecast: broad,
+    // softly rounded lobes and a substantial base, without looking stretched.
+    val left = size.width * 0.10f
+    val top = size.height * 0.27f
+    val width = size.width * 0.80f
+    val height = size.height * 0.47f
+    val path = Path().apply {
+        moveTo(left + width * 0.20f, top + height * 0.88f)
+        cubicTo(left + width * 0.04f, top + height * 0.88f, left - width * 0.01f, top + height * 0.70f, left + width * 0.04f, top + height * 0.53f)
+        cubicTo(left + width * 0.08f, top + height * 0.35f, left + width * 0.22f, top + height * 0.25f, left + width * 0.39f, top + height * 0.34f)
+        cubicTo(left + width * 0.43f, top + height * 0.08f, left + width * 0.61f, top - height * 0.01f, left + width * 0.75f, top + height * 0.17f)
+        cubicTo(left + width * 0.84f, top + height * 0.27f, left + width * 0.85f, top + height * 0.37f, left + width * 0.84f, top + height * 0.42f)
+        cubicTo(left + width * 1.02f, top + height * 0.43f, left + width * 1.04f, top + height * 0.67f, left + width * 0.94f, top + height * 0.80f)
+        cubicTo(left + width * 0.87f, top + height * 0.91f, left + width * 0.75f, top + height * 0.93f, left + width * 0.63f, top + height * 0.91f)
+        lineTo(left + width * 0.20f, top + height * 0.91f)
+        close()
+    }
+    drawPath(
+        path = path,
+        brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFFFFFFFF), Color(0xFFD5E0E8)),
+            startY = top,
+            endY = top + height
+        )
+    )
+    drawPath(
+        path = path,
+        color = Color.White.copy(alpha = 0.96f),
+        style = Stroke(width = edge * 0.022f)
+    )
 }
 
 private fun DrawScope.drawWeatherCloud(left: Float, top: Float, width: Float, height: Float) {
