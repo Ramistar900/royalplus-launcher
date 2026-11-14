@@ -2,6 +2,7 @@
 """Fetch the pinned ROYAL Design V20 sports icon artwork into the APK assets."""
 from pathlib import Path
 from urllib.request import Request, urlopen
+import re
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,7 +40,8 @@ def main() -> None:
             text = raw.decode("utf-8")
             if "<svg" not in text or "</svg>" not in text:
                 raise RuntimeError(f"Invalid SVG source: {url}")
-            if "<script" in text.lower() or "https://" in text or "http://" in text:
+            has_external_reference = re.search(r"""(?:xlink:)?href\s*=\s*['"]https?://""", text, re.IGNORECASE)
+            if "<script" in text.lower() or has_external_reference:
                 raise RuntimeError(f"External or executable SVG content is forbidden: {url}")
             if style == "animated" and "<animate" not in text:
                 raise RuntimeError(f"Missing authored V20 motion in animated icon: {icon}")
