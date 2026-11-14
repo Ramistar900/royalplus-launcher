@@ -231,8 +231,9 @@ internal fun QuranReaderScreen(
                 Icon(
                     Icons.Filled.Settings,
                     contentDescription = if (isArabic) "إعدادات القرآن" else "Quran settings",
-                    tint = RoyalColors.Gold
-                , modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
+                    tint = RoyalColors.Gold,
+                    modifier = Modifier.size(royalAdaptiveIconSize(24.dp))
+                )
             }
         }
 

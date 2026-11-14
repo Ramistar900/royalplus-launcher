@@ -2278,7 +2278,7 @@ private fun StatusIcon(
             imageVector = icon,
             contentDescription = description,
             tint = if (onClick == null) RoyalColors.Pearl.copy(alpha = 0.90f) else RoyalColors.Gold,
-            modifier = Modifier.size(if (compactPhone) 16.dp else 19.dp)
+            modifier = Modifier.size(royalAdaptiveIconSize(if (compactPhone) 16.dp else 19.dp))
         )
     }
 }
@@ -2358,7 +2358,7 @@ private fun SidebarNavItem(
                         imageVector = icon,
                         contentDescription = title,
                         tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
-                        modifier = Modifier.size(if (compactPhone) 22.dp else 20.dp)
+                        modifier = Modifier.size(royalAdaptiveIconSize(if (compactPhone) 22.dp else 20.dp))
                     )
                 }
             }
