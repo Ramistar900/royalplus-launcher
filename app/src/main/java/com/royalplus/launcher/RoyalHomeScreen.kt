@@ -692,12 +692,8 @@ internal fun RoyalHomeScreen(
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
                             onNavigate = { destination ->
-                                if (destination == LauncherDestination.HOME) {
-                                    playLauncherUiSound(context, RoyalUiSound.NAV_HOME)
-                                    searchActive = false
-                                    searchQuery = ""
-                                }
                                 selectedDestination = destination
+                                if (destination == LauncherDestination.HOME) { searchActive = false; searchQuery = "" }
                             },
                             onOpenSettings = { showWallpaperSettings = true }
                         )
@@ -2207,7 +2203,10 @@ private fun RoyalSidePanel(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(5.dp))
-        SidebarNavItem(labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME) { onNavigate(LauncherDestination.HOME) }
+        SidebarNavItem(
+            labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME,
+            sound = RoyalUiSound.NAV_HOME
+        ) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(itemGap))
@@ -2285,6 +2284,7 @@ private fun SidebarNavItem(
     icon: ImageVector,
     selected: Boolean,
     iconRes: Int? = null,
+    sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     onClick: () -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
@@ -2324,7 +2324,7 @@ private fun SidebarNavItem(
                 shape
             )
             .clickable(onClick = {
-                playLauncherUiSound(context, RoyalUiSound.NAV_SELECT)
+                playLauncherUiSound(context, sound)
                 onClick()
             })
             .onFocusChanged { focused = it.isFocused }
