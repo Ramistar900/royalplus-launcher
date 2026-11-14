@@ -41,7 +41,7 @@ internal enum class RoyalV21WeatherIcon(val fileName: String, val label: String)
     SUNNY("sunny.svg", "مشمس"), PARTLY_CLOUDY("partly_cloudy.svg", "غائم جزئياً"),
     CLOUDY("cloudy.svg", "غائم"), RAIN("rain.svg", "مطر"), DRIZZLE("drizzle.svg", "رذاذ"),
     HEAVY_RAIN("heavy_rain.svg", "أمطار غزيرة"), THUNDERSTORM("thunderstorm.svg", "عاصفة رعدية"),
-    LIGHTNING("lightning.svg", "برق"), SNOW("snow.svg", "ثلج"), HEAVY_SNOW("heavy_snow.svg", "ثلوج كثيفة"), BLIZZARD("heavy_snow.svg", "عاصفة ثلجية"),
+    LIGHTNING("lightning.svg", "برق"), SNOW("snow.svg", "ثلج"), HEAVY_SNOW("heavy_snow.svg", "ثلوج كثيفة"), BLIZZARD("blizzard.svg", "عاصفة ثلجية"),
     SLEET("sleet.svg", "مطر متجمد"), HAIL("hail.svg", "بَرَد"), WIND("wind.svg", "رياح"),
     STRONG_WIND("strong_wind.svg", "رياح شديدة"), FOG("fog.svg", "ضباب"), MIST("mist.svg", "شبورة خفيفة"),
     DUST("dust.svg", "غبار"), HOT("hot.svg", "حرارة مرتفعة"), COLD("cold.svg", "برودة"),
@@ -135,7 +135,8 @@ private object RoyalV21WeatherBitmapCache {
                         BitmapFactory.decodeStream(input)
                     } ?: error("Unable to decode $pngName")
                 } else {
-                    val svg = SVG.getFromAsset(context.assets, "weather_v21/${icon.fileName}")
+                    val fallbackFileName = if (icon == RoyalV21WeatherIcon.BLIZZARD) "heavy_snow.svg" else icon.fileName
+                    val svg = SVG.getFromAsset(context.assets, "weather_v21/$fallbackFileName")
                     Bitmap.createBitmap(EDGE_PX, EDGE_PX, Bitmap.Config.ARGB_8888).also {
                         svg.renderToCanvas(AndroidCanvas(it))
                     }
