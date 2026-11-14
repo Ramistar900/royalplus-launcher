@@ -119,13 +119,6 @@ internal fun WeatherDetailsScreen(
         SimpleDateFormat("H", Locale.US).apply { timeZone = zone }.format(Date(currentTimeMillis)).toIntOrNull() ?: 12
     }
     val night = hour >= 19 || hour < 6
-    val currentWeatherIcon = RoyalV21WeatherIconResolver.resolve(
-        weatherCode = weather.weatherCode,
-        description = weather.description,
-        apparentTemperatureC = weather.apparentTemperatureC,
-        windSpeedKmh = weather.windSpeedKmh,
-        hour = hour
-    )
     val backgroundRes = when (weather.weatherCode) {
         0, 1 -> if (night) R.drawable.weather_clear_night else if (hour in 17..18) R.drawable.weather_sunset else R.drawable.weather_clear_day
         2 -> if (night) R.drawable.weather_partly_cloudy_night else R.drawable.weather_partly_cloudy_day
@@ -318,10 +311,13 @@ internal fun WeatherDetailsScreen(
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        RoyalV21WeatherAnimatedIcon(
-                            icon = currentWeatherIcon,
+                        RoyalClassicWeatherIcon(
+                            weatherCode = weather.weatherCode,
+                            description = weather.description,
+                            apparentTemperatureC = weather.apparentTemperatureC,
+                            windSpeedKmh = weather.windSpeedKmh,
+                            hour = hour,
                             modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isPhone) 50.dp else 68.dp, maxSize = 82.dp)),
-                            motionEnabled = motionEnabled,
                             contentDescription = weather.description
                         )
                         Column {
@@ -439,15 +435,12 @@ internal fun WeatherDetailsScreen(
                                     }
                                     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = 0.12f)).border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(17.dp)).padding(horizontal = 5.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
                                         Text(dayLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        RoyalV21WeatherAnimatedIcon(
-                                            icon = RoyalV21WeatherIconResolver.resolve(
-                                                weatherCode = day.weatherCode,
-                                                description = weatherDescriptionFor(day.weatherCode, language),
-                                                apparentTemperatureC = (day.maxTemperatureC + day.minTemperatureC) / 2,
-                                                hour = 12
-                                            ),
+                                        RoyalClassicWeatherIcon(
+                                            weatherCode = day.weatherCode,
+                                            description = weatherDescriptionFor(day.weatherCode, language),
+                                            apparentTemperatureC = (day.maxTemperatureC + day.minTemperatureC) / 2,
+                                            hour = 12,
                                             modifier = Modifier.size(royalAdaptiveIconSize(42.dp, maxSize = 56.dp)),
-                                            motionEnabled = motionEnabled,
                                             contentDescription = weatherDescriptionFor(day.weatherCode, language)
                                         )
                                         Text(weatherDescriptionFor(day.weatherCode, language), color = Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
