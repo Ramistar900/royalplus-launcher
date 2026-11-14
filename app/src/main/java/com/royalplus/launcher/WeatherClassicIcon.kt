@@ -1,7 +1,13 @@
 package com.royalplus.launcher
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -10,13 +16,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Static, lightweight weather artwork matching the classic Royal forecast style:
+ * Lightweight animated sun and fuller classic Royal forecast artwork:
  * a warm sun, soft white/grey cloud, and blue rain/snow marks.
  */
 private enum class RoyalClassicWeatherKind {
@@ -104,6 +111,15 @@ internal fun RoyalClassicWeatherIcon(
         windSpeedKmh = windSpeedKmh,
         hour = hour
     )
+    val sunTransition = rememberInfiniteTransition(label = "royalSunRotation")
+    val sunRotation by sunTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 18_000, easing = LinearEasing)
+        ),
+        label = "royalSunRotationAngle"
+    )
     Canvas(modifier.semantics {
         this.contentDescription = contentDescription ?: description.ifBlank { kind.name }
     }) {
@@ -113,11 +129,16 @@ internal fun RoyalClassicWeatherIcon(
         when (kind) {
             RoyalClassicWeatherKind.SUNNY -> drawSun(
                 center = Offset(size.width * 0.5f, size.height * 0.5f),
-                radius = edge * 0.20f
+                radius = edge * 0.20f,
+                rotationDegrees = sunRotation
             )
             RoyalClassicWeatherKind.PARTLY_CLOUDY -> {
-                drawSun(Offset(size.width * 0.34f, size.height * 0.37f), edge * 0.17f)
-                drawWeatherCloud(size.width * 0.17f, size.height * 0.38f, size.width * 0.76f, size.height * 0.43f)
+                drawSun(
+                    Offset(size.width * 0.34f, size.height * 0.35f),
+                    edge * 0.17f,
+                    rotationDegrees = sunRotation
+                )
+                drawWeatherCloud(size.width * 0.17f, size.height * 0.36f, size.width * 0.76f, size.height * 0.50f)
             }
             RoyalClassicWeatherKind.CLOUDY,
             RoyalClassicWeatherKind.COLD,
@@ -125,34 +146,39 @@ internal fun RoyalClassicWeatherIcon(
                 size.width * 0.10f, size.height * 0.28f, size.width * 0.82f, size.height * 0.48f
             )
             RoyalClassicWeatherKind.FOG -> {
-                drawWeatherCloud(size.width * 0.12f, size.height * 0.19f, size.width * 0.78f, size.height * 0.45f)
+                drawWeatherCloud(size.width * 0.12f, size.height * 0.16f, size.width * 0.78f, size.height * 0.53f)
                 drawFogLines(edge)
             }
             RoyalClassicWeatherKind.DRIZZLE,
             RoyalClassicWeatherKind.RAIN,
             RoyalClassicWeatherKind.HEAVY_RAIN -> {
-                drawWeatherCloud(size.width * 0.12f, size.height * 0.17f, size.width * 0.78f, size.height * 0.48f)
+                drawWeatherCloud(size.width * 0.12f, size.height * 0.14f, size.width * 0.78f, size.height * 0.55f)
                 drawRain(edge, if (kind == RoyalClassicWeatherKind.DRIZZLE) 3 else if (kind == RoyalClassicWeatherKind.HEAVY_RAIN) 6 else 5)
             }
             RoyalClassicWeatherKind.SNOW,
             RoyalClassicWeatherKind.HEAVY_SNOW -> {
-                drawWeatherCloud(size.width * 0.12f, size.height * 0.16f, size.width * 0.78f, size.height * 0.48f)
+                drawWeatherCloud(size.width * 0.12f, size.height * 0.13f, size.width * 0.78f, size.height * 0.56f)
                 drawSnow(edge, if (kind == RoyalClassicWeatherKind.HEAVY_SNOW) 6 else 4)
             }
             RoyalClassicWeatherKind.THUNDERSTORM -> {
-                drawWeatherCloud(size.width * 0.12f, size.height * 0.13f, size.width * 0.78f, size.height * 0.48f)
+                drawWeatherCloud(size.width * 0.12f, size.height * 0.10f, size.width * 0.78f, size.height * 0.56f)
                 drawLightning(edge)
                 drawRain(edge, 3)
             }
             RoyalClassicWeatherKind.WIND,
             RoyalClassicWeatherKind.STRONG_WIND -> {
-                drawWeatherCloud(size.width * 0.18f, size.height * 0.12f, size.width * 0.68f, size.height * 0.42f)
+                drawWeatherCloud(size.width * 0.18f, size.height * 0.10f, size.width * 0.68f, size.height * 0.50f)
                 drawWind(edge, if (kind == RoyalClassicWeatherKind.STRONG_WIND) 3 else 2)
             }
             RoyalClassicWeatherKind.CLEAR_NIGHT -> drawMoon(edge)
             RoyalClassicWeatherKind.SUNRISE,
             RoyalClassicWeatherKind.SUNSET -> {
-                drawSun(Offset(size.width * 0.5f, size.height * 0.56f), edge * 0.19f, horizon = true)
+                drawSun(
+                    Offset(size.width * 0.5f, size.height * 0.56f),
+                    edge * 0.19f,
+                    horizon = true,
+                    rotationDegrees = sunRotation
+                )
                 val lineY = size.height * 0.67f
                 drawLine(Color.White.copy(alpha = 0.88f), Offset(size.width * 0.14f, lineY), Offset(size.width * 0.86f, lineY), edge * 0.025f, StrokeCap.Round)
             }
@@ -160,45 +186,66 @@ internal fun RoyalClassicWeatherIcon(
     }
 }
 
-private fun DrawScope.drawSun(center: Offset, radius: Float, horizon: Boolean = false) {
-    val rayColor = Color(0xFFFFC857)
-    val rayInner = radius * 1.30f
-    val rayOuter = radius * 1.72f
-    repeat(8) { index ->
-        val angle = Math.PI * index / 4.0
-        val dx = cos(angle).toFloat()
-        val dy = sin(angle).toFloat()
-        if (!horizon || dy <= 0.35f) {
-            drawLine(
-                color = rayColor,
-                start = Offset(center.x + dx * rayInner, center.y + dy * rayInner),
-                end = Offset(center.x + dx * rayOuter, center.y + dy * rayOuter),
-                strokeWidth = size.minDimension * 0.035f,
-                cap = StrokeCap.Round
-            )
+private fun DrawScope.drawSun(
+    center: Offset,
+    radius: Float,
+    horizon: Boolean = false,
+    rotationDegrees: Float = 0f
+) {
+    // Rotate the complete sun disc and its rays around the sun's own center.
+    // The small surface details make the disc's rotation visibly readable.
+    rotate(degrees = rotationDegrees, pivot = center) {
+        val rayColor = Color(0xFFFFC857)
+        val rayInner = radius * 1.30f
+        val rayOuter = radius * 1.72f
+        repeat(8) { index ->
+            val angle = Math.PI * index / 4.0
+            val dx = cos(angle).toFloat()
+            val dy = sin(angle).toFloat()
+            if (!horizon || dy <= 0.35f) {
+                drawLine(
+                    color = rayColor,
+                    start = Offset(center.x + dx * rayInner, center.y + dy * rayInner),
+                    end = Offset(center.x + dx * rayOuter, center.y + dy * rayOuter),
+                    strokeWidth = size.minDimension * 0.040f,
+                    cap = StrokeCap.Round
+                )
+            }
         }
+        drawCircle(color = rayColor, radius = radius, center = center)
+        drawCircle(
+            color = Color(0xFFFFE39B),
+            radius = radius * 0.78f,
+            center = center
+        )
+        // A curved solar highlight and a small surface mark show the disc turning.
+        drawArc(
+            color = Color(0xFFFFC857).copy(alpha = 0.72f),
+            startAngle = 205f,
+            sweepAngle = 105f,
+            useCenter = false,
+            topLeft = Offset(center.x - radius * 0.48f, center.y - radius * 0.48f),
+            size = androidx.compose.ui.geometry.Size(radius * 0.96f, radius * 0.96f),
+            style = Stroke(width = radius * 0.075f, cap = StrokeCap.Round)
+        )
+        drawCircle(
+            color = Color(0xFFFFF7D6).copy(alpha = 0.78f),
+            radius = radius * 0.075f,
+            center = Offset(center.x + radius * 0.30f, center.y - radius * 0.16f)
+        )
     }
-    drawCircle(
-        color = rayColor,
-        radius = radius,
-        center = center
-    )
-    drawCircle(
-        color = Color(0xFFFFE39B),
-        radius = radius * 0.78f,
-        center = center
-    )
 }
 
 private fun DrawScope.drawWeatherCloud(left: Float, top: Float, width: Float, height: Float) {
+    // Taller, rounder cloud lobes give the classic icon a fuller silhouette.
     val path = Path().apply {
-        moveTo(left + width * 0.17f, top + height * 0.78f)
-        cubicTo(left + width * 0.02f, top + height * 0.78f, left - width * 0.01f, top + height * 0.59f, left + width * 0.06f, top + height * 0.43f)
-        cubicTo(left + width * 0.12f, top + height * 0.28f, left + width * 0.27f, top + height * 0.25f, left + width * 0.39f, top + height * 0.34f)
-        cubicTo(left + width * 0.43f, top + height * 0.08f, left + width * 0.73f, top + height * 0.04f, left + width * 0.79f, top + height * 0.35f)
-        cubicTo(left + width * 0.98f, top + height * 0.33f, left + width * 1.04f, top + height * 0.52f, left + width * 0.96f, top + height * 0.68f)
-        cubicTo(left + width * 0.91f, top + height * 0.80f, left + width * 0.78f, top + height * 0.84f, left + width * 0.66f, top + height * 0.82f)
-        lineTo(left + width * 0.17f, top + height * 0.82f)
+        moveTo(left + width * 0.17f, top + height * 0.88f)
+        cubicTo(left + width * 0.00f, top + height * 0.88f, left - width * 0.02f, top + height * 0.64f, left + width * 0.06f, top + height * 0.45f)
+        cubicTo(left + width * 0.12f, top + height * 0.20f, left + width * 0.29f, top + height * 0.18f, left + width * 0.41f, top + height * 0.34f)
+        cubicTo(left + width * 0.45f, top + height * 0.02f, left + width * 0.74f, top + height * 0.00f, left + width * 0.81f, top + height * 0.36f)
+        cubicTo(left + width * 1.00f, top + height * 0.33f, left + width * 1.04f, top + height * 0.59f, left + width * 0.96f, top + height * 0.76f)
+        cubicTo(left + width * 0.91f, top + height * 0.91f, left + width * 0.78f, top + height * 0.94f, left + width * 0.65f, top + height * 0.92f)
+        lineTo(left + width * 0.17f, top + height * 0.92f)
         close()
     }
     drawPath(
@@ -211,8 +258,8 @@ private fun DrawScope.drawWeatherCloud(left: Float, top: Float, width: Float, he
     )
     drawPath(
         path = path,
-        color = Color.White.copy(alpha = 0.80f),
-        style = Stroke(width = size.minDimension * 0.018f)
+        color = Color.White.copy(alpha = 0.88f),
+        style = Stroke(width = size.minDimension * 0.024f)
     )
 }
 
