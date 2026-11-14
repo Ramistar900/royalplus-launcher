@@ -8,6 +8,7 @@ ASSETS = ROOT / "app/src/main/assets"
 component = (JAVA / "WeatherClassicIcon.kt").read_text(encoding="utf-8")
 card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
 details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
+screensaver = (JAVA / "RoyalSmartScreensaver.kt").read_text(encoding="utf-8")
 settings = (JAVA / "RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
 
 assert not (JAVA / "V21WeatherAnimatedIcon.kt").exists(), "V21 icon component must be removed"
@@ -19,7 +20,8 @@ for name in ("drawSun", "drawWeatherCloud", "drawRain", "drawSnow", "drawFogLine
     assert name in component, f"Missing classic weather artwork primitive: {name}"
 assert "RoyalClassicWeatherIcon(" in card
 assert details.count("RoyalClassicWeatherIcon(") >= 2, "Current and forecast icons must use the classic renderer"
-assert "RoyalV21Weather" not in card + details + settings + component
+assert "RoyalClassicWeatherIcon(" in screensaver, "Screensaver must use the classic renderer"
+assert "RoyalV21Weather" not in card + details + screensaver + settings + component
 assert "rememberInfiniteTransition" not in component
 assert "BitmapFactory" not in component and "SVG.getFromAsset" not in component
 
