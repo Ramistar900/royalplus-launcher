@@ -41,7 +41,7 @@ internal enum class RoyalV21WeatherIcon(val fileName: String, val label: String)
     SUNNY("sunny.svg", "مشمس"), PARTLY_CLOUDY("partly_cloudy.svg", "غائم جزئياً"),
     CLOUDY("cloudy.svg", "غائم"), RAIN("rain.svg", "مطر"), DRIZZLE("drizzle.svg", "رذاذ"),
     HEAVY_RAIN("heavy_rain.svg", "أمطار غزيرة"), THUNDERSTORM("thunderstorm.svg", "عاصفة رعدية"),
-    LIGHTNING("lightning.svg", "برق"), SNOW("snow.svg", "ثلج"), HEAVY_SNOW("heavy_snow.svg", "ثلوج كثيفة"),
+    LIGHTNING("lightning.svg", "برق"), SNOW("snow.svg", "ثلج"), HEAVY_SNOW("heavy_snow.svg", "ثلوج كثيفة"), BLIZZARD("heavy_snow.svg", "عاصفة ثلجية"),
     SLEET("sleet.svg", "مطر متجمد"), HAIL("hail.svg", "بَرَد"), WIND("wind.svg", "رياح"),
     STRONG_WIND("strong_wind.svg", "رياح شديدة"), FOG("fog.svg", "ضباب"), MIST("mist.svg", "شبورة خفيفة"),
     DUST("dust.svg", "غبار"), HOT("hot.svg", "حرارة مرتفعة"), COLD("cold.svg", "برودة"),
@@ -55,6 +55,7 @@ internal object RoyalV21WeatherIconResolver {
     fun resolve(weatherCode: Int?, description: String = "", apparentTemperatureC: Int? = null,
         windSpeedKmh: Int? = null, hour: Int? = null): RoyalV21WeatherIcon {
         val text = description.lowercase(java.util.Locale.ROOT)
+        if (text.contains("blizzard") || text.contains("snowstorm") || text.contains("عاصفة ثلجية") || text.contains("kar fırtınası")) return RoyalV21WeatherIcon.BLIZZARD
         if (text.contains("tornado") || text.contains("إعصار") || text.contains("kasırga")) return RoyalV21WeatherIcon.TORNADO
         if (text.contains("rainbow") || text.contains("قوس قزح") || text.contains("gökkuşağı")) return RoyalV21WeatherIcon.RAINBOW
         if (text.contains("dust") || text.contains("غبار") || text.contains("toz fırtınası")) return RoyalV21WeatherIcon.DUST
@@ -258,7 +259,7 @@ private fun RoyalV21WeatherMotionOverlay(icon: RoyalV21WeatherIcon, modifier: Mo
                 }
             }
 
-            RoyalV21WeatherIcon.SNOW, RoyalV21WeatherIcon.HEAVY_SNOW,
+            RoyalV21WeatherIcon.SNOW, RoyalV21WeatherIcon.HEAVY_SNOW, RoyalV21WeatherIcon.BLIZZARD,
             RoyalV21WeatherIcon.COLD -> {
                 val count = if (icon == RoyalV21WeatherIcon.HEAVY_SNOW) 7 else 5
                 repeat(count) { i ->
