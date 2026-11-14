@@ -220,7 +220,7 @@ private fun DrawScope.drawRain(edge: Float, count: Int) {
     val rain = Color(0xFF36B9F2)
     repeat(count) { index ->
         val x = size.width * (0.30f + index * (0.40f / (count - 1).coerceAtLeast(1)))
-        val y = size.height * (0.73f + (index % 2) * 0.035f)
+        val y = size.height * (0.66f + (index % 2) * 0.035f)
         drawLine(
             color = rain,
             start = Offset(x, y),
