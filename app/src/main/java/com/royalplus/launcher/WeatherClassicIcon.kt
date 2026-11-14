@@ -80,6 +80,9 @@ private fun resolveRoyalClassicWeatherKind(
     if (text.contains("sunny") || text.contains("مشمس") || text.contains("صافية")) return RoyalClassicWeatherKind.SUNNY
     if (text.contains("rain") || text.contains("مطر") || text.contains("أمطار") || text.contains("رذاذ")) return RoyalClassicWeatherKind.RAIN
     if (text.contains("snow") || text.contains("ثلج")) return RoyalClassicWeatherKind.SNOW
+    if (text.contains("partly") || text.contains("parçalı bulutlu") || text.contains("غائم جزئي")) {
+        return RoyalClassicWeatherKind.PARTLY_CLOUDY
+    }
     if (text.contains("cloud") || text.contains("غائم") || text.contains("غيوم")) return RoyalClassicWeatherKind.CLOUDY
     return RoyalClassicWeatherKind.PARTLY_CLOUDY
 }
