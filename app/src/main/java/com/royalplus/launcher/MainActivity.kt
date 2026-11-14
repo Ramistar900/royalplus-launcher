@@ -156,6 +156,7 @@ class MainActivity : ComponentActivity() {
                             startActivity(app.launchIntent)
                         } catch (_: Exception) {
                             // The app may have been removed or blocked after the launcher list was loaded.
+                            RoyalUiSounds.play(this, RoyalUiSound.NAV_ERROR)
                             Toast.makeText(
                                 this,
                                 "تعذر فتح ${app.label}. حدّث قائمة التطبيقات أو تحقق من تثبيته.",
@@ -168,6 +169,7 @@ class MainActivity : ComponentActivity() {
                             startActivity(Intent(Settings.ACTION_SETTINGS))
                         } catch (_: Exception) {
                             // The device may not expose a system settings activity.
+                            RoyalUiSounds.play(this, RoyalUiSound.NAV_ERROR)
                         }
                     },
                     isDefaultHome = isDefaultHome,
