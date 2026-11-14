@@ -13,7 +13,7 @@ assert "-keep class com.k2fsa.sherpa.onnx.** { *; }" in proguard
 assert "-keep interface com.k2fsa.sherpa.onnx.** { *; }" in proguard
 
 weather = (JAVA / "RoyalWeatherAtmosphereOverlay.kt").read_text(encoding="utf-8")
-rain_guard = weather.split("if (isRain) {", 1)[1].split("return@Canvas", 1)[0]
+rain_guard = weather.split("if (isRain) {", 1)[1].split("val isSnow", 1)[0]
 rain_renderer = weather.split("private fun DrawScope.drawRoyalRain(", 1)[1].split("private fun DrawScope.drawRoyalSnow(", 1)[0]
 assert "drawRoyalRain(" in rain_guard and "return@Canvas" in rain_guard
 for forbidden in ("drawRoyalClouds", "drawRoyalSun", "drawRoyalFog", "drawRoyalNightSky", "drawRoyalLightning"):
