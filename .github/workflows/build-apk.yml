@@ -142,8 +142,8 @@ jobs:
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 
-      - name: Verify bundled V21 animated weather icons
-        run: python3 .github/scripts/verify-v21-weather-icons.py
+      - name: Verify static classic weather icons
+        run: python3 .github/scripts/verify-classic-weather-icons.py
 
       - name: Verify bundled V20 sports icon rendering and style preference
         run: python3 .github/scripts/verify-v20-sports-icons.py
