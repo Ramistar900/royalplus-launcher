@@ -30,7 +30,10 @@ for name in (
     "weather_clear_day", "weather_clear_night", "weather_partly_cloudy_day",
     "weather_overcast", "weather_rain", "weather_snow", "weather_storm",
 ):
-    assert (ROOT / f"app/src/main/res/drawable-nodpi/{name}.jpg").is_file(), f"Missing preserved background: {name}.jpg"
+    background_dir = ROOT / "app/src/main/res/drawable-nodpi"
+    assert any((background_dir / f"{name}.{extension}").is_file() for extension in ("jpg", "webp")), (
+        f"Missing preserved background: {name}.jpg or optimized {name}.webp"
+    )
 assert "RoyalMotionImage(" in card and "RoyalWeatherAtmosphereOverlay(" in card
 assert "RoyalWeatherAtmosphereOverlay(" in details
 
