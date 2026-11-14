@@ -1867,14 +1867,13 @@ private fun MuslimLauncherCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     var focused by remember { mutableStateOf(false) }
     val label = when (language) {
         "en" -> "Muslim"
         "tr" -> "Müslüman"
         else -> "مسلم"
     }
-    val iconSize = adaptiveProfile.iconSize(96.dp).coerceIn(72.dp, 112.dp)
+    val iconSize = royalV19MuslimIconSize(96.dp, 112.dp)
     val shape = RoundedCornerShape(16.dp)
     Card(
         modifier = modifier
@@ -1899,12 +1898,7 @@ private fun MuslimLauncherCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_muslim_mosque),
-                contentDescription = label,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(iconSize)
-            )
+            RoyalV19MuslimIcon(RoyalV19MuslimIconId.MOSQUE, Modifier.size(iconSize), label)
             Spacer(Modifier.height(8.dp))
             Text(
                 text = label,

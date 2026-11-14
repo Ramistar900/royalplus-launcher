@@ -202,6 +202,7 @@ internal fun QuranReaderScreen(
             ) {
                 Icon(Icons.Rounded.ArrowBack, contentDescription = null, tint = RoyalColors.Gold)
             }
+            RoyalV19MuslimIcon(RoyalV19MuslimIconId.QURAN_ICON, Modifier.size(royalV19MuslimIconSize(42.dp, 56.dp)))
             Column(Modifier.weight(1f)) {
                 Text(
                     when { isArabic -> "القرآن الكريم"; isTurkish -> "Kur'an-ı Kerim"; else -> "The Holy Quran" },
@@ -267,6 +268,7 @@ internal fun QuranReaderScreen(
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                RoyalV19MuslimIcon(RoyalV19MuslimIconId.QURAN_AUDIO, Modifier.size(royalV19MuslimIconSize(34.dp, 46.dp)))
                 Column(Modifier.weight(1f)) {
                     Text("مكتبتي الصوتية", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("السور المنزّلة للقارئ المحدد فقط", color = RoyalColors.Pearl, fontSize = 10.sp)
@@ -288,6 +290,7 @@ internal fun QuranReaderScreen(
                     .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                RoyalV19MuslimIcon(RoyalV19MuslimIconId.QARIS_ICON, Modifier.size(royalV19MuslimIconSize(40.dp, 54.dp)))
                 Column(Modifier.weight(1f)) {
                     Text("مختارات عبد الرحمن مسعد", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("17 تلاوة مختارة • تنزيل للاستماع دون إنترنت", color = RoyalColors.Pearl, fontSize = 10.sp)
@@ -353,7 +356,7 @@ internal fun QuranReaderScreen(
                                 color = RoyalColors.Pearl, fontSize = 14.sp
                             )
                         }
-                        Text("★", color = RoyalColors.Gold, fontSize = 20.sp)
+                        RoyalV19MuslimIcon(RoyalV19MuslimIconId.QURAN_BOOKMARK, Modifier.size(royalV19MuslimIconSize(28.dp, 40.dp)))
                     }
                 }
             }

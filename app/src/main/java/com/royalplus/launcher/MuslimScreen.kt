@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -39,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -231,6 +229,15 @@ internal fun MuslimScreen(
         }
     }
 
+    val nextPrayerRakats = when (nextPrayer?.first) {
+        "Fajr" -> 2
+        "Dhuhr" -> 4
+        "Asr" -> 4
+        "Maghrib" -> 3
+        "Isha" -> 4
+        else -> null
+    }
+
     if (selectedSection != "home") {
         MuslimSubSectionScreen(
             section = selectedSection, language = language,
@@ -280,7 +287,10 @@ internal fun MuslimScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(when (language) { "en" -> "Hijri date"; "tr" -> "Hicri tarih"; else -> "التاريخ الهجري" }, color = RoyalColors.Gold, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RoyalV19MuslimIcon(RoyalV19MuslimIconId.HIJRI_CALENDAR, Modifier.size(royalV19MuslimIconSize(32.dp, 44.dp)))
+                    Text(when (language) { "en" -> "Hijri date"; "tr" -> "Hicri tarih"; else -> "التاريخ الهجري" }, color = RoyalColors.Gold, fontSize = 12.sp)
+                }
                 Text(data?.hijriDate?.takeIf { it.isNotBlank() } ?: when (language) { "en" -> "Loading Hijri date"; "tr" -> "Hicri tarih yükleniyor"; else -> "جارٍ تحميل التاريخ الهجري" }, color = RoyalColors.Pearl, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text(data?.gregorianDate.orEmpty(), color = RoyalColors.Muted, fontSize = 11.sp)
                 Row(
@@ -342,8 +352,6 @@ internal fun MuslimScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
-                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(when (language) { "en" -> "Next prayer"; "tr" -> "Sonraki namaz"; else -> "الصلاة القادمة" }, color = Color.White, fontSize = 11.sp)
                     Text(PrayerTimesRepository.displayNames()[nextPrayer.first] ?: nextPrayer.first, color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -360,6 +368,18 @@ internal fun MuslimScreen(
                         Text(when (language) { "en" -> "In "; "tr" -> "Kalan "; else -> "بعد " }, color = Color.White, fontSize = 10.sp)
                         Text(countdown.ifBlank { "00:00:00" }, color = Color(0xFF20C9B5), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
+                    if (nextPrayerRakats != null) {
+                        Text(
+                            when (language) {
+                                "en" -> "$nextPrayerRakats rakats"
+                                "tr" -> "$nextPrayerRakats rekât"
+                                else -> "$nextPrayerRakats ركعات"
+                            },
+                            color = Color(0xFFE7D6B1),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
@@ -370,8 +390,17 @@ internal fun MuslimScreen(
             language = language
         )
 
-        Text(when (language) { "en" -> "Prayer times for the next seven days"; "tr" -> "Önümüzdeki yedi günün namaz vakitleri"; else -> "جدول مواقيت الصلاة للأيام السبعة" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Text(when (language) { "en" -> "Updates daily and calculates times for the selected city"; "tr" -> "Her gün otomatik yenilenir ve seçilen şehre göre hesaplanır"; else -> "يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت حسب المدينة المختارة" }, color = RoyalColors.Muted, fontSize = 10.sp)
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Color(0xFF171B29))
+            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.72f), RoundedCornerShape(13.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RoyalV19MuslimIcon(RoyalV19MuslimIconId.PRAYER_ICON, Modifier.size(royalV19MuslimIconSize(42.dp, 58.dp)))
+            Column(Modifier.weight(1f)) {
+                Text(when (language) { "en" -> "Prayer times for the next seven days"; "tr" -> "Önümüzdeki yedi günün namaz vakitleri"; else -> "جدول مواقيت الصلاة للأيام السبعة" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(when (language) { "en" -> "Updates daily and calculates times for the selected city"; "tr" -> "Her gün otomatik yenilenir ve seçilen şehre göre hesaplanır"; else -> "يتجدد تلقائياً يومياً ويُحسب حسب المدينة المختارة" }, color = RoyalColors.Muted, fontSize = 10.sp)
+            }
+            RoyalV19MuslimIcon(RoyalV19MuslimIconId.PRAYER_TIMES, Modifier.size(royalV19MuslimIconSize(42.dp, 58.dp)))
+        }
         val prayerColumns = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -501,11 +530,11 @@ private fun MuslimNavigationTile(
         "hadith" -> when (language) { "en" -> "Hadith"; "tr" -> "Hadisler"; else -> "الأحاديث النبوية" }
         else -> when (language) { "en" -> "Worship tools"; "tr" -> "İbadet araçları"; else -> "أدوات العبادة" }
     }
-    val iconRes = when (section) {
-        "quran" -> R.drawable.ic_muslim_quran
-        "duas" -> R.drawable.ic_muslim_dua
-        "hadith" -> R.drawable.ic_muslim_hadith
-        else -> R.drawable.ic_muslim_worship
+    val icon = when (section) {
+        "quran" -> RoyalV19MuslimIconId.QURAN_ICON
+        "duas" -> RoyalV19MuslimIconId.DUA_ICON
+        "hadith" -> RoyalV19MuslimIconId.HADITH
+        else -> RoyalV19MuslimIconId.TASBIH
     }
     Column(
         modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF171B29))
@@ -515,7 +544,7 @@ private fun MuslimNavigationTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Icon(painter = painterResource(iconRes), contentDescription = title, tint = Color.Unspecified, modifier = Modifier.size(adaptiveProfile.iconSize(36.dp)))
+        RoyalV19MuslimIcon(icon, Modifier.size(royalV19MuslimIconSize(36.dp, 58.dp)), title)
         Text(title, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
@@ -641,6 +670,7 @@ private fun RamadanCountdownCard(now: Long, timeZoneId: String, language: String
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
+        RoyalV19MuslimIcon(RoyalV19MuslimIconId.RAMADAN, Modifier.size(royalV19MuslimIconSize(46.dp, 62.dp)))
         if (target.isRamadan) {
             Text(
                 when (language) {
@@ -816,6 +846,12 @@ private fun DuasSection(language: String) {
                         .padding(horizontal = 10.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val icons = when {
+                        category.contains("الصباح") -> listOf(RoyalV19MuslimIconId.MORNING_AZKAR, RoyalV19MuslimIconId.EVENING_AZKAR)
+                        category.contains("النوم") || category.contains("الصلاة") -> listOf(RoyalV19MuslimIconId.DHIKR)
+                        else -> listOf(RoyalV19MuslimIconId.DUA_ICON)
+                    }
+                    icons.forEach { RoyalV19MuslimIcon(it, Modifier.size(royalV19MuslimIconSize(25.dp, 34.dp))) }
                     Text(
                         category,
                         modifier = Modifier.weight(1f),
@@ -905,6 +941,7 @@ private fun HadithsSection(language: String) {
                 .padding(horizontal = 12.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            RoyalV19MuslimIcon(RoyalV19MuslimIconId.HADITH, Modifier.size(royalV19MuslimIconSize(34.dp, 46.dp)))
             Column(Modifier.weight(1f)) {
                 Text(
                     when (language) { "en" -> "Authentic Prophetic hadiths"; "tr" -> "Sahih Peygamber hadisleri"; else -> "أحاديث نبوية صحيحة" },
