@@ -507,7 +507,11 @@ internal fun RoyalSportsScreen(language: String) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(Icons.Rounded.SportsSoccer, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(28.dp))
+            RoyalSportsV20AnimatedIcon(
+                fileName = "football.svg",
+                contentDescription = title,
+                modifier = Modifier.size(28.dp)
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
@@ -637,6 +641,88 @@ private fun SportsTabButton(
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Renders the bundled ROYAL DESIGN V20 sports SVG locally.
+ * A native Compose icon remains underneath as a safe fallback for TV WebView providers
+ * that cannot render the animated SVG.
+ */
+@Composable
+private fun RoyalSportsV20AnimatedIcon(
+    fileName: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.SportsSoccer,
+            contentDescription = contentDescription,
+            tint = RoyalColors.Gold,
+            modifier = Modifier.fillMaxSize().padding(3.dp)
+        )
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                WebView(context).apply {
+                    setBackgroundColor(AndroidColor.TRANSPARENT)
+                    settings.javaScriptEnabled = false
+                    settings.domStorageEnabled = false
+                    settings.allowFileAccess = true
+                    settings.allowContentAccess = false
+                    settings.blockNetworkLoads = true
+                    isHorizontalScrollBarEnabled = false
+                    isVerticalScrollBarEnabled = false
+                    overScrollMode = View.OVER_SCROLL_NEVER
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                }
+            },
+            update = { webView ->
+                if (webView.tag != fileName) {
+                    webView.tag = fileName
+                    val html = """
+                        <!doctype html><html><head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+                        <style>
+                            html, body {
+                                margin: 0;
+                                padding: 0;
+                                width: 100%;
+                                height: 100%;
+                                overflow: hidden;
+                                background: transparent;
+                            }
+                            img {
+                                display: block;
+                                width: 100%;
+                                height: 100%;
+                                object-fit: contain;
+                            }
+                        </style>
+                        </head><body><img src="$fileName" alt=""></body></html>
+                    """.trimIndent()
+                    webView.loadDataWithBaseURL(
+                        "file:///android_asset/sports_v20/",
+                        html,
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
+                }
+                webView.onResume()
+            },
+            onRelease = { webView ->
+                webView.stopLoading()
+                webView.onPause()
+                webView.destroy()
+            }
         )
     }
 }
