@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,6 +39,9 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/noto_kufi_arabic.ttf --output app/src/main/res/font/noto_kufi_arabic.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/amiri_regular.ttf --output app/src/main/res/font/amiri_regular.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
+
+      - name: Fetch pinned ROYAL Design V20 static sports icons
+        run: python3 .github/scripts/prepare-v20-sports-icons.py
 
       - name: Download and verify offline Quran text
         run: |
@@ -142,6 +145,9 @@ jobs:
       - name: Verify bundled V21 animated weather icons
         run: python3 .github/scripts/verify-v21-weather-icons.py
 
+      - name: Verify bundled V20 sports icon rendering and style preference
+        run: python3 .github/scripts/verify-v20-sports-icons.py
+
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
 
@@ -215,7 +221,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

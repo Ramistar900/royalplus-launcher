@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -79,6 +80,17 @@ internal fun RoyalDeviceSettingsSection(language: String) {
     var owlSoundEnabled by remember(owlPreferences) {
         mutableStateOf(owlPreferences.getBoolean(RoyalOwlAmbienceController.ENABLED_KEY, true))
     }
+    val weatherIconPreferences = remember(context) {
+        context.getSharedPreferences(RoyalV21WeatherIconPreferences.PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
+    var weatherIconsAnimated by remember(weatherIconPreferences) {
+        mutableStateOf(
+            weatherIconPreferences.getBoolean(
+                RoyalV21WeatherIconPreferences.KEY_ANIMATED,
+                RoyalV21WeatherIconPreferences.DEFAULT_ANIMATED
+            )
+        )
+    }
     val storage = storageSummary(language)
     val connection = connectionSummary(context, language)
     val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
@@ -118,6 +130,18 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             if (language == "en") "Sound settings" else if (language == "tr") "Ses ayarları" else "إعدادات الصوت",
             if (language == "en") "Volume and audio output" else if (language == "tr") "Ses seviyesi ve çıkışı" else "مستوى الصوت ومخرج الصوت") {
             openSystemSettings(context, Settings.ACTION_SOUND_SETTINGS)
+        }
+        SettingsInfoRow(
+            Icons.Rounded.WbSunny,
+            if (language == "en") "V21 weather icon style" else if (language == "tr") "V21 hava durumu simge biçimi" else "نمط أيقونات الطقس V21",
+            when (language) {
+                "en" -> if (weatherIconsAnimated) "Animated • tap to switch to static" else "Static • tap to enable animation"
+                "tr" -> if (weatherIconsAnimated) "Hareketli • sabit moda geçmek için dokun" else "Sabit • hareketi açmak için dokun"
+                else -> if (weatherIconsAnimated) "متحركة • اضغط للتحويل إلى ثابتة" else "ثابتة • اضغط لتفعيل الحركة"
+            }
+        ) {
+            weatherIconsAnimated = !weatherIconsAnimated
+            RoyalV21WeatherIconPreferences.setAnimated(context, weatherIconsAnimated)
         }
         Text(
             if (language == "en") "Nature & weather sounds" else if (language == "tr") "Doğa ve hava sesleri" else "أصوات الطبيعة والطقس",

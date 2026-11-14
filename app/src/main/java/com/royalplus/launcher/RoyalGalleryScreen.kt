@@ -225,10 +225,10 @@ private fun RoyalMediaTile(item: RoyalMediaItem, onClick: () -> Unit) {
         .clickable(onClick = onClick).focusable().padding(6.dp)) {
         Box(Modifier.fillMaxWidth().aspectRatio(1.35f).clip(RoundedCornerShape(10.dp)).background(Color(0xFF242A34)), contentAlignment = Alignment.Center) {
             if (bitmap != null) Image(bitmap!!.asImageBitmap(), contentDescription = item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            else Icon(if (item.video) Icons.Rounded.Movie else Icons.Rounded.Image, contentDescription = null, tint = RoyalColors.Gold)
+            else Icon(if (item.video) Icons.Rounded.Movie else Icons.Rounded.Image, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
             if (item.video) {
                 Icon(Icons.Rounded.Movie, contentDescription = "فيديو", tint = Color.White,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp))
+                    modifier = Modifier.size(royalAdaptiveIconSize(24.dp)).align(Alignment.BottomEnd).padding(7.dp))
             }
         }
         Text(item.name.ifBlank { if (item.video) "فيديو" else "صورة" }, color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1,
@@ -240,7 +240,7 @@ private fun RoyalMediaTile(item: RoyalMediaItem, onClick: () -> Unit) {
 private fun GalleryEmpty(title: String, subtitle: String, action: String?, icon: androidx.compose.ui.graphics.vector.ImageVector, onAction: (() -> Unit)?) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(icon, contentDescription = null, tint = RoyalColors.Gold)
+            Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
             Text(title, color = RoyalColors.Pearl, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             if (subtitle.isNotBlank()) Text(subtitle, color = RoyalColors.Muted, fontSize = 12.sp, textAlign = TextAlign.Center)
             if (action != null && onAction != null) Text(action, color = RoyalColors.Gold, modifier = Modifier.clip(RoundedCornerShape(10.dp))

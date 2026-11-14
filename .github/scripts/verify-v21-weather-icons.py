@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[2]
+JAVA = ROOT / "app/src/main/java/com/royalplus/launcher"
 ASSETS = ROOT / "app/src/main/assets/weather_v21"
-KOTLIN = ROOT / "app/src/main/java/com/royalplus/launcher"
 ICONS = [
     "sunny", "partly_cloudy", "cloudy", "rain", "drizzle", "heavy_rain",
     "thunderstorm", "lightning", "snow", "heavy_snow", "sleet", "hail",
@@ -13,31 +12,34 @@ ICONS = [
     "humidity", "rainbow",
 ]
 
+component = (JAVA / "V21WeatherAnimatedIcon.kt").read_text(encoding="utf-8")
+settings = (JAVA / "RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
+card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
+details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
+gradle = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
+
 assert len(ICONS) == 26 and len(set(ICONS)) == 26
 for name in ICONS:
     path = ASSETS / f"{name}.svg"
-    assert path.is_file(), f"Missing V21 animated weather asset: {path}"
+    assert path.is_file(), f"Missing original V21 artwork: {path}"
     svg = path.read_text(encoding="utf-8")
-    assert "<svg" in svg, f"Invalid SVG root: {path}"
-    assert re.search(r"<animate(?:Transform|Motion)?\b", svg, re.IGNORECASE), (
-        f"V21 asset is not animated: {path}"
-    )
+    assert "<svg" in svg and "<defs>" in svg, f"Invalid V21 SVG: {path}"
+    assert "<animate" in svg, f"V21 animated source was lost: {path}"
 
-component = (KOTLIN / "V21WeatherAnimatedIcon.kt").read_text(encoding="utf-8")
-assert all(f'"{name}.svg"' in component for name in ICONS), "Missing icon resolver entry"
-assert "javaScriptEnabled = false" in component
-assert "blockNetworkLoads = true" in component
-assert "file:///android_asset/weather_v21/" in component
+assert "com.caverock:androidsvg-aar:1.4" in gradle
+assert "SVG.getFromAsset" in component and "svg.renderToCanvas" in component
+assert 'weather_v21/${icon.fileName}' in component
+assert "RoyalV21WeatherMotionOverlay" in component
+assert "rememberInfiniteTransition" in component
+assert "RoyalV21WeatherIconPreferences.KEY_ANIMATED" in component
+assert "SharedPreferences.OnSharedPreferenceChangeListener" in component
+assert "RoyalV21WeatherIconPreferences.setAnimated" in settings
+assert "weatherIconsAnimated = !weatherIconsAnimated" in settings
+assert "RoyalV21WeatherAnimatedIcon(" in card and "RoyalV21WeatherAnimatedIcon(" in details
+for forbidden in ("android.webkit.WebView", "AndroidView", "loadDataWithBaseURL", "file:///android_asset/"):
+    assert forbidden not in component, f"Weather icon renderer must not use {forbidden}"
 
-glass = (KOTLIN / "WeatherGlassCard.kt").read_text(encoding="utf-8")
-details = (KOTLIN / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
-assert "RoyalV21WeatherAnimatedIcon(" in glass and "RoyalV21WeatherAnimatedIcon(" in details
-assert "weatherSymbol(" not in details, "Old emoji weather helper remains"
-
-gradle = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-assert re.search(r"minSdk\s*=\s*23", gradle), "Existing minimum SDK changed"
+assert "minSdk = 23" in gradle
 workflow = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
-assert "api-level: 24" in workflow, "Android 7/API 24 smoke test missing"
-assert "api-level: 26" in workflow, "Android 8/API 26 smoke test missing"
-
-print(f"Verified all {len(ICONS)} bundled animated V21 SVG assets and Android API 24/26 test coverage.")
+assert "api-level: 24" in workflow and "api-level: 26" in workflow
+print("Verified 26 original V21 SVG assets, native Android rendering, persistent static/animated setting, and Android 8 coverage.")

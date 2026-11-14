@@ -74,7 +74,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Thunderstorm
@@ -672,7 +671,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(22.dp)))
                             Text(
                                 prayerTimeBanner.orEmpty(),
                                 color = RoyalColors.Pearl,
@@ -866,7 +865,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
+                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(25.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -918,7 +917,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(23.dp))
+                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(23.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
@@ -1175,7 +1174,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(painter = painterResource(R.drawable.royal_smart_tv), contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(26.dp))
+                            Icon(painter = painterResource(R.drawable.royal_smart_tv), contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(26.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(when (selectedLanguage) { "en" -> "Default TV launcher"; "tr" -> "Varsayılan TV başlatıcısı"; else -> "واجهة التلفاز الافتراضية" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -1208,7 +1207,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(when (selectedLanguage) { "en" -> "Clock format"; "tr" -> "Saat biçimi"; else -> "تنسيق الساعة" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -1232,7 +1231,7 @@ internal fun RoyalHomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(when (selectedLanguage) { "en" -> "Show date"; "tr" -> "Tarihi göster"; else -> "عرض التاريخ" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -1509,14 +1508,14 @@ private fun IconStyleChoice(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accent,
-                    modifier = Modifier.size(25.dp)
+                    modifier = Modifier.size(royalAdaptiveIconSize(25.dp))
                 )
             } else {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = accent,
-                    modifier = Modifier.size(25.dp)
+                    modifier = Modifier.size(royalAdaptiveIconSize(25.dp))
                 )
             }
         }
@@ -1597,14 +1596,14 @@ private fun RoyalBrandHeader(
             Row(Modifier.width(if (compactPhone) 104.dp else 175.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(RoyalColors.Panel)
                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.65f), RoundedCornerShape(10.dp)).padding(horizontal = 9.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Search, null, tint = RoyalColors.Gold, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.Search, null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(18.dp)))
                 Spacer(Modifier.width(6.dp))
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     if (searchQuery.isBlank()) Text(when (selectedLanguage) { "en" -> "Search apps"; "tr" -> "Uygulama ara"; else -> "ابحث عن تطبيق" }, color = RoyalColors.Muted, fontSize = 12.sp)
                     BasicTextField(searchQuery, onQueryChanged, singleLine = true, cursorBrush = SolidColor(RoyalColors.Gold),
                         textStyle = TextStyle(color = RoyalColors.Pearl, fontSize = 12.sp), modifier = Modifier.fillMaxWidth())
                 }
-                Icon(Icons.Rounded.Close, when (selectedLanguage) { "en" -> "Close search"; "tr" -> "Aramayı kapat"; else -> "إغلاق البحث" }, tint = RoyalColors.Pearl, modifier = Modifier.size(17.dp).clickable(onClick = onCloseSearch).focusable())
+                Icon(Icons.Rounded.Close, when (selectedLanguage) { "en" -> "Close search"; "tr" -> "Aramayı kapat"; else -> "إغلاق البحث" }, tint = RoyalColors.Pearl, modifier = Modifier.size(royalAdaptiveIconSize(17.dp)).clickable(onClick = onCloseSearch).focusable())
             }
             Spacer(Modifier.width(10.dp))
         }
@@ -1823,7 +1822,7 @@ private fun HomeDashboard(
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(when (selectedLanguage) { "en" -> "Quick access"; "tr" -> "Hızlı erişim"; else -> "الوصول السريع" }, color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(21.dp))
+                Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(21.dp)))
             }
             Spacer(Modifier.height(10.dp))
             if (quickAccessApps.isEmpty()) EmptyAppsMessage("لا توجد تطبيقات قابلة للتشغيل على هذا الجهاز", Modifier.fillMaxWidth().height(favoriteHeight))
@@ -1853,7 +1852,7 @@ private fun HomeDashboard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFD56D), modifier = Modifier.size(24.dp))
+                Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFD56D), modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                 Text(when (selectedLanguage) { "en" -> "Ramadan Kareem"; "tr" -> "Ramazanınız mübarek olsun"; else -> "رمضان كريم" }, color = Color(0xFFFFD56D), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -2218,7 +2217,13 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[6], Icons.Rounded.SportsSoccer, selectedDestination == LauncherDestination.SPORTS, onClick = { onNavigate(LauncherDestination.SPORTS) })
+        SidebarNavItem(
+            labels[6],
+            null,
+            selectedDestination == LauncherDestination.SPORTS,
+            sportsIconId = RoyalV20SportsIconId.FOOTBALL,
+            onClick = { onNavigate(LauncherDestination.SPORTS) }
+        )
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[7], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(itemGap))
@@ -2273,7 +2278,7 @@ private fun StatusIcon(
             imageVector = icon,
             contentDescription = description,
             tint = if (onClick == null) RoyalColors.Pearl.copy(alpha = 0.90f) else RoyalColors.Gold,
-            modifier = Modifier.size(if (compactPhone) 16.dp else 19.dp)
+            modifier = Modifier.size(royalAdaptiveIconSize(if (compactPhone) 16.dp else 19.dp))
         )
     }
 }
@@ -2281,9 +2286,10 @@ private fun StatusIcon(
 @Composable
 private fun SidebarNavItem(
     title: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     selected: Boolean,
     iconRes: Int? = null,
+    sportsIconId: RoyalV20SportsIconId? = null,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     onClick: () -> Unit
 ) {
@@ -2340,19 +2346,27 @@ private fun SidebarNavItem(
             fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
-        if (iconRes == null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
-                modifier = Modifier.size(if (compactPhone) 22.dp else 20.dp)
+        when {
+            sportsIconId != null -> RoyalV20SportsIcon(
+                sportsIconId,
+                modifier = Modifier.size(royalV20SportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
+                contentDescription = title
             )
-        } else {
-            Image(
+            iconRes == null -> {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
+                        modifier = Modifier.size(royalAdaptiveIconSize(if (compactPhone) 22.dp else 20.dp))
+                    )
+                }
+            }
+            else -> Image(
                 painter = painterResource(iconRes),
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(royalAdaptiveIconSize(20.dp))
             )
         }
     }
@@ -2368,7 +2382,7 @@ private fun SectionHeading(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(19.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(19.dp)))
         Text(
             text = title,
             color = RoyalColors.Pearl,
@@ -2571,7 +2585,7 @@ private fun RoyalAppManagementScreen(
                                         modifier = Modifier.size(managementIconSize)
                                     )
                                 } else {
-                                    Icon(Icons.Rounded.Apps, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(42.dp))
+                                    Icon(Icons.Rounded.Apps, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(42.dp)))
                                 }
                                 Column(Modifier.weight(1f)) {
                                     Text(app.label, color = RoyalColors.Pearl, fontSize = if (adaptiveProfile.isPhone) 11.sp else 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)

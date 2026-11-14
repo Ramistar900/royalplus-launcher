@@ -132,7 +132,7 @@ internal fun RoyalQuickControlCenter(
                     painter = painterResource(R.drawable.royal_dashboard),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(royalAdaptiveIconSize(34.dp, maxSize = 46.dp))
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -150,7 +150,7 @@ internal fun RoyalQuickControlCenter(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Rounded.Close, contentDescription = if (language == "en") "Close" else if (language == "tr") "Kapat" else "إغلاق",
-                        tint = Color(0xFFFFD36A), modifier = Modifier.size(22.dp))
+                        tint = Color(0xFFFFD36A), modifier = Modifier.size(royalAdaptiveIconSize(22.dp)))
                 }
             }
             Spacer(Modifier.height(16.dp))

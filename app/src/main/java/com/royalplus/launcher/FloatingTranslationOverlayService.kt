@@ -57,6 +57,7 @@ class FloatingTranslationOverlayService : Service() {
     private var projectionResultData: Intent? = null
     private var consecutiveSilentSegments = 0
     private var consecutiveUnrecognizedSegments = 0
+    private var lastRecognizedTail: List<String> = emptyList()
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
     private var decodeThread: Thread? = null
@@ -284,7 +285,15 @@ class FloatingTranslationOverlayService : Service() {
                                 audioSegments.poll()
                                 audioSegments.offer(completed)
                             }
-                            filled = 0
+                            // Preserve a short tail so speech at window boundaries is not clipped.
+                            System.arraycopy(
+                                segment,
+                                SEGMENT_SAMPLES - SEGMENT_OVERLAP_SAMPLES,
+                                segment,
+                                0,
+                                SEGMENT_OVERLAP_SAMPLES
+                            )
+                            filled = SEGMENT_OVERLAP_SAMPLES
                         }
                     }
                 } else if (count < 0) {
@@ -315,6 +324,7 @@ class FloatingTranslationOverlayService : Service() {
                 if (!hasMeaningfulAudio(samples)) {
                     consecutiveSilentSegments++
                     if (consecutiveSilentSegments == 2) {
+                        lastRecognizedTail = emptyList()
                         updateStatus(
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                 "لا يصل صوت من التطبيق. قد يمنع التطبيق المصدر التقاط صوته؛ جرّب مشغّلاً يسمح بمشاركة الصوت."
@@ -339,8 +349,11 @@ class FloatingTranslationOverlayService : Service() {
                 val recognized = result.text.replace(Regex("\\s+"), " ").trim()
                 val language = result.lang.trim().lowercase(Locale.ROOT)
                 if (recognized.isNotBlank()) {
-                    consecutiveUnrecognizedSegments = 0
-                    translateCaption(recognized, language)
+                    val freshText = removeOverlappingWords(recognized)
+                    if (freshText.isNotBlank()) {
+                        consecutiveUnrecognizedSegments = 0
+                        translateCaption(freshText, language)
+                    }
                 } else {
                     consecutiveUnrecognizedSegments++
                     if (consecutiveUnrecognizedSegments == 3) {
@@ -367,6 +380,29 @@ class FloatingTranslationOverlayService : Service() {
         }
         val rms = sqrt(squaredEnergy / samples.size).toFloat()
         return peak >= 0.0035f && rms >= 0.00075f
+    }
+
+    /** Remove duplicated leading words caused by the 350 ms overlapping audio windows. */
+    private fun removeOverlappingWords(text: String): String {
+        val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (words.isEmpty()) return ""
+        fun normalized(word: String): String =
+            word.lowercase(Locale.ROOT).trim { !it.isLetterOrDigit() }
+
+        val previous = lastRecognizedTail
+        var overlap = 0
+        val maximum = minOf(MAX_OVERLAP_WORDS, previous.size, words.size)
+        for (candidate in maximum downTo 1) {
+            if (previous.takeLast(candidate).map(::normalized) == words.take(candidate).map(::normalized)) {
+                overlap = candidate
+                break
+            }
+        }
+        val freshWords = words.drop(overlap)
+        if (freshWords.isNotEmpty()) {
+            lastRecognizedTail = (previous + freshWords).takeLast(MAX_OVERLAP_WORDS)
+        }
+        return freshWords.joinToString(" ")
     }
 
     private fun normalizeDetectedLanguage(rawLanguage: String): String {
@@ -840,7 +876,10 @@ class FloatingTranslationOverlayService : Service() {
         private const val STATUS_DISPLAY_MILLIS = 7_000L
         private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
-        private const val SEGMENT_SECONDS = 8
+        private const val SEGMENT_SECONDS = 2
+        private const val SEGMENT_OVERLAP_MILLIS = 350
+        private const val SEGMENT_OVERLAP_SAMPLES = SAMPLE_RATE * SEGMENT_OVERLAP_MILLIS / 1_000
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
+        private const val MAX_OVERLAP_WORDS = 4
     }
 }

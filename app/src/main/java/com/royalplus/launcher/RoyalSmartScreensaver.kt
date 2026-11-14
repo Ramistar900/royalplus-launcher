@@ -184,7 +184,7 @@ internal fun RoyalSmartScreensaver(
                     imageVector = if (weather.description.contains("cloud", true) || weather.description.contains("غائم") || weather.description.contains("سحب")) Icons.Rounded.Cloud else Icons.Rounded.WbSunny,
                     contentDescription = null,
                     tint = RoyalColors.Gold,
-                    modifier = Modifier.size(27.dp)
+                    modifier = Modifier.size(royalAdaptiveIconSize(27.dp))
                 )
                 Spacer(Modifier.size(12.dp))
                 Column {
@@ -213,7 +213,7 @@ internal fun RoyalSmartScreensaver(
             )
             Spacer(Modifier.height(18.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = Color.White.copy(alpha = 0.55f), modifier = Modifier.size(15.dp))
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = Color.White.copy(alpha = 0.55f), modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
                 Text(hint, color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp)
             }
         }

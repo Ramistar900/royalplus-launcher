@@ -15,6 +15,20 @@ for path in (SPORTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRAT
 
 sports = SPORTS.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
+
+# The only user-facing sports category is football; both match tabs remain.
+assert "MATCHES, SCHEDULE" in sports
+assert 'arabic -> "كرة القدم"' in sports
+assert 'turkish -> "FUTBOL"' in sports and 'else -> "FOOTBALL"' in sports
+assert "RoyalV20SportsIconId.FOOTBALL" in sports
+assert "RoyalV20SportsIconId.TODAY_MATCHES" in sports
+assert "RoyalV20SportsIconId.FIXTURES" in sports
+assert "RoyalV20SportsIconId.LIVE_SCORES" in sports
+assert "RoyalV20SportsIconId.MATCH_RESULTS" in sports
+assert "Icons.Rounded.SportsSoccer" not in sports
+for other_sport in ("Basketball", "Tennis", "Volleyball", "Cricket", "Baseball"):
+    assert other_sport.lower() not in sports.lower(), f"Unexpected sport category: {other_sport}"
+assert "v3.football.api-sports.io" in (ROOT / "supabase/functions/royalplus-sports/index.ts").read_text(encoding="utf-8")
 manifest = MANIFEST.read_text(encoding="utf-8")
 backend = BACKEND.read_text(encoding="utf-8")
 migration = CACHE_MIGRATION.read_text(encoding="utf-8")
@@ -31,7 +45,8 @@ assert "/functions/v1/royalplus-sports" in sports
 
 # Sports must be a first-party launcher destination; weather, audio and wallpapers are not replaced.
 assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in home
-assert "Icons.Rounded.SportsSoccer" in home
+assert "sportsIconId = RoyalV20SportsIconId.FOOTBALL" in home
+assert "Icons.Rounded.SportsSoccer" not in home
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert "minSdk = 23" in gradle
 

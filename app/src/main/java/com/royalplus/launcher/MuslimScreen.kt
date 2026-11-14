@@ -342,7 +342,7 @@ internal fun MuslimScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(25.dp))
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(25.dp)))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(when (language) { "en" -> "Next prayer"; "tr" -> "Sonraki namaz"; else -> "الصلاة القادمة" }, color = Color.White, fontSize = 11.sp)
@@ -588,7 +588,7 @@ private fun SmallPrayerAction(title: String, icon: androidx.compose.ui.graphics.
             .padding(horizontal = 9.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(16.dp))
+        Icon(icon, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(16.dp)))
         Spacer(Modifier.width(4.dp))
         Text(title, color = Color.Black, fontSize = 11.sp)
     }

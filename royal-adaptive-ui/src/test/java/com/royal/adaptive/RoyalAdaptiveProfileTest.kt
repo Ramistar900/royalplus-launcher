@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RoyalAdaptiveProfileTest {
@@ -98,6 +99,43 @@ class RoyalAdaptiveProfileTest {
         )
         assertEquals(64.dp, television.minimumFocusTarget)
         assertEquals(60.dp, television.controlHeight())
+    }
+
+
+    @Test
+    fun iconGlyphSizeScalesAcrossPhoneTabletAndTelevisionWindows() {
+        val phone = RoyalAdaptiveProfile.Default.copy(
+            windowWidthDp = 320.dp,
+            windowHeightDp = 480.dp
+        )
+        val tablet = RoyalAdaptiveProfile.Default.copy(
+            deviceClass = RoyalDeviceClass.TABLET,
+            widthClass = RoyalWindowWidthClass.MEDIUM,
+            windowWidthDp = 800.dp,
+            windowHeightDp = 1200.dp
+        )
+        val television = RoyalAdaptiveProfile.Default.copy(
+            deviceClass = RoyalDeviceClass.TELEVISION,
+            widthClass = RoyalWindowWidthClass.EXPANDED,
+            windowWidthDp = 1280.dp,
+            windowHeightDp = 720.dp
+        )
+
+        assertTrue(phone.iconSize(24.dp) < RoyalAdaptiveProfile.Default.iconSize(24.dp))
+        assertTrue(tablet.iconSize(24.dp) > RoyalAdaptiveProfile.Default.iconSize(24.dp))
+        assertTrue(television.iconSize(24.dp) > tablet.iconSize(24.dp))
+        assertTrue(television.iconSize(24.dp) <= 24.dp * 1.48f)
+    }
+
+    @Test
+    fun iconGlyphSizeRespondsToWindowHeight() {
+        val shortWindow = RoyalAdaptiveProfile.Default.copy(
+            windowWidthDp = 960.dp,
+            windowHeightDp = 400.dp
+        )
+        val tallWindow = shortWindow.copy(windowHeightDp = 900.dp)
+
+        assertTrue(tallWindow.iconSize(24.dp) > shortWindow.iconSize(24.dp))
     }
 
 }
