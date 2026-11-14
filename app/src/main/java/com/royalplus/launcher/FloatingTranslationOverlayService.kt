@@ -856,7 +856,8 @@ class FloatingTranslationOverlayService : Service() {
         private const val STATUS_DISPLAY_MILLIS = 7_000L
         private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
-        private const val SEGMENT_SECONDS = 8
+        // Shorter offline recognition windows reduce subtitle latency (previously 8 seconds).
+        private const val SEGMENT_SECONDS = 3
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
     }
 }
