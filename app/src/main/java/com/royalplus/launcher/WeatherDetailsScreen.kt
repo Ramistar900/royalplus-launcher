@@ -314,13 +314,13 @@ internal fun WeatherDetailsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(weather.city.ifBlank { "الموقع الحالي" }, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 21.sp else 27.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(10.dp))
-                        Icon(Icons.Rounded.LocationOn, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Rounded.LocationOn, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(royalAdaptiveIconSize(20.dp)))
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         RoyalV21WeatherAnimatedIcon(
                             icon = currentWeatherIcon,
-                            modifier = Modifier.size(if (adaptiveProfile.isPhone) 50.dp else 68.dp),
+                            modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isPhone) 50.dp else 68.dp, maxSize = 82.dp)),
                             motionEnabled = motionEnabled,
                             contentDescription = weather.description
                         )
@@ -338,23 +338,23 @@ internal fun WeatherDetailsScreen(
                                 .padding(horizontal = 10.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Rounded.Tune, null, tint = gold, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Rounded.Tune, null, tint = gold, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
                             Text(when (language) { "en" -> "Sounds"; "tr" -> "Sesler"; else -> "الأصوات" }, color = Color.White, fontSize = 11.sp)
                         }
                         Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
                             Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
                         }
                         Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable {
                             cityInput = weather.city.substringBefore("،").substringBefore(",")
                             showCityPicker = true
                         }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.EditLocationAlt, null, tint = gold, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Rounded.EditLocationAlt, null, tint = gold, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
                             Text(if (language == "en") "Choose city" else if (language == "tr") "Şehir seç" else "اختيار المدينة", color = Color.White, fontSize = 11.sp)
                         }
                         if (weather.isManualLocation || weather.needsPermission) {
                             Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable(onClick = onUseDeviceLocation).focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.LocationOn, null, tint = gold, modifier = Modifier.size(15.dp))
+                                Icon(Icons.Rounded.LocationOn, null, tint = gold, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
                                 Text(if (language == "en") "My location" else if (language == "tr") "Konumum" else "موقعي", color = Color.White, fontSize = 11.sp)
                             }
                         }
@@ -393,13 +393,13 @@ internal fun WeatherDetailsScreen(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Text(if (language == "en") "Prayer times" else if (language == "tr") "Namaz vakitleri" else "مواقيت الصلاة", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Rounded.Mosque, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                        Icon(Icons.Rounded.Mosque, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(23.dp)))
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(Color.White.copy(alpha = 0.18f)).padding(horizontal = 12.dp, vertical = 7.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                         Text(weather.city, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(5.dp))
-                        Icon(Icons.Rounded.LocationOn, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Rounded.LocationOn, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
                     }
                     Spacer(Modifier.height(8.dp))
                     listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha").forEach { key ->
@@ -446,7 +446,7 @@ internal fun WeatherDetailsScreen(
                                                 apparentTemperatureC = (day.maxTemperatureC + day.minTemperatureC) / 2,
                                                 hour = 12
                                             ),
-                                            modifier = Modifier.size(42.dp),
+                                            modifier = Modifier.size(royalAdaptiveIconSize(42.dp, maxSize = 56.dp)),
                                             motionEnabled = motionEnabled,
                                             contentDescription = weatherDescriptionFor(day.weatherCode, language)
                                         )
@@ -467,7 +467,7 @@ internal fun WeatherDetailsScreen(
             }
         }
         Row(Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.18f)).clickable(onClick = onBack).focusable().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.ArrowBack, null, tint = Color.White, modifier = Modifier.size(17.dp))
+            Icon(Icons.Rounded.ArrowBack, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(17.dp)))
             Text(if (language == "en") "Back" else if (language == "tr") "Geri" else "رجوع", color = Color.White, fontSize = 11.sp)
         }
     }

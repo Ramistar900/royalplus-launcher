@@ -200,7 +200,7 @@ internal fun WeatherGlassCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 RoyalV21WeatherAnimatedIcon(
                     icon = currentWeatherIcon,
-                    modifier = Modifier.size(if (adaptiveProfile.isPhone) 34.dp else if (adaptiveProfile.isTelevision) 50.dp else 42.dp),
+                    modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isPhone) 34.dp else if (adaptiveProfile.isTelevision) 50.dp else 42.dp, maxSize = 60.dp)),
                     motionEnabled = motionEnabled,
                     contentDescription = localizedDescription
                 )
@@ -307,7 +307,7 @@ internal fun WeatherGlassCard(
                         imageVector = if (weather.needsPermission) Icons.Rounded.LocationOn else Icons.Rounded.Refresh,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(royalAdaptiveIconSize(12.dp))
                     )
                     Text(
                         text = if (weather.needsPermission) when (language) { "en" -> "Enable location"; "tr" -> "Konumu etkinleştir"; else -> "تفعيل الموقع" } else when (language) { "en" -> "Retry"; "tr" -> "Tekrar dene"; else -> "إعادة المحاولة" },

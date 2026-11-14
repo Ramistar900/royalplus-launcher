@@ -125,7 +125,7 @@ internal fun RoyalSongsScreen() {
         verticalArrangement = Arrangement.spacedBy(adaptiveProfile.sectionSpacing)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(28.dp))
+            Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(28.dp)))
             Text("الأغاني", color = RoyalColors.Pearl, fontSize = 23.sp)
         }
         Text(
@@ -140,7 +140,7 @@ internal fun RoyalSongsScreen() {
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF76551F), contentColor = RoyalColors.Pearl)
         ) {
-            Icon(Icons.Rounded.FolderOpen, contentDescription = null)
+            Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
             Text("  اختيار الأغاني")
         }
 
@@ -151,7 +151,7 @@ internal fun RoyalSongsScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(46.dp))
+                Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(46.dp)))
                 Spacer(Modifier.height(12.dp))
                 Text("لا توجد قائمة أغاني", color = RoyalColors.Pearl, fontSize = 19.sp)
             }
@@ -170,12 +170,12 @@ internal fun RoyalSongsScreen() {
                             }.focusable().padding(13.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold)
+                        Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                         Text(song.title, color = RoyalColors.Pearl, modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1)
                         if (index == currentIndex && isPlaying) {
-                            Icon(Icons.Rounded.Pause, contentDescription = "يعمل الآن", tint = RoyalColors.Gold)
+                            Icon(Icons.Rounded.Pause, contentDescription = "يعمل الآن", tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                         } else {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "تشغيل", tint = RoyalColors.Gold)
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "تشغيل", tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                         }
                     }
                 }
@@ -188,7 +188,7 @@ internal fun RoyalSongsScreen() {
             ) {
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = "السابق",
                     tint = if (currentIndex > 0) RoyalColors.Gold else RoyalColors.Muted,
-                    modifier = Modifier.size(34.dp).clickable {
+                    modifier = Modifier.size(royalAdaptiveIconSize(34.dp)).clickable {
                         if (currentIndex > 0) {
                             playLauncherUiSound(context, RoyalUiSound.MEDIA_PREV)
                             playSong(currentIndex - 1)
@@ -197,7 +197,7 @@ internal fun RoyalSongsScreen() {
                 Spacer(Modifier.size(22.dp))
                 Icon(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) "إيقاف مؤقت" else "تشغيل",
-                    tint = RoyalColors.Gold, modifier = Modifier.size(38.dp).clickable {
+                    tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(38.dp)).clickable {
                         playLauncherUiSound(context, if (isPlaying) RoyalUiSound.MEDIA_PAUSE else RoyalUiSound.MEDIA_PLAY)
                         val active = player
                         if (active != null && currentIndex >= 0) {
@@ -208,7 +208,7 @@ internal fun RoyalSongsScreen() {
                 Spacer(Modifier.size(22.dp))
                 Icon(Icons.Rounded.SkipNext, contentDescription = "التالي",
                     tint = if (currentIndex < songs.lastIndex) RoyalColors.Gold else RoyalColors.Muted,
-                    modifier = Modifier.size(34.dp).clickable {
+                    modifier = Modifier.size(royalAdaptiveIconSize(34.dp)).clickable {
                         if (currentIndex < songs.lastIndex) {
                             playLauncherUiSound(context, RoyalUiSound.MEDIA_NEXT)
                             playSong(currentIndex + 1)

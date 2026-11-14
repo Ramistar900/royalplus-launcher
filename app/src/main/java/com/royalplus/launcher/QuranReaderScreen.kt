@@ -200,7 +200,7 @@ internal fun QuranReaderScreen(
                     }.focusable(),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = null, tint = RoyalColors.Gold)
+                Icon(Icons.Rounded.ArrowBack, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -232,7 +232,7 @@ internal fun QuranReaderScreen(
                     Icons.Filled.Settings,
                     contentDescription = if (isArabic) "إعدادات القرآن" else "Quran settings",
                     tint = RoyalColors.Gold
-                )
+                , modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
             }
         }
 
@@ -300,7 +300,7 @@ internal fun QuranReaderScreen(
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = RoyalColors.Gold) },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp))) },
                 placeholder = {
                     Text(
                         when { isArabic -> "ابحث باسم السورة أو بآية"; isTurkish -> "Sure veya ayet ara"; else -> "Search surah or verse" },
@@ -693,7 +693,7 @@ internal fun QuranReaderScreen(
                         if (audioMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
                         contentDescription = if (audioMuted) "إلغاء كتم الصوت" else "كتم الصوت",
                         tint = RoyalColors.Gold,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(royalAdaptiveIconSize(20.dp))
                     )
                 }
                 Text(
@@ -1041,7 +1041,7 @@ private fun QuranAyahOrnamentDivider() {
 @Composable
 private fun QuranAyahFlowerNumber(number: Int) {
     Box(
-        Modifier.size(38.dp),
+        Modifier.size(royalAdaptiveIconSize(38.dp, maxSize = 48.dp)),
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.fillMaxSize()) {

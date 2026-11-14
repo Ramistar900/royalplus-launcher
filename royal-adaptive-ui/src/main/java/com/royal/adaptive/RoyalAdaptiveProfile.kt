@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.pow
 
 enum class RoyalDeviceClass { PHONE, TABLET, LARGE_DISPLAY, TELEVISION }
 enum class RoyalWindowWidthClass { COMPACT, MEDIUM, EXPANDED }
@@ -106,13 +107,18 @@ data class RoyalAdaptiveProfile(
         )
     }
 
+    /**
+     * Scales icon glyphs smoothly with the actual app window dimensions.
+     * Compose Dp already accounts for display density; multiplying by raw density here
+     * would double-scale icons on high-density displays.
+     */
     fun iconSize(base: Dp): Dp {
-        val scale = when {
-            isTelevision -> 1.38f
-            widthClass == RoyalWindowWidthClass.EXPANDED -> 1.20f
-            widthClass == RoyalWindowWidthClass.MEDIUM -> 1.10f
-            else -> 1f
-        }
+        val widthScale = (windowWidthDp.value / 360f).coerceAtLeast(0.5f).pow(0.18f)
+            .coerceIn(0.88f, 1.22f)
+        val heightScale = (windowHeightDp.value / 640f).coerceAtLeast(0.5f).pow(0.12f)
+            .coerceIn(0.88f, 1.10f)
+        val deviceScale = if (isTelevision) 1.12f else 1f
+        val scale = (widthScale * heightScale * deviceScale).coerceIn(0.88f, 1.48f)
         return (base.value * scale).dp
     }
 

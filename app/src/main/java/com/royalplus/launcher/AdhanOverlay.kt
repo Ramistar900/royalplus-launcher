@@ -194,7 +194,7 @@ private fun RowDismissButton(
             .padding(horizontal = 28.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Rounded.Close, contentDescription = null, tint = Color(0xFFFFE7A3), modifier = Modifier.size(20.dp))
+        Icon(Icons.Rounded.Close, contentDescription = null, tint = Color(0xFFFFE7A3), modifier = Modifier.size(royalAdaptiveIconSize(20.dp)))
         Spacer(Modifier.size(10.dp))
         Text(
             when (language) {
