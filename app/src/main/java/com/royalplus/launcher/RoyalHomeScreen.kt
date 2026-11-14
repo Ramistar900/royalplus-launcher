@@ -74,7 +74,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Thunderstorm
@@ -2220,7 +2219,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
             labels[6],
-            Icons.Rounded.SportsSoccer,
+            null,
             selectedDestination == LauncherDestination.SPORTS,
             sportsIconId = RoyalV20SportsIconId.FOOTBALL,
             onClick = { onNavigate(LauncherDestination.SPORTS) }
@@ -2287,7 +2286,7 @@ private fun StatusIcon(
 @Composable
 private fun SidebarNavItem(
     title: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     selected: Boolean,
     iconRes: Int? = null,
     sportsIconId: RoyalV20SportsIconId? = null,
@@ -2353,12 +2352,16 @@ private fun SidebarNavItem(
                 modifier = Modifier.size(if (compactPhone) 25.dp else 23.dp),
                 contentDescription = title
             )
-            iconRes == null -> Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
-                modifier = Modifier.size(if (compactPhone) 22.dp else 20.dp)
-            )
+            iconRes == null -> {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
+                        modifier = Modifier.size(if (compactPhone) 22.dp else 20.dp)
+                    )
+                }
+            }
             else -> Image(
                 painter = painterResource(iconRes),
                 contentDescription = title,
