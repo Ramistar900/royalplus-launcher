@@ -43,7 +43,7 @@ assert "RoyalSportsCategory" not in sports
 for removed_sport in ("basketball.svg", "tennis.svg", "volleyball.svg", "cricket.svg"):
     assert removed_sport not in sports, f"Removed sport is still referenced: {removed_sport}"
 assert "painterResource" not in sports
-assert "available = true" in sports
+assert "internal fun RoyalSportsScreen(language: String)" in sports
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert "minSdk = 23" in gradle
 
