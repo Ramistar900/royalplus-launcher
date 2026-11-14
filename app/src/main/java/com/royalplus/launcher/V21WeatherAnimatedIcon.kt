@@ -18,7 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -171,12 +171,11 @@ internal fun RoyalV21WeatherAnimatedIcon(
 ) {
     val context = LocalContext.current.applicationContext
     val animationEnabled = rememberV21WeatherAnimationEnabled()
-    val image by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
-        initialValue = null,
-        key1 = icon.fileName,
-        key2 = context
-    ) {
-        value = withContext(Dispatchers.IO) {
+    var image by remember(icon.fileName) {
+        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    }
+    LaunchedEffect(context, icon.fileName) {
+        image = withContext(Dispatchers.IO) {
             RoyalV21WeatherBitmapCache.load(context, icon)?.asImageBitmap()
         }
     }
