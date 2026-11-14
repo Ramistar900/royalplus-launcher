@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Fetch the pinned ROYAL Design V20 sports icon artwork into the APK assets."""
+from pathlib import Path
+from urllib.request import Request, urlopen
+import time
+
+ROOT = Path(__file__).resolve().parents[2]
+ASSET_ROOT = ROOT / "app/src/main/assets/sports_v20"
+SOURCE_COMMIT = "f784e3a1b9bdf350cd30b37f18a86efba023cc7a"
+SOURCE_ROOT = (
+    "https://raw.githubusercontent.com/Ramistar900/royal-design/"
+    + SOURCE_COMMIT + "/preview/royal-design/v20"
+)
+ICONS = ["today_matches","live_scores","match_results","fixtures","standings","football","basketball","tennis","volleyball","cricket","trophy","teams","players","stadium","goal","whistle","yellow_card","red_card","medal","statistics","bracket","transfer","sports_news","replay","stopwatch"]
+
+def fetch(url: str) -> bytes:
+    last_error = None
+    for attempt in range(3):
+        try:
+            request = Request(url, headers={"User-Agent": "ROYAL-Launcher-V20-Asset-Build"})
+            with urlopen(request, timeout=45) as response:
+                payload = response.read()
+            if not payload:
+                raise RuntimeError(f"Empty response from {url}")
+            return payload
+        except Exception as error:
+            last_error = error
+            if attempt < 2:
+                time.sleep(1.5 * (attempt + 1))
+    raise RuntimeError(f"Could not fetch pinned V20 artwork: {url}") from last_error
+
+def main() -> None:
+    for style in ("static", "animated"):
+        target = ASSET_ROOT / style
+        target.mkdir(parents=True, exist_ok=True)
+        for icon in ICONS:
+            url = f"{SOURCE_ROOT}/sports/{style}/{icon}.svg"
+            raw = fetch(url)
+            text = raw.decode("utf-8")
+            if "<svg" not in text or "</svg>" not in text:
+                raise RuntimeError(f"Invalid SVG source: {url}")
+            if "<script" in text.lower() or "https://" in text or "http://" in text:
+                raise RuntimeError(f"External or executable SVG content is forbidden: {url}")
+            if style == "animated" and "<animate" not in text:
+                raise RuntimeError(f"Missing authored V20 motion in animated icon: {icon}")
+            if style == "static" and "<animate" in text:
+                raise RuntimeError(f"Static icon unexpectedly contains animation: {icon}")
+            (target / f"{icon}.svg").write_text(text, encoding="utf-8")
+    manifest_url = f"{SOURCE_ROOT}/manifest.json"
+    (ASSET_ROOT / "manifest.json").write_bytes(fetch(manifest_url))
+    actual = sum(1 for _ in ASSET_ROOT.glob("static/*.svg"))
+    animated = sum(1 for _ in ASSET_ROOT.glob("animated/*.svg"))
+    if actual != 25 or animated != 25:
+        raise RuntimeError(f"Expected 25 static and 25 animated V20 icons, got {actual}/{animated}")
+    print(f"Prepared {actual} static and {animated} animated V20 sports icons from {SOURCE_COMMIT}")
+
+if __name__ == "__main__":
+    main()

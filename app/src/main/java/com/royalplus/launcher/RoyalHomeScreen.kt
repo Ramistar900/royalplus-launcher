@@ -2218,7 +2218,13 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[6], Icons.Rounded.SportsSoccer, selectedDestination == LauncherDestination.SPORTS, onClick = { onNavigate(LauncherDestination.SPORTS) })
+        SidebarNavItem(
+            labels[6],
+            Icons.Rounded.SportsSoccer,
+            selectedDestination == LauncherDestination.SPORTS,
+            sportsIconId = RoyalV20SportsIconId.FOOTBALL,
+            onClick = { onNavigate(LauncherDestination.SPORTS) }
+        )
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[7], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(itemGap))
@@ -2284,6 +2290,7 @@ private fun SidebarNavItem(
     icon: ImageVector,
     selected: Boolean,
     iconRes: Int? = null,
+    sportsIconId: RoyalV20SportsIconId? = null,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     onClick: () -> Unit
 ) {
@@ -2340,15 +2347,19 @@ private fun SidebarNavItem(
             fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
-        if (iconRes == null) {
-            Icon(
+        when {
+            sportsIconId != null -> RoyalV20SportsIcon(
+                sportsIconId,
+                modifier = Modifier.size(if (compactPhone) 25.dp else 23.dp),
+                contentDescription = title
+            )
+            iconRes == null -> Icon(
                 imageVector = icon,
                 contentDescription = title,
                 tint = if (emphasized) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
                 modifier = Modifier.size(if (compactPhone) 22.dp else 20.dp)
             )
-        } else {
-            Image(
+            else -> Image(
                 painter = painterResource(iconRes),
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
