@@ -15,6 +15,15 @@ for path in (SPORTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRAT
 
 sports = SPORTS.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
+
+# The only user-facing sports category is football; both match tabs remain.
+assert "MATCHES, SCHEDULE" in sports
+assert 'arabic -> "كرة القدم"' in sports
+assert 'turkish -> "FUTBOL"' in sports and 'else -> "FOOTBALL"' in sports
+assert "Icons.Rounded.SportsSoccer" in sports
+for other_sport in ("Basketball", "Tennis", "Volleyball", "Cricket", "Baseball"):
+    assert other_sport.lower() not in sports.lower(), f"Unexpected sport category: {other_sport}"
+assert "v3.football.api-sports.io" in (ROOT / "supabase/functions/royalplus-sports/index.ts").read_text(encoding="utf-8")
 manifest = MANIFEST.read_text(encoding="utf-8")
 backend = BACKEND.read_text(encoding="utf-8")
 migration = CACHE_MIGRATION.read_text(encoding="utf-8")

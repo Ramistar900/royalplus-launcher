@@ -427,9 +427,9 @@ internal fun RoyalSportsScreen(language: String) {
     }
 
     val title = when {
-        arabic -> "الرياضة"
-        turkish -> "SPOR"
-        else -> "SPORTS"
+        arabic -> "كرة القدم"
+        turkish -> "FUTBOL"
+        else -> "FOOTBALL"
     }
     val matchesLabel = when {
         arabic -> "مباريات اليوم"
@@ -509,9 +509,9 @@ internal fun RoyalSportsScreen(language: String) {
                 Text(title, color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
                     when {
-                        arabic -> "المباريات والنتائج وجدول المواجهات"
-                        turkish -> "Maçlar, skorlar ve fikstür"
-                        else -> "Live scores, results and fixtures"
+                        arabic -> "مباريات كرة القدم والنتائج والجدول القادم"
+                        turkish -> "Futbol maçları, sonuçlar ve fikstür"
+                        else -> "Football matches, results and upcoming fixtures"
                     },
                     color = RoyalColors.Muted,
                     fontSize = 11.sp
