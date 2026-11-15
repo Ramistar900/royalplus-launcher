@@ -44,7 +44,9 @@ def main() -> None:
             fireplace = "assets/fireplace_burning_fire_loop.mp4"
             if fireplace not in names:
                 raise SystemExit(f"Fireplace loop missing from base APK: {apk}")
-            archive.testzip()
+            bad_entry = archive.testzip()
+            if bad_entry:
+                raise SystemExit(f"APK ZIP is corrupt at {bad_entry}: {apk}")
         print(f"Verified media in {apk}: fireplace retained; optional weather videos excluded.")
 
     with zipfile.ZipFile(args.weather_pack) as archive:
