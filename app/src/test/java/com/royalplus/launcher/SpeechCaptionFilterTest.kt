@@ -52,6 +52,18 @@ class SpeechCaptionFilterTest {
     }
 
     @Test
+    fun keepsAmbiguousSingleWordsAndShortSpokenPhrases() {
+        listOf(
+            "Music", "Muziek", "Muzyka", "Музика", "Музыка", "Müzik",
+            "موسيقى", "संगीत", "音乐", "音樂", "音楽", "음악",
+            "Bell", "Footsteps", "Wind", "فتح الباب", "Open the door"
+        ).forEach { caption ->
+            assertFalse("Ambiguous spoken or sung words must remain translatable: $caption",
+                SpeechCaptionFilter.isNonSpeechLabel(caption))
+        }
+    }
+
+    @Test
     fun keepsDialogueThatMentionsTheSameThings() {
         listOf(
             "Open the door!",
