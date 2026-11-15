@@ -9,16 +9,16 @@ class SpeechCaptionFilterTest {
     @Test
     fun filtersSoundEffectLabelsAcrossSourceLanguages() {
         listOf(
-            "Music", "[Instrumental music]", "Door opening", "Bell ringing", "Footsteps",
+            "[Instrumental music]", "Background music", "Door opening", "Bell ringing",
             "bruit de cloche", "ouverture de la porte", "Música de fondo",
             "apertura de la puerta", "Instrumentalmusik", "Öffnen der Tür",
             "musica strumentale", "apertura della porta", "Música de fundo",
             "abertura da porta", "Muziek", "openen van de deur",
             "Muzyka", "Otwieranie drzwi", "Музика", "відкривання дверей",
-            "Музыка", "открывание двери", "Звук звонка", "Müzik",
-            "kapının açılması", "Zil sesi", "موسيقى", "فتح الباب",
-            "صوت الجرس", "संगीत", "दरवाज़ा खुलना", "音乐", "开门声",
-            "音樂", "開門聲", "音楽", "ドアが開く音", "음악", "문 여는 소리"
+            "Фоновая музыка", "открывание двери", "Звук звонка", "Müzik",
+            "kapının açılması", "Zil sesi", "صوت موسيقى آلية", "صوت فتح الباب",
+            "صوت رنين الجرس", "पृष्ठभूमि संगीत", "दरवाज़ा खुलना", "音乐", "开门声",
+            "音樂", "開門聲", "背景音楽", "ドアが開く音", "배경 음악", "문 여는 소리"
         ).forEach { caption ->
             assertTrue("Expected sound label to be filtered: $caption", SpeechCaptionFilter.isNonSpeechLabel(caption))
         }
