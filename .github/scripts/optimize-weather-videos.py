@@ -41,7 +41,7 @@ for source in files:
         subprocess.run([
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
             "-i", str(source), "-map", "0:v:0", "-an",
-            "-vf", "scale='min(1280,iw)':-2:flags=lanczos,fps=24",
+            "-vf", "scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,fps=24",
             "-c:v", "libx264", "-preset", "slow", "-crf", "27",
             "-profile:v", "main", "-level", "3.1", "-pix_fmt", "yuv420p",
             "-movflags", "+faststart", str(target)
