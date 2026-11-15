@@ -2,6 +2,7 @@ package com.royalplus.launcher
 
 import com.royal.adaptive.LocalRoyalAdaptiveProfile
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -370,8 +372,31 @@ internal fun MuslimScreen(
             language = language
         )
 
-        Text(when (language) { "en" -> "Prayer times for the next seven days"; "tr" -> "Önümüzdeki yedi günün namaz vakitleri"; else -> "جدول مواقيت الصلاة للأيام السبعة" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Text(when (language) { "en" -> "Updates daily and calculates times for the selected city"; "tr" -> "Her gün otomatik yenilenir ve seçilen şehre göre hesaplanır"; else -> "يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت حسب المدينة المختارة" }, color = RoyalColors.Muted, fontSize = 10.sp)
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+                .background(Color(0xFF171B29))
+                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.72f), RoundedCornerShape(13.dp))
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.muslim_prayer),
+                contentDescription = when (language) { "en" -> "Prayer times"; "tr" -> "Namaz vakitleri"; else -> "مواقيت الصلاة" },
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(44.dp)
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    when (language) { "en" -> "Prayer times for the next seven days"; "tr" -> "Önümüzdeki yedi günün namaz vakitleri"; else -> "جدول مواقيت الصلاة للأيام السبعة" },
+                    color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    when (language) { "en" -> "Updates daily and calculates times for the selected city"; "tr" -> "Her gün otomatik yenilenir ve seçilen şehre göre hesaplanır"; else -> "يتجدد تلقائياً يومياً عند تغيّر التاريخ، وتُحسب المواقيت حسب المدينة المختارة" },
+                    color = RoyalColors.Muted, fontSize = 10.sp
+                )
+            }
+        }
         val prayerColumns = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -502,8 +527,6 @@ private fun MuslimNavigationTile(
         else -> when (language) { "en" -> "Worship tools"; "tr" -> "İbadet araçları"; else -> "أدوات العبادة" }
     }
     val iconRes = when (section) {
-        "quran" -> R.drawable.ic_muslim_quran
-        "duas" -> R.drawable.ic_muslim_dua
         "hadith" -> R.drawable.ic_muslim_hadith
         else -> R.drawable.ic_muslim_worship
     }
@@ -515,7 +538,26 @@ private fun MuslimNavigationTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Icon(painter = painterResource(iconRes), contentDescription = title, tint = Color.Unspecified, modifier = Modifier.size(adaptiveProfile.iconSize(36.dp)))
+        when (section) {
+            "quran" -> Image(
+                painter = painterResource(R.drawable.muslim_quran),
+                contentDescription = title,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(adaptiveProfile.iconSize(36.dp))
+            )
+            "duas" -> Image(
+                painter = painterResource(R.drawable.muslim_dua),
+                contentDescription = title,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(adaptiveProfile.iconSize(36.dp))
+            )
+            else -> Icon(
+                painter = painterResource(iconRes),
+                contentDescription = title,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(adaptiveProfile.iconSize(36.dp))
+            )
+        }
         Text(title, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
@@ -778,10 +820,21 @@ private fun DuasSection(language: String) {
         mutableStateOf(setOf("أذكار الصباح والمساء"))
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            when (language) { "en" -> "Duas & daily adhkar"; "tr" -> "Dualar ve günlük zikirler"; else -> "الأدعية والأذكار" },
-            color = Color.Black, fontSize = 18.sp, fontWeight = FontWeight.Bold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.muslim_dua),
+                contentDescription = when (language) { "en" -> "Duas"; "tr" -> "Dualar"; else -> "الأدعية والأذكار" },
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(40.dp)
+            )
+            Text(
+                when (language) { "en" -> "Duas & daily adhkar"; "tr" -> "Dualar ve günlük zikirler"; else -> "الأدعية والأذكار" },
+                color = Color.Black, fontSize = 18.sp, fontWeight = FontWeight.Bold
+            )
+        }
         Text(
             when (language) { "en" -> "Offline collection • Quranic supplications and sourced Prophetic duas"; "tr" -> "Çevrimdışı koleksiyon • Kur'an duaları ve kaynaklı nebevi dualar"; else -> "مجموعة تعمل دون إنترنت • أدعية قرآنية ونبوية مع توثيق المصادر" },
             color = RoyalColors.Muted, fontSize = 10.sp
