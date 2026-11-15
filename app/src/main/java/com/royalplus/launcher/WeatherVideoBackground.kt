@@ -1,6 +1,5 @@
 package com.royalplus.launcher
 
-import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.widget.VideoView
 import androidx.compose.runtime.Composable
@@ -18,10 +17,10 @@ import java.io.File
 
 internal fun weatherVideoAsset(weather: WeatherUiState, hour: Int?): String? {
     val night = hour != null && (hour >= 19 || hour < 6)
-    val code = weather.weatherCode
+    val code = weather.weatherCode ?: return null
     return when {
         code == 0 || code == 1 -> when {
-            weather.windSpeedKmh >= 45 -> "weather_wind.mp4"
+            weather.windSpeedKmh?.let { it >= 45 } == true -> "weather_wind.mp4"
             night -> "weather_clear_night.mp4"
             else -> "weather_clear_sunny.mp4"
         }
@@ -46,10 +45,15 @@ internal fun WeatherVideoBackground(
     val videoPath by produceState<String?>(initialValue = null, assetName) {
         value = withContext(Dispatchers.IO) {
             val target = File(context.cacheDir, "royal-weather-$assetName")
-            if (!target.isFile || target.length() == 0L) {
-                context.assets.open("weather_videos/$assetName").use { input ->
-                    target.outputStream().use { output -> input.copyTo(output) }
+            val assetPath = "weather_videos/$assetName"
+            val expectedLength = context.assets.open(assetPath).use { it.available().toLong() }
+            if (!target.isFile || target.length() != expectedLength) {
+                val temporary = File(context.cacheDir, "royal-weather-$assetName.tmp")
+                context.assets.open(assetPath).use { input ->
+                    temporary.outputStream().use { output -> input.copyTo(output) }
                 }
+                if (target.exists()) target.delete()
+                check(temporary.renameTo(target)) { "Unable to cache weather video: $assetName" }
             }
             target.absolutePath
         }
