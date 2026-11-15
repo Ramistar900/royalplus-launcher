@@ -352,21 +352,29 @@ class FloatingTranslationOverlayService : Service() {
                 }
 
                 val recognized = result.text.replace(Regex("\\s+"), " ").trim()
-                val language = stabilizeDetectedLanguage(result.lang)
-                if (recognized.isNotBlank()) {
-                    val freshText = removeOverlappingWords(recognized)
-                    if (freshText.isNotBlank()) {
-                        consecutiveUnrecognizedSegments = 0
-                        if (language != null) {
-                            translateCaption(freshText, language)
-                        } else {
-                            updateStatus("جارٍ التأكد من لغة الصوت…")
+                when {
+                    recognized.isBlank() -> {
+                        consecutiveUnrecognizedSegments++
+                        if (consecutiveUnrecognizedSegments == 3) {
+                            updateStatus("وصل صوت إلى المحرك، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار وخفّض الموسيقى.")
                         }
                     }
-                } else {
-                    consecutiveUnrecognizedSegments++
-                    if (consecutiveUnrecognizedSegments == 3) {
-                        updateStatus("وصل صوت إلى المحرك، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار وخفّض الموسيقى.")
+                    SpeechCaptionFilter.isNonSpeechLabel(recognized) -> {
+                        // Sound-effect/music labels must not influence language locking or appear as subtitles.
+                        lastRecognizedTail = emptyList()
+                        consecutiveUnrecognizedSegments++
+                    }
+                    else -> {
+                        val language = stabilizeDetectedLanguage(result.lang)
+                        val freshText = removeOverlappingWords(recognized)
+                        if (freshText.isNotBlank()) {
+                            consecutiveUnrecognizedSegments = 0
+                            if (language != null) {
+                                translateCaption(freshText, language)
+                            } else {
+                                updateStatus("جارٍ التأكد من لغة الصوت…")
+                            }
+                        }
                     }
                 }
             } catch (_: InterruptedException) {
