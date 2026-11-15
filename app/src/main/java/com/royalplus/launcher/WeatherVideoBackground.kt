@@ -87,7 +87,7 @@ internal fun WeatherVideoBackground(
                         it != target && !it.name.endsWith(".tmp")
                 }?.forEach { oldFile ->
                     if (!oldFile.delete()) {
-                        Log.w(ROYAL_WEATHER_VIDEO_TAG, "Could not remove old cached clip: \${oldFile.name}")
+                        Log.w(ROYAL_WEATHER_VIDEO_TAG, "Could not remove old cached clip: " + oldFile.name)
                     }
                 }
                 val expectedLength = context.assets.open(assetPath).use { it.available().toLong() }
@@ -109,7 +109,7 @@ internal fun WeatherVideoBackground(
                 check(target.isFile && target.length() > 0L) {
                     "Cached weather video is missing or empty: $assetName"
                 }
-                Log.d(ROYAL_WEATHER_VIDEO_TAG, "Weather clip ready: $assetName (\${target.length()} bytes)")
+                Log.d(ROYAL_WEATHER_VIDEO_TAG, "Weather clip ready: " + assetName + " (" + target.length() + " bytes)")
                 target.absolutePath
             }
         } catch (error: Exception) {
