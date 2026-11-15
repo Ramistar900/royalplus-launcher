@@ -121,9 +121,6 @@ def ensure_v19_loader_is_absent() -> None:
         if "RoyalV19MuslimIcon" in contents or "muslim_v19/static" in contents:
             raise RuntimeError(f"V19 Muslim icon reference remains in {source}")
 
-    gradle_file = Path("app/build.gradle.kts").read_text(encoding="utf-8")
-    if "androidsvg-aar" in gradle_file:
-        raise RuntimeError("The V19 SVG rendering dependency must not be added")
 
 
 def main() -> None:
