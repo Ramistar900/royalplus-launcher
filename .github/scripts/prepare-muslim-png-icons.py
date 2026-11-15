@@ -40,12 +40,12 @@ ICONS = {
 
 
 def git_blob_sha1(data: bytes) -> str:
-    header = f"blob {len(data)}\\0".encode("ascii")
+    header = f"blob {len(data)}\0".encode("ascii")
     return hashlib.sha1(header + data).hexdigest()
 
 
 def validate_png(data: bytes, name: str) -> None:
-    signature = b"\\x89PNG\\r\\n\\x1a\\n"
+    signature = b"\x89PNG\r\n\x1a\n"
     if not data.startswith(signature) or len(data) < 1024:
         raise ValueError(f"{name}: missing PNG signature or file is too small")
 
