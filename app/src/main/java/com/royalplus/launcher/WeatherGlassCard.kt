@@ -162,14 +162,13 @@ internal fun WeatherGlassCard(
             .clip(weatherFrame)
             .border(1.dp, Color(0xBFFFD76D), weatherFrame)
     ) {
+        RoyalMotionImage(
+            image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 1280, maxPixels = 2_097_152L),
+            modifier = Modifier.matchParentSize(),
+            motionEnabled = motionEnabled && weatherVideo == null
+        )
         if (motionEnabled && weatherVideo != null) {
             WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.matchParentSize())
-        } else {
-            RoyalMotionImage(
-                image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 1280, maxPixels = 2_097_152L),
-                modifier = Modifier.matchParentSize(),
-                motionEnabled = motionEnabled
-            )
         }
         Box(
             modifier = Modifier
