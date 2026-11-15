@@ -40,6 +40,10 @@ class SpeechCaptionFilterTest {
             "سأفتح الباب عندما تصل.",
             "Я буду петь для тебя всю ночь.",
             "Kapı açılıyor, içeri gel.",
+            "La cloche sonne.",
+            "Suena música.",
+            "Müzik çalıyor.",
+            "Звонит колокол.",
             "The music plays while we dance."
         ).forEach { caption ->
             assertFalse("Spoken words and sung lyrics must remain translatable: $caption",
