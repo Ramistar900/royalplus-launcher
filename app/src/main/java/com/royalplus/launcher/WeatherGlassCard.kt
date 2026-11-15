@@ -165,7 +165,7 @@ internal fun WeatherGlassCard(
         RoyalMotionImage(
             image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 1280, maxPixels = 2_097_152L),
             modifier = Modifier.matchParentSize(),
-            motionEnabled = motionEnabled && weatherVideo == null
+            motionEnabled = motionEnabled
         )
         if (motionEnabled && weatherVideo != null) {
             WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.matchParentSize())
