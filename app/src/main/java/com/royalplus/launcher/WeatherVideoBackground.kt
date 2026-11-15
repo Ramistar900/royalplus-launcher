@@ -43,9 +43,13 @@ internal fun WeatherVideoBackground(
 ) {
     val context = LocalContext.current.applicationContext
     val videoPath by produceState<String?>(initialValue = null, assetName) {
-        value = withContext(Dispatchers.IO) {
+        value = try {
+            withContext(Dispatchers.IO) {
             val target = File(context.cacheDir, "royal-weather-$assetName")
             val assetPath = "weather_videos/$assetName"
+            context.cacheDir.listFiles()?.filter {
+                it.name.startsWith("royal-weather-") && it != target && !it.name.endsWith(".tmp")
+            }?.forEach { it.delete() }
             val expectedLength = context.assets.open(assetPath).use { it.available().toLong() }
             if (!target.isFile || target.length() != expectedLength) {
                 val temporary = File(context.cacheDir, "royal-weather-$assetName.tmp")
@@ -56,6 +60,9 @@ internal fun WeatherVideoBackground(
                 check(temporary.renameTo(target)) { "Unable to cache weather video: $assetName" }
             }
             target.absolutePath
+            }
+        } catch (_: Exception) {
+            null
         }
     }
     if (videoPath != null) {
@@ -67,6 +74,10 @@ internal fun WeatherVideoBackground(
                     player.isLooping = true
                     player.setVolume(0f, 0f)
                     start()
+                }
+                setOnErrorListener { _, _, _ ->
+                    visibility = android.view.View.GONE
+                    true
                 }
             }
         }
