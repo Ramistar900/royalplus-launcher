@@ -151,6 +151,9 @@ jobs:
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
 
+      - name: Prepare optional weather-video pack outside the base APK
+        run: python3 .github/scripts/prepare-weather-video-pack.py --output "$RUNNER_TEMP/royalplus-weather-video-pack.zip" --exclude-from-apk
+
       - name: Run launcher and adaptive display unit tests
         run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
@@ -230,8 +233,10 @@ jobs:
 
           DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
           RELEASE_APK="$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
+          WEATHER_VIDEO_PACK="$RUNNER_TEMP/royalplus-weather-video-pack.zip"
           test -s "$DEBUG_APK"
           test -s "$RELEASE_APK"
+          test -s "$WEATHER_VIDEO_PACK"
 
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
@@ -270,18 +275,20 @@ jobs:
             gh release upload "$TAG" \
               "$DEBUG_UPLOAD" \
               "$RELEASE_APK" \
+              "$WEATHER_VIDEO_PACK" \
               --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
           else
             gh release create "$TAG" \
               "$DEBUG_UPLOAD" \
               "$RELEASE_APK" \
+              "$WEATHER_VIDEO_PACK" \
               --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" \
               --notes "$NOTES" --target "$GITHUB_SHA"
           fi
 
           ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | sort | join(",")')"
-          EXPECTED="royalplus-debug.apk,royalplus-release-test.apk"
+          EXPECTED="royalplus-debug.apk,royalplus-release-test.apk,royalplus-weather-video-pack.zip"
           if [[ "$ASSETS" != "$EXPECTED" ]]; then
             echo "::error::Expected both installable APK assets; found: $ASSETS"
             exit 1
@@ -446,6 +453,9 @@ jobs:
                   print("Keeping original fireplace loop; optimized video was not smaller.")
           PY
 
+      - name: Prepare optional weather-video pack outside the base APK
+        run: python3 .github/scripts/prepare-weather-video-pack.py --output "$RUNNER_TEMP/royalplus-weather-video-pack.zip" --exclude-from-apk
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
@@ -526,7 +536,9 @@ jobs:
         run: |
           set -euo pipefail
           DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          WEATHER_VIDEO_PACK="$RUNNER_TEMP/royalplus-weather-video-pack.zip"
           test -s "$DEBUG_APK"
+          test -s "$WEATHER_VIDEO_PACK"
 
           IS_PRODUCTION_RELEASE=false
           if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
@@ -544,11 +556,11 @@ jobs:
               echo "::error::A production release requires configured signing secrets and signed ABI APKs."
               exit 1
             fi
-            ASSETS=("${RELEASE_APKS[@]}")
-            NOTES="Automatically published from verified main commit ${GITHUB_SHA}. This release passed assembleDebug, Android Lint, and Android 8 (API 26) emulator install/startup checks. The signed APKs are split by CPU ABI to reduce download size; install the APK matching the TV/device architecture."
+            ASSETS=("${RELEASE_APKS[@]}" "$WEATHER_VIDEO_PACK")
+            NOTES="Automatically published from verified main commit ${GITHUB_SHA}. This release passed assembleDebug, Android Lint, and Android 8 (API 26) emulator install/startup checks. The signed APKs are split by CPU ABI to reduce download size; install the APK matching the TV/device architecture. The 13 compressed weather motion videos are supplied separately in royalplus-weather-video-pack.zip so the base APK stays smaller; original videos remain in the repository."
           else
-            ASSETS=("$DEBUG_APK")
-            NOTES="Test build from commit ${GITHUB_SHA}. This draft is not a production release."
+            ASSETS=("$DEBUG_APK" "$WEATHER_VIDEO_PACK")
+            NOTES="Test build from commit ${GITHUB_SHA}. This draft is not a production release. The optional compressed weather-video pack is attached separately from the base APK."
             if [[ "$SIGNED_AVAILABLE" == "true" && "${#RELEASE_APKS[@]}" -gt 0 ]]; then
               ASSETS+=("${RELEASE_APKS[@]}")
               NOTES="$NOTES Signed ABI-specific release APKs are included for installation-size testing."
