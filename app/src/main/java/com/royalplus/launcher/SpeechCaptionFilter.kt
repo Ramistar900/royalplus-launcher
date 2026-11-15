@@ -35,7 +35,7 @@ internal object SpeechCaptionFilter {
         "musica strumentale", "musica di sottofondo", "apertura della porta", "chiusura della porta", "applausi",
         "vento", "pioggia", "tuono", "abbaiare",
         // Portuguese
-        "música", "música instrumental", "música de fundo", "abertura da porta", "toque da campainha", "sino tocando",
+        "música instrumental", "música de fundo", "abertura da porta", "toque da campainha", "sino tocando",
         "risadas", "vento", "chuva", "trovão", "latido",
         // Dutch
         "achtergrondmuziek", "instrumentale muziek", "openen van de deur", "gelach",
@@ -55,7 +55,7 @@ internal object SpeechCaptionFilter {
         "kapının açılması", "kapı açılışı", "kapı açılma sesi", "açılan kapı sesi", "zil sesi", "çan sesi",
         "gök gürültüsü",
         // Arabic
-        "موسيقى تصويرية", "موسيقى خلفية", "صوت موسيقى آلية", "إغلاق الباب", "رنين الجرس", "صوت رنين الجرس", "خطوات",
+        "موسيقى تصويرية", "موسيقى خلفية", "صوت موسيقى آلية", "صوت فتح الباب", "إغلاق الباب", "رنين الجرس", "صوت رنين الجرس", "خطوات",
         "رعد",
         // Hindi
         "पृष्ठभूमि संगीत", "दरवाज़ा खुलना", "दरवाज़ा बंद होना",
