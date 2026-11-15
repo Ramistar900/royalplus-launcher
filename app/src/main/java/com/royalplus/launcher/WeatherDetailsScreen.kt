@@ -302,7 +302,7 @@ internal fun WeatherDetailsScreen(
         RoyalMotionImage(
             image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048),
             modifier = Modifier.fillMaxSize(),
-            motionEnabled = motionEnabled && weatherVideo == null
+            motionEnabled = motionEnabled
         )
         if (motionEnabled && weatherVideo != null) {
             WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.fillMaxSize())
