@@ -24,7 +24,7 @@ internal object SpeechCaptionFilter {
         "bruit de porte", "bruit de cloche", "bruit de sonnette", "rires", "applaudissements",
         "bruits de pas", "vent qui souffle", "pluie", "tonnerre", "aboiement",
         // Spanish
-        "música", "música instrumental", "música de fondo", "suena música",
+        "música", "música instrumental", "música de fondo",
         "apertura de la puerta", "cierre de la puerta",
         "sonido de campana", "sonido del timbre", "pasos", "risas", "aplausos",
         "viento", "lluvia", "trueno", "ladrido",
@@ -47,11 +47,11 @@ internal object SpeechCaptionFilter {
         "музика", "інструментальна музика", "фонова музика", "відкривання дверей", "звук дзвінка",
         "кроки", "сміх", "оплески", "вітер", "дощ", "грім",
         // Russian
-        "инструментальная музыка", "фоновая музыка", "открывание двери", "звук открывающейся двери", "звон колокола", "звонит колокол",
+        "инструментальная музыка", "фоновая музыка", "открывание двери", "звук открывающейся двери", "звон колокола",
         "колокольчик", "звук звонка", "шаги", "смех", "аплодисменты", "ветер",
         "дождь", "гром", "лай собаки",
         // Turkish
-        "müzik", "enstrümantal müzik", "fon müziği", "müzik çalıyor",
+        "müzik", "enstrümantal müzik", "fon müziği",
         "kapının açılması", "kapı açılışı", "kapı açılma sesi", "açılan kapı sesi", "zil sesi", "çan sesi",
         "ayak sesleri", "kahkaha", "alkış", "rüzgar", "yağmur", "gök gürültüsü",
         // Arabic
