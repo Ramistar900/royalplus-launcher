@@ -17,9 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -180,11 +178,14 @@ internal fun RoyalSmartScreensaver(
                     .border(1.dp, RoyalColors.Gold.copy(alpha = 0.24f), RoundedCornerShape(18.dp))
                     .padding(horizontal = 22.dp, vertical = 13.dp)
             ) {
-                Icon(
-                    imageVector = if (weather.description.contains("cloud", true) || weather.description.contains("غائم") || weather.description.contains("سحب")) Icons.Rounded.Cloud else Icons.Rounded.WbSunny,
-                    contentDescription = null,
-                    tint = RoyalColors.Gold,
-                    modifier = Modifier.size(royalAdaptiveIconSize(27.dp))
+                RoyalClassicWeatherIcon(
+                    weatherCode = weather.weatherCode,
+                    description = weather.description,
+                    apparentTemperatureC = weather.apparentTemperatureC,
+                    windSpeedKmh = weather.windSpeedKmh,
+                    hour = timeText.substringBefore(":").toIntOrNull(),
+                    modifier = Modifier.size(royalAdaptiveIconSize(27.dp)),
+                    contentDescription = localizedWeatherDescription
                 )
                 Spacer(Modifier.size(12.dp))
                 Column {
