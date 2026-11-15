@@ -4,8 +4,9 @@ import android.graphics.Color as AndroidColor
 import android.widget.VideoView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -42,8 +43,9 @@ internal fun WeatherVideoBackground(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current.applicationContext
-    val videoPath by produceState<String?>(initialValue = null, assetName) {
-        value = try {
+    val videoPathState = remember(assetName) { mutableStateOf<String?>(null) }
+    LaunchedEffect(assetName) {
+        videoPathState.value = try {
             withContext(Dispatchers.IO) {
             val target = File(context.cacheDir, "royal-weather-$assetName")
             val assetPath = "weather_videos/$assetName"
@@ -65,6 +67,7 @@ internal fun WeatherVideoBackground(
             null
         }
     }
+    val videoPath = videoPathState.value
     if (videoPath != null) {
         val videoView = remember(videoPath) {
             VideoView(context).apply {
