@@ -25,6 +25,29 @@ class SpeechCaptionFilterTest {
     }
 
     @Test
+    fun keepsSungLyricsAndCompleteSpokenSentences() {
+        listOf(
+            "Music is the rhythm of my heart.",
+            "Love me until the morning comes.",
+            "Sing with me beneath the stars.",
+            "The door opens when I call your name.",
+            "The bell rings when we come home.",
+            "La porte s'ouvre quand tu arrives.",
+            "Se abre la puerta cuando llegas.",
+            "La musica vive en mi corazon.",
+            "Bu gece seninle sarki soyleyecegim.",
+            "أغني لك طوال الليل.",
+            "سأفتح الباب عندما تصل.",
+            "Я буду петь для тебя всю ночь.",
+            "Kapı açılıyor, içeri gel.",
+            "The music plays while we dance."
+        ).forEach { caption ->
+            assertFalse("Spoken words and sung lyrics must remain translatable: $caption",
+                SpeechCaptionFilter.isNonSpeechLabel(caption))
+        }
+    }
+
+    @Test
     fun keepsDialogueThatMentionsTheSameThings() {
         listOf(
             "Open the door!",
