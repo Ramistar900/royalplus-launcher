@@ -119,6 +119,7 @@ internal fun WeatherDetailsScreen(
         SimpleDateFormat("H", Locale.US).apply { timeZone = zone }.format(Date(currentTimeMillis)).toIntOrNull() ?: 12
     }
     val night = hour >= 19 || hour < 6
+    val weatherVideo = weatherVideoAsset(weather, hour)
     val backgroundRes = when (weather.weatherCode) {
         0, 1 -> if (night) R.drawable.weather_clear_night else if (hour in 17..18) R.drawable.weather_sunset else R.drawable.weather_clear_day
         2 -> if (night) R.drawable.weather_partly_cloudy_night else R.drawable.weather_partly_cloudy_day
@@ -298,7 +299,11 @@ internal fun WeatherDetailsScreen(
     }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
-        RoyalMotionImage(image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
+        if (motionEnabled && weatherVideo != null) {
+            WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.fillMaxSize())
+        } else {
+            RoyalMotionImage(image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048), modifier = Modifier.fillMaxSize(), motionEnabled = motionEnabled)
+        }
         RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled, windSpeedKmh = weather.windSpeedKmh, nightMode = night, sunsetMode = hour in 17..18)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59)))))
         Column(Modifier.fillMaxSize().padding(horizontal = if (adaptiveProfile.isPhone) 12.dp else adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
