@@ -13,62 +13,62 @@ import java.util.Locale
 internal object SpeechCaptionFilter {
     private val exactNonSpeechLabels = setOf(
         // English
-        "music", "instrumental music", "background music", "music playing", "music continues",
+        "instrumental music", "background music", "music playing", "music continues",
         "door opening", "opening door", "the door opening", "door closing", "closing door", "the door closing",
-        "bell", "the bell", "bell ringing", "ringing bell", "footsteps", "laughter", "laughing", "applause",
+        "bell ringing", "ringing bell", "applause",
         "sighing", "birds chirping", "sound effect", "sound effects", "wind blowing",
         "rain falling", "thunder", "dog barking", "phone ringing",
         // French
-        "musique", "musique instrumentale", "musique de fond", "ouverture de porte",
+        "musique instrumentale", "musique de fond", "ouverture de porte",
         "ouverture de la porte", "porte qui s ouvre", "fermeture de porte",
         "bruit de porte", "bruit de cloche", "bruit de sonnette", "rires", "applaudissements",
-        "bruits de pas", "vent qui souffle", "pluie", "tonnerre", "aboiement",
+        "bruits de pas", "vent qui souffle", "aboiement",
         // Spanish
-        "música", "música instrumental", "música de fondo",
+        "música instrumental", "música de fondo",
         "apertura de la puerta", "cierre de la puerta",
-        "sonido de campana", "sonido del timbre", "pasos", "risas", "aplausos",
+        "sonido de campana", "sonido del timbre", "aplausos",
         "viento", "lluvia", "trueno", "ladrido",
         // German
-        "musik", "instrumentalmusik", "hintergrundmusik", "öffnen der tür", "glockenklingeln", "schritte", "gelächter", "applaus",
-        "wind", "regen", "donner", "hundegebell",
+        "instrumentalmusik", "hintergrundmusik", "öffnen der tür", "glockenklingeln", "schritte", "gelächter", "applaus",
+        "hundegebell",
         // Italian
-        "musica", "musica strumentale", "musica di sottofondo", "apertura della porta", "chiusura della porta", "passi", "risate", "applausi",
+        "musica strumentale", "musica di sottofondo", "apertura della porta", "chiusura della porta", "applausi",
         "vento", "pioggia", "tuono", "abbaiare",
         // Portuguese
         "música", "música instrumental", "música de fundo", "abertura da porta", "toque da campainha", "sino tocando",
-        "passos", "risadas", "aplausos", "vento", "chuva", "trovão", "latido",
+        "risadas", "vento", "chuva", "trovão", "latido",
         // Dutch
-        "muziek", "achtergrondmuziek", "instrumentale muziek", "openen van de deur", "voetstappen", "gelach",
-        "applaus", "wind", "regen", "donder",
+        "achtergrondmuziek", "instrumentale muziek", "openen van de deur", "gelach",
+        "applaus", "regen", "donder",
         // Polish
-        "muzyka", "muzyka instrumentalna", "muzyka w tle", "otwieranie drzwi", "zamykanie drzwi", "dźwięk dzwonka",
-        "kroki", "śmiech", "brawa", "wiatr", "deszcz", "grzmot",
+        "muzyka instrumentalna", "muzyka w tle", "otwieranie drzwi", "zamykanie drzwi", "dźwięk dzwonka",
+        "grzmot",
         // Ukrainian
-        "музика", "інструментальна музика", "фонова музика", "відкривання дверей", "звук дзвінка",
-        "кроки", "сміх", "оплески", "вітер", "дощ", "грім",
+        "інструментальна музика", "фонова музика", "відкривання дверей", "звук дзвінка",
+        "грім",
         // Russian
         "инструментальная музыка", "фоновая музыка", "открывание двери", "звук открывающейся двери", "звон колокола",
-        "колокольчик", "звук звонка", "шаги", "смех", "аплодисменты", "ветер",
-        "дождь", "гром", "лай собаки",
+        "колокольчик", "звук звонка", "ветер",
+        "лай собаки",
         // Turkish
-        "müzik", "enstrümantal müzik", "fon müziği",
+        "enstrümantal müzik", "fon müziği",
         "kapının açılması", "kapı açılışı", "kapı açılma sesi", "açılan kapı sesi", "zil sesi", "çan sesi",
-        "ayak sesleri", "kahkaha", "alkış", "rüzgar", "yağmur", "gök gürültüsü",
+        "gök gürültüsü",
         // Arabic
-        "موسيقى", "موسيقى تصويرية", "موسيقى خلفية", "فتح الباب", "إغلاق الباب", "رنين الجرس", "صوت الجرس", "خطوات",
-        "ضحك", "تصفيق", "صوت الرياح", "صوت المطر", "رعد",
+        "موسيقى تصويرية", "موسيقى خلفية", "صوت موسيقى آلية", "إغلاق الباب", "رنين الجرس", "صوت رنين الجرس", "خطوات",
+        "رعد",
         // Hindi
-        "संगीत", "पृष्ठभूमि संगीत", "दरवाज़ा खुलना", "दरवाज़ा बंद होना",
-        "घंटी बजना", "कदमों की आवाज़", "हँसी", "तालियाँ",
+        "पृष्ठभूमि संगीत", "दरवाज़ा खुलना", "दरवाज़ा बंद होना",
+        "घंटी बजना", "कदमों की आवाज़", "तालियाँ",
         // Chinese (simplified/traditional common labels)
-        "音乐", "背景音乐", "开门声", "关门声", "铃声", "脚步声", "笑声", "掌声",
-        "音樂", "背景音樂", "開門聲", "關門聲", "鈴聲", "腳步聲", "笑聲", "掌聲",
+        "背景音乐", "开门声", "关门声", "铃声", "掌声",
+        "背景音樂", "開門聲", "關門聲", "鈴聲", "腳步聲", "笑聲", "掌聲",
         // Japanese
-        "音楽", "背景音楽", "ドアが開く音", "ドアが閉まる音", "ベルの音",
-        "足音", "笑い声", "拍手",
+        "背景音楽", "ドアが開く音", "ドアが閉まる音", "ベルの音",
+        "拍手",
         // Korean
-        "음악", "배경 음악", "문 여는 소리", "문 닫는 소리", "종소리",
-        "발소리", "웃음소리", "박수"
+        "배경 음악", "문 여는 소리", "문 닫는 소리", "종소리",
+        "박수"
     )
 
     private val nonSpeechPatterns = listOf(
