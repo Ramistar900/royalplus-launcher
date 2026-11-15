@@ -24,7 +24,7 @@ private const val ROYAL_WEATHER_VIDEO_TAG = "RoyalWeatherVideo"
 
 internal fun weatherVideoAsset(weather: WeatherUiState, hour: Int?): String? {
     val night = hour != null && (hour >= 19 || hour < 6)
-    val code = weather.weatherCode
+    val code = weather.weatherCode ?: -1
     val mappedCode = when {
         code == 0 || code == 1 -> when {
             weather.windSpeedKmh?.let { it >= 45 } == true -> "weather_wind.mp4"
