@@ -154,7 +154,10 @@ jobs:
       - name: Run launcher and adaptive display unit tests
         run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
-      - name: Compress weather videos without removing clips or audio-free playback\n        run: python3 .github/scripts/optimize-weather-videos.py\n\n      - name: Build debug APK
+      - name: Compress weather videos without removing clips or audio-free playback
+        run: python3 .github/scripts/optimize-weather-videos.py
+
+      - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
       - name: Build universal installable test APK
@@ -446,7 +449,10 @@ jobs:
                   print("Keeping original fireplace loop; optimized video was not smaller.")
           PY
 
-      - name: Compress weather videos without removing clips or audio-free playback\n        run: python3 .github/scripts/optimize-weather-videos.py\n\n      - name: Build debug APK
+      - name: Compress weather videos without removing clips or audio-free playback
+        run: python3 .github/scripts/optimize-weather-videos.py
+
+      - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
       - name: Run Android API compatibility lint
