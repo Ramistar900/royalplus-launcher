@@ -249,8 +249,11 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          TAG="royalplus-test-installers"
-          TITLE="ROYAL+ Launcher • Latest Test Installers"
+          # Give every PR run its own immutable draft tag so parallel or older
+          # workflows cannot overwrite the APKs from the current commit.
+          PR_NUMBER="${{ github.event.pull_request.number || 'manual' }}"
+          TAG="royalplus-pr${PR_NUMBER}-test-${GITHUB_RUN_NUMBER}"
+          TITLE="ROYAL+ Launcher • PR ${PR_NUMBER} Test Build ${GITHUB_RUN_NUMBER}"
           NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after the Android 8 (API 26) smoke test passed.
 
           1. royalplus-debug.apk — debug test build, package com.royalplus.launcher.debug.
@@ -283,14 +286,27 @@ jobs:
               --notes "$NOTES" --target "$GITHUB_SHA"
           fi
 
-          ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | sort | join(",")')"
+          RELEASE_JSON="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,url,assets)"
+          RELEASE_TAG="$(jq -r '.tagName' <<< "$RELEASE_JSON")"
+          RELEASE_DRAFT="$(jq -r '.isDraft' <<< "$RELEASE_JSON")"
+          RELEASE_URL="$(jq -r '.url' <<< "$RELEASE_JSON")"
+          ASSETS="$(jq -r '[.assets[].name] | sort | join(",")' <<< "$RELEASE_JSON")"
           EXPECTED="royalplus-debug.apk,royalplus-release-test.apk"
-          if [[ "$ASSETS" != "$EXPECTED" ]]; then
-            echo "::error::Expected both installable APK assets; found: $ASSETS"
+          if [[ "$RELEASE_TAG" != "$TAG" || "$RELEASE_DRAFT" != "true" || "$ASSETS" != "$EXPECTED" || "$RELEASE_URL" != "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" ]]; then
+            echo "::error::Draft release verification failed."
+            echo "Expected tag: $TAG; found: $RELEASE_TAG"
+            echo "Draft: $RELEASE_DRAFT; assets: $ASSETS; URL: $RELEASE_URL"
             exit 1
           fi
 
-          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          # Verify each published asset is present and has a non-zero size in GitHub's release API.
+          for ASSET in royalplus-debug.apk royalplus-release-test.apk; do
+            ASSET_SIZE="$(jq -r --arg name "$ASSET" '.assets[] | select(.name == $name) | .size' <<< "$RELEASE_JSON")"
+            if [[ -z "$ASSET_SIZE" || "$ASSET_SIZE" == "0" || "$ASSET_SIZE" == "null" ]]; then
+              echo "::error::GitHub release asset is missing or empty: $ASSET"
+              exit 1
+            fi
+          done
           {
             echo "### ROYAL+ test APKs are ready"
             echo
