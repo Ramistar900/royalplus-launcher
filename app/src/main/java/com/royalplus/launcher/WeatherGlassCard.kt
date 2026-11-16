@@ -141,6 +141,7 @@ internal fun WeatherGlassCard(
     }
     val hour = currentTime.substringBefore(":").toIntOrNull()
     val isNight = hour != null && (hour >= 19 || hour < 6)
+    val weatherVideo = weatherVideoAsset(weather, hour)
     val imageRes = when (visual) {
         WeatherVisual.SUNNY -> if (isNight) R.drawable.weather_clear_night else if (hour != null && hour in 17..18) R.drawable.weather_sunset else R.drawable.weather_clear_day
         WeatherVisual.CLOUDY -> if (isNight) R.drawable.weather_partly_cloudy_night else R.drawable.weather_partly_cloudy_day
@@ -166,6 +167,9 @@ internal fun WeatherGlassCard(
             modifier = Modifier.matchParentSize(),
             motionEnabled = motionEnabled
         )
+        if (motionEnabled && weatherVideo != null) {
+            WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.matchParentSize())
+        }
         Box(
             modifier = Modifier
                 .matchParentSize()

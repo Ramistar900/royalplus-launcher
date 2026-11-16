@@ -55,8 +55,8 @@ internal data class WeatherUiState(
 internal object RoyalWeatherRepository {
     private const val PREFS = "royalplus_launcher_preferences"
     private const val CACHE_KEY = "weather_last_successful_payload"
-    private const val LOCATION_MAX_AGE_MS = 12 * 60 * 60 * 1000L
-    private const val WEATHER_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000L
+    private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
+    private const val WEATHER_CACHE_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
     private const val MET_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
@@ -65,6 +65,7 @@ internal object RoyalWeatherRepository {
     fun fetch(context: Context, onResult: (WeatherUiState) -> Unit) {
         val appContext = context.applicationContext
         executor.execute {
+            cachedWeatherForLastLocation(appContext)?.let { onResult(it.copy(isLoading = false)) }
             val result = try {
                 // Android TV devices may have no GPS/network provider or location permission.
                 // In that case, use the approximate location of the device's internet connection.
@@ -74,6 +75,7 @@ internal object RoyalWeatherRepository {
                     null
                 }
                 if (location != null) {
+                    readWeatherCache(appContext, location)?.first?.let { onResult(it.copy(isLoading = false)) }
                     fetchCurrentWeather(appContext, location, findCity(appContext, location))
                 } else {
                     val ipLocation = try {
@@ -114,7 +116,8 @@ internal object RoyalWeatherRepository {
             val result = try {
                 fetchCityWeather(appContext, requestedCity).copy(isManualLocation = true)
             } catch (_: Exception) {
-                WeatherUiState(
+                cachedWeatherForLastLocation(appContext)?.copy(isManualLocation = true, city = requestedCity)
+                    ?: WeatherUiState(
                     city = requestedCity.ifBlank { "مدينة غير محددة" },
                     description = "تعذّر العثور على المدينة أو تحميل الطقس؛ تحقق من الاسم والإنترنت",
                     isLoading = false,
@@ -122,6 +125,32 @@ internal object RoyalWeatherRepository {
                 )
             }
             onResult(result)
+        }
+    }
+
+
+    /**
+     * Refreshes the saved location/city forecast for the periodic background worker.
+     * A successful response replaces the rolling seven-day forecast atomically;
+     * a failed request leaves the previous cache untouched.
+     */
+    fun refreshStoredWeather(context: Context): Boolean {
+        val appContext = context.applicationContext
+        return try {
+            val preferences = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val manualCity = preferences.getString("weather_manual_city", null)?.trim()
+            if (!manualCity.isNullOrBlank()) {
+                val updated = fetchCityWeather(appContext, manualCity).copy(isManualLocation = true)
+                if (updated.forecast.isEmpty()) return false
+                if (updated.forecast.size >= 7) saveWeatherCache(appContext, updated)
+                true
+            } else {
+                val location = readLastLocation(appContext) ?: findLocation(appContext) ?: return false
+                val updated = fetchCurrentWeather(appContext, location, findCity(appContext, location))
+                updated.forecast.isNotEmpty()
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -348,9 +377,10 @@ internal object RoyalWeatherRepository {
         location: Location,
         city: String
     ): WeatherUiState {
+        saveLastLocation(context, location)
         try {
             val weather = fetchOpenMeteo(location, city)
-            saveWeatherCache(context, weather)
+            if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
             return weather
         } catch (_: Exception) {
             // Open-Meteo is the primary source. Continue to the independent backup.
@@ -363,7 +393,7 @@ internal object RoyalWeatherRepository {
 
         return try {
             val backup = fetchMetNorway(location, city)
-            saveWeatherCache(context, backup)
+            if (backup.forecast.size >= 7) saveWeatherCache(context, backup)
             backup
         } catch (_: Exception) {
             cached?.first?.copy(city = city) ?: throw IllegalStateException("Both weather sources failed")
@@ -377,7 +407,7 @@ internal object RoyalWeatherRepository {
                 "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
                 "&wind_speed_unit=kmh" +
                 "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
-                "&forecast_days=5&timezone=auto"
+                "&forecast_days=7&timezone=auto"
         )
         val root = requestJson(url)
         val current = root.getJSONObject("current")
@@ -394,7 +424,7 @@ internal object RoyalWeatherRepository {
         val highs = daily?.optJSONArray("temperature_2m_max")
         val lows = daily?.optJSONArray("temperature_2m_min")
         val forecast = if (dates != null && codes != null && highs != null && lows != null) {
-            (0 until minOf(5, dates.length(), codes.length(), highs.length(), lows.length())).map { index ->
+            (0 until minOf(7, dates.length(), codes.length(), highs.length(), lows.length())).map { index ->
                 WeatherForecastDay(
                     date = dates.getString(index),
                     weatherCode = codes.getInt(index),
@@ -468,7 +498,7 @@ internal object RoyalWeatherRepository {
             val itemCode = metSymbolToWmo(itemSymbol)
             dailyBuckets.getOrPut(date) { mutableListOf() }.add(temp.roundToInt() to itemCode)
         }
-        val forecast = dailyBuckets.entries.take(5).map { (date, values) ->
+        val forecast = dailyBuckets.entries.take(7).map { (date, values) ->
             WeatherForecastDay(
                 date = date,
                 weatherCode = values.getOrNull(values.size / 2)?.second ?: code,

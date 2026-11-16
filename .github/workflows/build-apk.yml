@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -154,6 +154,9 @@ jobs:
       - name: Run launcher and adaptive display unit tests
         run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
+      - name: Compress weather videos without removing clips or audio-free playback
+        run: python3 .github/scripts/optimize-weather-videos.py
+
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
@@ -221,7 +224,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency'))
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized'))
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -265,6 +268,18 @@ jobs:
               echo "::error::Refusing to overwrite an already published release."
               exit 1
             fi
+            # Keep this test draft limited to the two installable APKs.
+            # Remove stale ZIPs or obsolete assets left by older workflow runs.
+            while IFS= read -r ASSET_NAME; do
+              case "$ASSET_NAME" in
+                royalplus-debug.apk|royalplus-release-test.apk) ;;
+                *)
+                  echo "Removing stale draft asset: $ASSET_NAME"
+                  gh release delete-asset "$TAG" "$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --yes
+                  ;;
+              esac
+            done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+
             # Older runs uploaded app-debug.apk and used the requested filename as a label.
             gh release delete-asset "$TAG" app-debug.apk --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
             gh release upload "$TAG" \
@@ -454,6 +469,9 @@ jobs:
               else:
                   print("Keeping original fireplace loop; optimized video was not smaller.")
           PY
+
+      - name: Compress weather videos without removing clips or audio-free playback
+        run: python3 .github/scripts/optimize-weather-videos.py
 
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug

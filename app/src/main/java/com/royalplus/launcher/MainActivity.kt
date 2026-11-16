@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private var translationOverlayEnabled by mutableStateOf(false)
     private var pendingTranslationOverlayStart = false
     private var weatherState by mutableStateOf(WeatherUiState())
+    private var lastWeatherRefreshAt = 0L
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
     private val installedAppsExecutor = Executors.newSingleThreadExecutor()
     private var installedAppsLoadGeneration = 0
@@ -254,6 +255,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (showingCrashReport) return
+        if (System.currentTimeMillis() - lastWeatherRefreshAt >= 24 * 60 * 60 * 1000L) {
+            refreshWeather()
+        }
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: restoring translation overlay state")
         if (pendingTranslationOverlayStart) {
             pendingTranslationOverlayStart = false
@@ -555,6 +559,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshWeather() {
+        lastWeatherRefreshAt = System.currentTimeMillis()
         val manualCity = getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
             .getString("weather_manual_city", null)
         if (!manualCity.isNullOrBlank()) {
