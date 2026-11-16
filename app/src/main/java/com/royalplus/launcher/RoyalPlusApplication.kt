@@ -11,6 +11,7 @@ import java.io.File
 class RoyalPlusApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        RoyalInterfaceQualitySettings.load(this)
         RoyalWeatherForecastScheduler.schedule(this)
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
