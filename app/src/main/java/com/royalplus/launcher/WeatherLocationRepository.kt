@@ -65,6 +65,7 @@ internal object RoyalWeatherRepository {
     fun fetch(context: Context, onResult: (WeatherUiState) -> Unit) {
         val appContext = context.applicationContext
         executor.execute {
+            cachedWeatherForLastLocation(appContext)?.let { onResult(it.copy(isLoading = false)) }
             val result = try {
                 // Android TV devices may have no GPS/network provider or location permission.
                 // In that case, use the approximate location of the device's internet connection.
@@ -115,7 +116,8 @@ internal object RoyalWeatherRepository {
             val result = try {
                 fetchCityWeather(appContext, requestedCity).copy(isManualLocation = true)
             } catch (_: Exception) {
-                WeatherUiState(
+                cachedWeatherForLastLocation(appContext)?.copy(isManualLocation = true, city = requestedCity)
+                    ?: WeatherUiState(
                     city = requestedCity.ifBlank { "مدينة غير محددة" },
                     description = "تعذّر العثور على المدينة أو تحميل الطقس؛ تحقق من الاسم والإنترنت",
                     isLoading = false,
@@ -378,7 +380,7 @@ internal object RoyalWeatherRepository {
         saveLastLocation(context, location)
         try {
             val weather = fetchOpenMeteo(location, city)
-            saveWeatherCache(context, weather)
+            if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
             return weather
         } catch (_: Exception) {
             // Open-Meteo is the primary source. Continue to the independent backup.
@@ -391,7 +393,7 @@ internal object RoyalWeatherRepository {
 
         return try {
             val backup = fetchMetNorway(location, city)
-            saveWeatherCache(context, backup)
+            if (backup.forecast.size >= 7) saveWeatherCache(context, backup)
             backup
         } catch (_: Exception) {
             cached?.first?.copy(city = city) ?: throw IllegalStateException("Both weather sources failed")
