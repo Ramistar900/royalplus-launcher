@@ -41,7 +41,16 @@ assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "else createMicrophoneRecord()" in service and "VOICE_RECOGNITION" in service
 assert "normalizeDetectedLanguage" in service
 assert "TranslateLanguage.fromLanguageTag(normalizedLanguage)" in service
-assert "translator === activeTranslator" in service
+assert "translationSessions.getOrPut(sourceLanguage)" in service
+assert "RemoteModelManager.getInstance()" in service
+assert "getDownloadedModels(TranslateRemoteModel::class.java)" in service
+assert "session.translator.downloadModelIfNeeded(" in service
+assert "translator === activeTranslator" not in service
+assert "queueCaptionPhrase(freshText, language)" in service
+assert "captionPhraseBuffer" in service
+assert "ArabicCaptionFormatter.format(text)" in service
+assert "maxLines = 2" in service
+assert "(resources.displayMetrics.widthPixels * 0.90f)" in service
 assert "checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)" in service
 
 home = (JAVA / "RoyalHomeScreen.kt").read_text(encoding="utf-8")
