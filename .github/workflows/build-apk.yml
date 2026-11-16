@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -228,7 +228,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -253,8 +253,13 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          TAG="royalplus-test-installers"
-          TITLE="ROYAL+ Launcher • Latest Test Installers"
+          if [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then
+            TAG="royalplus-test-interface-quality"
+            TITLE="ROYAL+ Launcher • Interface Quality Test"
+          else
+            TAG="royalplus-test-installers"
+            TITLE="ROYAL+ Launcher • Latest Test Installers"
+          fi
           NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after the Android 8 (API 26) smoke test passed.
 
           1. royalplus-debug.apk — debug test build, package com.royalplus.launcher.debug.

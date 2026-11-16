@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -21,6 +22,8 @@ import kotlin.math.sin
 /** Soft, layered wave glints over the ocean photograph; intentionally subtle. */
 @Composable
 internal fun RoyalOceanOverlay(modifier: Modifier = Modifier) {
+    val motionScale = RoyalInterfaceQualitySettings.budget(LocalContext.current).motionScale
+    if (motionScale <= 0.25f) return
     val transition = rememberInfiniteTransition()
     val phase by transition.animateFloat(
         initialValue = 0f,
@@ -43,7 +46,7 @@ internal fun RoyalOceanOverlay(modifier: Modifier = Modifier) {
         val h = size.height
         if (w <= 0f || h <= 0f) return@Canvas
         // Fine moving reflections stay low-opacity so the original photograph remains dominant.
-        for (row in 0 until 7) {
+        for (row in 0 until (7 * motionScale).toInt().coerceAtLeast(2)) {
             val yBase = h * (0.58f + row * 0.052f)
             val path = Path()
             for (step in 0..48) {
@@ -60,7 +63,7 @@ internal fun RoyalOceanOverlay(modifier: Modifier = Modifier) {
             )
         }
         // Scattered foam glints move horizontally like small wave crests.
-        for (index in 0 until 22) {
+        for (index in 0 until (22 * motionScale).toInt().coerceAtLeast(4)) {
             val xFraction = ((index * 0.137f + phase * (0.025f + (index % 3) * 0.006f)) % 1f)
             val yFraction = 0.62f + (index % 7) * 0.045f
             val glint = sin((phase * 1.2f + index * 1.71f).toDouble()).toFloat()

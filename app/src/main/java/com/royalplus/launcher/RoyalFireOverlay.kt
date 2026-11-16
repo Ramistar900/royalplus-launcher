@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -25,6 +26,8 @@ import kotlin.math.sin
  */
 @Composable
 internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
+    val motionScale = RoyalInterfaceQualitySettings.budget(LocalContext.current).motionScale
+    if (motionScale <= 0.25f) return
     val transition = rememberInfiniteTransition()
     val cycle by transition.animateFloat(
         initialValue = 0f,
@@ -67,7 +70,7 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
 
         // Thin, low-opacity flame tongues reinforce the photographed fire rather than
         // replacing it with cartoon shapes.
-        for (index in 0 until 13) {
+        for (index in 0 until (13 * motionScale).toInt().coerceAtLeast(4)) {
             val phase = (cycle + index * 0.137f) % 1f
             val wave = sin(phase * 2f * PI.toFloat() + index * 1.37f)
             val pulse = 0.70f + 0.30f * wave
@@ -138,7 +141,7 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
         }
 
         // Very light white smoke rises in soft, translucent wisps above the flames.
-        for (index in 0 until 4) {
+        for (index in 0 until (4 * motionScale).toInt().coerceAtLeast(1)) {
             val progress = (cycle + index * 0.235f) % 1f
             val drift = sin((progress * 2.2f + index * 1.4f).toDouble()).toFloat()
             val startX = width * (0.39f + index * 0.075f)
@@ -165,7 +168,7 @@ internal fun RoyalFireOverlay(modifier: Modifier = Modifier) {
         }
 
         // Small glowing embers drift upward at different speeds and fade naturally.
-        for (index in 0 until 19) {
+        for (index in 0 until (19 * motionScale).toInt().coerceAtLeast(5)) {
             val speed = 0.46f + (index % 5) * 0.13f
             val progress = (cycle * speed + index * 0.173f) % 1f
             val xBase = 0.34f + (index % 9) * 0.04f
