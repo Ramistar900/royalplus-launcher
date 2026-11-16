@@ -693,7 +693,7 @@ class FloatingTranslationOverlayService : Service() {
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
-            breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
+            breakStrategy = android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY
             hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
             includeFontPadding = false
             // Two-line film-style subtitles with balanced, symmetric screen margins.
