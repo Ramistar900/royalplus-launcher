@@ -370,16 +370,13 @@ class MainActivity : ComponentActivity() {
         }
         if (!Settings.canDrawOverlays(this)) {
             pendingTranslationOverlayStart = true
-            try {
-                startActivity(
-                    Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")
-                    )
-                )
-            } catch (_: Exception) {
+            if (!openOverlayPermissionSettings()) {
                 pendingTranslationOverlayStart = false
-                Toast.makeText(this, "تعذر فتح إعداد إذن الظهور فوق التطبيقات", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    this,
+                    "تعذر فتح إعداد الإذن تلقائياً. افتح إعدادات التلفاز ثم التطبيقات > وصول خاص للتطبيقات > الظهور فوق التطبيقات، واسمح لـ ROYAL+ Launcher.",
+                    Toast.LENGTH_LONG
+                ).show()
             }
             return
         }
@@ -391,6 +388,41 @@ class MainActivity : ComponentActivity() {
             }
             translationProjectionPermission.launch(projectionManager.createScreenCaptureIntent())
         } else startTranslationOverlayService()
+    }
+
+    /**
+     * Some Android TV firmware does not expose the package-scoped overlay settings page.
+     * Try the app-specific page, the generic special-access page, and finally Settings.
+     */
+    private fun openOverlayPermissionSettings(): Boolean {
+        val settingsIntents = listOf(
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            ),
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+        settingsIntents.forEachIndexed { index, settingsIntent ->
+            try {
+                startActivity(settingsIntent)
+                if (index > 0) {
+                    Toast.makeText(
+                        this,
+                        "من إعدادات التلفاز افتح التطبيقات > وصول خاص للتطبيقات > الظهور فوق التطبيقات، ثم اسمح لـ ROYAL+ Launcher.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                return true
+            } catch (_: android.content.ActivityNotFoundException) {
+                // Try the next settings entry point supported by this TV.
+            } catch (_: SecurityException) {
+                // Some TV firmware blocks the scoped settings activity.
+            } catch (_: Exception) {
+                // Continue with the generic settings fallback.
+            }
+        }
+        return false
     }
 
     private fun startTranslationOverlayService(projectionResultCode: Int? = null, projectionData: Intent? = null) {
