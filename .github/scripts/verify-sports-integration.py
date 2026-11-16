@@ -67,4 +67,8 @@ assert "grant select, insert, update, delete" in migration.lower()
 assert "security invoker" in public_rpc_migration.lower()
 assert "grant execute" in public_rpc_migration.lower()
 
-graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics.kt").read_text(encoding="utf-8")\nassert "rememberInfiniteTransition" in graphics and "rotationZ = rotation" in graphics\nassert "groupBy { it.country.trim() to it.league.trim() }" in sports\nassert "RoyalV20SportsIcon" not in sports + home + graphics\nprint("ROYAL+ sports security, native graphics, grouped fixtures, rotating navigation ball and Android compatibility guards passed.")
+graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics.kt").read_text(encoding="utf-8")
+assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
+assert "groupBy { it.country.trim() to it.league.trim() }" in sports
+assert "RoyalV20SportsIcon" not in sports + home + graphics
+print("ROYAL+ sports security, native graphics, grouped fixtures, rotating navigation ball and Android compatibility guards passed.")
