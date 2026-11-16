@@ -114,6 +114,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -2204,6 +2205,7 @@ private fun fallbackAppIcon(label: String): ImageVector {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RoyalSidePanel(
     modifier: Modifier, selectedDestination: LauncherDestination, language: String,
@@ -2212,6 +2214,15 @@ private fun RoyalSidePanel(
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
+    val sidebarFocusRequesters = remember { List(10) { FocusRequester() } }
+    val navigationFocusModifiers = remember(sidebarFocusRequesters) {
+        sidebarFocusRequesters.mapIndexed { index, requester ->
+            Modifier.focusRequester(requester).focusProperties {
+                up = sidebarFocusRequesters[(index + sidebarFocusRequesters.size - 1) % sidebarFocusRequesters.size]
+                down = sidebarFocusRequesters[(index + 1) % sidebarFocusRequesters.size]
+            }
+        }
+    }
     val labels = when (language) {
         "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Sports", "Gallery", "Songs", "Settings")
         "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Spor", "Galeri", "Şarkılar", "Ayarlar")
@@ -2226,32 +2237,34 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(5.dp))
         SidebarNavItem(
             labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME,
-            sound = RoyalUiSound.NAV_HOME
+            sound = RoyalUiSound.NAV_HOME,
+            modifier = navigationFocusModifiers[0]
         ) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, modifier = navigationFocusModifiers[1], onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
+        SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, modifier = navigationFocusModifiers[2], onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
+        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, modifier = navigationFocusModifiers[3], onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM) { onNavigate(LauncherDestination.MUSLIM) }
+        SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.APPS) })
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
             labels[6],
             null,
             selectedDestination == LauncherDestination.SPORTS,
             sportsIconId = RoyalV20SportsIconId.FOOTBALL,
+            modifier = navigationFocusModifiers[6],
             onClick = { onNavigate(LauncherDestination.SPORTS) }
         )
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[7], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, onClick = { onNavigate(LauncherDestination.GALLERY) })
+        SidebarNavItem(labels[7], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, modifier = navigationFocusModifiers[7], onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[8], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS) { onNavigate(LauncherDestination.SONGS) }
+        SidebarNavItem(labels[8], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS, modifier = navigationFocusModifiers[8]) { onNavigate(LauncherDestination.SONGS) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[9], Icons.Rounded.Settings, false, onClick = onOpenSettings)
+        SidebarNavItem(labels[9], Icons.Rounded.Settings, false, modifier = navigationFocusModifiers[9], onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
@@ -2312,6 +2325,7 @@ private fun SidebarNavItem(
     iconRes: Int? = null,
     sportsIconId: RoyalV20SportsIconId? = null,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
@@ -2331,7 +2345,7 @@ private fun SidebarNavItem(
         label = "sidebar_focus_scale"
     )
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(navItemHeight)
             .graphicsLayer {
