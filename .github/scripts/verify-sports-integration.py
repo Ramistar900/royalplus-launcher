@@ -31,6 +31,8 @@ assert "RoyalSportsMatchBucket.PLAYED" in sports
 assert "media.api-sports.io" in sports
 assert "leagueLogo = league.optString(\"logo\", \"\")" in sports
 assert "countryFlag = league.optString(\"flag\", \"\")" in sports
+assert "homeLogo = home.optString(\"logo\", \"\")" in sports
+assert "awayLogo = away.optString(\"logo\", \"\")" in sports
 assert "Icons.Rounded.SportsSoccer" not in sports
 for other_sport in ("Basketball", "Tennis", "Volleyball", "Cricket", "Baseball"):
     assert other_sport.lower() not in sports.lower(), f"Unexpected sport category: {other_sport}"
