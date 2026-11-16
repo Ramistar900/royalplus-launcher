@@ -217,6 +217,15 @@ internal fun MuslimScreen(
         val currentMinutes = currentParts[0].toInt() * 60 + currentParts[1].toInt()
         candidates.firstOrNull { it.third > currentMinutes } ?: candidates.firstOrNull()
     }
+
+    val nextPrayerRakats = when (nextPrayer?.first) {
+        "Fajr" -> 2
+        "Dhuhr" -> 4
+        "Asr" -> 4
+        "Maghrib" -> 3
+        "Isha" -> 4
+        else -> null
+    }
     val countdown = remember(nextPrayer, now, prayerTimeZone) {
         if (nextPrayer == null) "" else {
             val current = SimpleDateFormat("HH:mm:ss", Locale.US).apply { this.timeZone = prayerTimeZone }.format(Date(now)).split(":")
@@ -359,6 +368,18 @@ internal fun MuslimScreen(
                     ) {
                         Text(when (language) { "en" -> "In "; "tr" -> "Kalan "; else -> "بعد " }, color = Color.White, fontSize = 10.sp)
                         Text(countdown.ifBlank { "00:00:00" }, color = Color(0xFF20C9B5), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                    if (nextPrayerRakats != null) {
+                        Text(
+                            when (language) {
+                                "en" -> "$nextPrayerRakats rakats"
+                                "tr" -> "$nextPrayerRakats rekât"
+                                else -> "$nextPrayerRakats ركعات"
+                            },
+                            color = Color(0xFFE7D6B1),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
