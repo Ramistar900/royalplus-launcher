@@ -428,13 +428,13 @@ internal fun WeatherDetailsScreen(
                     }
                     Column(Modifier.fillMaxWidth().weight(0.70f).clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(12.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                            Text(if (language == "en") "5-day forecast" else if (language == "tr") "5 günlük hava durumu" else "حالة الطقس - 5 أيام", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                            Text(if (language == "en") "7-day forecast" else if (language == "tr") "7 günlük hava durumu" else "حالة الطقس - 7 أيام", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(8.dp))
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             if (weather.forecast.isNotEmpty()) {
-                                weather.forecast.take(5).forEach { day ->
+                                weather.forecast.take(7).forEach { day ->
                                     val dayLabel = remember(day.date, language) {
                                         try {
                                             val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(day.date)
@@ -456,7 +456,7 @@ internal fun WeatherDetailsScreen(
                                     }
                                 }
                             } else {
-                                repeat(5) {
+                                repeat(7) {
                                     Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
                                         Text(if (weather.isLoading) "…" else "—", color = Color.White, fontSize = 20.sp)
                                     }
