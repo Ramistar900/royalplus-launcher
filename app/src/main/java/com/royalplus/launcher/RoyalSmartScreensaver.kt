@@ -101,7 +101,7 @@ internal fun RoyalSmartScreensaver(
                     "ocean" -> R.drawable.royal_ocean_4k
                     "syria" -> R.drawable.royal_syria_flag_4k
                     else -> R.drawable.royal_smart_screensaver
-                }, maxEdgePx = 2048),
+                }, maxEdgePx = 4096),
                 modifier = Modifier.fillMaxSize(),
                 motionEnabled = motionEnabled && selectedWallpaper != "fire"
             )

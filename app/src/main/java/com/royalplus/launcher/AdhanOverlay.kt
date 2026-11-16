@@ -83,7 +83,7 @@ internal fun AdhanOverlay(
             .background(Color(0xFF050811))
     ) {
         RoyalMotionImage(
-            image = rememberRoyalBitmapPainter(if (isDaytime) R.drawable.royal_adhan_day else R.drawable.royal_adhan_night, maxEdgePx = 2048),
+            image = rememberRoyalBitmapPainter(if (isDaytime) R.drawable.royal_adhan_day else R.drawable.royal_adhan_night, maxEdgePx = 4096),
             modifier = Modifier.fillMaxSize(),
             motionEnabled = motionEnabled
         )

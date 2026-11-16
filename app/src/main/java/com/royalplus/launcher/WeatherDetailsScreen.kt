@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -298,180 +299,653 @@ internal fun WeatherDetailsScreen(
         )
     }
 
+
+    val nextPrayerLabel = nextPrayer?.key?.let { key ->
+        when (language) {
+            "en" -> prayerNamesEn[key].orEmpty()
+            "tr" -> prayerNamesTr[key].orEmpty()
+            else -> prayerNames[key].orEmpty()
+        }
+    }.orEmpty()
+    val nextPrayerSummary = when {
+        nextPrayer == null -> ""
+        language == "en" -> "Next $nextPrayerLabel in $countdown"
+        language == "tr" -> "Sonraki $nextPrayerLabel: $countdown"
+        else -> "الصلاة القادمة $nextPrayerLabel بعد $countdown"
+    }
+
     Box(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(
-            image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048),
+            image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 4096),
             modifier = Modifier.fillMaxSize(),
             motionEnabled = motionEnabled
         )
         if (motionEnabled && weatherVideo != null) {
             WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.fillMaxSize())
         }
-        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, motionEnabled = motionEnabled, windSpeedKmh = weather.windSpeedKmh, nightMode = night, sunsetMode = hour in 17..18)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59)))))
-        Column(Modifier.fillMaxSize().padding(horizontal = if (adaptiveProfile.isPhone) 12.dp else adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
-            Row(Modifier.fillMaxWidth().weight(0.30f), verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(weather.city.ifBlank { "الموقع الحالي" }, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 21.sp else 27.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.width(10.dp))
-                        Icon(Icons.Rounded.LocationOn, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(royalAdaptiveIconSize(20.dp)))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        RoyalClassicWeatherIcon(
-                            weatherCode = weather.weatherCode,
-                            description = weather.description,
-                            apparentTemperatureC = weather.apparentTemperatureC,
-                            windSpeedKmh = weather.windSpeedKmh,
-                            hour = hour,
-                            modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isPhone) 50.dp else 68.dp, maxSize = 82.dp)),
-                            contentDescription = weather.description
-                        )
-                        Column {
-                            Text(weather.description, color = Color.White, fontSize = 18.sp, maxLines = 1)
-                            Text((weather.temperatureC?.toString() ?: "--") + "°C", color = Color.White, fontSize = if (adaptiveProfile.isPhone) 30.sp else 38.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Row(
-                            Modifier.clip(RoundedCornerShape(20.dp))
-                                .background(Color.White.copy(alpha = 0.16f))
-                                .clickable { showAudioSettings = true }
-                                .focusable()
-                                .padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Rounded.Tune, null, tint = gold, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
-                            Text(when (language) { "en" -> "Sounds"; "tr" -> "Sesler"; else -> "الأصوات" }, color = Color.White, fontSize = 11.sp)
-                        }
-                        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.13f)).clickable { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.Refresh, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
-                            Text(if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث الطقس", color = Color.White, fontSize = 11.sp)
-                        }
-                        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable {
-                            cityInput = weather.city.substringBefore("،").substringBefore(",")
-                            showCityPicker = true
-                        }.focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.EditLocationAlt, null, tint = gold, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
-                            Text(if (language == "en") "Choose city" else if (language == "tr") "Şehir seç" else "اختيار المدينة", color = Color.White, fontSize = 11.sp)
-                        }
-                        if (weather.isManualLocation || weather.needsPermission) {
-                            Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.16f)).clickable(onClick = onUseDeviceLocation).focusable().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.LocationOn, null, tint = gold, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
-                                Text(if (language == "en") "My location" else if (language == "tr") "Konumum" else "موقعي", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        WeatherMetricCard(
-                            title = when (language) { "en" -> "Feels like"; "tr" -> "Hissedilen"; else -> "المحسوسة" },
-                            value = weather.apparentTemperatureC?.let { "$it°" } ?: "--",
-                            modifier = Modifier.weight(1f)
-                        )
-                        WeatherMetricCard(
-                            title = when (language) { "en" -> "Humidity"; "tr" -> "Nem"; else -> "الرطوبة" },
-                            value = weather.humidityPercent?.let { "$it%" } ?: "--",
-                            modifier = Modifier.weight(1f)
-                        )
-                        WeatherMetricCard(
-                            title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "الرياح" },
-                            value = weather.windSpeedKmh?.let { "$it km/h" } ?: "--",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+        RoyalWeatherAtmosphereOverlay(
+            weatherCode = weather.weatherCode,
+            motionEnabled = motionEnabled,
+            windSpeedKmh = weather.windSpeedKmh,
+            nightMode = night,
+            sunsetMode = hour in 17..18
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    listOf(Color(0x2200152B), Color(0x3A17334C), Color(0x6D193B59))
+                )
+            )
+        )
+
+        if (adaptiveProfile.isPhone) {
+            Column(
+                Modifier.fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = adaptiveProfile.pageVerticalPadding + 30.dp
+                    ),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                WeatherCurrentDetailsPanel(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 340.dp),
+                    weather = weather,
+                    hour = hour,
+                    timeText = timeText,
+                    dateText = dateText,
+                    prayerTimes = prayerTimes,
+                    language = language,
+                    nextPrayerSummary = nextPrayerSummary,
+                    onOpenAudioSettings = { showAudioSettings = true },
+                    onRefresh = { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() },
+                    onChooseCity = {
+                        cityInput = weather.city.substringBefore("،").substringBefore(",")
+                        showCityPicker = true
+                    },
+                    onUseDeviceLocation = onUseDeviceLocation,
+                    isPhone = true
+                )
+                WeatherForecastPanel(
+                    modifier = Modifier.fillMaxWidth().height(390.dp),
+                    weather = weather,
+                    language = language,
+                    currentTimeMillis = currentTimeMillis,
+                    timeZone = zone,
+                    glass = glass,
+                    outline = outline,
+                    gold = gold
+                )
+                WeatherPrayerTimesPanel(
+                    modifier = Modifier.fillMaxWidth().height(164.dp),
+                    prayerTimes = prayerTimes,
+                    city = weather.city,
+                    activeKey = activeKey,
+                    language = language,
+                    glass = glass,
+                    outline = outline,
+                    gold = gold
+                )
+            }
+        } else {
+            Row(
+                Modifier.fillMaxSize().padding(
+                    horizontal = adaptiveProfile.pageHorizontalPadding,
+                    vertical = adaptiveProfile.pageVerticalPadding + 30.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(
+                    Modifier.weight(0.62f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    WeatherForecastPanel(
+                        modifier = Modifier.weight(0.60f).fillMaxWidth(),
+                        weather = weather,
+                        language = language,
+                        currentTimeMillis = currentTimeMillis,
+                        timeZone = zone,
+                        glass = glass,
+                        outline = outline,
+                        gold = gold
+                    )
+                    WeatherPrayerTimesPanel(
+                        modifier = Modifier.weight(0.40f).fillMaxWidth(),
+                        prayerTimes = prayerTimes,
+                        city = weather.city,
+                        activeKey = activeKey,
+                        language = language,
+                        glass = glass,
+                        outline = outline,
+                        gold = gold
+                    )
                 }
-                Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
-                    Text(timeText, color = Color.White, fontSize = if (adaptiveProfile.isPhone) 38.sp else 52.sp, fontWeight = FontWeight.Bold)
-                    Text(prayerTimes?.gregorianDate ?: dateText, color = Color.White, fontSize = 16.sp, maxLines = 1)
-                    Text(prayerTimes?.hijriDate ?: "", color = Color.White, fontSize = 15.sp, maxLines = 1)
-                    if (nextPrayer != null) Text(
-                        (if (language == "en") "Next " + prayerNamesEn[nextPrayer.key] + " in " else if (language == "tr") "Sonraki " + prayerNamesTr[nextPrayer.key] + ": " else "الصلاة القادمة " + prayerNames[nextPrayer.key] + " بعد ") + countdown,
-                        color = gold, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1
+                WeatherCurrentDetailsPanel(
+                    modifier = Modifier.weight(0.38f).fillMaxHeight(),
+                    weather = weather,
+                    hour = hour,
+                    timeText = timeText,
+                    dateText = dateText,
+                    prayerTimes = prayerTimes,
+                    language = language,
+                    nextPrayerSummary = nextPrayerSummary,
+                    onOpenAudioSettings = { showAudioSettings = true },
+                    onRefresh = { if (weather.needsPermission && !weather.isManualLocation) onRequestLocation() else onRefresh() },
+                    onChooseCity = {
+                        cityInput = weather.city.substringBefore("،").substringBefore(",")
+                        showCityPicker = true
+                    },
+                    onUseDeviceLocation = onUseDeviceLocation,
+                    isPhone = false
+                )
+            }
+        }
+
+        Row(
+            Modifier.align(Alignment.TopStart)
+                .padding(10.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color.Black.copy(alpha = 0.18f))
+                .clickable(onClick = onBack)
+                .focusable()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Rounded.ArrowBack,
+                null,
+                tint = Color.White,
+                modifier = Modifier.size(royalAdaptiveIconSize(17.dp))
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                if (language == "en") "Back" else if (language == "tr") "Geri" else "رجوع",
+                color = Color.White,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeatherCurrentDetailsPanel(
+    modifier: Modifier,
+    weather: WeatherUiState,
+    hour: Int,
+    timeText: String,
+    dateText: String,
+    prayerTimes: PrayerTimesData?,
+    language: String,
+    nextPrayerSummary: String,
+    onOpenAudioSettings: () -> Unit,
+    onRefresh: () -> Unit,
+    onChooseCity: () -> Unit,
+    onUseDeviceLocation: () -> Unit,
+    isPhone: Boolean
+) {
+    Column(
+        modifier = modifier.padding(if (isPhone) 8.dp else 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceEvenly
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            WeatherQuickAction(
+                modifier = Modifier.weight(1f),
+                title = if (language == "en") "Sounds" else if (language == "tr") "Sesler" else "الأصوات",
+                icon = Icons.Rounded.Tune,
+                onClick = onOpenAudioSettings
+            )
+            WeatherQuickAction(
+                modifier = Modifier.weight(1f),
+                title = if (language == "en") "Refresh" else if (language == "tr") "Yenile" else "تحديث",
+                icon = Icons.Rounded.Refresh,
+                onClick = onRefresh
+            )
+            WeatherQuickAction(
+                modifier = Modifier.weight(1f),
+                title = if (language == "en") "City" else if (language == "tr") "Şehir" else "المدينة",
+                icon = Icons.Rounded.EditLocationAlt,
+                onClick = onChooseCity
+            )
+            if (weather.isManualLocation || weather.needsPermission) {
+                WeatherQuickAction(
+                    modifier = Modifier.weight(1f),
+                    title = if (language == "en") "My place" else if (language == "tr") "Konumum" else "موقعي",
+                    icon = Icons.Rounded.LocationOn,
+                    onClick = onUseDeviceLocation
+                )
+            }
+        }
+
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                Icon(
+                    Icons.Rounded.LocationOn,
+                    null,
+                    tint = Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier.size(royalAdaptiveIconSize(19.dp))
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    weather.city.ifBlank { if (language == "en") "Current location" else if (language == "tr") "Geçerli konum" else "الموقع الحالي" },
+                    color = Color.White,
+                    fontSize = if (isPhone) 19.sp else 24.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(timeText, color = Color.White.copy(alpha = 0.92f), fontSize = if (isPhone) 14.sp else 17.sp)
+            Text(
+                prayerTimes?.gregorianDate ?: dateText,
+                color = Color.White.copy(alpha = 0.88f),
+                fontSize = if (isPhone) 12.sp else 14.sp,
+                maxLines = 1
+            )
+            if (!prayerTimes?.hijriDate.isNullOrBlank()) {
+                Text(
+                    prayerTimes?.hijriDate.orEmpty(),
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = if (isPhone) 12.sp else 14.sp,
+                    maxLines = 1
+                )
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            RoyalClassicWeatherIcon(
+                weatherCode = weather.weatherCode,
+                description = weather.description,
+                apparentTemperatureC = weather.apparentTemperatureC,
+                windSpeedKmh = weather.windSpeedKmh,
+                hour = hour,
+                modifier = Modifier.size(royalAdaptiveIconSize(if (isPhone) 74.dp else 108.dp, maxSize = 116.dp)),
+                contentDescription = weather.description
+            )
+            Text(
+                (weather.temperatureC?.toString() ?: "--") + "°",
+                color = Color.White,
+                fontSize = if (isPhone) 68.sp else 88.sp,
+                fontWeight = FontWeight.Light,
+                maxLines = 1
+            )
+            Text(
+                weather.description,
+                color = Color.White,
+                fontSize = if (isPhone) 17.sp else 20.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (nextPrayerSummary.isNotBlank()) {
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    nextPrayerSummary,
+                    color = Color(0xFFFFD36A),
+                    fontSize = if (isPhone) 12.sp else 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            WeatherMetricCard(
+                title = when (language) { "en" -> "Feels like"; "tr" -> "Hissedilen"; else -> "المحسوسة" },
+                value = weather.apparentTemperatureC?.let { "$it°" } ?: "--",
+                modifier = Modifier.weight(1f)
+            )
+            WeatherMetricCard(
+                title = when (language) { "en" -> "Humidity"; "tr" -> "Nem"; else -> "الرطوبة" },
+                value = weather.humidityPercent?.let { "$it%" } ?: "--",
+                modifier = Modifier.weight(1f)
+            )
+            WeatherMetricCard(
+                title = when (language) { "en" -> "Wind"; "tr" -> "Rüzgâr"; else -> "الرياح" },
+                value = weather.windSpeedKmh?.let { "$it km/h" } ?: "--",
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeatherQuickAction(
+    modifier: Modifier = Modifier,
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier.clip(RoundedCornerShape(18.dp))
+            .background(Color.White.copy(alpha = 0.15f))
+            .clickable(onClick = onClick)
+            .focusable()
+            .padding(horizontal = 5.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFFFFD36A), modifier = Modifier.size(royalAdaptiveIconSize(14.dp)))
+        Spacer(Modifier.width(3.dp))
+        Text(title, color = Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun WeatherForecastPanel(
+    modifier: Modifier,
+    weather: WeatherUiState,
+    language: String,
+    currentTimeMillis: Long,
+    timeZone: TimeZone,
+    glass: Color,
+    outline: Color,
+    gold: Color
+) {
+    val locale = when (language) {
+        "en" -> Locale.ENGLISH
+        "tr" -> Locale("tr")
+        else -> Locale("ar")
+    }
+    val todayDate = remember(currentTimeMillis, weather.timeZoneId) {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { this.timeZone = timeZone }
+            .format(Date(currentTimeMillis))
+    }
+    val tomorrowDate = remember(currentTimeMillis, weather.timeZoneId) {
+        val tomorrow = java.util.Calendar.getInstance(timeZone).apply {
+            timeInMillis = currentTimeMillis
+            add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { this.timeZone = timeZone }
+            .format(tomorrow.time)
+    }
+    val days = weather.forecast.take(7)
+    val weeklyMin = days.minOfOrNull { it.minTemperatureC } ?: 0
+    val weeklyMax = days.maxOfOrNull { it.maxTemperatureC } ?: 1
+
+    Column(
+        modifier.clip(RoundedCornerShape(25.dp))
+            .background(glass)
+            .border(1.5.dp, outline, RoundedCornerShape(25.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                when (language) { "en" -> "7-day forecast"; "tr" -> "7 günlük hava durumu"; else -> "توقعات 7 أيام" },
+                color = Color.White,
+                fontSize = if (weather.forecast.size > 5) 17.sp else 19.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(7.dp))
+            Icon(Icons.Rounded.LocationOn, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(royalAdaptiveIconSize(17.dp)))
+        }
+        Spacer(Modifier.height(5.dp))
+        if (days.isEmpty()) {
+            repeat(7) {
+                Row(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (weather.isLoading) "…" else "—",
+                        color = Color.White,
+                        fontSize = 16.sp
                     )
                 }
             }
-            Row(Modifier.fillMaxWidth().weight(0.70f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Column(Modifier.weight(if (adaptiveProfile.isPhone) 0.44f else 0.36f).fillMaxHeight().clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        Text(if (language == "en") "Prayer times" else if (language == "tr") "Namaz vakitleri" else "مواقيت الصلاة", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Rounded.Mosque, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(23.dp)))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(Color.White.copy(alpha = 0.18f)).padding(horizontal = 12.dp, vertical = 7.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Text(weather.city, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.width(5.dp))
-                        Icon(Icons.Rounded.LocationOn, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(15.dp)))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha").forEach { key ->
-                        val isActive = key == activeKey
-                        Row(Modifier.fillMaxWidth().weight(1f).padding(vertical = 2.dp).clip(RoundedCornerShape(15.dp))
-                            .background(if (isActive) Color(0x667C6530) else Color.White.copy(alpha = 0.12f))
-                            .border(if (isActive) 2.dp else 1.dp, if (isActive) gold else Color.White.copy(alpha = 0.28f), RoundedCornerShape(15.dp))
-                            .padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(prayerTimes?.times?.get(key) ?: "--:--", color = if (isActive) gold else Color.White, fontSize = 18.sp, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium)
-                            Spacer(Modifier.weight(1f))
-                            Text(if (language == "en") prayerNamesEn[key].orEmpty() else if (language == "tr") prayerNamesTr[key].orEmpty() else prayerNames[key].orEmpty(), color = if (isActive) gold else Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        }
+        } else {
+            days.forEachIndexed { index, day ->
+                val dayLabel = remember(day.date, language, todayDate, tomorrowDate) {
+                    when (day.date) {
+                        todayDate -> when (language) { "en" -> "Today"; "tr" -> "Bugün"; else -> "اليوم" }
+                        tomorrowDate -> when (language) { "en" -> "Tomorrow"; "tr" -> "Yarın"; else -> "غداً" }
+                        else -> try {
+                            val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                                this.timeZone = timeZone
+                            }.parse(day.date)
+                            SimpleDateFormat("EEE", locale).apply { this.timeZone = timeZone }
+                                .format(parsed ?: Date())
+                        } catch (_: Exception) { day.date }
                     }
                 }
-                Column(Modifier.weight(if (adaptiveProfile.isPhone) 0.56f else 0.64f).fillMaxHeight()) {
-                    Box(Modifier.fillMaxWidth().weight(0.30f), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ", color = Color.White, fontSize = 21.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Spacer(Modifier.height(4.dp))
-                            Text("سورة الرعد – الآية ٢٨", color = Color.White.copy(alpha = 0.92f), fontSize = 14.sp)
-                        }
-                    }
-                    Column(Modifier.fillMaxWidth().weight(0.70f).clip(RoundedCornerShape(25.dp)).background(glass).border(1.5.dp, outline, RoundedCornerShape(25.dp)).padding(12.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                            Text(if (language == "en") "7-day forecast" else if (language == "tr") "7 günlük hava durumu" else "حالة الطقس - 7 أيام", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            if (weather.forecast.isNotEmpty()) {
-                                weather.forecast.take(7).forEach { day ->
-                                    val dayLabel = remember(day.date, language) {
-                                        try {
-                                            val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(day.date)
-                                            SimpleDateFormat("EEEE", if (language == "en") Locale.ENGLISH else if (language == "tr") Locale("tr") else Locale("ar")).format(parsed ?: Date())
-                                        } catch (_: Exception) { day.date }
-                                    }
-                                    Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = 0.12f)).border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(17.dp)).padding(horizontal = 5.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-                                        Text(dayLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        RoyalClassicWeatherIcon(
-                                            weatherCode = day.weatherCode,
-                                            description = weatherDescriptionFor(day.weatherCode, language),
-                                            apparentTemperatureC = (day.maxTemperatureC + day.minTemperatureC) / 2,
-                                            hour = 12,
-                                            modifier = Modifier.size(royalAdaptiveIconSize(42.dp, maxSize = 56.dp)),
-                                            contentDescription = weatherDescriptionFor(day.weatherCode, language)
-                                        )
-                                        Text(weatherDescriptionFor(day.weatherCode, language), color = Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(day.maxTemperatureC.toString() + "° / " + day.minTemperatureC + "°", color = Color.White, fontSize = 13.sp, maxLines = 1)
-                                    }
-                                }
-                            } else {
-                                repeat(7) {
-                                    Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(17.dp)).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
-                                        Text(if (weather.isLoading) "…" else "—", color = Color.White, fontSize = 20.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                WeatherForecastDayRow(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    day = day,
+                    dayLabel = dayLabel,
+                    language = language,
+                    weeklyMin = weeklyMin,
+                    weeklyMax = weeklyMax,
+                    gold = gold
+                )
+                if (index < days.lastIndex) {
+                    Box(
+                        Modifier.fillMaxWidth().height(1.dp)
+                            .background(Color.White.copy(alpha = 0.18f))
+                    )
                 }
             }
         }
-        Row(Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.18f)).clickable(onClick = onBack).focusable().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.ArrowBack, null, tint = Color.White, modifier = Modifier.size(royalAdaptiveIconSize(17.dp)))
-            Text(if (language == "en") "Back" else if (language == "tr") "Geri" else "رجوع", color = Color.White, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun WeatherForecastDayRow(
+    modifier: Modifier,
+    day: WeatherForecastDay,
+    dayLabel: String,
+    language: String,
+    weeklyMin: Int,
+    weeklyMax: Int,
+    gold: Color
+) {
+    Row(
+        modifier.padding(horizontal = 2.dp, vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Text(
+            dayLabel,
+            modifier = Modifier.weight(0.85f),
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        RoyalClassicWeatherIcon(
+            weatherCode = day.weatherCode,
+            description = weatherDescriptionFor(day.weatherCode, language),
+            apparentTemperatureC = (day.maxTemperatureC + day.minTemperatureC) / 2,
+            hour = 12,
+            modifier = Modifier.size(royalAdaptiveIconSize(34.dp, maxSize = 38.dp)),
+            contentDescription = weatherDescriptionFor(day.weatherCode, language)
+        )
+        Text(
+            weatherDescriptionFor(day.weatherCode, language),
+            modifier = Modifier.weight(1.05f),
+            color = Color.White.copy(alpha = 0.95f),
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Column(
+            Modifier.weight(1.1f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                "${day.maxTemperatureC}° / ${day.minTemperatureC}°",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+            WeatherTemperatureRangeBar(
+                minTemperature = day.minTemperatureC,
+                maxTemperature = day.maxTemperatureC,
+                weeklyMin = weeklyMin,
+                weeklyMax = weeklyMax,
+                gold = gold,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
+}
+
+@Composable
+private fun WeatherTemperatureRangeBar(
+    minTemperature: Int,
+    maxTemperature: Int,
+    weeklyMin: Int,
+    weeklyMax: Int,
+    gold: Color,
+    modifier: Modifier = Modifier
+) {
+    val totalRange = (weeklyMax - weeklyMin).coerceAtLeast(1).toFloat()
+    val start = ((minTemperature - weeklyMin) / totalRange).coerceIn(0f, 0.94f)
+    val end = ((maxTemperature - weeklyMin) / totalRange).coerceIn(start + 0.04f, 1f)
+    val segment = (end - start).coerceIn(0.04f, 1f - start)
+    val remainder = (1f - start - segment).coerceAtLeast(0f)
+    Row(
+        modifier.height(4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.White.copy(alpha = 0.24f))
+    ) {
+        if (start > 0f) Spacer(Modifier.weight(start))
+        Box(
+            Modifier.weight(segment)
+                .fillMaxHeight()
+                .background(gold)
+        )
+        if (remainder > 0f) Spacer(Modifier.weight(remainder))
+    }
+}
+
+@Composable
+private fun WeatherPrayerTimesPanel(
+    modifier: Modifier,
+    prayerTimes: PrayerTimesData?,
+    city: String,
+    activeKey: String?,
+    language: String,
+    glass: Color,
+    outline: Color,
+    gold: Color
+) {
+    val prayerKeys = listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha")
+    Column(
+        modifier.clip(RoundedCornerShape(25.dp))
+            .background(glass)
+            .border(1.5.dp, outline, RoundedCornerShape(25.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.Mosque,
+                    null,
+                    tint = gold,
+                    modifier = Modifier.size(royalAdaptiveIconSize(19.dp))
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    when (language) { "en" -> "Prayer times"; "tr" -> "Namaz vakitleri"; else -> "مواقيت الصلاة" },
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    city,
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    Icons.Rounded.LocationOn,
+                    null,
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(royalAdaptiveIconSize(14.dp))
+                )
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Row(
+            Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            prayerKeys.forEach { key ->
+                val isActive = key == activeKey
+                Column(
+                    Modifier.weight(1f).fillMaxHeight()
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(
+                            if (isActive) Color(0x667C6530)
+                            else Color.White.copy(alpha = 0.12f)
+                        )
+                        .border(
+                            if (isActive) 2.dp else 1.dp,
+                            if (isActive) gold else Color.White.copy(alpha = 0.26f),
+                            RoundedCornerShape(13.dp)
+                        )
+                        .padding(horizontal = 3.dp, vertical = 5.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        prayerNameForWeather(key, language),
+                        color = if (isActive) gold else Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        prayerTimes?.times?.get(key) ?: "--:--",
+                        color = if (isActive) gold else Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun prayerNameForWeather(key: String, language: String): String = when (key) {
+    "Fajr" -> when (language) { "en" -> "Fajr"; "tr" -> "Sabah"; else -> "الفجر" }
+    "Sunrise" -> when (language) { "en" -> "Sunrise"; "tr" -> "Güneş"; else -> "الشروق" }
+    "Dhuhr" -> when (language) { "en" -> "Dhuhr"; "tr" -> "Öğle"; else -> "الظهر" }
+    "Asr" -> when (language) { "en" -> "Asr"; "tr" -> "İkindi"; else -> "العصر" }
+    "Maghrib" -> when (language) { "en" -> "Maghrib"; "tr" -> "Akşam"; else -> "المغرب" }
+    else -> when (language) { "en" -> "Isha"; "tr" -> "Yatsı"; else -> "العشاء" }
 }
 
 private fun weatherDescriptionFor(code: Int, language: String): String = when (code) {

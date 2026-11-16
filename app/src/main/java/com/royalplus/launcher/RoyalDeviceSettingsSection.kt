@@ -16,10 +16,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -113,6 +116,48 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             if (language == "en") "Screen and display options" else if (language == "tr") "Ekran seçenekleri" else "خيارات الشاشة والعرض") {
             openSystemSettings(context, Settings.ACTION_DISPLAY_SETTINGS)
         }
+        Text(
+            if (language == "en") "Interface quality & performance" else if (language == "tr") "Arayüz kalitesi ve performans" else "جودة الواجهة والأداء",
+            color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold
+        )
+        val selectedQuality = RoyalInterfaceQualitySettings.current
+        val effectiveQuality = remember(context, selectedQuality) {
+            RoyalInterfaceQualitySettings.budget(context, selectedQuality).effectivePreset
+        }
+        Text(
+            if (language == "en") "Choose the maximum internal image and effects quality. TV output resolution and layout/text sizes remain unchanged."
+            else if (language == "tr") "Görüntü ve efektler için azami iç kaliteyi seçin. TV çıkış çözünürlüğü ve yazı/yerleşim boyutları değişmez."
+            else "اختر الحد الأعلى لجودة الصور والمؤثرات داخل التطبيق. لا تتغير دقة خرج التلفاز أو أحجام التخطيط والنصوص.",
+            color = RoyalColors.Muted, fontSize = 10.sp
+        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            RoyalInterfaceQualityPreset.values().forEach { preset ->
+                val selected = selectedQuality == preset
+                val label = if (preset == RoyalInterfaceQualityPreset.AUTO) {
+                    if (language == "en") "Auto" else if (language == "tr") "Otomatik" else "تلقائي"
+                } else preset.label
+                Box(
+                    Modifier.clip(RoundedCornerShape(10.dp))
+                        .then(royalGlassFocus(RoundedCornerShape(10.dp)))
+                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xFF080A0F))
+                        .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.28f), RoundedCornerShape(10.dp))
+                        .clickable { RoyalInterfaceQualitySettings.select(context, preset) }
+                        .padding(horizontal = 13.dp, vertical = 10.dp)
+                ) {
+                    Text(label, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                        fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+                }
+            }
+        }
+        Text(
+            if (language == "en") "Active ceiling: ${effectiveQuality.label} • Weather videos use their original maximum of 720p."
+            else if (language == "tr") "Etkin üst sınır: ${effectiveQuality.label} • Hava videoları en fazla özgün 720p kalitesini kullanır."
+            else "الحد الفعلي: ${effectiveQuality.label} • فيديوهات الطقس لا تتجاوز دقتها المصدرية 720p.",
+            color = RoyalColors.Muted, fontSize = 10.sp
+        )
         SettingsInfoRow(Icons.Rounded.VolumeUp,
             if (language == "en") "Sound settings" else if (language == "tr") "Ses ayarları" else "إعدادات الصوت",
             if (language == "en") "Volume and audio output" else if (language == "tr") "Ses seviyesi ve çıkışı" else "مستوى الصوت ومخرج الصوت") {
