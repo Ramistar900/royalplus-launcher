@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -348,7 +349,7 @@ internal fun WeatherDetailsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 WeatherCurrentDetailsPanel(
-                    modifier = Modifier.fillMaxWidth().height(340.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 340.dp),
                     weather = weather,
                     hour = hour,
                     timeText = timeText,
