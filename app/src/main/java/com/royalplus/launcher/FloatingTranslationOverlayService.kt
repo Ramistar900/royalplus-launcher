@@ -28,8 +28,10 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.model.RemoteModelManager
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
@@ -81,11 +83,19 @@ class FloatingTranslationOverlayService : Service() {
     private val controlHideRunnable = Runnable {
         hideControlAndShowEdge()
     }
-    private var activeTranslator: Translator? = null
+    private data class TranslationSession(
+        val translator: Translator,
+        var modelReady: Boolean = false,
+        var modelCheckPending: Boolean = false,
+        var modelDownloadPending: Boolean = false,
+        var latestPendingCaption: Pair<String, String>? = null
+    )
+
+    // Keep a translator/model state for each source language for the lifetime of this service.
+    private val translationSessions = mutableMapOf<String, TranslationSession>()
     private var activeSourceLanguage: String? = null
-    private var translationModelReady = false
-    private var translationModelPending = false
-    private var latestPendingCaption: Pair<String, String>? = null
+    private val captionPhraseBuffer = CaptionPhraseBuffer(maxCharacters = MAX_CAPTION_BUFFER_CHARACTERS)
+    private val captionPhraseFlushRunnable = Runnable { flushPendingCaptionPhrase() }
     private var translationRequest = 0
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -327,6 +337,9 @@ class FloatingTranslationOverlayService : Service() {
             try {
                 val samples = audioSegments.take()
                 if (!hasMeaningfulAudio(samples)) {
+                    if (consecutiveSilentSegments == 0) {
+                        mainHandler.post { flushPendingCaptionPhrase() }
+                    }
                     consecutiveSilentSegments++
                     if (consecutiveSilentSegments == 2) {
                         lastRecognizedTail = emptyList()
@@ -362,6 +375,7 @@ class FloatingTranslationOverlayService : Service() {
                     SpeechCaptionFilter.isNonSpeechLabel(recognized) -> {
                         // Sound-effect/music labels must not influence language locking or appear as subtitles.
                         lastRecognizedTail = emptyList()
+                        mainHandler.post { flushPendingCaptionPhrase() }
                         consecutiveUnrecognizedSegments++
                     }
                     else -> {
@@ -370,7 +384,7 @@ class FloatingTranslationOverlayService : Service() {
                         if (freshText.isNotBlank()) {
                             consecutiveUnrecognizedSegments = 0
                             if (language != null) {
-                                translateCaption(freshText, language)
+                                queueCaptionPhrase(freshText, language)
                             } else {
                                 updateStatus("جارٍ التأكد من لغة الصوت…")
                             }
@@ -420,6 +434,26 @@ class FloatingTranslationOverlayService : Service() {
             lastRecognizedTail = (previous + freshWords).takeLast(MAX_OVERLAP_WORDS)
         }
         return freshWords.joinToString(" ")
+    }
+
+    private fun queueCaptionPhrase(text: String, language: String) {
+        mainHandler.post {
+            if (!running.get()) return@post
+
+            captionPhraseBuffer.append(text, language).forEach { phrase ->
+                translateCaption(phrase.text, phrase.language)
+            }
+
+            mainHandler.removeCallbacks(captionPhraseFlushRunnable)
+            if (!captionPhraseBuffer.isEmpty()) {
+                mainHandler.postDelayed(captionPhraseFlushRunnable, CAPTION_PHRASE_IDLE_MILLIS)
+            }
+        }
+    }
+
+    private fun flushPendingCaptionPhrase() {
+        val phrase = captionPhraseBuffer.flush() ?: return
+        translateCaption(phrase.text, phrase.language)
     }
 
     private fun normalizeDetectedLanguage(rawLanguage: String): String {
@@ -497,69 +531,123 @@ class FloatingTranslationOverlayService : Service() {
             val normalizedLanguage = normalizeDetectedLanguage(detectedLanguage)
             val sourceLanguage = TranslateLanguage.fromLanguageTag(normalizedLanguage)
             if (sourceLanguage.isNullOrBlank()) {
-                updateStatus("تم التقاط الكلام ($detectedLanguage)، لكن تعذر تحديد رمز لغة مدعوم. أعد المحاولة مع كلام أوضح.")
+                updateNotification("التقطت كلاماً بلغة غير مدعومة: $detectedLanguage")
                 return@post
             }
+
+            activeSourceLanguage = sourceLanguage
             if (sourceLanguage == TranslateLanguage.ARABIC) {
-                // A newer Arabic segment supersedes any translation still in flight.
+                // A new Arabic phrase supersedes translations still in flight.
                 translationRequest++
                 showCaption(text, detectedLanguage)
                 return@post
             }
 
-            if (activeSourceLanguage != sourceLanguage || activeTranslator == null) {
-                activeTranslator?.close()
-                activeSourceLanguage = sourceLanguage
-                translationModelReady = false
-                translationModelPending = false
-                latestPendingCaption = null
-                activeTranslator = Translation.getClient(
-                    TranslatorOptions.Builder()
-                        .setSourceLanguage(sourceLanguage)
-                        .setTargetLanguage(TranslateLanguage.ARABIC)
-                        .build()
+            val session = translationSessions.getOrPut(sourceLanguage) {
+                TranslationSession(
+                    translator = Translation.getClient(
+                        TranslatorOptions.Builder()
+                            .setSourceLanguage(sourceLanguage)
+                            .setTargetLanguage(TranslateLanguage.ARABIC)
+                            .build()
+                    )
                 )
             }
+            session.latestPendingCaption = text to normalizedLanguage
 
-            val translator = activeTranslator ?: return@post
-            if (!translationModelReady) {
-                latestPendingCaption = text to detectedLanguage
-                if (translationModelPending) return@post
-
-                translationModelPending = true
-                updateStatus("تنزيل نموذج الترجمة ${normalizedLanguage.uppercase(Locale.ROOT)} إلى العربية…")
-                translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
-                    .addOnSuccessListener {
-                        if (!running.get() || translator !== activeTranslator) return@addOnSuccessListener
-                        translationModelPending = false
-                        translationModelReady = true
-                        val latest = latestPendingCaption
-                        latestPendingCaption = null
-                        if (latest != null) translateWithReadyModel(translator, latest.first, normalizeDetectedLanguage(latest.second))
-                    }
-                    .addOnFailureListener { error ->
-                        if (running.get() && translator === activeTranslator) {
-                            translationModelPending = false
-                            updateStatus("تعذر تنزيل نموذج الترجمة: ${error.localizedMessage ?: "تحقق من الإنترنت ثم أعد المحاولة"}")
-                        }
-                    }
+            if (session.modelReady) {
+                translateLatestPendingCaption(sourceLanguage, session)
                 return@post
             }
-            translateWithReadyModel(translator, text, normalizedLanguage)
+            if (session.modelCheckPending || session.modelDownloadPending) return@post
+
+            session.modelCheckPending = true
+            RemoteModelManager.getInstance()
+                .getDownloadedModels(TranslateRemoteModel::class.java)
+                .addOnSuccessListener { models ->
+                    if (!running.get()) return@addOnSuccessListener
+                    session.modelCheckPending = false
+
+                    val sourceModelReady = sourceLanguage == TranslateLanguage.ENGLISH ||
+                        models.any { it.language == sourceLanguage }
+                    val arabicModelReady = models.any { it.language == TranslateLanguage.ARABIC }
+                    if (sourceModelReady && arabicModelReady) {
+                        session.modelReady = true
+                        translateLatestPendingCaption(sourceLanguage, session)
+                    } else {
+                        downloadTranslationModel(sourceLanguage, normalizedLanguage, session)
+                    }
+                }
+                .addOnFailureListener {
+                    if (!running.get()) return@addOnFailureListener
+                    session.modelCheckPending = false
+                    // Let ML Kit verify/download required models if its model inventory is unavailable.
+                    downloadTranslationModel(sourceLanguage, normalizedLanguage, session)
+                }
         }
     }
 
-    private fun translateWithReadyModel(translator: Translator, text: String, language: String) {
+    private fun downloadTranslationModel(
+        sourceLanguage: String,
+        displayLanguage: String,
+        session: TranslationSession
+    ) {
+        if (!running.get() || session.modelDownloadPending || session.modelReady) return
+        session.modelDownloadPending = true
+
+        // Keep the current subtitle visible. Download progress belongs in the notification,
+        // not in the subtitle surface where it would interrupt the film translation.
+        updateNotification("تنزيل نموذج ${displayLanguage.uppercase(Locale.ROOT)} إلى العربية لأول مرة…")
+        session.translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
+            .addOnSuccessListener {
+                if (!running.get()) return@addOnSuccessListener
+                session.modelDownloadPending = false
+                session.modelReady = true
+                translateLatestPendingCaption(sourceLanguage, session)
+            }
+            .addOnFailureListener { error ->
+                if (!running.get()) return@addOnFailureListener
+                session.modelDownloadPending = false
+                updateNotification(
+                    "تعذر تجهيز نموذج ${displayLanguage.uppercase(Locale.ROOT)}: " +
+                        (error.localizedMessage ?: "تحقق من الإنترنت ثم أعد المحاولة")
+                )
+            }
+    }
+
+    private fun translateLatestPendingCaption(sourceLanguage: String, session: TranslationSession) {
+        if (!running.get() || !session.modelReady || activeSourceLanguage != sourceLanguage) return
+        val latest = session.latestPendingCaption ?: return
+        session.latestPendingCaption = null
+        translateWithReadyModel(sourceLanguage, session, latest.first, latest.second)
+    }
+
+    private fun translateWithReadyModel(
+        sourceLanguage: String,
+        session: TranslationSession,
+        text: String,
+        language: String
+    ) {
         val requestId = ++translationRequest
-        translator.translate(text)
+        session.translator.translate(text)
             .addOnSuccessListener { translated ->
-                if (running.get() && translator === activeTranslator && requestId == translationRequest) {
+                if (
+                    running.get() &&
+                    activeSourceLanguage == sourceLanguage &&
+                    translationSessions[sourceLanguage] === session &&
+                    requestId == translationRequest
+                ) {
                     showCaption(translated, language)
                 }
             }
             .addOnFailureListener { error ->
-                if (running.get() && translator === activeTranslator && requestId == translationRequest) {
-                    updateStatus("فشلت ترجمة المقطع: ${error.localizedMessage ?: "أعد المحاولة بعد اكتمال تنزيل نموذج اللغة"}")
+                if (
+                    running.get() &&
+                    activeSourceLanguage == sourceLanguage &&
+                    translationSessions[sourceLanguage] === session &&
+                    requestId == translationRequest
+                ) {
+                    updateNotification("فشلت ترجمة العبارة: ${error.localizedMessage ?: "أعد المحاولة"}")
                 }
             }
     }
@@ -567,7 +655,7 @@ class FloatingTranslationOverlayService : Service() {
     private fun showCaption(text: String, language: String) {
         mainHandler.post {
             val caption = captionView ?: return@post
-            caption.text = text
+            caption.text = ArabicCaptionFormatter.format(text)
             caption.visibility = View.VISIBLE
             mainHandler.removeCallbacks(captionHideRunnable)
             mainHandler.postDelayed(captionHideRunnable, CAPTION_DISPLAY_MILLIS)
@@ -597,21 +685,25 @@ class FloatingTranslationOverlayService : Service() {
 
         val caption = TextView(this).apply {
             setTextColor(0xFFFFFFFF.toInt())
-            textSize = 21f
+            textSize = 22f
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
             textDirection = View.TEXT_DIRECTION_RTL
-            maxLines = 3
-            includeFontPadding = true
-            // Subtitle text is intentionally rendered directly over the video with no panel/background.
-            setPadding(0, 0, 0, 0)
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
+            hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
+            includeFontPadding = false
+            // Two-line film-style subtitles with balanced, symmetric screen margins.
+            setPadding(dp(14), dp(4), dp(14), dp(4))
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
             visibility = View.GONE
             setShadowLayer(dp(1).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
             contentDescription = "الترجمة العربية"
         }
         val captionParams = WindowManager.LayoutParams(
-            (resources.displayMetrics.widthPixels * 0.92f).toInt().coerceAtLeast(dp(240)),
+            (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtLeast(dp(240)),
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -889,12 +981,13 @@ class FloatingTranslationOverlayService : Service() {
                 }, "RoyalWhisperRelease").start()
             }
         }
-        activeTranslator?.close()
-        activeTranslator = null
+        mainHandler.removeCallbacks(captionPhraseFlushRunnable)
+        captionPhraseBuffer.clear()
+        translationSessions.values.forEach { session ->
+            runCatching { session.translator.close() }
+        }
+        translationSessions.clear()
         activeSourceLanguage = null
-        translationModelReady = false
-        translationModelPending = false
-        latestPendingCaption = null
 
         mainHandler.removeCallbacks(captionHideRunnable)
         mainHandler.removeCallbacks(controlHideRunnable)
@@ -937,6 +1030,8 @@ class FloatingTranslationOverlayService : Service() {
         private const val CHANNEL_ID = "royal_translation_overlay"
         private const val NOTIFICATION_ID = 4101
         private const val CAPTION_DISPLAY_MILLIS = 5_000L
+        private const val CAPTION_PHRASE_IDLE_MILLIS = 1_850L
+        private const val MAX_CAPTION_BUFFER_CHARACTERS = 110
         private const val STATUS_DISPLAY_MILLIS = 7_000L
         private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
