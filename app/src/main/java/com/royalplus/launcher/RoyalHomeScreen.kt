@@ -1469,18 +1469,35 @@ private fun RoyalBackdrop(
 
 @Composable
 internal fun RoyalMotionImage(image: androidx.compose.ui.graphics.painter.Painter, modifier: Modifier = Modifier, motionEnabled: Boolean = true) {
+    val quality = RoyalInterfaceQualitySettings.budget(LocalContext.current)
+    if (motionEnabled && quality.motionScale > 0.25f) {
+        RoyalAnimatedMotionImage(image, modifier, quality.motionScale)
+    } else {
+        Image(painter = image, contentDescription = null, contentScale = ContentScale.Crop,
+            modifier = modifier.fillMaxSize())
+    }
+}
+
+@Composable
+private fun RoyalAnimatedMotionImage(
+    image: androidx.compose.ui.graphics.painter.Painter,
+    modifier: Modifier,
+    motionScale: Float
+) {
     val transition = androidx.compose.animation.core.rememberInfiniteTransition()
-    val drift by transition.animateFloat(-0.012f, 0.012f, animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-        animation = androidx.compose.animation.core.tween(18000, easing = androidx.compose.animation.core.LinearEasing),
-        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse))
-    val zoom by transition.animateFloat(1.015f, 1.055f, animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-        animation = androidx.compose.animation.core.tween(24000, easing = androidx.compose.animation.core.LinearEasing),
-        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse))
+    val drift by transition.animateFloat(-0.012f * motionScale, 0.012f * motionScale,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(18000, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse))
+    val zoom by transition.animateFloat(1f + 0.015f * motionScale, 1f + 0.055f * motionScale,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(24000, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse))
     Image(painter = image, contentDescription = null, contentScale = ContentScale.Crop,
         modifier = modifier.fillMaxSize().graphicsLayer {
-            scaleX = if (motionEnabled) zoom else 1f
-            scaleY = if (motionEnabled) zoom else 1f
-            translationX = if (motionEnabled) size.width * drift else 0f
+            scaleX = zoom
+            scaleY = zoom
+            translationX = size.width * drift
         })
 }
 @Composable

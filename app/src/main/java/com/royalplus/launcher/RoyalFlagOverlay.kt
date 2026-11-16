@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -25,7 +28,19 @@ import kotlin.math.sin
  */
 @Composable
 internal fun RoyalFlagOverlay(modifier: Modifier = Modifier) {
-    val flag = androidx.compose.ui.graphics.ImageBitmap.imageResource(R.drawable.royal_syria_flag_4k).asAndroidBitmap()
+    val context = LocalContext.current
+    val quality = RoyalInterfaceQualitySettings.budget(context)
+    val painter = rememberRoyalBitmapPainter(R.drawable.royal_syria_flag_4k)
+    val flag = (painter as? BitmapPainter)?.image?.asAndroidBitmap()
+    if (flag == null || quality.motionScale <= 0.25f) {
+        Image(
+            painter = painter,
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
     val transition = rememberInfiniteTransition(label = "syrian_flag_wave")
     val phase by transition.animateFloat(
         initialValue = 0f,
@@ -38,8 +53,8 @@ internal fun RoyalFlagOverlay(modifier: Modifier = Modifier) {
     )
     val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     Canvas(modifier = modifier.fillMaxSize()) {
-        val columns = 28
-        val rows = 16
+        val columns = (28 * quality.motionScale).toInt().coerceAtLeast(8)
+        val rows = (16 * quality.motionScale).toInt().coerceAtLeast(6)
         val vertices = FloatArray((columns + 1) * (rows + 1) * 2)
         val widthPx = size.width
         val heightPx = size.height

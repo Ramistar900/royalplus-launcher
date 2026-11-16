@@ -3,6 +3,8 @@ package com.royalplus.launcher
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
+import android.media.PlaybackParams
+import android.os.Build
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
@@ -76,6 +78,10 @@ internal fun WeatherVideoBackground(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current.applicationContext
+    val quality = remember(context, RoyalInterfaceQualitySettings.current) {
+        RoyalInterfaceQualitySettings.budget(context)
+    }
+    if (!quality.weatherVideoEnabled) return
     val videoPathState = remember(assetName) { mutableStateOf<String?>(null) }
     LaunchedEffect(assetName) {
         videoPathState.value = try {
@@ -179,6 +185,9 @@ private class RoyalWeatherTextureView(context: Context) : TextureView(context), 
                 try {
                     preparedPlayer.isLooping = true
                     preparedPlayer.setVolume(0f, 0f)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        preparedPlayer.playbackParams = PlaybackParams().setSpeed(0.9f)
+                    }
                     preparedPlayer.start()
                     Log.d(ROYAL_WEATHER_VIDEO_TAG, "Weather clip started: $path")
                 } catch (error: IllegalStateException) {

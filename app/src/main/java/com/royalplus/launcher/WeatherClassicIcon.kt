@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import kotlin.math.cos
@@ -111,12 +112,16 @@ internal fun RoyalClassicWeatherIcon(
         windSpeedKmh = windSpeedKmh,
         hour = hour
     )
+    val motionScale = RoyalInterfaceQualitySettings.budget(LocalContext.current).motionScale
     val sunTransition = rememberInfiniteTransition(label = "royalSunRotation")
     val sunRotation by sunTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 360f,
+        targetValue = if (motionScale <= 0.25f) 0f else 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 18_000, easing = LinearEasing)
+            animation = tween(
+                durationMillis = (18_000f / motionScale.coerceAtLeast(0.35f)).toInt(),
+                easing = LinearEasing
+            )
         ),
         label = "royalSunRotationAngle"
     )

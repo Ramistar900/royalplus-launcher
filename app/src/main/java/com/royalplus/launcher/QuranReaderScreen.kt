@@ -175,7 +175,7 @@ internal fun QuranReaderScreen(
 
     Box(Modifier.fillMaxSize()) {
         Image(
-            painter = rememberRoyalBitmapPainter(quranWallpaperRes, maxEdgePx = 2048),
+            painter = rememberRoyalBitmapPainter(quranWallpaperRes, maxEdgePx = 4096),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop

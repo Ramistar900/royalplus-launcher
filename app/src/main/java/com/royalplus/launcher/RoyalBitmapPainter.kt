@@ -22,12 +22,13 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 internal fun rememberRoyalBitmapPainter(
     resourceId: Int,
-    maxEdgePx: Int = 2048,
-    maxPixels: Long = 4_194_304L
+    maxEdgePx: Int = 4096,
+    maxPixels: Long = 8_294_400L
 ): Painter {
     val context = LocalContext.current
-    val safeMaxEdge = maxEdgePx.coerceAtLeast(1)
-    val safeMaxPixels = maxPixels.coerceAtLeast(1L)
+    val qualityBudget = RoyalInterfaceQualitySettings.budget(context)
+    val safeMaxEdge = minOf(maxEdgePx.coerceAtLeast(1), qualityBudget.maxEdgePx)
+    val safeMaxPixels = minOf(maxPixels.coerceAtLeast(1L), qualityBudget.maxPixels)
 
     return remember(context, resourceId, safeMaxEdge, safeMaxPixels) {
         val fallback = ColorPainter(Color(0xFF080A0F))

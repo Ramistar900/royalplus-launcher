@@ -8,10 +8,13 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.view.Surface
 import android.view.TextureView
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -21,6 +24,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 internal fun RoyalFireplaceBackground(modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
+    val quality = remember(context, RoyalInterfaceQualitySettings.current) {
+        RoyalInterfaceQualitySettings.budget(context)
+    }
+    if (!quality.weatherVideoEnabled) {
+        Image(
+            painter = rememberRoyalBitmapPainter(R.drawable.royal_live_fire_4k),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = remember(context) { RoyalFireplaceVideoPlayer(context) }
 
