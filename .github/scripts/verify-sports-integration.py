@@ -25,6 +25,12 @@ assert "RoyalSportsGlyph.TODAY_MATCHES" in sports
 assert "RoyalSportsGlyph.FIXTURES" in sports
 assert "RoyalSportsGlyph.LIVE" in sports
 assert "RoyalSportsGlyph.RESULTS" in sports
+assert "RoyalSportsMatchBucket.LIVE" in sports
+assert "RoyalSportsMatchBucket.NOT_STARTED" in sports
+assert "RoyalSportsMatchBucket.PLAYED" in sports
+assert "media.api-sports.io" in sports
+assert "leagueLogo = league.optString(\"logo\", \"\")" in sports
+assert "countryFlag = league.optString(\"flag\", \"\")" in sports
 assert "Icons.Rounded.SportsSoccer" not in sports
 for other_sport in ("Basketball", "Tennis", "Volleyball", "Cricket", "Baseball"):
     assert other_sport.lower() not in sports.lower(), f"Unexpected sport category: {other_sport}"
@@ -71,4 +77,6 @@ graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics
 assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
 assert "groupBy { it.country.trim() to it.league.trim() }" in sports
 assert "RoyalV20SportsIcon" not in sports + home + graphics
+assert "SportsPitchGlassBackground" in graphics
+assert "RoyalSportsIconId" not in sports
 print("ROYAL+ sports security, native graphics, grouped fixtures, rotating navigation ball and Android compatibility guards passed.")
