@@ -335,3 +335,76 @@ private fun DrawScope.drawRefresh() {
         SportsGold
     )
 }
+
+
+@Composable
+internal fun SportsPitchGlassBackground(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val shortEdge = size.minDimension
+        val stroke = (shortEdge * 0.0022f).coerceIn(1.1f, 2.6f)
+        val line = Color(0xFFB6FFD5).copy(alpha = 0.22f)
+        val glow = Color(0xFF77E9A8).copy(alpha = 0.12f)
+        val landscape = size.width >= size.height
+
+        if (landscape) {
+            val left = size.width * 0.065f
+            val right = size.width * 0.935f
+            val top = size.height * 0.09f
+            val bottom = size.height * 0.91f
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
+            val fieldWidth = right - left
+            val fieldHeight = bottom - top
+            drawRoundRect(
+                color = glow,
+                topLeft = Offset(left, top),
+                size = Size(fieldWidth, fieldHeight),
+                cornerRadius = CornerRadius(stroke * 5f, stroke * 5f),
+                style = Stroke(stroke * 2f)
+            )
+            drawLine(line, Offset(centerX, top), Offset(centerX, bottom), stroke)
+            drawCircle(line, radius = fieldHeight * 0.17f, center = Offset(centerX, centerY), style = Stroke(stroke))
+            drawCircle(line, radius = stroke * 1.8f, center = Offset(centerX, centerY))
+            val boxWidth = fieldWidth * 0.17f
+            val boxHeight = fieldHeight * 0.46f
+            val goalWidth = fieldWidth * 0.055f
+            val goalHeight = fieldHeight * 0.22f
+            drawRect(line, Offset(left, centerY - boxHeight / 2f), Size(boxWidth, boxHeight), style = Stroke(stroke))
+            drawRect(line, Offset(right - boxWidth, centerY - boxHeight / 2f), Size(boxWidth, boxHeight), style = Stroke(stroke))
+            drawRect(line, Offset(left, centerY - goalHeight / 2f), Size(goalWidth, goalHeight), style = Stroke(stroke))
+            drawRect(line, Offset(right - goalWidth, centerY - goalHeight / 2f), Size(goalWidth, goalHeight), style = Stroke(stroke))
+            val corner = fieldHeight * 0.045f
+            drawArc(line, 0f, 90f, false, Offset(left - corner, top - corner), Size(corner * 2f, corner * 2f), style = Stroke(stroke))
+            drawArc(line, 90f, 90f, false, Offset(right - corner, top - corner), Size(corner * 2f, corner * 2f), style = Stroke(stroke))
+            drawArc(line, 180f, 90f, false, Offset(right - corner, bottom - corner), Size(corner * 2f, corner * 2f), style = Stroke(stroke))
+            drawArc(line, 270f, 90f, false, Offset(left - corner, bottom - corner), Size(corner * 2f, corner * 2f), style = Stroke(stroke))
+        } else {
+            val left = size.width * 0.085f
+            val right = size.width * 0.915f
+            val top = size.height * 0.055f
+            val bottom = size.height * 0.945f
+            val centerX = size.width / 2f
+            val centerY = size.height / 2f
+            val fieldWidth = right - left
+            val fieldHeight = bottom - top
+            drawRoundRect(
+                color = glow,
+                topLeft = Offset(left, top),
+                size = Size(fieldWidth, fieldHeight),
+                cornerRadius = CornerRadius(stroke * 5f, stroke * 5f),
+                style = Stroke(stroke * 2f)
+            )
+            drawLine(line, Offset(left, centerY), Offset(right, centerY), stroke)
+            drawCircle(line, radius = fieldWidth * 0.19f, center = Offset(centerX, centerY), style = Stroke(stroke))
+            drawCircle(line, radius = stroke * 1.8f, center = Offset(centerX, centerY))
+            val boxHeight = fieldHeight * 0.16f
+            val boxWidth = fieldWidth * 0.54f
+            val goalHeight = fieldHeight * 0.055f
+            val goalWidth = fieldWidth * 0.23f
+            drawRect(line, Offset(centerX - boxWidth / 2f, top), Size(boxWidth, boxHeight), style = Stroke(stroke))
+            drawRect(line, Offset(centerX - boxWidth / 2f, bottom - boxHeight), Size(boxWidth, boxHeight), style = Stroke(stroke))
+            drawRect(line, Offset(centerX - goalWidth / 2f, top), Size(goalWidth, goalHeight), style = Stroke(stroke))
+            drawRect(line, Offset(centerX - goalWidth / 2f, bottom - goalHeight), Size(goalWidth, goalHeight), style = Stroke(stroke))
+        }
+    }
+}
