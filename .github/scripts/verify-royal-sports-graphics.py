@@ -45,6 +45,17 @@ assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
 assert "groupBy { it.country.trim() to it.league.trim() }" in screen
+assert "RoyalSportsMatchBucket.LIVE" in screen
+assert "RoyalSportsMatchBucket.NOT_STARTED" in screen
+assert "RoyalSportsMatchBucket.PLAYED" in screen
+assert "leagueLogo = league.optString(\"logo\", \"\")" in screen
+assert "countryFlag = league.optString(\"flag\", \"\")" in screen
+assert "media.api-sports.io" in screen
+assert "SVG.getFromString" in screen
+assert "SportsPitchGlassBackground" in graphics
+assert "drawCircle(line" in graphics and "drawRect(line" in graphics
+assert "Brush.verticalGradient" in screen
+assert "RoyalSportsIconId" not in screen
 assert "sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }" in screen
 assert "SportsLeagueHeader(" in screen
 for glyph in ("FOOTBALL", "TODAY_MATCHES", "FIXTURES", "LIVE", "RESULTS", "TEAMS", "GOAL", "REFRESH"):
@@ -54,6 +65,6 @@ for glyph in ("FOOTBALL", "TODAY_MATCHES", "FIXTURES", "LIVE", "RESULTS", "TEAMS
 for forbidden in ("RoyalV20SportsIcon", "RoyalV20SportsIconId", "sports_v20", "prepare-v20-sports-icons.py", "verify-v20-sports-icons.py"):
     assert forbidden not in graphics + screen + home + workflow, f"Legacy sports icon reference remains: {forbidden}"
 assert "verify-royal-sports-graphics.py" in workflow
-assert "com.caverock:androidsvg-aar:1.4" not in gradle
+assert "com.caverock:androidsvg-aar:1.4" in gradle
 
 print("Verified native football and match illustrations, smooth rotating sidebar ball, grouped fixtures, and removal of V20 sports assets.")
