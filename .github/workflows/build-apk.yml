@@ -25,6 +25,9 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Download and verify approved Muslim PNG icons
+        run: python3 .github/scripts/prepare-muslim-png-icons.py
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -224,7 +227,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized'))
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
