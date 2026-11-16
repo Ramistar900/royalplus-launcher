@@ -20,11 +20,11 @@ home = HOME.read_text(encoding="utf-8")
 assert "MATCHES, SCHEDULE" in sports
 assert 'arabic -> "كرة القدم"' in sports
 assert 'turkish -> "FUTBOL"' in sports and 'else -> "FOOTBALL"' in sports
-assert "RoyalV20SportsIconId.FOOTBALL" in sports
-assert "RoyalV20SportsIconId.TODAY_MATCHES" in sports
-assert "RoyalV20SportsIconId.FIXTURES" in sports
-assert "RoyalV20SportsIconId.LIVE_SCORES" in sports
-assert "RoyalV20SportsIconId.MATCH_RESULTS" in sports
+assert "RoyalSportsGlyph.FOOTBALL" in sports
+assert "RoyalSportsGlyph.TODAY_MATCHES" in sports
+assert "RoyalSportsGlyph.FIXTURES" in sports
+assert "RoyalSportsGlyph.LIVE" in sports
+assert "RoyalSportsGlyph.RESULTS" in sports
 assert "Icons.Rounded.SportsSoccer" not in sports
 for other_sport in ("Basketball", "Tennis", "Volleyball", "Cricket", "Baseball"):
     assert other_sport.lower() not in sports.lower(), f"Unexpected sport category: {other_sport}"
@@ -45,7 +45,7 @@ assert "/functions/v1/royalplus-sports" in sports
 
 # Sports must be a first-party launcher destination; weather, audio and wallpapers are not replaced.
 assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in home
-assert "sportsIconId = RoyalV20SportsIconId.FOOTBALL" in home
+assert "sportsBall = true" in home and "RoyalRotatingFootballIcon" in home
 assert "Icons.Rounded.SportsSoccer" not in home
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert "minSdk = 23" in gradle
@@ -67,4 +67,4 @@ assert "grant select, insert, update, delete" in migration.lower()
 assert "security invoker" in public_rpc_migration.lower()
 assert "grant execute" in public_rpc_migration.lower()
 
-print("ROYAL+ sports security, backend cache, launcher navigation and Android compatibility guards passed.")
+graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics.kt").read_text(encoding="utf-8")\nassert "rememberInfiniteTransition" in graphics and "rotationZ = rotation" in graphics\nassert "groupBy { it.country.trim() to it.league.trim() }" in sports\nassert "RoyalV20SportsIcon" not in sports + home + graphics\nprint("ROYAL+ sports security, native graphics, grouped fixtures, rotating navigation ball and Android compatibility guards passed.")
