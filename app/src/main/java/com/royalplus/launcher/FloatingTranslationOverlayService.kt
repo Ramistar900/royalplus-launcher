@@ -343,7 +343,8 @@ class FloatingTranslationOverlayService : Service() {
                     consecutiveSilentSegments++
                     if (consecutiveSilentSegments == 2) {
                         lastRecognizedTail = emptyList()
-                        updateStatus(
+                        // Silence diagnostics must not replace the last film subtitle on screen.
+                        updateNotification(
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                                 "لا يصل صوت من التطبيق. قد يمنع التطبيق المصدر التقاط صوته؛ جرّب مشغّلاً يسمح بمشاركة الصوت."
                             } else {
