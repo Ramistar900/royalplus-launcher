@@ -92,6 +92,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("com.google.mlkit:translate:17.0.3")
     implementation(files("libs/sherpa-onnx-2.0.1.aar"))
+    implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
