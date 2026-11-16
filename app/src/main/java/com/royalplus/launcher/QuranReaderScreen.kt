@@ -202,6 +202,12 @@ internal fun QuranReaderScreen(
             ) {
                 Icon(Icons.Rounded.ArrowBack, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
             }
+            Image(
+                painter = painterResource(R.drawable.muslim_quran),
+                contentDescription = if (isArabic) "القرآن الكريم" else "The Holy Quran",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(44.dp)
+            )
             Column(Modifier.weight(1f)) {
                 Text(
                     when { isArabic -> "القرآن الكريم"; isTurkish -> "Kur'an-ı Kerim"; else -> "The Holy Quran" },
@@ -289,6 +295,12 @@ internal fun QuranReaderScreen(
                     .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Image(
+                    painter = painterResource(R.drawable.muslim_qaris),
+                    contentDescription = "القراء والتلاوات",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(42.dp)
+                )
                 Column(Modifier.weight(1f)) {
                     Text("مختارات عبد الرحمن مسعد", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("17 تلاوة مختارة • تنزيل للاستماع دون إنترنت", color = RoyalColors.Pearl, fontSize = 10.sp)
