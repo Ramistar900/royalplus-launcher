@@ -57,6 +57,11 @@ class FloatingTranslationOverlayService : Service() {
     private var projectionResultData: Intent? = null
     private var consecutiveSilentSegments = 0
     private var consecutiveUnrecognizedSegments = 0
+    // Whisper may mislabel individual short segments; require a stable language before switching translators.
+    private var stableSourceLanguage: String? = null
+    private var pendingSourceLanguage: String? = null
+    private var pendingSourceLanguageCount = 0
+    private val initialLanguageVotes = mutableListOf<String>()
     private var lastRecognizedTail: List<String> = emptyList()
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
@@ -347,17 +352,29 @@ class FloatingTranslationOverlayService : Service() {
                 }
 
                 val recognized = result.text.replace(Regex("\\s+"), " ").trim()
-                val language = result.lang.trim().lowercase(Locale.ROOT)
-                if (recognized.isNotBlank()) {
-                    val freshText = removeOverlappingWords(recognized)
-                    if (freshText.isNotBlank()) {
-                        consecutiveUnrecognizedSegments = 0
-                        translateCaption(freshText, language)
+                when {
+                    recognized.isBlank() -> {
+                        consecutiveUnrecognizedSegments++
+                        if (consecutiveUnrecognizedSegments == 3) {
+                            updateStatus("وصل صوت إلى المحرك، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار وخفّض الموسيقى.")
+                        }
                     }
-                } else {
-                    consecutiveUnrecognizedSegments++
-                    if (consecutiveUnrecognizedSegments == 3) {
-                        updateStatus("وصل صوت إلى المحرك، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار وخفّض الموسيقى.")
+                    SpeechCaptionFilter.isNonSpeechLabel(recognized) -> {
+                        // Sound-effect/music labels must not influence language locking or appear as subtitles.
+                        lastRecognizedTail = emptyList()
+                        consecutiveUnrecognizedSegments++
+                    }
+                    else -> {
+                        val language = stabilizeDetectedLanguage(result.lang)
+                        val freshText = removeOverlappingWords(recognized)
+                        if (freshText.isNotBlank()) {
+                            consecutiveUnrecognizedSegments = 0
+                            if (language != null) {
+                                translateCaption(freshText, language)
+                            } else {
+                                updateStatus("جارٍ التأكد من لغة الصوت…")
+                            }
+                        }
                     }
                 }
             } catch (_: InterruptedException) {
@@ -426,6 +443,52 @@ class FloatingTranslationOverlayService : Service() {
             "ukrainian" -> "uk"
             else -> normalized
         }
+    }
+
+    /**
+     * Confirm the opening language from repeated segments and ignore isolated Whisper
+     * language flips. Once locked, a different language must persist for four segments
+     * before the translator is recreated.
+     */
+    private fun stabilizeDetectedLanguage(rawLanguage: String): String? {
+        val detected = normalizeDetectedLanguage(rawLanguage)
+        if (detected.isBlank()) return stableSourceLanguage
+
+        val current = stableSourceLanguage
+        if (current == null) {
+            initialLanguageVotes.add(detected)
+            while (initialLanguageVotes.size > 3) initialLanguageVotes.removeAt(0)
+            val majority = initialLanguageVotes.groupingBy { it }.eachCount()
+                .maxByOrNull { it.value }
+            if (majority != null && majority.value >= 2) {
+                stableSourceLanguage = majority.key
+                pendingSourceLanguage = null
+                pendingSourceLanguageCount = 0
+                return majority.key
+            }
+            return null
+        }
+
+        if (detected == current) {
+            pendingSourceLanguage = null
+            pendingSourceLanguageCount = 0
+            return current
+        }
+
+        if (pendingSourceLanguage == detected) {
+            pendingSourceLanguageCount++
+        } else {
+            pendingSourceLanguage = detected
+            pendingSourceLanguageCount = 1
+        }
+
+        if (pendingSourceLanguageCount >= SOURCE_LANGUAGE_SWITCH_CONFIRMATIONS) {
+            stableSourceLanguage = detected
+            pendingSourceLanguage = null
+            pendingSourceLanguageCount = 0
+            return detected
+        }
+        return current
     }
 
     private fun translateCaption(text: String, detectedLanguage: String) {
@@ -540,8 +603,9 @@ class FloatingTranslationOverlayService : Service() {
             textDirection = View.TEXT_DIRECTION_RTL
             maxLines = 3
             includeFontPadding = true
-            setPadding(dp(18), dp(9), dp(18), dp(9))
-            background = solidRoundedBackground(0x66000000, dp(10).toFloat())
+            // Subtitle text is intentionally rendered directly over the video with no panel/background.
+            setPadding(0, 0, 0, 0)
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
             visibility = View.GONE
             setShadowLayer(dp(1).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
             contentDescription = "الترجمة العربية"
@@ -881,5 +945,6 @@ class FloatingTranslationOverlayService : Service() {
         private const val SEGMENT_OVERLAP_SAMPLES = SAMPLE_RATE * SEGMENT_OVERLAP_MILLIS / 1_000
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
         private const val MAX_OVERLAP_WORDS = 4
+        private const val SOURCE_LANGUAGE_SWITCH_CONFIRMATIONS = 4
     }
 }
