@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -19,9 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -58,7 +56,8 @@ internal fun royalSportsIconSize(base: Dp, max: Dp = 96.dp): Dp {
 internal fun RoyalSportsIcon(
     icon: RoyalSportsGlyph,
     modifier: Modifier = Modifier,
-    contentDescription: String? = null
+    contentDescription: String? = null,
+    rotationDegrees: Float = 0f
 ) {
     Box(modifier.semantics {
         this.contentDescription = contentDescription ?: icon.label
@@ -91,7 +90,7 @@ internal fun RoyalSportsIcon(
                     style = Stroke(1.2f)
                 )
                 when (icon) {
-                    RoyalSportsGlyph.FOOTBALL -> drawSoccerBall()
+                    RoyalSportsGlyph.FOOTBALL -> rotate(degrees = rotationDegrees, pivot = Offset(32f, 32f)) { drawSoccerBall() }
                     RoyalSportsGlyph.TODAY_MATCHES -> drawCalendar()
                     RoyalSportsGlyph.FIXTURES -> drawFixtureList()
                     RoyalSportsGlyph.LIVE -> drawLiveBoard()
@@ -121,8 +120,9 @@ internal fun RoyalRotatingFootballIcon(
     )
     RoyalSportsIcon(
         icon = RoyalSportsGlyph.FOOTBALL,
-        modifier = modifier.graphicsLayer { rotationZ = rotation },
-        contentDescription = contentDescription
+        modifier = modifier,
+        contentDescription = contentDescription,
+        rotationDegrees = rotation
     )
 }
 
