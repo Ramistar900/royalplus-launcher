@@ -2244,7 +2244,7 @@ private fun RoyalSidePanel(
             labels[6],
             null,
             selectedDestination == LauncherDestination.SPORTS,
-            sportsIconId = RoyalV20SportsIconId.FOOTBALL,
+            sportsBall = true,
             modifier = navigationFocusModifiers[6],
             onClick = { onNavigate(LauncherDestination.SPORTS) }
         )
@@ -2312,7 +2312,7 @@ private fun SidebarNavItem(
     icon: ImageVector?,
     selected: Boolean,
     iconRes: Int? = null,
-    sportsIconId: RoyalV20SportsIconId? = null,
+    sportsBall: Boolean = false,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -2376,9 +2376,8 @@ private fun SidebarNavItem(
             maxLines = 1
         )
         when {
-            sportsIconId != null -> RoyalV20SportsIcon(
-                sportsIconId,
-                modifier = Modifier.size(royalV20SportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
+            sportsBall -> RoyalRotatingFootballIcon(
+                modifier = Modifier.size(royalSportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
                 contentDescription = title
             )
             iconRes == null -> {
