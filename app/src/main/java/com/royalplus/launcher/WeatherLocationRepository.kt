@@ -141,13 +141,13 @@ internal object RoyalWeatherRepository {
             val manualCity = preferences.getString("weather_manual_city", null)?.trim()
             if (!manualCity.isNullOrBlank()) {
                 val updated = fetchCityWeather(appContext, manualCity).copy(isManualLocation = true)
-                if (updated.forecast.size < 7) return false
-                saveWeatherCache(appContext, updated)
+                if (updated.forecast.isEmpty()) return false
+                if (updated.forecast.size >= 7) saveWeatherCache(appContext, updated)
                 true
             } else {
                 val location = readLastLocation(appContext) ?: findLocation(appContext) ?: return false
                 val updated = fetchCurrentWeather(appContext, location, findCity(appContext, location))
-                updated.forecast.size >= 7
+                updated.forecast.isNotEmpty()
             }
         } catch (_: Exception) {
             false
