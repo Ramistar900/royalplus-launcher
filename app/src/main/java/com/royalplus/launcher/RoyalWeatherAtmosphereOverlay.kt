@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.cos
@@ -32,12 +33,13 @@ internal fun RoyalWeatherAtmosphereOverlay(
     nightMode: Boolean = false,
     sunsetMode: Boolean = false
 ) {
+    val effectScale = RoyalInterfaceQualitySettings.budget(LocalContext.current).motionScale
     val description = weatherDescription.orEmpty().lowercase()
     val rainWords = listOf("rain", "drizzle", "مطر", "أمطار", "رذاذ", "yağmur", "çisenti")
     val descriptionIndicatesRain = rainWords.any(description::contains)
     val numericRainCode = weatherCode?.let { it in 51..67 || it in 80..82 || it in 95..99 } == true
     val effectiveWeatherCode = if (descriptionIndicatesRain && !numericRainCode) 61 else weatherCode
-    if (!motionEnabled || effectiveWeatherCode == null) return
+    if (!motionEnabled || effectScale <= 0.25f || effectiveWeatherCode == null) return
 
     val transition = rememberInfiniteTransition(label = "royal-weather-atmosphere")
     val progress by transition.animateFloat(
@@ -64,7 +66,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 55, 63, 67, 81, 95 -> 3
                 else -> 4
             }
-            drawRoyalRain(progress, width, height, intensity, windStrength)
+            drawRoyalRain(progress, width, height, intensity, windStrength, effectScale)
             return@Canvas
         }
 
@@ -75,12 +77,12 @@ internal fun RoyalWeatherAtmosphereOverlay(
                 73 -> 2
                 else -> 3
             }
-            drawRoyalSnow(progress, width, height, intensity, windStrength)
-            if (wind >= 12) drawRoyalWind(progress, width, height, windStrength)
+            drawRoyalSnow(progress, width, height, intensity, windStrength, effectScale)
+            if (wind >= 12) drawRoyalWind(progress, width, height, windStrength, effectScale)
             return@Canvas
         }
 
-        if (wind >= 18) drawRoyalWind(progress, width, height, windStrength)
+        if (wind >= 18) drawRoyalWind(progress, width, height, windStrength, effectScale)
     }
 }
 
@@ -89,10 +91,12 @@ private fun DrawScope.drawRoyalRain(
     width: Float,
     height: Float,
     intensity: Int,
-    windStrength: Float
+    windStrength: Float,
+    effectScale: Float
 ) {
     // Filled teardrops only: no animated clouds, streaks, wind trails, or splash layer.
-    val count = when (intensity) { 1 -> 34; 2 -> 48; 3 -> 64; else -> 82 }
+    val count = (when (intensity) { 1 -> 34; 2 -> 48; 3 -> 64; else -> 82 } * effectScale)
+        .toInt().coerceAtLeast(8)
     val dropLength = height * when (intensity) { 1 -> 0.020f; 2 -> 0.024f; 3 -> 0.029f; else -> 0.034f }
     val horizontalDrift = width * windStrength.coerceIn(0f, 1f) * 0.11f
 
@@ -134,13 +138,14 @@ private fun DrawScope.drawRoyalSnow(
     width: Float,
     height: Float,
     intensity: Int,
-    windStrength: Float
+    windStrength: Float,
+    effectScale: Float
 ) {
-    val count = when (intensity) {
+    val count = (when (intensity) {
         1 -> 28
         2 -> 40
         else -> 52
-    }
+    } * effectScale).toInt().coerceAtLeast(8)
     repeat(count) { index ->
         val seed = (index * 0.7548777f) % 1f
         val phase = (index * 0.193f + (index % 4) * 0.067f) % 1f
@@ -179,9 +184,10 @@ private fun DrawScope.drawRoyalWind(
     progress: Float,
     width: Float,
     height: Float,
-    strength: Float
+    strength: Float,
+    effectScale: Float
 ) {
-    val lines = 7 + (strength * 5f).toInt()
+    val lines = ((7 + (strength * 5f).toInt()) * effectScale).toInt().coerceAtLeast(3)
     repeat(lines) { index ->
         val phase = (progress * (0.9f + index * 0.035f) + index * 0.163f) % 1f
         val x = phase * (width * 1.35f) - width * 0.18f

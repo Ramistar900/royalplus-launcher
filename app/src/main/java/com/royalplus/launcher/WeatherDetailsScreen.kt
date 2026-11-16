@@ -300,7 +300,7 @@ internal fun WeatherDetailsScreen(
 
     Box(Modifier.fillMaxSize().background(Color(0xFF52799B))) {
         RoyalMotionImage(
-            image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 2048),
+            image = rememberRoyalBitmapPainter(backgroundRes, maxEdgePx = 4096),
             modifier = Modifier.fillMaxSize(),
             motionEnabled = motionEnabled
         )

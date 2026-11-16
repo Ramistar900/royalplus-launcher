@@ -3,6 +3,8 @@ package com.royalplus.launcher
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
+import android.media.PlaybackParams
+import android.os.Build
 import android.util.Log
 import android.view.Surface
 import android.view.TextureView
@@ -179,6 +181,13 @@ private class RoyalWeatherTextureView(context: Context) : TextureView(context), 
                 try {
                     preparedPlayer.isLooping = true
                     preparedPlayer.setVolume(0f, 0f)
+                    // Keep the ambient clips calm and limit display motion on Android TV.
+                    // PlaybackParams is available from API 23; unsupported vendor players keep normal speed.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        runCatching {
+                            preparedPlayer.playbackParams = PlaybackParams().setSpeed(0.9f)
+                        }
+                    }
                     preparedPlayer.start()
                     Log.d(ROYAL_WEATHER_VIDEO_TAG, "Weather clip started: $path")
                 } catch (error: IllegalStateException) {

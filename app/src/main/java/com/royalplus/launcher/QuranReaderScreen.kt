@@ -175,7 +175,7 @@ internal fun QuranReaderScreen(
 
     Box(Modifier.fillMaxSize()) {
         Image(
-            painter = rememberRoyalBitmapPainter(quranWallpaperRes, maxEdgePx = 2048),
+            painter = rememberRoyalBitmapPainter(quranWallpaperRes, maxEdgePx = 4096),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
@@ -872,20 +872,7 @@ internal fun QuranReaderScreen(
                     modifier = Modifier.height((adaptiveProfile.windowHeightDp * 0.54f).coerceIn(260.dp, 520.dp)),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    item {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(9.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.muslim_qaris),
-                                contentDescription = "القراء",
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.size(34.dp)
-                            )
-                            Text("اختيار القارئ", color = RoyalColors.Gold, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    item { Text("اختيار القارئ", color = RoyalColors.Gold, fontWeight = FontWeight.Bold) }
                     items(listOf(
                         "afasy" to "مشاري العفاسي",
                         "maher" to "ماهر المعيقلي",
