@@ -250,7 +250,10 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          if [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then
+          if [[ "$GITHUB_REF" == "refs/heads/feature/sports-original-graphics" ]]; then
+            TAG="royalplus-test-sports-graphics"
+            TITLE="ROYAL+ Launcher • Sports Graphics Test"
+          elif [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then
             TAG="royalplus-test-interface-quality"
             TITLE="ROYAL+ Launcher • Interface Quality Test"
           else
