@@ -28,7 +28,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -93,7 +92,9 @@ private object RoyalSportsProviderImageCache {
         val uri = URI(url)
         uri.scheme.equals("https", ignoreCase = true) &&
             uri.host.equals("media.api-sports.io", ignoreCase = true) &&
-            (uri.path.startsWith("/football/leagues/") || uri.path.startsWith("/flags/")) &&
+            (uri.path.startsWith("/football/leagues/") ||
+                uri.path.startsWith("/football/teams/") ||
+                uri.path.startsWith("/flags/")) &&
             (uri.path.endsWith(".png", ignoreCase = true) || uri.path.endsWith(".svg", ignoreCase = true))
     }.getOrDefault(false)
 
@@ -195,7 +196,9 @@ internal data class RoyalSportsFixture(
     val leagueLogo: String,
     val countryFlag: String,
     val homeTeam: String,
+    val homeLogo: String,
     val awayTeam: String,
+    val awayLogo: String,
     val homeGoals: Int?,
     val awayGoals: Int?,
     val status: String,
@@ -303,7 +306,9 @@ private object RoyalSportsRepository {
                     leagueLogo = league.optString("logo", ""),
                     countryFlag = league.optString("flag", ""),
                     homeTeam = home.optString("name", "Home"),
+                    homeLogo = home.optString("logo", ""),
                     awayTeam = away.optString("name", "Away"),
+                    awayLogo = away.optString("logo", ""),
                     homeGoals = if (goals.isNull("home")) null else goals.optInt("home"),
                     awayGoals = if (goals.isNull("away")) null else goals.optInt("away"),
                     status = status.optString("short", "NS"),
@@ -656,8 +661,8 @@ internal fun RoyalSportsScreen(language: String) {
             }
             Row(
                 modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF272116))
-                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                    .background(Color(0x99214B39))
+                    .border(1.dp, Color(0x558EE6B4), RoundedCornerShape(12.dp))
                     .clickable { refreshSequence += 1 }
                     .focusable()
                     .padding(horizontal = 12.dp, vertical = 9.dp),
@@ -841,8 +846,8 @@ private fun SportsTabButton(
     val shape = RoundedCornerShape(13.dp)
     Row(
         modifier = modifier.clip(shape)
-            .background(if (selected) Color(0xFF3A2D17) else Color(0x99171D27))
-            .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.18f), shape)
+            .background(if (selected) Color(0xCC1A5C3F) else Color(0x77204435))
+            .border(1.dp, if (selected) Color(0xFF9BF1B8) else Color(0x448EE6B4), shape)
             .clickable(onClick = onClick)
             .focusable()
             .padding(horizontal = 10.dp, vertical = 11.dp),
@@ -964,7 +969,12 @@ private fun SportsFixtureCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            RoyalSportsIcon(RoyalSportsGlyph.TEAMS, modifier = Modifier.size(royalSportsIconSize(24.dp)))
+            RoyalSportsProviderImage(
+                url = fixture.homeLogo,
+                modifier = Modifier.size(royalSportsIconSize(30.dp)),
+                fallback = RoyalSportsGlyph.TEAMS,
+                description = localizedFootballName(fixture.homeTeam, arabic, turkish)
+            )
             Text(
                 localizedFootballName(fixture.homeTeam, arabic, turkish),
                 color = RoyalColors.Pearl,
@@ -985,7 +995,12 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            RoyalSportsIcon(RoyalSportsGlyph.TEAMS, modifier = Modifier.size(royalSportsIconSize(24.dp)))
+            RoyalSportsProviderImage(
+                url = fixture.awayLogo,
+                modifier = Modifier.size(royalSportsIconSize(30.dp)),
+                fallback = RoyalSportsGlyph.TEAMS,
+                description = localizedFootballName(fixture.awayTeam, arabic, turkish)
+            )
         }
     }
 }
@@ -1045,8 +1060,8 @@ private fun SportsLeagueHeader(
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
-            .background(Brush.horizontalGradient(listOf(Color(0xFF173A4B), Color(0xCC172536))))
-            .border(1.dp, Color(0xFF45D4DF).copy(alpha = 0.36f), shape)
+            .background(Brush.horizontalGradient(listOf(Color(0xD013563E), Color(0xB3266247))))
+            .border(1.dp, Color(0x668EF0B1), shape)
             .padding(horizontal = 11.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1054,7 +1069,7 @@ private fun SportsLeagueHeader(
         Box(
             modifier = Modifier.size(34.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF0C2635)),
+                .background(Color(0xB20E392B)),
             contentAlignment = Alignment.Center
         ) {
             RoyalSportsProviderImage(
@@ -1074,8 +1089,8 @@ private fun SportsLeagueHeader(
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.clip(RoundedCornerShape(50))
-                .background(Color(0xFF123D49))
-                .border(1.dp, Color(0xFF45D4DF).copy(alpha = 0.24f), RoundedCornerShape(50))
+                .background(Color(0x99366A4D))
+                .border(1.dp, Color(0x558EF0B1), RoundedCornerShape(50))
                 .padding(horizontal = 9.dp, vertical = 6.dp)
         )
     }
