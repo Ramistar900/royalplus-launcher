@@ -112,7 +112,6 @@ internal fun RoyalSmartScreensaver(
         if (selectedWallpaper == "syria" && syriaFlagAnimationEnabled) {
             RoyalFlagOverlay(modifier = Modifier.fillMaxSize())
         }
-        RoyalWeatherAtmosphereOverlay(weatherCode = weather.weatherCode, weatherDescription = weather.description, motionEnabled = motionEnabled, windSpeedKmh = weather.windSpeedKmh, nightMode = (timeText.substringBefore(":").toIntOrNull()?.let { it >= 19 || it < 6 } == true), sunsetMode = (timeText.substringBefore(":").toIntOrNull()?.let { it in 17..18 } == true))
         Box(
             modifier = Modifier
                 .fillMaxSize()

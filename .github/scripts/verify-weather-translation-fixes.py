@@ -22,8 +22,14 @@ assert "drawRoyalSnow(" in weather and "drawRoyalWind(" in weather
 assert "cubicTo(" in rain_renderer and "drawPath(" in rain_renderer
 assert "drawLine(" not in rain_renderer and "drawRect(" not in rain_renderer
 
-for name in ("WeatherGlassCard.kt", "WeatherDetailsScreen.kt", "RoyalSmartScreensaver.kt"):
-    assert "RoyalWeatherAtmosphereOverlay(" in (JAVA / name).read_text(encoding="utf-8")
+weather_details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
+weather_card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
+screensaver = (JAVA / "RoyalSmartScreensaver.kt").read_text(encoding="utf-8")
+assert "RoyalWeatherAtmosphereOverlay(" in weather_details, "Weather details must retain its animated weather atmosphere"
+assert "RoyalWeatherAtmosphereOverlay(" not in weather_card, "Home weather card must not render weather atmosphere effects"
+assert "RoyalWeatherAtmosphereOverlay(" not in screensaver, "Smart Screensaver must not render weather atmosphere effects"
+assert "RoyalWeatherAmbienceEffect(weather)" in weather_details
+assert "RoyalOwlAmbienceEffect(weather)" in weather_details
 
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
 assert "SEGMENT_SECONDS = 2" in service

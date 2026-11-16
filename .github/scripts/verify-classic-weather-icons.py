@@ -28,7 +28,7 @@ assert "animateFloat" in component and "rotationDegrees = sunRotation" in compon
 assert "rotate(degrees = rotationDegrees, pivot = center)" in component, "The complete sun disc must rotate around its center"
 assert "BitmapFactory" not in component and "SVG.getFromAsset" not in component
 
-# Keep the scenic weather backgrounds and independent atmosphere motion intact.
+# Keep scenic weather backgrounds and render animated atmosphere only in Weather details.
 for name in (
     "weather_clear_day", "weather_clear_night", "weather_partly_cloudy_day",
     "weather_overcast", "weather_rain", "weather_snow", "weather_storm",
@@ -37,7 +37,9 @@ for name in (
     assert any((background_dir / f"{name}.{extension}").is_file() for extension in ("jpg", "webp")), (
         f"Missing preserved background: {name}.jpg or optimized {name}.webp"
     )
-assert "RoyalMotionImage(" in card and "RoyalWeatherAtmosphereOverlay(" in card
-assert "RoyalWeatherAtmosphereOverlay(" in details
+assert "RoyalMotionImage(" in card, "Home weather card must retain its background image"
+assert "RoyalWeatherAtmosphereOverlay(" not in card, "Home weather card must not animate rain/snow/wind"
+assert "RoyalWeatherAtmosphereOverlay(" in details, "Weather details must retain its atmosphere"
+assert "RoyalWeatherAtmosphereOverlay(" not in screensaver, "Screensaver must not render weather atmosphere"
 
 print("Verified classic Canvas weather artwork, rotating sun disc, V21 and 11 PNG icon removal, and preserved weather backgrounds/effects.")
