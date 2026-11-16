@@ -500,7 +500,7 @@ internal fun RoyalSportsScreen(language: String) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            RoyalV20SportsIcon(RoyalV20SportsIconId.FOOTBALL, modifier = Modifier.size(royalV20SportsIconSize(52.dp)), contentDescription = title)
+            RoyalSportsIcon(RoyalSportsGlyph.FOOTBALL, modifier = Modifier.size(royalSportsIconSize(52.dp)), contentDescription = title)
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
@@ -523,7 +523,7 @@ internal fun RoyalSportsScreen(language: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                RoyalV20SportsIcon(RoyalV20SportsIconId.REPLAY, modifier = Modifier.size(royalV20SportsIconSize(24.dp)), contentDescription = refreshLabel)
+                RoyalSportsIcon(RoyalSportsGlyph.REFRESH, modifier = Modifier.size(royalSportsIconSize(24.dp)), contentDescription = refreshLabel)
                 Text(refreshLabel, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
         }
@@ -532,13 +532,13 @@ internal fun RoyalSportsScreen(language: String) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             SportsTabButton(
                 label = matchesLabel,
-                icon = RoyalV20SportsIconId.TODAY_MATCHES,
+                icon = RoyalSportsGlyph.TODAY_MATCHES,
                 selected = selectedTab == RoyalSportsTab.MATCHES,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.MATCHES }
             SportsTabButton(
                 label = scheduleLabel,
-                icon = RoyalV20SportsIconId.FIXTURES,
+                icon = RoyalSportsGlyph.FIXTURES,
                 selected = selectedTab == RoyalSportsTab.SCHEDULE,
                 modifier = Modifier.weight(1f)
             ) { selectedTab = RoyalSportsTab.SCHEDULE }
@@ -575,8 +575,34 @@ internal fun RoyalSportsScreen(language: String) {
                 contentPadding = PaddingValues(bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(result!!.fixtures, key = { it.id }) { fixture ->
-                    SportsFixtureCard(fixture = fixture, arabic = arabic, turkish = turkish)
+                val leagueGroups = result!!.fixtures
+                    .groupBy { it.country.trim() to it.league.trim() }
+                    .entries
+                    .sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }
+                leagueGroups.forEachIndexed { groupIndex, entry ->
+                    val leagueName = entry.key.second.ifBlank { title }
+                    val countryName = entry.key.first
+                    val heading = if (countryName.isBlank()) {
+                        localizedFootballName(leagueName, arabic, turkish)
+                    } else {
+                        localizedFootballName(leagueName, arabic, turkish) + " • " +
+                            localizedFootballName(countryName, arabic, turkish)
+                    }
+                    val countLabel = when {
+                        arabic -> entry.value.size.toString() + " مباراة"
+                        turkish -> entry.value.size.toString() + " maç"
+                        else -> entry.value.size.toString() + " matches"
+                    }
+                    item(key = "league-" + groupIndex + "-" + entry.key.second) {
+                        SportsLeagueHeader(
+                            title = heading,
+                            caption = if (arabic) "مباريات البطولة" else if (turkish) "Lig maçları" else "League fixtures",
+                            count = countLabel
+                        )
+                    }
+                    items(entry.value, key = { it.id }) { fixture ->
+                        SportsFixtureCard(fixture = fixture, arabic = arabic, turkish = turkish)
+                    }
                 }
                 if (loading) {
                     item {
@@ -601,7 +627,7 @@ internal fun RoyalSportsScreen(language: String) {
 @Composable
 private fun SportsTabButton(
     label: String,
-    icon: RoyalV20SportsIconId,
+    icon: RoyalSportsIconId,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -617,7 +643,7 @@ private fun SportsTabButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        RoyalV20SportsIcon(icon = icon, modifier = Modifier.size(royalV20SportsIconSize(30.dp)), contentDescription = label)
+        RoyalSportsIcon(icon = icon, modifier = Modifier.size(royalSportsIconSize(30.dp)), contentDescription = label)
         Spacer(Modifier.width(6.dp))
         Text(
             label,
@@ -691,9 +717,9 @@ private fun SportsFixtureCard(
         fixture.homeGoals.toString() + " : " + fixture.awayGoals.toString()
     }
     val statusIcon = when (fixture.status) {
-        "1H", "2H", "ET", "LIVE", "HT", "BT" -> RoyalV20SportsIconId.LIVE_SCORES
-        "FT", "AET", "PEN", "AWD", "WO" -> RoyalV20SportsIconId.MATCH_RESULTS
-        else -> RoyalV20SportsIconId.FIXTURES
+        "1H", "2H", "ET", "LIVE", "HT", "BT" -> RoyalSportsGlyph.LIVE
+        "FT", "AET", "PEN", "AWD", "WO" -> RoyalSportsGlyph.RESULTS
+        else -> RoyalSportsGlyph.FIXTURES
     }
     Column(
         modifier = Modifier.fillMaxWidth().clip(shape)
@@ -706,23 +732,24 @@ private fun SportsFixtureCard(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RoyalV20SportsIcon(statusIcon, modifier = Modifier.size(royalV20SportsIconSize(28.dp)), contentDescription = statusText)
-            Text(
-                if (fixture.country.isBlank()) {
-                    localizedFootballName(fixture.league, arabic, turkish)
-                } else {
-                    localizedFootballName(fixture.league, arabic, turkish) + " • " +
-                        localizedFootballName(fixture.country, arabic, turkish)
-                },
-                color = RoyalColors.Gold,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            RoyalSportsIcon(statusIcon, modifier = Modifier.size(royalSportsIconSize(28.dp)), contentDescription = statusText)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    statusText,
+                    color = if (fixture.status in setOf("1H", "2H", "ET", "LIVE")) Color(0xFF61E1D0) else RoyalColors.Pearl,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(
+                    formatFixtureTime(fixture.date, arabic, turkish),
+                    color = RoyalColors.Muted,
+                    fontSize = 9.sp,
+                    maxLines = 1
+                )
+            }
             if (fixture.elapsed != null && fixture.elapsed > 0 && fixture.status in setOf("1H", "2H", "ET", "LIVE")) {
-                Text(fixture.elapsed.toString() + "'", color = Color(0xFFFFB36B), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(fixture.elapsed.toString() + "'", color = Color(0xFFFFB36B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -731,7 +758,7 @@ private fun SportsFixtureCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            RoyalV20SportsIcon(RoyalV20SportsIconId.TEAMS, modifier = Modifier.size(royalV20SportsIconSize(24.dp)))
+            RoyalSportsIcon(RoyalSportsGlyph.TEAMS, modifier = Modifier.size(royalSportsIconSize(24.dp)))
             Text(
                 localizedFootballName(fixture.homeTeam, arabic, turkish),
                 color = RoyalColors.Pearl,
@@ -741,7 +768,7 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            RoyalV20SportsIcon(RoyalV20SportsIconId.GOAL, modifier = Modifier.size(royalV20SportsIconSize(26.dp)), contentDescription = score)
+            RoyalSportsIcon(RoyalSportsGlyph.GOAL, modifier = Modifier.size(royalSportsIconSize(26.dp)), contentDescription = score)
             Text(score, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(
                 localizedFootballName(fixture.awayTeam, arabic, turkish),
@@ -752,10 +779,53 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            RoyalV20SportsIcon(RoyalV20SportsIconId.TEAMS, modifier = Modifier.size(royalV20SportsIconSize(24.dp)))
+            RoyalSportsIcon(RoyalSportsGlyph.TEAMS, modifier = Modifier.size(royalSportsIconSize(24.dp)))
         }
-        Spacer(Modifier.height(6.dp))
-        Text(statusText, color = RoyalColors.Muted, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun SportsLeagueHeader(
+    title: String,
+    caption: String,
+    count: String
+) {
+    val shape = RoundedCornerShape(13.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(shape)
+            .background(Brush.horizontalGradient(listOf(Color(0xFF173A4B), Color(0xCC172536))))
+            .border(1.dp, Color(0xFF45D4DF).copy(alpha = 0.36f), shape)
+            .padding(horizontal = 11.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF0C2635)),
+            contentAlignment = Alignment.Center
+        ) {
+            RoyalSportsIcon(
+                RoyalSportsGlyph.FIXTURES,
+                modifier = Modifier.size(25.dp),
+                contentDescription = title
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(caption, color = RoyalColors.Muted, fontSize = 9.sp, maxLines = 1)
+        }
+        Text(
+            count,
+            color = Color(0xFFB7F5F1),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.clip(RoundedCornerShape(50))
+                .background(Color(0xFF123D49))
+                .border(1.dp, Color(0xFF45D4DF).copy(alpha = 0.24f), RoundedCornerShape(50))
+                .padding(horizontal = 9.dp, vertical = 6.dp)
+        )
     }
 }
 
