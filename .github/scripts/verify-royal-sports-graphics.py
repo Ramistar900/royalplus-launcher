@@ -50,6 +50,9 @@ assert "RoyalSportsMatchBucket.NOT_STARTED" in screen
 assert "RoyalSportsMatchBucket.PLAYED" in screen
 assert "leagueLogo = league.optString(\"logo\", \"\")" in screen
 assert "countryFlag = league.optString(\"flag\", \"\")" in screen
+assert "homeLogo = home.optString(\"logo\", \"\")" in screen
+assert "awayLogo = away.optString(\"logo\", \"\")" in screen
+assert "RoyalSportsProviderImage(" in screen
 assert "media.api-sports.io" in screen
 assert "SVG.getFromString" in screen
 assert "SportsPitchGlassBackground" in graphics
