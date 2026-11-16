@@ -7,14 +7,16 @@ GRAPHICS = JAVA / "RoyalSportsGraphics.kt"
 SCREEN = JAVA / "RoyalSportsScreen.kt"
 HOME = JAVA / "RoyalHomeScreen.kt"
 WORKFLOW = ROOT / ".github/workflows/build-apk.yml"
+GRADLE = ROOT / "app/build.gradle.kts"
 
-for path in (GRAPHICS, SCREEN, HOME, WORKFLOW):
+for path in (GRAPHICS, SCREEN, HOME, WORKFLOW, GRADLE):
     assert path.is_file(), f"Required sports graphics file is missing: {path.relative_to(ROOT)}"
 
 graphics = GRAPHICS.read_text(encoding="utf-8")
 screen = SCREEN.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
 workflow = WORKFLOW.read_text(encoding="utf-8")
+gradle = GRADLE.read_text(encoding="utf-8")
 
 # Sports artwork is now drawn by native Compose primitives, not the V20 asset pack.
 for required in (
@@ -35,7 +37,8 @@ for required in (
 assert "rememberInfiniteTransition" in graphics
 assert "infiniteRepeatable" in graphics
 assert "LinearEasing" in graphics
-assert "rotationZ = rotation" in graphics
+assert "rotate(degrees = rotationDegrees, pivot = Offset(32f, 32f))" in graphics
+assert "rotationDegrees = rotation" in graphics
 assert "durationMillis = 2800" in graphics
 assert "sportsBall = true" in home
 assert "RoyalRotatingFootballIcon" in home
@@ -51,5 +54,6 @@ for glyph in ("FOOTBALL", "TODAY_MATCHES", "FIXTURES", "LIVE", "RESULTS", "TEAMS
 for forbidden in ("RoyalV20SportsIcon", "RoyalV20SportsIconId", "sports_v20", "prepare-v20-sports-icons.py", "verify-v20-sports-icons.py"):
     assert forbidden not in graphics + screen + home + workflow, f"Legacy sports icon reference remains: {forbidden}"
 assert "verify-royal-sports-graphics.py" in workflow
+assert "com.caverock:androidsvg-aar:1.4" not in gradle
 
 print("Verified native football and match illustrations, smooth rotating sidebar ball, grouped fixtures, and removal of V20 sports assets.")
