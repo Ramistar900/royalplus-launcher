@@ -229,7 +229,6 @@ internal fun RoyalHomeScreen(
     var clickSoundsEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", false))
     }
-    val latestClickSoundsEnabled = rememberUpdatedState(clickSoundsEnabled)
     var lakeWaterSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("lake_water_sound_enabled", true))
     }
