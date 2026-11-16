@@ -1,9 +1,13 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas as AndroidCanvas
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.util.LruCache
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -49,9 +56,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONArray
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
+import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
@@ -63,9 +72,117 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import com.caverock.androidsvg.SVG
 
 private const val SPORTS_SUPABASE_URL = "https://ymujjcdsdclptbpgckll.supabase.co"
 private const val SPORTS_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW"
+
+/**
+ * Only official images returned by API-Sports are accepted. The in-memory cache
+ * keeps these small illustrations local after the first successful fetch.
+ */
+private object RoyalSportsProviderImageCache {
+    private const val MAX_IMAGE_BYTES = 512 * 1024
+    private const val EDGE_PX = 128
+    private const val MAX_CACHE_BYTES = 3 * 1024 * 1024
+    private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
+    }
+
+    fun isAllowed(url: String): Boolean = runCatching {
+        val uri = URI(url)
+        uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host.equals("media.api-sports.io", ignoreCase = true) &&
+            (uri.path.startsWith("/football/leagues/") || uri.path.startsWith("/flags/")) &&
+            (uri.path.endsWith(".png", ignoreCase = true) || uri.path.endsWith(".svg", ignoreCase = true))
+    }.getOrDefault(false)
+
+    suspend fun load(url: String): Bitmap? = withContext(Dispatchers.IO) {
+        if (!isAllowed(url)) return@withContext null
+        cache.get(url)?.let { return@withContext it }
+
+        var connection: HttpURLConnection? = null
+        try {
+            connection = URL(url).openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 4_000
+            connection.readTimeout = 4_000
+            connection.instanceFollowRedirects = false
+            connection.setRequestProperty("Accept", "image/png,image/svg+xml")
+            connection.setRequestProperty("User-Agent", "ROYAL-Launcher/1.0")
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
+
+            val bytes = connection.inputStream.use { input ->
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(8 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (output.size() + count > MAX_IMAGE_BYTES) {
+                        throw IOException("provider_image_too_large")
+                    }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+            if (bytes.isEmpty()) return@withContext null
+
+            val bitmap = if (url.substringBefore('?').endsWith(".svg", ignoreCase = true)) {
+                val svg = SVG.getFromString(String(bytes, Charsets.UTF_8))
+                svg.setDocumentWidth(EDGE_PX.toFloat())
+                svg.setDocumentHeight(EDGE_PX.toFloat())
+                Bitmap.createBitmap(EDGE_PX, EDGE_PX, Bitmap.Config.ARGB_8888).also {
+                    svg.renderToCanvas(AndroidCanvas(it))
+                }
+            } else {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                val largestEdge = maxOf(bounds.outWidth, bounds.outHeight).coerceAtLeast(1)
+                val sample = (largestEdge / EDGE_PX).coerceAtLeast(1)
+                val options = BitmapFactory.Options().apply { inSampleSize = sample }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            }
+            if (bitmap != null) cache.put(url, bitmap)
+            bitmap
+        } catch (_: Exception) {
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+}
+
+@Composable
+private fun RoyalSportsProviderImage(
+    url: String?,
+    modifier: Modifier = Modifier,
+    fallback: RoyalSportsGlyph,
+    description: String
+) {
+    val safeUrl = url?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
+    var image by remember(safeUrl) {
+        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    }
+    LaunchedEffect(safeUrl) {
+        image = if (safeUrl == null) null else {
+            RoyalSportsProviderImageCache.load(safeUrl)?.asImageBitmap()
+        }
+    }
+    if (image != null) {
+        Image(
+            bitmap = image!!,
+            contentDescription = description,
+            modifier = modifier,
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        RoyalSportsIcon(
+            icon = fallback,
+            modifier = modifier,
+            contentDescription = description
+        )
+    }
+}
 
 private enum class RoyalSportsTab {
     MATCHES, SCHEDULE
@@ -75,6 +192,8 @@ internal data class RoyalSportsFixture(
     val id: Long,
     val league: String,
     val country: String,
+    val leagueLogo: String,
+    val countryFlag: String,
     val homeTeam: String,
     val awayTeam: String,
     val homeGoals: Int?,
@@ -83,6 +202,18 @@ internal data class RoyalSportsFixture(
     val elapsed: Int?,
     val date: String
 )
+
+private enum class RoyalSportsMatchBucket {
+    LIVE,
+    NOT_STARTED,
+    PLAYED
+}
+
+private fun sportsMatchBucket(status: String): RoyalSportsMatchBucket = when (status.uppercase(Locale.ROOT)) {
+    "1H", "2H", "ET", "LIVE", "HT", "BT", "SUSP", "INT" -> RoyalSportsMatchBucket.LIVE
+    "FT", "AET", "PEN", "AWD", "WO" -> RoyalSportsMatchBucket.PLAYED
+    else -> RoyalSportsMatchBucket.NOT_STARTED
+}
 
 internal data class RoyalSportsLoadResult(
     val fixtures: List<RoyalSportsFixture>,
@@ -169,6 +300,8 @@ private object RoyalSportsRepository {
                     id = id,
                     league = league.optString("name", "Football"),
                     country = league.optString("country", ""),
+                    leagueLogo = league.optString("logo", ""),
+                    countryFlag = league.optString("flag", ""),
                     homeTeam = home.optString("name", "Home"),
                     awayTeam = away.optString("name", "Away"),
                     homeGoals = if (goals.isNull("home")) null else goals.optInt("home"),
@@ -489,12 +622,20 @@ internal fun RoyalSportsScreen(language: String) {
     CompositionLocalProvider(
         LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
-    Column(
-        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xF0121721), Color(0xF9080C12))))
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.28f), RoundedCornerShape(22.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+    Box(
+        modifier = Modifier.fillMaxSize()
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xD91A7652), Color(0xC40C4937), Color(0xDC082C25))
+                )
+            )
+            .border(1.dp, Color(0x667FFFC1), RoundedCornerShape(22.dp))
     ) {
+        SportsPitchGlassBackground(Modifier.matchParentSize())
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -575,33 +716,97 @@ internal fun RoyalSportsScreen(language: String) {
                 contentPadding = PaddingValues(bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val leagueGroups = result!!.fixtures
-                    .groupBy { it.country.trim() to it.league.trim() }
-                    .entries
-                    .sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }
-                leagueGroups.forEachIndexed { groupIndex, entry ->
-                    val leagueName = entry.key.second.ifBlank { title }
-                    val countryName = entry.key.first
-                    val heading = if (countryName.isBlank()) {
-                        localizedFootballName(leagueName, arabic, turkish)
-                    } else {
-                        localizedFootballName(leagueName, arabic, turkish) + " • " +
-                            localizedFootballName(countryName, arabic, turkish)
-                    }
-                    val countLabel = when {
-                        arabic -> entry.value.size.toString() + " مباراة"
-                        turkish -> entry.value.size.toString() + " maç"
-                        else -> entry.value.size.toString() + " matches"
-                    }
-                    item(key = "league-" + groupIndex + "-" + entry.key.second) {
-                        SportsLeagueHeader(
-                            title = heading,
-                            caption = if (arabic) "مباريات البطولة" else if (turkish) "Lig maçları" else "League fixtures",
-                            count = countLabel
-                        )
-                    }
-                    items(entry.value, key = { it.id }) { fixture ->
-                        SportsFixtureCard(fixture = fixture, arabic = arabic, turkish = turkish)
+                val fixturesByBucket = result!!.fixtures.groupBy { sportsMatchBucket(it.status) }
+                val bucketOrder = listOf(
+                    RoyalSportsMatchBucket.LIVE,
+                    RoyalSportsMatchBucket.NOT_STARTED,
+                    RoyalSportsMatchBucket.PLAYED
+                )
+                bucketOrder.forEach { bucket ->
+                    val bucketFixtures = fixturesByBucket[bucket].orEmpty().sortedBy { it.date }
+                    if (bucketFixtures.isNotEmpty()) {
+                        val bucketTitle = when (bucket) {
+                            RoyalSportsMatchBucket.LIVE -> when {
+                                arabic -> "المباريات المباشرة"
+                                turkish -> "Canlı maçlar"
+                                else -> "Live matches"
+                            }
+                            RoyalSportsMatchBucket.NOT_STARTED -> when {
+                                arabic -> "المباريات التي لم تبدأ"
+                                turkish -> "Henüz başlamayan maçlar"
+                                else -> "Not started"
+                            }
+                            RoyalSportsMatchBucket.PLAYED -> when {
+                                arabic -> "المباريات المنتهية"
+                                turkish -> "Tamamlanan maçlar"
+                                else -> "Finished matches"
+                            }
+                        }
+                        val bucketCaption = when (bucket) {
+                            RoyalSportsMatchBucket.LIVE -> when {
+                                arabic -> "تُحدّث النتائج المباشرة تلقائياً"
+                                turkish -> "Canlı skorlar otomatik yenilenir"
+                                else -> "Live scores refresh automatically"
+                            }
+                            RoyalSportsMatchBucket.NOT_STARTED -> when {
+                                arabic -> "مواعيد الانطلاق القادمة"
+                                turkish -> "Yaklaşan başlama saatleri"
+                                else -> "Upcoming kick-off times"
+                            }
+                            RoyalSportsMatchBucket.PLAYED -> when {
+                                arabic -> "النتائج النهائية"
+                                turkish -> "Maç sonuçları"
+                                else -> "Final results"
+                            }
+                        }
+                        val bucketCount = when {
+                            arabic -> bucketFixtures.size.toString() + " مباراة"
+                            turkish -> bucketFixtures.size.toString() + " maç"
+                            else -> bucketFixtures.size.toString() + " matches"
+                        }
+                        item(key = "bucket-" + bucket.name) {
+                            SportsMatchBucketHeader(
+                                title = bucketTitle,
+                                caption = bucketCaption,
+                                count = bucketCount,
+                                bucket = bucket
+                            )
+                        }
+
+                        val leagueGroups = bucketFixtures
+                            .groupBy { it.country.trim() to it.league.trim() }
+                            .entries
+                            .sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }
+                        leagueGroups.forEachIndexed { groupIndex, entry ->
+                            val leagueName = entry.key.second.ifBlank { title }
+                            val countryName = entry.key.first
+                            val heading = if (countryName.isBlank()) {
+                                localizedFootballName(leagueName, arabic, turkish)
+                            } else {
+                                localizedFootballName(leagueName, arabic, turkish) + " • " +
+                                    localizedFootballName(countryName, arabic, turkish)
+                            }
+                            val countLabel = when {
+                                arabic -> entry.value.size.toString() + " مباراة"
+                                turkish -> entry.value.size.toString() + " maç"
+                                else -> entry.value.size.toString() + " matches"
+                            }
+                            val firstFixture = entry.value.firstOrNull()
+                            val originalLogoOrFlag = firstFixture?.leagueLogo
+                                ?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
+                                ?: firstFixture?.countryFlag?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
+                            item(key = "league-" + bucket.name + "-" + groupIndex + "-" + entry.key.second) {
+                                SportsLeagueHeader(
+                                    title = heading,
+                                    caption = if (arabic) "مباريات البطولة" else if (turkish) "Lig maçları" else "League fixtures",
+                                    count = countLabel,
+                                    imageUrl = originalLogoOrFlag
+                                )
+                            }
+                            items(entry.value, key = { it.id }) { fixture ->
+                                SportsFixtureCard(fixture = fixture, arabic = arabic, turkish = turkish)
+                            }
+                        }
                     }
                 }
                 if (loading) {
@@ -620,6 +825,7 @@ internal fun RoyalSportsScreen(language: String) {
                 }
             }
         }
+        }
     }
     }
 }
@@ -627,7 +833,7 @@ internal fun RoyalSportsScreen(language: String) {
 @Composable
 private fun SportsTabButton(
     label: String,
-    icon: RoyalSportsIconId,
+    icon: RoyalSportsGlyph,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -723,8 +929,8 @@ private fun SportsFixtureCard(
     }
     Column(
         modifier = Modifier.fillMaxWidth().clip(shape)
-            .background(Color(0xD91A222E))
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.14f), shape)
+            .background(Color(0x99102F28))
+            .border(1.dp, Color(0x44B8FFD7), shape)
             .focusable()
             .padding(horizontal = 13.dp, vertical = 10.dp)
     ) {
@@ -785,10 +991,55 @@ private fun SportsFixtureCard(
 }
 
 @Composable
+private fun SportsMatchBucketHeader(
+    title: String,
+    caption: String,
+    count: String,
+    bucket: RoyalSportsMatchBucket
+) {
+    val accent = when (bucket) {
+        RoyalSportsMatchBucket.LIVE -> Color(0xFFFF7B70)
+        RoyalSportsMatchBucket.NOT_STARTED -> Color(0xFF8EE6B4)
+        RoyalSportsMatchBucket.PLAYED -> Color(0xFFB7D7D0)
+    }
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(shape)
+            .background(Brush.horizontalGradient(listOf(Color(0xBB0B3E2E), Color(0x90306045))))
+            .border(1.dp, accent.copy(alpha = 0.38f), shape)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(9.dp)
+                .clip(RoundedCornerShape(50))
+                .background(accent)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(caption, color = Color(0xFFD0E8DC), fontSize = 9.sp, maxLines = 1)
+        }
+        Text(
+            count,
+            color = accent,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.clip(RoundedCornerShape(50))
+                .background(Color(0x55203F32))
+                .border(1.dp, accent.copy(alpha = 0.24f), RoundedCornerShape(50))
+                .padding(horizontal = 9.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
 private fun SportsLeagueHeader(
     title: String,
     caption: String,
-    count: String
+    count: String,
+    imageUrl: String?
 ) {
     val shape = RoundedCornerShape(13.dp)
     Row(
@@ -806,10 +1057,11 @@ private fun SportsLeagueHeader(
                 .background(Color(0xFF0C2635)),
             contentAlignment = Alignment.Center
         ) {
-            RoyalSportsIcon(
-                RoyalSportsGlyph.FIXTURES,
-                modifier = Modifier.size(25.dp),
-                contentDescription = title
+            RoyalSportsProviderImage(
+                url = imageUrl,
+                modifier = Modifier.fillMaxSize().padding(2.dp),
+                fallback = RoyalSportsGlyph.FIXTURES,
+                description = title
             )
         }
         Column(modifier = Modifier.weight(1f)) {
