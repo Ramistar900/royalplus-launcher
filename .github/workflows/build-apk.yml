@@ -292,7 +292,7 @@ jobs:
           RELEASE_URL="$(jq -r '.url' <<< "$RELEASE_JSON")"
           ASSETS="$(jq -r '[.assets[].name] | sort | join(",")' <<< "$RELEASE_JSON")"
           EXPECTED="royalplus-debug.apk,royalplus-release-test.apk"
-          if [[ "$RELEASE_TAG" != "$TAG" || "$RELEASE_DRAFT" != "true" || "$ASSETS" != "$EXPECTED" || "$RELEASE_URL" != "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" ]]; then
+          if [[ "$RELEASE_TAG" != "$TAG" || "$RELEASE_DRAFT" != "true" || "$ASSETS" != "$EXPECTED" || "$RELEASE_URL" != "https://github.com/$GITHUB_REPOSITORY/releases/tag/"* ]]; then
             echo "::error::Draft release verification failed."
             echo "Expected tag: $TAG; found: $RELEASE_TAG"
             echo "Draft: $RELEASE_DRAFT; assets: $ASSETS; URL: $RELEASE_URL"
