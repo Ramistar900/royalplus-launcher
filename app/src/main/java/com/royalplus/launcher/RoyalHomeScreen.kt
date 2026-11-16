@@ -228,9 +228,8 @@ internal fun RoyalHomeScreen(
         onDispose { wallpaperPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
     var clickSoundsEnabled by remember {
-        mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", true))
+        mutableStateOf(wallpaperPreferences.getBoolean("ui_click_sounds_enabled", false))
     }
-    val latestClickSoundsEnabled = rememberUpdatedState(clickSoundsEnabled)
     var lakeWaterSoundEnabled by remember {
         mutableStateOf(wallpaperPreferences.getBoolean("lake_water_sound_enabled", true))
     }
@@ -539,16 +538,6 @@ internal fun RoyalHomeScreen(
                             false
                         }
                         else -> false
-                    }
-
-                    if (isKeyDown && latestClickSoundsEnabled.value &&
-                        event.key in setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
-                    ) {
-                        playLauncherUiSound(
-                            context,
-                            if (adaptiveProfile.isTelevision) RoyalUiSound.NAV_TV_FOCUS
-                            else RoyalUiSound.NAV_FOCUS_MOVE
-                        )
                     }
 
                     val handledRemoteKey = if (isKeyDown) {
