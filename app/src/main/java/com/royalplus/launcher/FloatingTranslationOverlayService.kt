@@ -22,6 +22,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Process
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -35,6 +36,7 @@ import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
+import java.util.ArrayDeque
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -50,6 +52,7 @@ class FloatingTranslationOverlayService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     private val audioSegments = ArrayBlockingQueue<FloatArray>(2)
+    private val audioGapDetected = AtomicBoolean(false)
 
     @Volatile private var recognizer: OfflineRecognizer? = null
     @Volatile private var audioRecord: AudioRecord? = null
@@ -83,12 +86,20 @@ class FloatingTranslationOverlayService : Service() {
     private val controlHideRunnable = Runnable {
         hideControlAndShowEdge()
     }
+    private data class PendingCaption(
+        val text: String,
+        val language: String,
+        val createdAtElapsedRealtime: Long
+    )
+
     private data class TranslationSession(
         val translator: Translator,
         var modelReady: Boolean = false,
         var modelCheckPending: Boolean = false,
         var modelDownloadPending: Boolean = false,
-        var latestPendingCaption: Pair<String, String>? = null
+        var latestPendingCaption: PendingCaption? = null,
+        val pendingCaptions: ArrayDeque<PendingCaption> = ArrayDeque(),
+        var translationInFlight: Boolean = false
     )
 
     // Keep a translator/model state for each source language for the lifetime of this service.
@@ -297,7 +308,10 @@ class FloatingTranslationOverlayService : Service() {
                         if (filled == SEGMENT_SAMPLES) {
                             val completed = segment.copyOf()
                             if (!audioSegments.offer(completed)) {
-                                audioSegments.poll()
+                                // Drop the queued backlog as a unit. The decoder resets its
+                                // phrase/overlap state rather than joining text across lost audio.
+                                audioSegments.clear()
+                                audioGapDetected.set(true)
                                 audioSegments.offer(completed)
                             }
                             // Preserve a short tail so speech at window boundaries is not clipped.
@@ -336,8 +350,21 @@ class FloatingTranslationOverlayService : Service() {
         while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
                 val samples = audioSegments.take()
+                if (audioGapDetected.getAndSet(false)) {
+                    lastRecognizedTail = emptyList()
+                    mainHandler.post {
+                        captionPhraseBuffer.clear()
+                        mainHandler.removeCallbacks(captionPhraseFlushRunnable)
+                        translationRequest++
+                        translationSessions.values.forEach { session ->
+                            session.latestPendingCaption = null
+                            session.pendingCaptions.clear()
+                        }
+                    }
+                }
                 if (!hasMeaningfulAudio(samples)) {
                     if (consecutiveSilentSegments == 0) {
+                        lastRecognizedTail = emptyList()
                         mainHandler.post { flushPendingCaptionPhrase() }
                     }
                     consecutiveSilentSegments++
@@ -536,10 +563,13 @@ class FloatingTranslationOverlayService : Service() {
                 return@post
             }
 
-            activeSourceLanguage = sourceLanguage
-            if (sourceLanguage == TranslateLanguage.ARABIC) {
-                // A new Arabic phrase supersedes translations still in flight.
+            if (activeSourceLanguage != sourceLanguage) {
+                activeSourceLanguage = sourceLanguage
+                // Invalidate a result from the previous source language, but do not
+                // invalidate earlier phrases from this same language.
                 translationRequest++
+            }
+            if (sourceLanguage == TranslateLanguage.ARABIC) {
                 showCaption(text, detectedLanguage)
                 return@post
             }
@@ -554,7 +584,11 @@ class FloatingTranslationOverlayService : Service() {
                     )
                 )
             }
-            session.latestPendingCaption = text to normalizedLanguage
+            session.latestPendingCaption = PendingCaption(
+                text = text,
+                language = normalizedLanguage,
+                createdAtElapsedRealtime = SystemClock.elapsedRealtime()
+            )
 
             if (session.modelReady) {
                 translateLatestPendingCaption(sourceLanguage, session)
@@ -620,35 +654,64 @@ class FloatingTranslationOverlayService : Service() {
         if (!running.get() || !session.modelReady || activeSourceLanguage != sourceLanguage) return
         val latest = session.latestPendingCaption ?: return
         session.latestPendingCaption = null
-        translateWithReadyModel(sourceLanguage, session, latest.first, latest.second)
+        if (SystemClock.elapsedRealtime() - latest.createdAtElapsedRealtime > MAX_PENDING_TRANSLATION_AGE_MILLIS) {
+            return
+        }
+        if (session.pendingCaptions.size >= MAX_QUEUED_TRANSLATIONS) {
+            session.pendingCaptions.removeFirst()
+        }
+        session.pendingCaptions.addLast(latest)
+        translateNextPendingCaption(sourceLanguage, session)
     }
 
-    private fun translateWithReadyModel(
-        sourceLanguage: String,
-        session: TranslationSession,
-        text: String,
-        language: String
-    ) {
-        val requestId = ++translationRequest
-        session.translator.translate(text)
+    /** Serialize ML Kit requests so subtitles cannot finish out of order. */
+    private fun translateNextPendingCaption(sourceLanguage: String, session: TranslationSession) {
+        if (
+            !running.get() ||
+            !session.modelReady ||
+            activeSourceLanguage != sourceLanguage ||
+            session.translationInFlight
+        ) return
+
+        var next: PendingCaption? = null
+        while (session.pendingCaptions.isNotEmpty() && next == null) {
+            val candidate = session.pendingCaptions.removeFirst()
+            if (SystemClock.elapsedRealtime() - candidate.createdAtElapsedRealtime <= MAX_PENDING_TRANSLATION_AGE_MILLIS) {
+                next = candidate
+            }
+        }
+        val pending = next ?: return
+        val requestId = translationRequest
+        session.translationInFlight = true
+
+        session.translator.translate(pending.text)
             .addOnSuccessListener { translated ->
-                if (
-                    running.get() &&
-                    activeSourceLanguage == sourceLanguage &&
-                    translationSessions[sourceLanguage] === session &&
-                    requestId == translationRequest
-                ) {
-                    showCaption(translated, language)
+                mainHandler.post {
+                    session.translationInFlight = false
+                    if (
+                        running.get() &&
+                        activeSourceLanguage == sourceLanguage &&
+                        translationSessions[sourceLanguage] === session &&
+                        requestId == translationRequest &&
+                        SystemClock.elapsedRealtime() - pending.createdAtElapsedRealtime <= MAX_PENDING_TRANSLATION_AGE_MILLIS
+                    ) {
+                        showCaption(translated, pending.language)
+                    }
+                    translateNextPendingCaption(sourceLanguage, session)
                 }
             }
             .addOnFailureListener { error ->
-                if (
-                    running.get() &&
-                    activeSourceLanguage == sourceLanguage &&
-                    translationSessions[sourceLanguage] === session &&
-                    requestId == translationRequest
-                ) {
-                    updateNotification("فشلت ترجمة العبارة: ${error.localizedMessage ?: "أعد المحاولة"}")
+                mainHandler.post {
+                    session.translationInFlight = false
+                    if (
+                        running.get() &&
+                        activeSourceLanguage == sourceLanguage &&
+                        translationSessions[sourceLanguage] === session &&
+                        requestId == translationRequest
+                    ) {
+                        updateNotification("فشلت ترجمة العبارة: ${error.localizedMessage ?: "أعد المحاولة"}")
+                    }
+                    translateNextPendingCaption(sourceLanguage, session)
                 }
             }
     }
@@ -656,7 +719,9 @@ class FloatingTranslationOverlayService : Service() {
     private fun showCaption(text: String, language: String) {
         mainHandler.post {
             val caption = captionView ?: return@post
-            caption.text = ArabicCaptionFormatter.format(text)
+            val safeArabicCaption = ArabicCaptionFormatter.format(text)
+            if (safeArabicCaption.isBlank()) return@post
+            caption.text = safeArabicCaption
             caption.visibility = View.VISIBLE
             mainHandler.removeCallbacks(captionHideRunnable)
             mainHandler.postDelayed(captionHideRunnable, CAPTION_DISPLAY_MILLIS)
@@ -985,6 +1050,8 @@ class FloatingTranslationOverlayService : Service() {
         mainHandler.removeCallbacks(captionPhraseFlushRunnable)
         captionPhraseBuffer.clear()
         translationSessions.values.forEach { session ->
+            session.latestPendingCaption = null
+            session.pendingCaptions.clear()
             runCatching { session.translator.close() }
         }
         translationSessions.clear()
@@ -1030,16 +1097,18 @@ class FloatingTranslationOverlayService : Service() {
         const val EXTRA_PROJECTION_DATA = "royal_projection_result_data"
         private const val CHANNEL_ID = "royal_translation_overlay"
         private const val NOTIFICATION_ID = 4101
-        private const val CAPTION_DISPLAY_MILLIS = 5_000L
-        private const val CAPTION_PHRASE_IDLE_MILLIS = 1_850L
+        private const val CAPTION_DISPLAY_MILLIS = 4_500L
+        private const val CAPTION_PHRASE_IDLE_MILLIS = 650L
         private const val MAX_CAPTION_BUFFER_CHARACTERS = 110
+        private const val MAX_QUEUED_TRANSLATIONS = 3
+        private const val MAX_PENDING_TRANSLATION_AGE_MILLIS = 2_800L
         private const val STATUS_DISPLAY_MILLIS = 7_000L
         private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
-        private const val SEGMENT_SECONDS = 2
-        private const val SEGMENT_OVERLAP_MILLIS = 350
+        private const val SEGMENT_MILLIS = 1_500
+        private const val SEGMENT_OVERLAP_MILLIS = 250
         private const val SEGMENT_OVERLAP_SAMPLES = SAMPLE_RATE * SEGMENT_OVERLAP_MILLIS / 1_000
-        private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
+        private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_MILLIS / 1_000
         private const val MAX_OVERLAP_WORDS = 4
         private const val SOURCE_LANGUAGE_SWITCH_CONFIRMATIONS = 4
     }
