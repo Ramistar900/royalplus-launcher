@@ -73,7 +73,7 @@ import kotlinx.coroutines.withContext
 
 private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
 
-@OptIn(UnstableApi::class)
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
 internal fun SinjarTvScreen(language: String) {
     val context = LocalContext.current
