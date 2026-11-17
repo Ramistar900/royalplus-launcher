@@ -265,7 +265,7 @@ jobs:
           fi
 
           ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | sort | join(",")')"
-          EXPECTED="royalplus-armeabi-v7a-test.apk,royalplus-arm64-v8a-test.apk"
+          EXPECTED="royalplus-arm64-v8a-test.apk,royalplus-armeabi-v7a-test.apk"
           if [[ "$ASSETS" != "$EXPECTED" ]]; then
             echo "::error::Expected only the two compact ARM APKs; found: $ASSETS"
             exit 1
