@@ -2,12 +2,6 @@ package com.royalplus.launcher
 
 import com.royal.adaptive.LocalRoyalAdaptiveProfile
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,41 +27,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
-
-private enum class WeatherVisual { SUNNY, CLOUDY, OVERCAST, RAINY, FOGGY, SNOWY, STORMY, UNKNOWN }
-
-private fun weatherVisual(weather: WeatherUiState): WeatherVisual {
-    val code = weather.weatherCode
-    return when {
-        code == 0 || code == 1 -> WeatherVisual.SUNNY
-        code == 2 -> WeatherVisual.CLOUDY
-        code == 3 -> WeatherVisual.OVERCAST
-        code == 45 || code == 48 -> WeatherVisual.FOGGY
-        code in 51..67 || code in 80..82 -> WeatherVisual.RAINY
-        code in 71..77 || code in 85..86 -> WeatherVisual.SNOWY
-        code in 95..99 -> WeatherVisual.STORMY
-        weather.description.contains("مشمس") || weather.description.contains("صافية") -> WeatherVisual.SUNNY
-        weather.description.contains("ضباب") -> WeatherVisual.FOGGY
-        weather.description.contains("مطر") || weather.description.contains("أمطار") || weather.description.contains("رذاذ") -> WeatherVisual.RAINY
-        weather.description.contains("ثلج") -> WeatherVisual.SNOWY
-        weather.description.contains("غائم كليا") || weather.description.contains("غائم كلياً") ||
-            weather.description.contains("غائم بالكامل") || weather.description.contains("overcast") -> WeatherVisual.OVERCAST
-        weather.description.contains("غائم جزئيا") || weather.description.contains("غائم جزئياً") ||
-            weather.description.contains("غائم") || weather.description.contains("غيوم") -> WeatherVisual.CLOUDY
-        else -> WeatherVisual.UNKNOWN
-    }
-}
 
 @Composable
 internal fun WeatherGlassCard(
@@ -123,7 +88,6 @@ internal fun WeatherGlassCard(
             remaining % 60L
         )
     }
-    val visual = weatherVisual(weather)
     val localizedDescription = when (weather.weatherCode) {
         0 -> when (language) { "en" -> "Clear sky"; "tr" -> "Açık hava"; else -> "سماء صافية" }
         1 -> when (language) { "en" -> "Mainly clear"; "tr" -> "Az bulutlu"; else -> "صحو غالباً" }
