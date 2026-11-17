@@ -68,6 +68,22 @@ class ArabicCaptionFormatterTest {
     }
 
     @Test
+    fun insertsOneSpaceAfterPunctuationAndRemovesSpaceBeforeIt() {
+        assertEquals(
+            "مرحباً يا صديقي. أين أنت؟",
+            ArabicCaptionFormatter.format("مرحباً   يا صديقي . أين   أنت ?")
+        )
+    }
+
+    @Test
+    fun keepsArabicWordsSeparatedWhenForeignNoiseIsRemoved() {
+        assertEquals(
+            "مرحبا بالعالم",
+            ArabicCaptionFormatter.format("مرحبا xyz 世界 بالعالم")
+        )
+    }
+
+    @Test
     fun rejectsCaptionsThatContainNoArabicWords() {
         assertEquals("", ArabicCaptionFormatter.format("gkgdioj 音乐 123"))
     }
