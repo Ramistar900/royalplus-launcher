@@ -180,8 +180,7 @@ class FloatingTranslationOverlayService : Service() {
                 engine.release()
                 return
             }
-            recognizer = engine
-            audioTagger = try {
+            val tagger = try {
                 WhisperModelRepository.createAudioTagger(applicationContext) { message ->
                     updateStatus(message)
                 }
@@ -191,11 +190,12 @@ class FloatingTranslationOverlayService : Service() {
                 null
             }
             if (!running.get()) {
-                runCatching { audioTagger?.release() }
-                audioTagger = null
+                runCatching { tagger?.release() }
                 engine.release()
                 return
             }
+            recognizer = engine
+            audioTagger = tagger
             decodeThread = Thread({ decodeSpeechSegments() }, "RoyalWhisperDecode").apply { start() }
         } catch (error: Exception) {
             if (running.get()) {
