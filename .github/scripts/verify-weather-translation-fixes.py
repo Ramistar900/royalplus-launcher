@@ -66,7 +66,7 @@ assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "else createMicrophoneRecord()" in service and "VOICE_RECOGNITION" in service
 assert "normalizeDetectedLanguage" in service
 assert "TranslateLanguage.fromLanguageTag(normalizedLanguage)" in service
-assert "translationSessions.getOrPut(sourceLanguage)" in service
+assert "translationSessions.getOrPut(pending.sourceLanguage)" in service
 assert "RemoteModelManager.getInstance()" in service
 assert "getDownloadedModels(TranslateRemoteModel::class.java)" in service
 assert "session.translator.downloadModelIfNeeded(" in service
