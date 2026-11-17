@@ -32,13 +32,23 @@ assert "RoyalWeatherAmbienceEffect(weather)" in weather_details
 assert "RoyalOwlAmbienceEffect(weather)" in weather_details
 
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
-assert "SEGMENT_MILLIS = 1_500" in service
-assert "SEGMENT_OVERLAP_MILLIS = 250" in service
-assert "CAPTION_PHRASE_IDLE_MILLIS = 650L" in service
-assert "SEGMENT_OVERLAP_SAMPLES" in service and "System.arraycopy(" in service
-assert "audioGapDetected" in service
-assert "session.translationInFlight" in service and "translateNextPendingCaption(" in service
-assert "MAX_PENDING_TRANSLATION_AGE_MILLIS" in service
+vad_repository = (JAVA / "WhisperModelRepository.kt").read_text(encoding="utf-8")
+assert "createVoiceActivityDetector" in vad_repository
+assert "SileroVadModelConfig" in vad_repository
+assert "VAD_SIZE = 643_854L" in vad_repository
+assert "CAPTION_PHRASE_IDLE_MILLIS = 250L" in service
+assert "VAD_WINDOW_SAMPLES = 512" in service
+assert "detector.acceptWaveform(frame)" in service and "detector.flush()" in service
+assert "speechSegments = LinkedBlockingQueue<FloatArray>()" in service
+assert "enqueueReadySpeechSegments(detector)" in service
+assert "audioGapDetected" not in service
+assert "MAX_PENDING_TRANSLATION_AGE_MILLIS" not in service
+assert "MAX_QUEUED_TRANSLATIONS" not in service
+assert "pendingTranslations.addLast(" in service
+assert "pendingTranslations.addFirst(" in service
+assert "processNextPendingTranslation()" in service
+assert "removeOverlappingWords(" not in service
+assert "hasMeaningfulAudio(" not in service
 speech_filter = (JAVA / "SpeechCaptionFilter.kt").read_text(encoding="utf-8")
 assert '"music"' in speech_filter and '"آهات"' in speech_filter and '"moaning"' in speech_filter
 assert "nonArabicCharacters" in (JAVA / "CaptionPhraseBuffer.kt").read_text(encoding="utf-8")
