@@ -64,25 +64,66 @@ internal class CaptionPhraseBuffer(
 
 /** Removes foreign-script fragments and normalizes the remaining Arabic subtitle. */
 internal object ArabicCaptionFormatter {
-    private val nonArabicCharacters = Regex(
-        """[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF0-9٠-٩۰-۹\s،؛؟,;.!:…'"()\-]"""
-    )
-
     fun format(text: String): String {
-        val arabicOnly = text.replace(nonArabicCharacters, " ")
-        val normalized = arabicOnly
-            .replace(Regex("""\s+"""), " ")
-            .trim()
-            .replace(Regex("""\s+([,;!?،؛؟.!:])"""), "$1")
-            .replace(",", "،")
-            .replace(";", "؛")
-            .replace("?", "؟")
-            .replace(Regex("""([،؛؟.!:])(?=\S)"""), "$1 ")
-            .replace(Regex("""\s+"""), " ")
-            .trim()
+        // Replace unsupported scripts with a separator, not an empty string. This prevents
+        // unrelated words on either side of a noisy fragment from being glued together.
+        val sanitized = buildString(text.length) {
+            text.forEach { character ->
+                append(if (character.isAllowedCaptionCharacter()) character else ' ')
+            }
+        }
 
+        // Build the result character-by-character instead of relying on replacement-group
+        // syntax. This gives us deterministic spacing around punctuation on every JVM.
+        val result = StringBuilder(sanitized.length)
+        var pendingSpace = false
+
+        sanitized.forEach { rawCharacter ->
+            if (rawCharacter.isWhitespace()) {
+                pendingSpace = result.isNotEmpty()
+            } else {
+                val character = when (rawCharacter) {
+                    ',' -> '،'
+                    ';' -> '؛'
+                    '?' -> '؟'
+                    else -> rawCharacter
+                }
+
+                if (character.isCaptionPunctuation()) {
+                    while (result.isNotEmpty() && result.last().isWhitespace()) {
+                        result.deleteCharAt(result.lastIndex)
+                    }
+                    result.append(character)
+                    pendingSpace = false
+                } else {
+                    if (
+                        result.isNotEmpty() &&
+                        (pendingSpace || result.last().isCaptionPunctuation())
+                    ) {
+                        if (!result.last().isWhitespace()) result.append(' ')
+                    }
+                    result.append(character)
+                    pendingSpace = false
+                }
+            }
+        }
+
+        val normalized = result.toString().trim()
         return normalized.takeIf { value -> value.any { it.isArabicLetter() } }.orEmpty()
     }
+
+    private fun Char.isAllowedCaptionCharacter(): Boolean =
+        this in '\u0600'..'\u06FF' ||
+            this in '\u0750'..'\u077F' ||
+            this in '\u08A0'..'\u08FF' ||
+            this in '\uFB50'..'\uFDFF' ||
+            this in '\uFE70'..'\uFEFF' ||
+            isDigit() ||
+            isWhitespace() ||
+            this in setOf(',', ';', '.', '!', '?', ':', '…', '\'', '"', '(', ')', '-')
+
+    private fun Char.isCaptionPunctuation(): Boolean =
+        this in setOf('،', '؛', '؟', ',', ';', '.', '!', '?', ':', '…')
 
     private fun Char.isArabicLetter(): Boolean =
         isLetter() && (
