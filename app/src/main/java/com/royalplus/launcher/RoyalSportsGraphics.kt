@@ -128,23 +128,26 @@ internal fun RoyalRotatingFootballIcon(
 
 private fun DrawScope.drawSoccerBall() {
     val center = Offset(32f, 32f)
-    drawCircle(SportsPearl, radius = 22f, center = center)
-    drawCircle(SportsGold, radius = 22f, center = center, style = Stroke(1.6f))
+    val ballRadius = 22f
+    drawCircle(SportsPearl, radius = ballRadius, center = center)
 
-    val inner = listOf(
-        Offset(32f, 19f),
-        Offset(43f, 27f),
-        Offset(39f, 40f),
-        Offset(25f, 40f),
-        Offset(21f, 27f)
-    )
-    val outer = listOf(
-        Offset(32f, 10f),
-        Offset(53f, 24f),
-        Offset(46f, 51f),
-        Offset(18f, 51f),
-        Offset(11f, 24f)
-    )
+    // A clean, symmetric five-panel center: every seam follows the same
+    // radial direction from a pentagon vertex to the ball's outer edge.
+    val innerRadius = 9.6f
+    val seamRadius = 20.2f
+    val angles = (0..4).map { index -> Math.toRadians((-90.0 + index * 72.0)) }
+    val inner = angles.map { angle ->
+        Offset(
+            center.x + kotlin.math.cos(angle).toFloat() * innerRadius,
+            center.y + kotlin.math.sin(angle).toFloat() * innerRadius
+        )
+    }
+    val outer = angles.map { angle ->
+        Offset(
+            center.x + kotlin.math.cos(angle).toFloat() * seamRadius,
+            center.y + kotlin.math.sin(angle).toFloat() * seamRadius
+        )
+    }
     val pentagon = Path().apply {
         moveTo(inner.first().x, inner.first().y)
         inner.drop(1).forEach { lineTo(it.x, it.y) }
@@ -156,14 +159,10 @@ private fun DrawScope.drawSoccerBall() {
             color = SportsNavy,
             start = inner[index],
             end = outer[index],
-            strokeWidth = 2.4f
+            strokeWidth = 2.6f
         )
     }
-    drawLine(SportsNavy, Offset(21f, 27f), Offset(13f, 36f), 1.8f)
-    drawLine(SportsNavy, Offset(43f, 27f), Offset(51f, 36f), 1.8f)
-    drawLine(SportsNavy, Offset(25f, 40f), Offset(22f, 50f), 1.8f)
-    drawLine(SportsNavy, Offset(39f, 40f), Offset(42f, 50f), 1.8f)
-    drawCircle(SportsTurquoise.copy(alpha = 0.9f), 2.2f, Offset(16f, 15f))
+    drawCircle(SportsGold, radius = ballRadius, center = center, style = Stroke(1.6f))
 }
 
 private fun DrawScope.drawCalendar() {
@@ -307,10 +306,11 @@ private fun DrawScope.drawGoal() {
 }
 
 private fun DrawScope.drawRefresh() {
+    // One continuous circular arrow; the arrowhead touches the arc endpoint.
     drawArc(
-        SportsTurquoise,
-        startAngle = -42f,
-        sweepAngle = 286f,
+        color = SportsTurquoise,
+        startAngle = -45f,
+        sweepAngle = 292f,
         useCenter = false,
         topLeft = Offset(13f, 13f),
         size = Size(38f, 38f),
@@ -318,18 +318,9 @@ private fun DrawScope.drawRefresh() {
     )
     drawPath(
         Path().apply {
-            moveTo(43f, 9f)
-            lineTo(53f, 12f)
-            lineTo(48f, 21f)
-            close()
-        },
-        SportsGold
-    )
-    drawPath(
-        Path().apply {
-            moveTo(19f, 54f)
-            lineTo(10f, 49f)
-            lineTo(18f, 44f)
+            moveTo(45.2f, 16.8f)
+            lineTo(51.5f, 14.2f)
+            lineTo(50.2f, 21.1f)
             close()
         },
         SportsGold
