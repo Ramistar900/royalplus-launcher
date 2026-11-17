@@ -2,13 +2,6 @@ package com.royalplus.launcher
 
 import com.royal.adaptive.LocalRoyalAdaptiveProfile
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,43 +27,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
-
-private enum class WeatherVisual { SUNNY, CLOUDY, OVERCAST, RAINY, FOGGY, SNOWY, STORMY, UNKNOWN }
-
-private fun weatherVisual(weather: WeatherUiState): WeatherVisual {
-    val code = weather.weatherCode
-    return when {
-        code == 0 || code == 1 -> WeatherVisual.SUNNY
-        code == 2 -> WeatherVisual.CLOUDY
-        code == 3 -> WeatherVisual.OVERCAST
-        code == 45 || code == 48 -> WeatherVisual.FOGGY
-        code in 51..67 || code in 80..82 -> WeatherVisual.RAINY
-        code in 71..77 || code in 85..86 -> WeatherVisual.SNOWY
-        code in 95..99 -> WeatherVisual.STORMY
-        weather.description.contains("مشمس") || weather.description.contains("صافية") -> WeatherVisual.SUNNY
-        weather.description.contains("ضباب") -> WeatherVisual.FOGGY
-        weather.description.contains("مطر") || weather.description.contains("أمطار") || weather.description.contains("رذاذ") -> WeatherVisual.RAINY
-        weather.description.contains("ثلج") -> WeatherVisual.SNOWY
-        weather.description.contains("غائم كليا") || weather.description.contains("غائم كلياً") ||
-            weather.description.contains("غائم بالكامل") || weather.description.contains("overcast") -> WeatherVisual.OVERCAST
-        weather.description.contains("غائم جزئيا") || weather.description.contains("غائم جزئياً") ||
-            weather.description.contains("غائم") || weather.description.contains("غيوم") -> WeatherVisual.CLOUDY
-        else -> WeatherVisual.UNKNOWN
-    }
-}
 
 @Composable
 internal fun WeatherGlassCard(
@@ -126,7 +88,6 @@ internal fun WeatherGlassCard(
             remaining % 60L
         )
     }
-    val visual = weatherVisual(weather)
     val localizedDescription = when (weather.weatherCode) {
         0 -> when (language) { "en" -> "Clear sky"; "tr" -> "Açık hava"; else -> "سماء صافية" }
         1 -> when (language) { "en" -> "Mainly clear"; "tr" -> "Az bulutlu"; else -> "صحو غالباً" }
@@ -142,17 +103,6 @@ internal fun WeatherGlassCard(
     val hour = currentTime.substringBefore(":").toIntOrNull()
     val isNight = hour != null && (hour >= 19 || hour < 6)
     val weatherVideo = weatherVideoAsset(weather, hour)
-    val imageRes = when (visual) {
-        WeatherVisual.SUNNY -> if (isNight) R.drawable.weather_clear_night else if (hour != null && hour in 17..18) R.drawable.weather_sunset else R.drawable.weather_clear_day
-        WeatherVisual.CLOUDY -> if (isNight) R.drawable.weather_partly_cloudy_night else R.drawable.weather_partly_cloudy_day
-        WeatherVisual.OVERCAST -> if (isNight) R.drawable.weather_overcast_night else R.drawable.weather_overcast
-        WeatherVisual.RAINY -> R.drawable.weather_rain
-        WeatherVisual.STORMY -> R.drawable.weather_storm
-        WeatherVisual.FOGGY -> R.drawable.weather_fog
-        WeatherVisual.SNOWY -> R.drawable.weather_snow
-        WeatherVisual.UNKNOWN -> if (isNight) R.drawable.weather_overcast_night else R.drawable.weather_overcast
-    }
-
     val weatherFrame = RoundedCornerShape(12.dp)
     Box(
         modifier = modifier
@@ -162,11 +112,6 @@ internal fun WeatherGlassCard(
             .clip(weatherFrame)
             .border(1.dp, Color(0xBFFFD76D), weatherFrame)
     ) {
-        RoyalMotionImage(
-            image = rememberRoyalBitmapPainter(imageRes, maxEdgePx = 4096, maxPixels = 8_294_400L),
-            modifier = Modifier.matchParentSize(),
-            motionEnabled = motionEnabled
-        )
         if (motionEnabled && weatherVideo != null) {
             WeatherVideoBackground(assetName = weatherVideo, modifier = Modifier.matchParentSize())
         }
@@ -186,38 +131,27 @@ internal fun WeatherGlassCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                RoyalClassicWeatherIcon(
-                    weatherCode = weather.weatherCode,
-                    description = weather.description,
-                    apparentTemperatureC = weather.apparentTemperatureC,
-                    windSpeedKmh = weather.windSpeedKmh,
-                    hour = hour,
-                    modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isPhone) 34.dp else if (adaptiveProfile.isTelevision) 50.dp else 42.dp, maxSize = 60.dp)),
-                    contentDescription = localizedDescription
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = weather.temperatureC?.let { "$it°C" } ?: if (weather.isLoading) "…" else "—°C",
+                    color = Color.White,
+                    fontSize = if (adaptiveProfile.isPhone) 19.sp else if (adaptiveProfile.isTelevision) 26.sp else 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
                 )
-                Column(horizontalAlignment = Alignment.Start) {
-                    Text(
-                        text = weather.temperatureC?.let { "$it°C" } ?: if (weather.isLoading) "…" else "—°C",
-                        color = Color.White,
-                        fontSize = if (adaptiveProfile.isPhone) 19.sp else if (adaptiveProfile.isTelevision) 26.sp else 23.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = when {
-                            weather.isLoading -> when (language) { "en" -> "Updating weather"; "tr" -> "Hava durumu güncelleniyor"; else -> "جارٍ تحديث الطقس" }
-                            weather.needsPermission -> when (language) { "en" -> "Location required for weather"; "tr" -> "Hava durumu için konum gerekli"; else -> "الموقع مطلوب لعرض الطقس" }
-                            else -> localizedDescription
-                        },
-                        color = Color.White.copy(alpha = 0.96f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Start
-                    )
-                }
+                Text(
+                    text = when {
+                        weather.isLoading -> when (language) { "en" -> "Updating weather"; "tr" -> "Hava durumu güncelleniyor"; else -> "جارٍ تحديث الطقس" }
+                        weather.needsPermission -> when (language) { "en" -> "Location required for weather"; "tr" -> "Hava durumu için konum gerekli"; else -> "الموقع مطلوب لعرض الطقس" }
+                        else -> localizedDescription
+                    },
+                    color = Color.White.copy(alpha = 0.96f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
             }
             Text(
                 text = weather.city,

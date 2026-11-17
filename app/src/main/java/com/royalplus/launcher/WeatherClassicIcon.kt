@@ -102,6 +102,7 @@ internal fun RoyalClassicWeatherIcon(
     apparentTemperatureC: Int? = null,
     windSpeedKmh: Int? = null,
     hour: Int? = null,
+    showRainMarks: Boolean = true,
     modifier: Modifier = Modifier,
     contentDescription: String? = null
 ) {
@@ -156,7 +157,9 @@ internal fun RoyalClassicWeatherIcon(
             RoyalClassicWeatherKind.RAIN,
             RoyalClassicWeatherKind.HEAVY_RAIN -> {
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.14f, size.width * 0.78f, size.height * 0.55f)
-                drawRain(edge, if (kind == RoyalClassicWeatherKind.DRIZZLE) 3 else if (kind == RoyalClassicWeatherKind.HEAVY_RAIN) 6 else 5)
+                if (showRainMarks) {
+                    drawRain(edge, if (kind == RoyalClassicWeatherKind.DRIZZLE) 3 else if (kind == RoyalClassicWeatherKind.HEAVY_RAIN) 6 else 5)
+                }
             }
             RoyalClassicWeatherKind.SNOW,
             RoyalClassicWeatherKind.HEAVY_SNOW -> {
@@ -166,7 +169,7 @@ internal fun RoyalClassicWeatherIcon(
             RoyalClassicWeatherKind.THUNDERSTORM -> {
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.10f, size.width * 0.78f, size.height * 0.56f)
                 drawLightning(edge)
-                drawRain(edge, 3)
+                if (showRainMarks) drawRain(edge, 3)
             }
             RoyalClassicWeatherKind.WIND,
             RoyalClassicWeatherKind.STRONG_WIND -> {
