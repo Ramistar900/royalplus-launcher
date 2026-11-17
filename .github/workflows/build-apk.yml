@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -43,9 +43,6 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/noto_kufi_arabic.ttf --output app/src/main/res/font/noto_kufi_arabic.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/amiri_regular.ttf --output app/src/main/res/font/amiri_regular.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
-
-      - name: Fetch pinned ROYAL Design V20 static sports icons
-        run: python3 .github/scripts/prepare-v20-sports-icons.py
 
       - name: Download and verify offline Quran text
         run: |
@@ -149,8 +146,8 @@ jobs:
       - name: Verify static classic weather icons
         run: python3 .github/scripts/verify-classic-weather-icons.py
 
-      - name: Verify bundled V20 sports icon rendering and style preference
-        run: python3 .github/scripts/verify-v20-sports-icons.py
+      - name: Verify native sports illustrations and rotating football navigation
+        run: python3 .github/scripts/verify-royal-sports-graphics.py
 
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
@@ -228,7 +225,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -253,7 +250,10 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          if [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then
+          if [[ "$GITHUB_REF" == "refs/heads/feature/sports-original-graphics" ]]; then
+            TAG="royalplus-test-sports-graphics"
+            TITLE="ROYAL+ Launcher • Sports Graphics Test"
+          elif [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then
             TAG="royalplus-test-interface-quality"
             TITLE="ROYAL+ Launcher • Interface Quality Test"
           else
@@ -369,11 +369,8 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/amiri_regular.ttf --output app/src/main/res/font/amiri_regular.ttf
           curl --fail --location --retry 3 https://raw.githubusercontent.com/Ramistar900/almalaki/main/app/src/main/res/font/aref_ruqaa_regular.ttf --output app/src/main/res/font/aref_ruqaa_regular.ttf
 
-      - name: Fetch pinned ROYAL Design V20 static sports icons
-        run: python3 .github/scripts/prepare-v20-sports-icons.py
-
-      - name: Verify bundled V20 sports icon rendering and style preference
-        run: python3 .github/scripts/verify-v20-sports-icons.py
+      - name: Verify native sports illustrations and rotating football navigation
+        run: python3 .github/scripts/verify-royal-sports-graphics.py
 
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
