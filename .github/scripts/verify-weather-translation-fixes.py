@@ -33,27 +33,35 @@ assert "RoyalOwlAmbienceEffect(weather)" in weather_details
 
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
 vad_repository = (JAVA / "WhisperModelRepository.kt").read_text(encoding="utf-8")
+audio_gate = (JAVA / "SpeechAudioGate.kt").read_text(encoding="utf-8")
 assert "createVoiceActivityDetector" in vad_repository
 assert "SileroVadModelConfig" in vad_repository
 assert "VAD_SIZE = 643_854L" in vad_repository
+assert "VAD_BASE" in vad_repository
+assert "createAudioTagger" in vad_repository
+assert "AudioTaggingModelConfig" in vad_repository
+assert "AUDIO_TAGGING_MODEL_SHA256" in vad_repository
 assert "CAPTION_PHRASE_IDLE_MILLIS = 250L" in service
 assert "VAD_WINDOW_SAMPLES = 512" in service
 assert "detector.acceptWaveform(frame)" in service and "detector.flush()" in service
 assert "speechSegments = LinkedBlockingQueue<FloatArray>()" in service
 assert "enqueueReadySpeechSegments(detector)" in service
-assert "audioGapDetected" not in service
+assert "audioGapDetected" not in service and "audioSegments" not in service
 assert "MAX_PENDING_TRANSLATION_AGE_MILLIS" not in service
 assert "MAX_QUEUED_TRANSLATIONS" not in service
 assert "pendingTranslations.addLast(" in service
 assert "pendingTranslations.addFirst(" in service
 assert "processNextPendingTranslation()" in service
-assert "removeOverlappingWords(" not in service
+assert "stabilizeDetectedLanguage(" not in service
+assert "queueCaptionPhrase(recognized, language)" in service
+assert "SpeechAudioGate.isPredominantlyNonSpeech" in service
+assert "tagger.compute(stream, AUDIO_TAGGING_TOP_K)" in service
+assert '"singing"' in audio_gate and '"music"' in audio_gate
+assert "SPEECH_PRESENCE_THRESHOLD" in audio_gate
 assert "hasMeaningfulAudio(" not in service
 speech_filter = (JAVA / "SpeechCaptionFilter.kt").read_text(encoding="utf-8")
 assert '"music"' in speech_filter and '"آهات"' in speech_filter and '"moaning"' in speech_filter
 assert "nonArabicCharacters" in (JAVA / "CaptionPhraseBuffer.kt").read_text(encoding="utf-8")
-assert "removeOverlappingWords(" in service and "MAX_OVERLAP_WORDS = 4" in service
-assert "hasMeaningfulAudio(" in service and "consecutiveSilentSegments" in service
 assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "else createMicrophoneRecord()" in service and "VOICE_RECOGNITION" in service
 assert "normalizeDetectedLanguage" in service
@@ -63,7 +71,7 @@ assert "RemoteModelManager.getInstance()" in service
 assert "getDownloadedModels(TranslateRemoteModel::class.java)" in service
 assert "session.translator.downloadModelIfNeeded(" in service
 assert "translator === activeTranslator" not in service
-assert "queueCaptionPhrase(freshText, language)" in service
+assert "queueCaptionPhrase(recognized, language)" in service
 assert "captionPhraseBuffer" in service
 assert "ArabicCaptionFormatter.format(text)" in service
 assert "maxLines = 2" in service
@@ -76,4 +84,4 @@ assert "RoyalWeatherAmbienceController.onBackground()" in home
 manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 assert "FOREGROUND_SERVICE_MEDIA_PROJECTION" in manifest
 assert 'foregroundServiceType="microphone|mediaProjection"' in manifest
-print("Verified rain/snow/wind-only atmosphere, low-latency translation and Android 8 microphone route.")
+print("Verified rain/snow/wind-only atmosphere, VAD speech turns, audio-event filtering, lossless ordered captions and Android 8 microphone route.")
