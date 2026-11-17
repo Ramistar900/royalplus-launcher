@@ -215,9 +215,10 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish compact ARM test APKs to an isolated draft release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/royalplus-abi-test-assets'
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && github.ref == 'refs/heads/fix/royalplus-abi-test-assets')
         env:
           GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -246,8 +247,14 @@ jobs:
             du -h "$APK"
           done
 
-          TAG="royalplus-test-arm-split"
-          TITLE="ROYAL+ Launcher • Compact ARM Test APKs"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            test -n "$PULL_REQUEST_NUMBER"
+            TAG="royalplus-test-pr-${PULL_REQUEST_NUMBER}"
+            TITLE="ROYAL+ Launcher • PR #${PULL_REQUEST_NUMBER} Compact ARM Test"
+          else
+            TAG="royalplus-test-arm-split"
+            TITLE="ROYAL+ Launcher • Compact ARM Test APKs"
+          fi
           NOTES="$(cat <<'NOTES_EOF'
           Compact ABI-specific test APKs. Install only the APK matching the TV/device CPU architecture:
           - royalplus-arm64-v8a-test.apk: 64-bit ARM devices.
@@ -263,8 +270,17 @@ jobs:
               echo "::error::Refusing to overwrite an already published release."
               exit 1
             fi
+            while IFS= read -r ASSET_NAME; do
+              case "$ASSET_NAME" in
+                royalplus-arm64-v8a-test.apk|royalplus-armeabi-v7a-test.apk) ;;
+                *)
+                  echo "Removing stale draft asset: $ASSET_NAME"
+                  gh release delete-asset "$TAG" "$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --yes
+                  ;;
+              esac
+            done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
             gh release upload "$TAG" "$ARM64_APK" "$ARM32_APK" --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES" --target "$GITHUB_SHA"
           else
             gh release create "$TAG" "$ARM64_APK" "$ARM32_APK" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES" --target "$GITHUB_SHA"
           fi
