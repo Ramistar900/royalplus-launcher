@@ -225,9 +225,10 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish two installable test APKs to the latest draft release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased')
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'fix/translation-speech-only-sync') || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || 0 }}
         shell: bash
         run: |
           set -euo pipefail
@@ -250,7 +251,10 @@ jobs:
           "$APKSIGNER" verify --verbose "$DEBUG_APK"
           "$APKSIGNER" verify --verbose "$RELEASE_APK"
 
-          if [[ "$GITHUB_REF" == "refs/heads/feature/sports-original-graphics" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            TAG="royalplus-test-pr-${PR_NUMBER}-translation-sync"
+            TITLE="ROYAL+ Launcher • Translation Speech Sync Test"
+          elif [[ "$GITHUB_REF" == "refs/heads/feature/sports-original-graphics" ]]; then
             TAG="royalplus-test-sports-graphics"
             TITLE="ROYAL+ Launcher • Sports Graphics Test"
           elif [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then

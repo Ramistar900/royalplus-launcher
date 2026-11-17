@@ -58,4 +58,38 @@ class ArabicCaptionFormatterTest {
     fun leavesArabicWordsUnchanged() {
         assertEquals("سأعود إلى المنزل الآن.", ArabicCaptionFormatter.format("سأعود إلى المنزل الآن."))
     }
+
+    @Test
+    fun removesRandomLatinAndChineseFragmentsFromArabicCaptions() {
+        assertEquals(
+            "مرحباً يا أخي. كيف حالك؟",
+            ArabicCaptionFormatter.format("مرحباً يا أخي .gkgdioj或者词语 كيف حالك?")
+        )
+    }
+
+    @Test
+    fun insertsOneSpaceAfterPunctuationAndRemovesSpaceBeforeIt() {
+        assertEquals(
+            "مرحباً يا صديقي. أين أنت؟",
+            ArabicCaptionFormatter.format("مرحباً   يا صديقي . أين   أنت ?")
+        )
+    }
+
+    @Test
+    fun keepsArabicWordsSeparatedWhenForeignNoiseIsRemoved() {
+        assertEquals(
+            "مرحبا بالعالم",
+            ArabicCaptionFormatter.format("مرحبا xyz 世界 بالعالم")
+        )
+    }
+
+    @Test
+    fun rejectsCaptionsThatContainNoArabicWords() {
+        assertEquals("", ArabicCaptionFormatter.format("gkgdioj 音乐 123"))
+    }
+
+    @Test
+    fun removesLatinLettersEvenWhenTheyTouchArabicWords() {
+        assertEquals("مرحبا", ArabicCaptionFormatter.format("مرحباagkgdioj"))
+    }
 }
