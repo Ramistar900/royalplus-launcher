@@ -1,6 +1,9 @@
 package com.royalplus.launcher
 
 import android.content.Context
+import com.k2fsa.sherpa.onnx.AudioTagging
+import com.k2fsa.sherpa.onnx.AudioTaggingConfig
+import com.k2fsa.sherpa.onnx.AudioTaggingModelConfig
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
@@ -26,6 +29,15 @@ internal object WhisperModelRepository {
     private const val MODEL_REVISION = "18e7b4cce9526312a66981ec3af7b9446b70db66"
     private const val MODEL_BASE =
         "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny/resolve/$MODEL_REVISION/"
+    private const val VAD_BASE =
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/"
+    private const val AUDIO_TAGGING_BASE =
+        "https://huggingface.co/k2-fsa/sherpa-onnx-ced-tiny-audio-tagging-2024-04-19/resolve/main/"
+
+    private const val AUDIO_TAGGING_MODEL_NAME = "model.int8.onnx"
+    private const val AUDIO_TAGGING_LABELS_NAME = "class_labels_indices.csv"
+    private const val AUDIO_TAGGING_MODEL_SHA256 =
+        "73aa22e783115f6a4ae169b36089907e07d0fd44795595eddea9c1bfc74cc945"
 
     private const val ENCODER_NAME = "tiny-encoder.int8.onnx"
     private const val DECODER_NAME = "tiny-decoder.int8.onnx"
@@ -58,6 +70,7 @@ internal object WhisperModelRepository {
             name = VAD_NAME,
             expectedBytes = VAD_SIZE,
             expectedSha256 = VAD_SHA256,
+            baseUrl = VAD_BASE,
             onProgress = { onProgress("تهيئة كاشف الكلام: $it") }
         )
         val config = VadModelConfig(
@@ -77,6 +90,54 @@ internal object WhisperModelRepository {
             provider = "cpu"
         )
         return Vad(config = config)
+    }
+
+    /**
+     * Downloads a compact CED-tiny AudioSet classifier. It is used only as a gate:
+     * discard a segment when music/singing or a non-verbal vocalization dominates
+     * and the classifier does not detect a speech event.
+     */
+    fun createAudioTagger(
+        context: Context,
+        onProgress: (String) -> Unit
+    ): AudioTagging {
+        val directory = File(context.filesDir, "royal_audio_classifier").apply {
+            if (!exists() && !mkdirs()) {
+                throw IllegalStateException("تعذر إنشاء مجلد تصنيف الصوت")
+            }
+        }
+        val model = ensureFile(
+            directory = directory,
+            name = AUDIO_TAGGING_MODEL_NAME,
+            expectedBytes = 0L,
+            expectedSha256 = AUDIO_TAGGING_MODEL_SHA256,
+            baseUrl = AUDIO_TAGGING_BASE,
+            onProgress = { onProgress("تنزيل مصنف الصوت: $it") }
+        )
+        val labels = ensureFile(
+            directory = directory,
+            name = AUDIO_TAGGING_LABELS_NAME,
+            expectedBytes = 0L,
+            expectedSha256 = null,
+            baseUrl = AUDIO_TAGGING_BASE,
+            onProgress = { onProgress("تنزيل قاموس مصنف الصوت: $it") }
+        )
+        if (!isAudioTaggingLabelsValid(labels)) {
+            labels.delete()
+            throw IllegalStateException("ملف تصنيفات الصوت غير صالح")
+        }
+
+        val config = AudioTaggingConfig(
+            model = AudioTaggingModelConfig(
+                ced = model.absolutePath,
+                numThreads = 1,
+                debug = false,
+                provider = "cpu"
+            ),
+            labels = labels.absolutePath,
+            topK = 5
+        )
+        return AudioTagging(config = config)
     }
 
     fun createRecognizer(
@@ -139,10 +200,14 @@ internal object WhisperModelRepository {
         name: String,
         expectedBytes: Long,
         expectedSha256: String?,
+        baseUrl: String = MODEL_BASE,
         onProgress: (String) -> Unit
     ): File {
         val destination = File(directory, name)
-        if (isValid(destination, expectedBytes, expectedSha256, name == TOKENS_NAME)) {
+        if (
+            isValid(destination, expectedBytes, expectedSha256, name == TOKENS_NAME) &&
+            (name != AUDIO_TAGGING_LABELS_NAME || isAudioTaggingLabelsValid(destination))
+        ) {
             onProgress("جاهز")
             return destination
         }
@@ -150,7 +215,7 @@ internal object WhisperModelRepository {
         destination.delete()
         val temporary = File(directory, "$name.part")
         temporary.delete()
-        val connection = (URL(MODEL_BASE + name).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(baseUrl + name).openConnection() as HttpURLConnection).apply {
             connectTimeout = 20_000
             readTimeout = 60_000
             instanceFollowRedirects = true
@@ -199,6 +264,9 @@ internal object WhisperModelRepository {
             if (name == TOKENS_NAME && downloaded !in 700_000L..1_000_000L) {
                 throw IllegalStateException("ملف قاموس الصوت غير مكتمل")
             }
+            if (name == AUDIO_TAGGING_LABELS_NAME && !isAudioTaggingLabelsValid(temporary)) {
+                throw IllegalStateException("ملف تصنيفات الصوت غير مكتمل")
+            }
             if (!temporary.renameTo(destination)) {
                 throw IllegalStateException("تعذر حفظ ملف نموذج الصوت")
             }
@@ -209,6 +277,15 @@ internal object WhisperModelRepository {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun isAudioTaggingLabelsValid(file: File): Boolean {
+        if (!file.isFile || file.length() !in 10_000L..20_000L) return false
+        val header = runCatching {
+            BufferedInputStream(FileInputStream(file)).bufferedReader().use { it.readLine().orEmpty() }
+        }.getOrDefault("")
+        return header.contains("index", ignoreCase = true) &&
+            header.contains("display_name", ignoreCase = true)
     }
 
     private fun isValid(
