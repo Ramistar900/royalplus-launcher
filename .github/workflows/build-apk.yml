@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Download and verify approved Muslim PNG icons
         run: python3 .github/scripts/prepare-muslim-png-icons.py

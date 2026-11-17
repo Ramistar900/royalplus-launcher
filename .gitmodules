@@ -1,0 +1,3 @@
+[submodule "sinjar-tv-core"]
+	path = sinjar-tv-core
+	url = https://github.com/Ramistar900/rs-tv.git

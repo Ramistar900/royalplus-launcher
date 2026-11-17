@@ -145,7 +145,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, SINJAR_TV, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -758,6 +758,7 @@ internal fun RoyalHomeScreen(
                                         onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
+                                    LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage)
                                     LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
                                     LauncherDestination.SONGS -> RoyalSongsScreen()
@@ -2230,9 +2231,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Sports", "Gallery", "Songs", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Spor", "Galeri", "Şarkılar", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "القنوات", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Sinjar TV", "Sports", "Gallery", "Songs", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
@@ -2255,7 +2256,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[5], Icons.Rounded.Wifi, selectedDestination == LauncherDestination.SINJAR_TV, iconRes = R.drawable.royal_cast, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
             labels[6],
