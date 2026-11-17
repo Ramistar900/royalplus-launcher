@@ -62,7 +62,7 @@ class ArabicCaptionFormatterTest {
     @Test
     fun removesRandomLatinAndChineseFragmentsFromArabicCaptions() {
         assertEquals(
-            "مرحباً يا أخي كيف حالك؟",
+            "مرحباً يا أخي. كيف حالك؟",
             ArabicCaptionFormatter.format("مرحباً يا أخي .gkgdioj或者词语 كيف حالك?")
         )
     }
