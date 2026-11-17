@@ -19,6 +19,7 @@ assert not weather_assets.exists() or not list(weather_assets.glob("weather_*.pn
 for name in ("drawSun", "drawWeatherCloud", "drawRain", "drawSnow", "drawFogLines"):
     assert name in component, f"Missing classic weather artwork primitive: {name}"
 assert "RoyalClassicWeatherIcon(" in card
+assert "showRainMarks = false" in card, "Weather card must not draw rain marks over the retained weather video"
 assert details.count("RoyalClassicWeatherIcon(") >= 2, "Current and forecast icons must use the classic renderer"
 assert "RoyalClassicWeatherIcon(" in screensaver, "Screensaver must use the classic renderer"
 assert "RoyalV21Weather" not in card + details + screensaver + settings + component
