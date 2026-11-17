@@ -73,7 +73,7 @@ internal object ArabicCaptionFormatter {
         val normalized = arabicOnly
             .replace(Regex("""\s+"""), " ")
             .trim()
-            .replace(Regex("""\s+([,;!?])"""), "$1")
+            .replace(Regex("""\s+([,;!?،؛؟.!:])"""), "$1")
             .replace(",", "،")
             .replace(";", "؛")
             .replace("?", "؟")
