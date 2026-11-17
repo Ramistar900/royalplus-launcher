@@ -74,6 +74,6 @@ class ArabicCaptionFormatterTest {
 
     @Test
     fun removesLatinLettersEvenWhenTheyTouchArabicWords() {
-        assertEquals("مرحبا", ArabicCaptionFormatter.format("مرحبagkgdioj"))
+        assertEquals("مرحبا", ArabicCaptionFormatter.format("مرحباagkgdioj"))
     }
 }
