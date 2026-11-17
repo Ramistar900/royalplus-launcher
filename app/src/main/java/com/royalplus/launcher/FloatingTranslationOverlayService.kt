@@ -64,11 +64,6 @@ class FloatingTranslationOverlayService : Service() {
     private var projectionResultData: Intent? = null
     private var consecutiveUnrecognizedSegments = 0
     private var lastBacklogNoticeElapsedRealtime = 0L
-    // Whisper may mislabel individual short segments; require a stable language before switching translators.
-    private var stableSourceLanguage: String? = null
-    private var pendingSourceLanguage: String? = null
-    private var pendingSourceLanguageCount = 0
-    private val initialLanguageVotes = mutableListOf<String>()
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
     private var decodeThread: Thread? = null
@@ -418,12 +413,15 @@ class FloatingTranslationOverlayService : Service() {
                         consecutiveUnrecognizedSegments++
                     }
                     else -> {
-                        val language = stabilizeDetectedLanguage(result.lang)
-                        if (language != null) {
+                        // Whisper has the full natural speech turn, so use its language
+                        // result immediately; waiting for multiple votes would discard
+                        // the first one or more spoken phrases.
+                        val language = normalizeDetectedLanguage(result.lang)
+                        if (TranslateLanguage.fromLanguageTag(language).isNullOrBlank()) {
+                            updateNotification("تعذر تحديد لغة الكلام؛ لم تُحذف الجملة من التسجيل")
+                        } else {
                             consecutiveUnrecognizedSegments = 0
                             queueCaptionPhrase(recognized, language)
-                        } else {
-                            updateStatus("جارٍ التأكد من لغة الصوت…")
                         }
                     }
                 }
@@ -478,52 +476,6 @@ class FloatingTranslationOverlayService : Service() {
             "ukrainian" -> "uk"
             else -> normalized
         }
-    }
-
-    /**
-     * Confirm the opening language from repeated segments and ignore isolated Whisper
-     * language flips. Once locked, a different language must persist for four segments
-     * before the translator is recreated.
-     */
-    private fun stabilizeDetectedLanguage(rawLanguage: String): String? {
-        val detected = normalizeDetectedLanguage(rawLanguage)
-        if (detected.isBlank()) return stableSourceLanguage
-
-        val current = stableSourceLanguage
-        if (current == null) {
-            initialLanguageVotes.add(detected)
-            while (initialLanguageVotes.size > 3) initialLanguageVotes.removeAt(0)
-            val majority = initialLanguageVotes.groupingBy { it }.eachCount()
-                .maxByOrNull { it.value }
-            if (majority != null && majority.value >= 2) {
-                stableSourceLanguage = majority.key
-                pendingSourceLanguage = null
-                pendingSourceLanguageCount = 0
-                return majority.key
-            }
-            return null
-        }
-
-        if (detected == current) {
-            pendingSourceLanguage = null
-            pendingSourceLanguageCount = 0
-            return current
-        }
-
-        if (pendingSourceLanguage == detected) {
-            pendingSourceLanguageCount++
-        } else {
-            pendingSourceLanguage = detected
-            pendingSourceLanguageCount = 1
-        }
-
-        if (pendingSourceLanguageCount >= SOURCE_LANGUAGE_SWITCH_CONFIRMATIONS) {
-            stableSourceLanguage = detected
-            pendingSourceLanguage = null
-            pendingSourceLanguageCount = 0
-            return detected
-        }
-        return current
     }
 
     private fun translateCaption(text: String, detectedLanguage: String) {
@@ -1056,6 +1008,5 @@ class FloatingTranslationOverlayService : Service() {
         private const val SPEECH_BACKLOG_WARNING_MILLIS = 30_000L
         private const val BACKLOG_NOTICE_INTERVAL_MILLIS = 10_000L
         private const val TRANSLATION_RETRY_DELAY_MILLIS = 2_500L
-        private const val SOURCE_LANGUAGE_SWITCH_CONFIRMATIONS = 4
     }
 }
