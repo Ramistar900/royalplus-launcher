@@ -35,6 +35,7 @@ import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.k2fsa.sherpa.onnx.AudioTagging
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.Vad
 import java.util.ArrayDeque
@@ -57,6 +58,7 @@ class FloatingTranslationOverlayService : Service() {
 
     @Volatile private var recognizer: OfflineRecognizer? = null
     @Volatile private var voiceActivityDetector: Vad? = null
+    @Volatile private var audioTagger: AudioTagging? = null
     @Volatile private var audioRecord: AudioRecord? = null
     @Volatile private var mediaProjection: MediaProjection? = null
     private var mediaProjectionCallback: MediaProjection.Callback? = null
@@ -179,6 +181,21 @@ class FloatingTranslationOverlayService : Service() {
                 return
             }
             recognizer = engine
+            audioTagger = try {
+                WhisperModelRepository.createAudioTagger(applicationContext) { message ->
+                    updateStatus(message)
+                }
+            } catch (error: Exception) {
+                val detail = error.localizedMessage ?: "تعذر تحميل نموذج التصنيف"
+                updateNotification("تعذر تجهيز مصنف الموسيقى؛ سيستمر كشف الكلام الأساسي: " + detail)
+                null
+            }
+            if (!running.get()) {
+                runCatching { audioTagger?.release() }
+                audioTagger = null
+                engine.release()
+                return
+            }
             decodeThread = Thread({ decodeSpeechSegments() }, "RoyalWhisperDecode").apply { start() }
         } catch (error: Exception) {
             if (running.get()) {
@@ -382,12 +399,34 @@ class FloatingTranslationOverlayService : Service() {
         }
     }
 
+    private fun isPredominantlyNonSpeechAudio(
+        tagger: AudioTagging,
+        samples: FloatArray
+    ): Boolean {
+        val stream = tagger.createStream()
+        return try {
+            stream.acceptWaveform(samples, SAMPLE_RATE)
+            val events = tagger.compute(stream, AUDIO_TAGGING_TOP_K)
+            SpeechAudioGate.isPredominantlyNonSpeech(
+                events.map { event -> event.name to event.prob }
+            )
+        } finally {
+            stream.release()
+        }
+    }
+
     private fun decodeSpeechSegments() {
         Process.setThreadPriority(Process.THREAD_PRIORITY_MORE_FAVORABLE)
         while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
                 val samples = speechSegments.take()
                 queuedSpeechSamples.addAndGet(-samples.size.toLong())
+
+                val tagger = audioTagger
+                if (tagger != null && isPredominantlyNonSpeechAudio(tagger, samples)) {
+                    // Suppress music, singing and non-verbal sounds before ASR can caption them.
+                    continue
+                }
 
                 val engine = recognizer ?: continue
                 val stream = engine.createStream()
@@ -918,6 +957,8 @@ class FloatingTranslationOverlayService : Service() {
 
         val engineToRelease = recognizer
         recognizer = null
+        val taggerToRelease = audioTagger
+        audioTagger = null
         if (engineToRelease != null) {
             val decoder = decodeThread
             if (decoder == null || !decoder.isAlive) {
@@ -947,6 +988,31 @@ class FloatingTranslationOverlayService : Service() {
                 }, "RoyalWhisperRelease").start()
             }
         }
+        if (taggerToRelease != null) {
+            val decoder = decodeThread
+            if (decoder == null || !decoder.isAlive) {
+                runCatching { taggerToRelease.release() }
+            } else {
+                Thread({
+                    var interrupted = false
+                    while (decoder.isAlive) {
+                        try {
+                            decoder.join()
+                        } catch (_: InterruptedException) {
+                            interrupted = true
+                        }
+                    }
+                    try {
+                        taggerToRelease.release()
+                    } catch (_: Exception) {
+                        // Native audio-tagging cleanup must not prevent service shutdown.
+                    } finally {
+                        if (interrupted) Thread.currentThread().interrupt()
+                    }
+                }, "RoyalAudioTaggerRelease").start()
+            }
+        }
+
         mainHandler.removeCallbacks(captionPhraseFlushRunnable)
         captionPhraseBuffer.clear()
         pendingTranslations.clear()
@@ -1002,6 +1068,7 @@ class FloatingTranslationOverlayService : Service() {
         private const val STATUS_DISPLAY_MILLIS = 7_000L
         private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
+        private const val AUDIO_TAGGING_TOP_K = 5
         private const val CAPTURE_READ_SAMPLES = 1_600
         private const val VAD_WINDOW_SAMPLES = 512
         private const val MIN_SPEECH_SEGMENT_SAMPLES = SAMPLE_RATE / 5
