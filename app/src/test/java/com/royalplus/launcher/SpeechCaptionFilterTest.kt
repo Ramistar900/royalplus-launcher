@@ -52,13 +52,27 @@ class SpeechCaptionFilterTest {
     }
 
     @Test
-    fun keepsAmbiguousSingleWordsAndShortSpokenPhrases() {
+    fun filtersStandaloneMusicLabelsAndNonVerbalPainSounds() {
         listOf(
-            "Music", "Muziek", "Muzyka", "Музика", "Музыка", "Müzik",
-            "موسيقى", "संगीत", "音乐", "音樂", "音楽", "음악",
-            "Bell", "Footsteps", "Wind", "فتح الباب", "Open the door"
+            "Music", "Instrumental", "Musique", "Música", "Musik", "Musica", "Müzik",
+            "Музыка", "موسيقى", "Background music", "[Music]",
+            "آه", "آهات", "أنين", "تأوهات", "صوت ألم",
+            "groaning", "moaning", "sighing", "gasping", "sobbing", "ahhh", "hmm"
         ).forEach { caption ->
-            assertFalse("Ambiguous spoken or sung words must remain translatable: $caption",
+            assertTrue("Music and non-verbal sounds must not become subtitles: $caption",
+                SpeechCaptionFilter.isNonSpeechLabel(caption))
+        }
+    }
+
+    @Test
+    fun keepsOtherSingleWordsAndActualSpokenPhrases() {
+        listOf(
+            "Bell", "Footsteps", "Wind", "Hello", "فتح الباب", "Open the door",
+            "Music is the rhythm of my heart.",
+            "The music is beautiful.",
+            "أحب هذه الموسيقى."
+        ).forEach { caption ->
+            assertFalse("Actual spoken content must remain translatable: $caption",
                 SpeechCaptionFilter.isNonSpeechLabel(caption))
         }
     }
