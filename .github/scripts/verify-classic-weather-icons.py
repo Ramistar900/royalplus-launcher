@@ -18,8 +18,9 @@ assert not weather_assets.exists() or not list(weather_assets.glob("weather_*.pn
 
 for name in ("drawSun", "drawWeatherCloud", "drawRain", "drawSnow", "drawFogLines"):
     assert name in component, f"Missing classic weather artwork primitive: {name}"
-assert "RoyalClassicWeatherIcon(" in card
-assert "showRainMarks = false" in card, "Weather card must not draw rain marks over the retained weather video"
+assert "RoyalClassicWeatherIcon(" not in card, "Home weather card must not draw weather icons or decorative marks"
+assert "weather_rain" not in card and "weather_snow" not in card and "weather_storm" not in card, "Home weather card must not show static weather illustrations"
+assert "WeatherVideoBackground(" in card and "weatherVideoAsset(" in card, "Home weather card must retain local weather videos"
 assert details.count("RoyalClassicWeatherIcon(") >= 2, "Current and forecast icons must use the classic renderer"
 assert "RoyalClassicWeatherIcon(" in screensaver, "Screensaver must use the classic renderer"
 assert "RoyalV21Weather" not in card + details + screensaver + settings + component
@@ -38,9 +39,9 @@ for name in (
     assert any((background_dir / f"{name}.{extension}").is_file() for extension in ("jpg", "webp")), (
         f"Missing preserved background: {name}.jpg or optimized {name}.webp"
     )
-assert "RoyalMotionImage(" in card, "Home weather card must retain its background image"
+assert "RoyalMotionImage(" not in card, "Home weather card must not show static weather artwork"
 assert "RoyalWeatherAtmosphereOverlay(" not in card, "Home weather card must not animate rain/snow/wind"
 assert "RoyalWeatherAtmosphereOverlay(" in details, "Weather details must retain its atmosphere"
 assert "RoyalWeatherAtmosphereOverlay(" not in screensaver, "Screensaver must not render weather atmosphere"
 
-print("Verified classic Canvas weather artwork, rotating sun disc, V21 and 11 PNG icon removal, and preserved weather backgrounds/effects.")
+print("Verified the home weather card has no drawn/static weather artwork and retains local weather video playback; detailed forecast keeps classic icons and atmosphere.")
