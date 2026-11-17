@@ -20,4 +20,4 @@ include(":royal-adaptive-ui")
 include(":royal-ui-sounds" )
 
 include(":sinjar-tv-core")
-project(":sinjar-tv-core").projectDir = file("sinjar-tv-core")
+project(":sinjar-tv-core").projectDir = file("sinjar-tv-core/sinjar-tv-core")
