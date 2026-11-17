@@ -193,6 +193,7 @@ internal fun WeatherGlassCard(
                     apparentTemperatureC = weather.apparentTemperatureC,
                     windSpeedKmh = weather.windSpeedKmh,
                     hour = hour,
+                    showRainMarks = false,
                     modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isPhone) 34.dp else if (adaptiveProfile.isTelevision) 50.dp else 42.dp, maxSize = 60.dp)),
                     contentDescription = localizedDescription
                 )
