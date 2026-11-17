@@ -69,7 +69,7 @@ internal object ArabicCaptionFormatter {
     )
 
     fun format(text: String): String {
-        val arabicOnly = text.replace(nonArabicCharacters, "")
+        val arabicOnly = text.replace(nonArabicCharacters, " ")
         val normalized = arabicOnly
             .replace(Regex("""\s+"""), " ")
             .trim()
