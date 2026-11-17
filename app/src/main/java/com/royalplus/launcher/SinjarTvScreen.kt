@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -72,6 +73,7 @@ import kotlinx.coroutines.withContext
 
 private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
 
+@OptIn(UnstableApi::class)
 @Composable
 internal fun SinjarTvScreen(language: String) {
     val context = LocalContext.current
