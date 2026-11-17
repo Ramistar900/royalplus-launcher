@@ -6,6 +6,9 @@ import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
+import com.k2fsa.sherpa.onnx.SileroVadModelConfig
+import com.k2fsa.sherpa.onnx.Vad
+import com.k2fsa.sherpa.onnx.VadModelConfig
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -27,11 +30,54 @@ internal object WhisperModelRepository {
     private const val ENCODER_NAME = "tiny-encoder.int8.onnx"
     private const val DECODER_NAME = "tiny-decoder.int8.onnx"
     private const val TOKENS_NAME = "tiny-tokens.txt"
+    private const val VAD_NAME = "silero_vad.onnx"
+    private const val VAD_SIZE = 643_854L
+    private const val VAD_SHA256 = "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
 
     private const val ENCODER_SIZE = 12_937_678L
     private const val DECODER_SIZE = 89_855_289L
     private const val ENCODER_SHA256 = "dd5531121627e7e184a6b8f6a6e353edf39b40e328032dfdc146b5a359a3e3d0"
     private const val DECODER_SHA256 = "dd29c14f2104c14c3aca7dc8e13308190bbe4c65be21c82f4b86a27d8326b26b"
+
+    /**
+     * A small on-device speech detector. Whisper remains the multilingual recognizer;
+     * Silero only decides where a natural speech segment ends, so no fixed 1.5 s
+     * cuts are imposed on a sentence.
+     */
+    fun createVoiceActivityDetector(
+        context: Context,
+        onProgress: (String) -> Unit
+    ): Vad {
+        val directory = File(context.filesDir, "royal_whisper_tiny").apply {
+            if (!exists() && !mkdirs()) {
+                throw IllegalStateException("تعذر إنشاء مجلد نموذج الصوت")
+            }
+        }
+        val model = ensureFile(
+            directory = directory,
+            name = VAD_NAME,
+            expectedBytes = VAD_SIZE,
+            expectedSha256 = VAD_SHA256,
+            onProgress = { onProgress("تهيئة كاشف الكلام: $it") }
+        )
+        val config = VadModelConfig(
+            sileroVadModelConfig = SileroVadModelConfig(
+                model = model.absolutePath,
+                threshold = 0.45f,
+                minSilenceDuration = 0.45f,
+                minSpeechDuration = 0.25f,
+                windowSize = 512,
+                // Safety valve for unusually long monologues; ordinary sentences end
+                // on detected silence and are not cut at a fixed short interval.
+                maxSpeechDuration = 14.0f
+            ),
+            sampleRate = SAMPLE_RATE,
+            numThreads = 1,
+            debug = false,
+            provider = "cpu"
+        )
+        return Vad(config = config)
+    }
 
     fun createRecognizer(
         context: Context,
