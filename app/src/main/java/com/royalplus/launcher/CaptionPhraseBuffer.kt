@@ -62,16 +62,36 @@ internal class CaptionPhraseBuffer(
         this in setOf(',', '.', '!', '?', '؟', '،', ';', '؛', ':', '…')
 }
 
-/** Conservative punctuation and spacing cleanup for translated Arabic subtitles. */
+/** Removes foreign-script fragments and normalizes the remaining Arabic subtitle. */
 internal object ArabicCaptionFormatter {
-    fun format(text: String): String =
-        text.replace(Regex("\\s+"), " ")
+    private val nonArabicCharacters = Regex(
+        """[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF0-9٠-٩۰-۹\s،؛؟.!:…'"()\-]"""
+    )
+
+    fun format(text: String): String {
+        val arabicOnly = text.replace(nonArabicCharacters, "")
+        val normalized = arabicOnly
+            .replace(Regex("""\s+"""), " ")
             .trim()
-            .replace(Regex("\\s+([,;!?])"), "$1")
+            .replace(Regex("""\s+([,;!?])"""), "$1")
             .replace(",", "،")
             .replace(";", "؛")
             .replace("?", "؟")
-            .replace(Regex("([،؛؟.!:])(?=\\S)"), "$1 ")
-            .replace(Regex("\\s+"), " ")
+            .replace(Regex("""([،؛؟.!:])(?=\S)"""), "$1 ")
+            .replace(Regex("""\s+"""), " ")
             .trim()
+
+        return normalized.takeIf { value -> value.any { it.isArabicLetter() } }.orEmpty()
+    }
+
+    private fun Char.isArabicLetter(): Boolean =
+        isLetter() && (
+            this in '\u0621'..'\u064A' ||
+                this in '\u066E'..'\u06D3' ||
+                this in '\u06FA'..'\u06FC' ||
+                this in '\u0750'..'\u077F' ||
+                this in '\u08A0'..'\u08FF' ||
+                this in '\uFB50'..'\uFDFF' ||
+                this in '\uFE70'..'\uFEFC'
+            )
 }
