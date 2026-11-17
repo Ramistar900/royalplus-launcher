@@ -61,7 +61,10 @@ assert "SPEECH_PRESENCE_THRESHOLD" in audio_gate
 assert "hasMeaningfulAudio(" not in service
 speech_filter = (JAVA / "SpeechCaptionFilter.kt").read_text(encoding="utf-8")
 assert '"music"' in speech_filter and '"آهات"' in speech_filter and '"moaning"' in speech_filter
-assert "nonArabicCharacters" in (JAVA / "CaptionPhraseBuffer.kt").read_text(encoding="utf-8")
+caption_formatter = (JAVA / "CaptionPhraseBuffer.kt").read_text(encoding="utf-8")
+assert "ArabicCaptionFormatter" in caption_formatter
+assert "isAllowedCaptionCharacter" in caption_formatter
+assert "append(if (character.isAllowedCaptionCharacter()) character else ' ')" in caption_formatter
 assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "else createMicrophoneRecord()" in service and "VOICE_RECOGNITION" in service
 assert "normalizeDetectedLanguage" in service
