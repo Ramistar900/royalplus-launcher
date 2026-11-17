@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "fix/royalplus-abi-test-assets" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -161,18 +161,7 @@ jobs:
       - name: Build debug APK
         run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
 
-      - name: Build universal installable test APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=false assembleRelease
-          mkdir -p "$RUNNER_TEMP/royalplus-test-apks"
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
-          test -s "$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
-          sha256sum "$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
-
-
-      - name: Build minified ABI-split test APKs
+      - name: Build minified ABI-specific test APKs
         run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
 
       - name: Run Android API compatibility lint
@@ -224,56 +213,69 @@ jobs:
           disable-animations: true
           script: bash .github/scripts/android8-smoke-test.sh
 
-      - name: Publish two installable test APKs to the latest draft release
-        if: (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'fix/translation-speech-only-sync') || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
+      - name: Publish compact ARM test APKs to an isolated draft release
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || 0 }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
         shell: bash
         run: |
           set -euo pipefail
-
-          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
-          RELEASE_APK="$RUNNER_TEMP/royalplus-test-apks/royalplus-release-test.apk"
-          test -s "$DEBUG_APK"
-          test -s "$RELEASE_APK"
 
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
           test -n "$AAPT"
           test -n "$APKSIGNER"
 
-          DEBUG_PACKAGE="$("$AAPT" dump badging "$DEBUG_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
-          RELEASE_PACKAGE="$("$AAPT" dump badging "$RELEASE_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
-          test "$DEBUG_PACKAGE" = "com.royalplus.launcher.debug"
-          test "$RELEASE_PACKAGE" = "com.royalplus.launcher.test"
+          ARM64_SOURCE="$(find app/build/outputs/apk/release -type f -name '*arm64-v8a*release*.apk' | head -n 1)"
+          ARM32_SOURCE="$(find app/build/outputs/apk/release -type f -name '*armeabi-v7a*release*.apk' | head -n 1)"
+          test -n "$ARM64_SOURCE" && test -s "$ARM64_SOURCE"
+          test -n "$ARM32_SOURCE" && test -s "$ARM32_SOURCE"
 
-          "$APKSIGNER" verify --verbose "$DEBUG_APK"
-          "$APKSIGNER" verify --verbose "$RELEASE_APK"
+          mkdir -p "$RUNNER_TEMP/royalplus-test-apks"
+          ARM64_APK="$RUNNER_TEMP/royalplus-test-apks/royalplus-arm64-v8a-test.apk"
+          ARM32_APK="$RUNNER_TEMP/royalplus-test-apks/royalplus-armeabi-v7a-test.apk"
+          cp "$ARM64_SOURCE" "$ARM64_APK"
+          cp "$ARM32_SOURCE" "$ARM32_APK"
+
+          for APK in "$ARM64_APK" "$ARM32_APK"; do
+            PACKAGE="$("$AAPT" dump badging "$APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+            test "$PACKAGE" = "com.royalplus.launcher.test"
+            "$APKSIGNER" verify --verbose "$APK"
+            sha256sum "$APK"
+            du -h "$APK"
+          done
 
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            TAG="royalplus-test-pr-${PR_NUMBER}-translation-sync"
-            TITLE="ROYAL+ Launcher • Translation Speech Sync Test"
+            test -n "$PULL_REQUEST_NUMBER"
+            if [[ "${GITHUB_HEAD_REF:-}" == "fix/translation-speech-only-sync" ]]; then
+              TAG="royalplus-test-pr-${PULL_REQUEST_NUMBER}-translation-sync"
+              TITLE="ROYAL+ Launcher • Translation Speech Sync Test"
+            else
+              TAG="royalplus-test-pr-${PULL_REQUEST_NUMBER}"
+              TITLE="ROYAL+ Launcher • PR #${PULL_REQUEST_NUMBER} Compact ARM Test"
+            fi
           elif [[ "$GITHUB_REF" == "refs/heads/feature/sports-original-graphics" ]]; then
             TAG="royalplus-test-sports-graphics"
             TITLE="ROYAL+ Launcher • Sports Graphics Test"
           elif [[ "$GITHUB_REF" == "refs/heads/feature/weather-tv-load-optimization-main-rebased" ]]; then
             TAG="royalplus-test-interface-quality"
             TITLE="ROYAL+ Launcher • Interface Quality Test"
+          elif [[ "$GITHUB_REF" == "refs/heads/fix/royalplus-abi-test-assets" ]]; then
+            TAG="royalplus-test-arm-split"
+            TITLE="ROYAL+ Launcher • Compact ARM Test APKs"
           else
             TAG="royalplus-test-installers"
             TITLE="ROYAL+ Launcher • Latest Test Installers"
           fi
-          NOTES="Two independently installable test APKs built from commit ${GITHUB_SHA} after the Android 8 (API 26) smoke test passed.
+          NOTES="$(cat <<'NOTES_EOF'
+          Compact ABI-specific test APKs. Install only the APK matching the TV/device CPU architecture:
+          - royalplus-arm64-v8a-test.apk: 64-bit ARM devices.
+          - royalplus-armeabi-v7a-test.apk: 32-bit ARM devices.
 
-          1. royalplus-debug.apk — debug test build, package com.royalplus.launcher.debug.
-          2. royalplus-release-test.apk — minified universal test build, package com.royalplus.launcher.test.
-
-          Both variants use separate test package IDs, so they can be installed alongside each other and do not overwrite the production app. This is an unpublished test draft, not a production release."
-
-          DEBUG_UPLOAD="$RUNNER_TEMP/royalplus-test-apks/royalplus-debug.apk"
-          cp "$DEBUG_APK" "$DEBUG_UPLOAD"
-          test -s "$DEBUG_UPLOAD"
+          These are minified test builds with a separate test application ID. Offline weather clips and all bundled features remain included. This is an unpublished test draft, not a production release.
+          NOTES_EOF
+          )"
 
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
@@ -281,48 +283,35 @@ jobs:
               echo "::error::Refusing to overwrite an already published release."
               exit 1
             fi
-            # Keep this test draft limited to the two installable APKs.
-            # Remove stale ZIPs or obsolete assets left by older workflow runs.
             while IFS= read -r ASSET_NAME; do
               case "$ASSET_NAME" in
-                royalplus-debug.apk|royalplus-release-test.apk) ;;
+                royalplus-arm64-v8a-test.apk|royalplus-armeabi-v7a-test.apk) ;;
                 *)
                   echo "Removing stale draft asset: $ASSET_NAME"
                   gh release delete-asset "$TAG" "$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --yes
                   ;;
               esac
             done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
-
-            # Older runs uploaded app-debug.apk and used the requested filename as a label.
-            gh release delete-asset "$TAG" app-debug.apk --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
-            gh release upload "$TAG" \
-              "$DEBUG_UPLOAD" \
-              "$RELEASE_APK" \
-              --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES"
+            gh release upload "$TAG" "$ARM64_APK" "$ARM32_APK" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES" --target "$GITHUB_SHA"
           else
-            gh release create "$TAG" \
-              "$DEBUG_UPLOAD" \
-              "$RELEASE_APK" \
-              --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" \
-              --notes "$NOTES" --target "$GITHUB_SHA"
+            gh release create "$TAG" "$ARM64_APK" "$ARM32_APK" --repo "$GITHUB_REPOSITORY" --draft --title "$TITLE" --notes "$NOTES" --target "$GITHUB_SHA"
           fi
 
           ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | sort | join(",")')"
-          EXPECTED="royalplus-debug.apk,royalplus-release-test.apk"
+          EXPECTED="royalplus-arm64-v8a-test.apk,royalplus-armeabi-v7a-test.apk"
           if [[ "$ASSETS" != "$EXPECTED" ]]; then
-            echo "::error::Expected both installable APK assets; found: $ASSETS"
+            echo "::error::Expected exactly the two compact ARM APKs; found: $ASSETS"
             exit 1
           fi
 
-          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
           {
-            echo "### ROYAL+ test APKs are ready"
+            echo "### Compact ROYAL+ ARM test APKs are ready"
             echo
-            echo "- [Download debug APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-debug.apk)"
-            echo "- [Download minified test APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-release-test.apk)"
+            echo "- [64-bit ARM APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-arm64-v8a-test.apk)"
+            echo "- [32-bit ARM APK](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/royalplus-armeabi-v7a-test.apk)"
             echo
-            echo "Draft release: $RELEASE_URL"
+            echo "Draft release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
             echo "Source commit: ${GITHUB_SHA}"
           } >> "$GITHUB_STEP_SUMMARY"
 
