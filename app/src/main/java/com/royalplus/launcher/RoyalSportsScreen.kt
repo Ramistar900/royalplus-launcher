@@ -583,7 +583,7 @@ internal fun RoyalSportsScreen(language: String) {
             } finally {
                 loading = false
             }
-            delay(if (selectedTab == RoyalSportsTab.LIVE) 60_000L else 5 * 60 * 1000L)
+            delay(when (selectedTab) { RoyalSportsTab.LIVE -> 20 * 60 * 1000L; RoyalSportsTab.UPCOMING -> 30 * 60 * 1000L; RoyalSportsTab.FINISHED -> 20 * 60 * 1000L; RoyalSportsTab.RANKINGS -> return@LaunchedEffect })
         }
     }
 
@@ -710,7 +710,7 @@ internal fun RoyalSportsScreen(language: String) {
                             },
                             selected = selectedTab == tab,
                             modifier = Modifier.weight(1f)
-                        ) { selectedTab = tab }
+                        ) { selectedTab = tab; loaded = null; errorCode = null }
                     }
                 }
                 Spacer(Modifier.height(10.dp))
