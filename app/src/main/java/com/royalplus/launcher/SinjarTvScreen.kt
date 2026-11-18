@@ -412,6 +412,8 @@ private fun SinjarPlayerPane(
     var infoChannel by remember { mutableStateOf<RSTVChannel?>(null) }
     var lastConfirmedUrl by remember { mutableStateOf<String?>(null) }
     var lastConfirmedAt by remember { mutableStateOf(0L) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsTimerKey by remember { mutableStateOf(0) }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -422,6 +424,11 @@ private fun SinjarPlayerPane(
             delay(3600)
             infoChannel = null
         }
+    }
+    LaunchedEffect(controlsTimerKey, channelMenuVisible, favoritePromptChannel) {
+        controlsVisible = true
+        delay(4500)
+        if (!channelMenuVisible && favoritePromptChannel == null) controlsVisible = false
     }
     LaunchedEffect(visibleChannels.size) {
         highlightedIndex = visibleChannels.indexOfFirst { it.streamUrl == selectedChannel?.streamUrl }
@@ -501,6 +508,7 @@ private fun SinjarPlayerPane(
                 if (event.type == KeyEventType.KeyDown &&
                     event.nativeKeyEvent.repeatCount == 0
                 ) {
+                    controlsTimerKey++
                     when (key) {
                         AndroidKeyEvent.KEYCODE_DPAD_UP -> {
                             if (channelMenuVisible && visibleChannels.isNotEmpty()) {
@@ -576,7 +584,7 @@ private fun SinjarPlayerPane(
         }
 
         // Transparent controls are layered over the video; they never reserve a top strip.
-        Row(
+        if (controlsVisible) Row(
             modifier = Modifier.align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .background(Color(0x9910151D))
