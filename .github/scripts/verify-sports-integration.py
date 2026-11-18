@@ -89,7 +89,8 @@ graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics
 assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
 assert 'round = league.optString("round", "")' in sports
-assert 'groupBy { it.round.trim().ifBlank { "—" } }' in sports
+assert 'groupBy { listOf(it.round.trim(), it.leg.trim())' in sports
+assert 'leg = fixture.optString("leg", "")' in sports
 assert "localizedFootballRound" in sports
 
 rankings = RANKINGS.read_text(encoding="utf-8")
