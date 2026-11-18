@@ -206,7 +206,8 @@ internal data class RoyalSportsFixture(
     val date: String,
     val round: String,
     val leagueId: Int,
-    val season: Int
+    val season: Int,
+    val leg: String
 )
 
 private enum class RoyalSportsMatchBucket {
@@ -339,7 +340,8 @@ internal object RoyalSportsRepository {
                     date = fixture.optString("date", ""),
                     round = league.optString("round", ""),
                     leagueId = league.optInt("id", 0),
-                    season = league.optInt("season", 0)
+                    season = league.optInt("season", 0),
+                    leg = fixture.optString("leg", "")
                 )
             )
         }
@@ -583,7 +585,7 @@ internal fun RoyalSportsScreen(language: String) {
             } finally {
                 loading = false
             }
-            delay(when (selectedTab) { RoyalSportsTab.LIVE -> 20 * 60 * 1000L; RoyalSportsTab.UPCOMING -> 30 * 60 * 1000L; RoyalSportsTab.FINISHED -> 20 * 60 * 1000L; RoyalSportsTab.RANKINGS -> return@LaunchedEffect })
+            delay(20 * 60 * 1000L)
         }
     }
 
@@ -741,7 +743,11 @@ internal fun RoyalSportsScreen(language: String) {
                     }
                     val selectedFixtures = result?.fixtures.orEmpty()
                         .filter { sportsMatchBucket(it.status) == wantedBucket }
-                        .sortedBy { if (selectedTab == RoyalSportsTab.FINISHED) it.date.reversed() else it.date }
+                    val orderedFixtures = if (selectedTab == RoyalSportsTab.FINISHED) {
+                        selectedFixtures.sortedByDescending { it.date }
+                    } else {
+                        selectedFixtures.sortedBy { it.date }
+                    }
 
                     if (selectedFixtures.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -758,7 +764,7 @@ internal fun RoyalSportsScreen(language: String) {
                             contentPadding = PaddingValues(bottom = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(7.dp)
                         ) {
-                            val leagueGroups = selectedFixtures
+                            val leagueGroups = orderedFixtures
                                 .groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }
                                 .entries
                                 .sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }
@@ -789,7 +795,7 @@ internal fun RoyalSportsScreen(language: String) {
                                     )
                                 }
 
-                                val roundGroups = entry.value.groupBy { it.round.trim().ifBlank { "—" } }
+                                val roundGroups = entry.value.groupBy { listOf(it.round.trim(), it.leg.trim()).filter { part -> part.isNotBlank() }.joinToString(" • ").ifBlank { "—" } }
                                     .entries
                                     .sortedBy { round -> round.value.firstOrNull()?.date.orEmpty() }
                                 roundGroups.forEachIndexed { roundIndex, roundEntry ->
@@ -831,6 +837,8 @@ private fun localizedFootballRound(value: String, arabic: Boolean, turkish: Bool
     val normalized = value.trim().lowercase(Locale.ROOT)
     if (arabic) {
         return when {
+            normalized.contains("first leg") || normalized.contains("1st leg") -> "مباراة الذهاب • ${value.substringBefore(" • ")}"
+            normalized.contains("second leg") || normalized.contains("2nd leg") -> "مباراة الإياب • ${value.substringBefore(" • ")}"
             normalized.contains("round of 16") -> "دور الـ16"
             normalized.contains("round of 32") -> "دور الـ32"
             normalized.contains("quarter") -> "ربع النهائي"
@@ -845,6 +853,8 @@ private fun localizedFootballRound(value: String, arabic: Boolean, turkish: Bool
     }
     if (turkish) {
         return when {
+            normalized.contains("first leg") || normalized.contains("1st leg") -> "İlk Maç • ${value.substringBefore(" • ")}"
+            normalized.contains("second leg") || normalized.contains("2nd leg") -> "Rövanş • ${value.substringBefore(" • ")}"
             normalized.contains("round of 16") -> "Son 16 Turu"
             normalized.contains("quarter") -> "Çeyrek Final"
             normalized.contains("semi") -> "Yarı Final"
