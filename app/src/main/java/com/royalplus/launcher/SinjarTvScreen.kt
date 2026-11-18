@@ -600,21 +600,16 @@ private fun SinjarPlayerPane(
         }
 
         // Transparent controls are layered over the video; they never reserve a top strip.
-        if (controlsVisible) Row(
-            modifier = Modifier.align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .background(Color(0x9910151D))
-                .padding(horizontal = 12.dp, vertical = if (isFullscreen) 9.dp else 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onToggleFullscreen) {
+        if (controlsVisible) {
+            IconButton(
+                onClick = onToggleFullscreen,
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(42.dp)
+            ) {
                 Icon(
                     imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
                     contentDescription = if (isFullscreen) "Exit fullscreen" else "Fullscreen",
-                    tint = Color.White.copy(alpha = 0.92f),
-                    modifier = Modifier.size(23.dp)
+                    tint = Color.White.copy(alpha = 0.78f),
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
