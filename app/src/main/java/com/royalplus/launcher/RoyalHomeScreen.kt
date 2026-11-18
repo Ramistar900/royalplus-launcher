@@ -2405,7 +2405,7 @@ private fun SidebarNavItem(
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
-                    painter = painterResource(R.drawable.sinjar_show_logo),
+                    painter = rememberRoyalBitmapPainter(R.drawable.sinjar_show_logo, maxEdgePx = 512, maxPixels = 262_144L),
                     contentDescription = "Sinjar TV",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.size(width = 34.dp, height = 25.dp)
