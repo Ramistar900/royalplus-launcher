@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -269,7 +268,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
-                    painter = painterResource(R.drawable.sinjar_show_logo),
+                    painter = rememberRoyalBitmapPainter(R.drawable.sinjar_show_logo, maxEdgePx = 512, maxPixels = 262_144L),
                     contentDescription = if (arabic) "شعار سنجار" else "Sinjar TV logo",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.width(186.dp).height(58.dp)
@@ -571,7 +570,7 @@ private fun SinjarPlayerPane(
         )
 
         Image(
-            painter = painterResource(R.drawable.sinjar_show_logo),
+            painter = rememberRoyalBitmapPainter(R.drawable.sinjar_show_logo, maxEdgePx = 512, maxPixels = 262_144L),
             contentDescription = if (arabic) "شعار سنجار" else "Sinjar TV",
             contentScale = ContentScale.Fit,
             modifier = Modifier.align(Alignment.TopEnd)
