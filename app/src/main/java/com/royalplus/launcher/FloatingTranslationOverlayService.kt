@@ -611,8 +611,12 @@ class FloatingTranslationOverlayService : Service() {
                 if (!running.get()) return@addOnFailureListener
                 session.modelDownloadPending = false
                 val detail = error.localizedMessage ?: "تحقق من الإنترنت ثم أعد المحاولة"
-                updateNotification("تعذر تجهيز نموذج " + pending.language.uppercase(Locale.ROOT) + ": " + detail)
-                // Keep this phrase and retry model preparation without dropping it.
+                updateNotification("تعذر تجهيز النموذج المحلي؛ ستتم تجربة مزود الترجمة الاحتياطي")
+                // Preserve the exact phrase and order, then route it to cloud auto-detection.
+                if (pendingTranslations.peekFirst() === pending) {
+                    pendingTranslations.removeFirst()
+                    pendingTranslations.addFirst(pending.copy(sourceLanguage = null, attempt = 0))
+                }
                 mainHandler.postDelayed({ processNextPendingTranslation() }, TRANSLATION_RETRY_DELAY_MILLIS)
             }
     }
