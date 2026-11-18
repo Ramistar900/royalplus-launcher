@@ -301,6 +301,7 @@ internal fun RoyalHomeScreen(
     var adhanMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_adhan", true)) }
     var weatherMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_weather", true)) }
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
+    var isSinjarPlayerFullscreen by remember { mutableStateOf(false) }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
     val selectedFontFamily = remember(selectedFont) {
         when (selectedFont) {
@@ -646,7 +647,8 @@ internal fun RoyalHomeScreen(
                 else -> (maxWidth * 0.205f).coerceIn(120.dp, 188.dp)
             }
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
-                Column(Modifier.fillMaxSize().padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
+                Column(Modifier.fillMaxSize().then(if (isSinjarPlayerFullscreen) Modifier else Modifier.padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding))) {
+                    if (!isSinjarPlayerFullscreen) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome,
@@ -662,6 +664,7 @@ internal fun RoyalHomeScreen(
                         onToggleTranslationOverlay = onToggleTranslationOverlay,
                         selectedLanguage = selectedLanguage
                     )
+                    }
                     if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
                         Row(
                             Modifier.fillMaxWidth()
@@ -685,9 +688,9 @@ internal fun RoyalHomeScreen(
                         }
                         Spacer(Modifier.height(4.dp))
                     }
-                    Spacer(Modifier.height(9.dp))
-                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        RoyalSidePanel(
+                    if (!isSinjarPlayerFullscreen) Spacer(Modifier.height(9.dp))
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isSinjarPlayerFullscreen) 0.dp else 14.dp)) {
+                        if (!isSinjarPlayerFullscreen) RoyalSidePanel(
                             modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
@@ -758,7 +761,7 @@ internal fun RoyalHomeScreen(
                                         onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
-                                    LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage)
+                                    LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage, onFullscreenChange = { isSinjarPlayerFullscreen = it })
                                     LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
                                     LauncherDestination.SONGS -> RoyalSongsScreen()
@@ -786,8 +789,10 @@ internal fun RoyalHomeScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
+                    if (!isSinjarPlayerFullscreen) {
+                        Spacer(Modifier.height(8.dp))
+                        RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
+                    }
                 }
             }
 

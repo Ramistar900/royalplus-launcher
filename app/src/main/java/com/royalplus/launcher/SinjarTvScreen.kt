@@ -1,6 +1,12 @@
 package com.royalplus.launcher
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -75,7 +83,7 @@ private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
-internal fun SinjarTvScreen(language: String) {
+internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val player = remember(context) { ExoPlayer.Builder(context).build() }
@@ -87,6 +95,7 @@ internal fun SinjarTvScreen(language: String) {
     var status by remember { mutableStateOf("جارٍ استعادة مكتبة Sinjar TV...") }
     var busyPackageId by remember { mutableStateOf<String?>(null) }
     var selectedChannel by remember { mutableStateOf<RSTVChannel?>(null) }
+    var isFullscreen by remember { mutableStateOf(false) }
 
     val sourceEntries = remember {
         val douboCountries = RemotePlaylistSources.douboCountryPackages()
@@ -116,7 +125,31 @@ internal fun SinjarTvScreen(language: String) {
     }
 
     DisposableEffect(player) {
-        onDispose { player.release() }
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                status = when (playbackState) {
+                    Player.STATE_BUFFERING -> "جارٍ تحميل البث..."
+                    Player.STATE_READY -> "البث يعمل الآن"
+                    Player.STATE_ENDED -> "انتهى البث"
+                    else -> status
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                status = "تعذّر تشغيل البث: ${error.message ?: error.errorCodeName}"
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
+    }
+
+    LaunchedEffect(isFullscreen) { onFullscreenChange(isFullscreen) }
+
+    BackHandler(enabled = isFullscreen) {
+        isFullscreen = false
     }
 
     fun playChannel(channel: RSTVChannel) {
@@ -204,172 +237,249 @@ internal fun SinjarTvScreen(language: String) {
     val favoritesLabel = if (arabic) "المفضلة" else if (language == "tr") "Favoriler" else "Favorites"
 
     Column(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF090C13)).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize()
+            .background(Color(0xFF090C13))
+            .then(if (isFullscreen) Modifier else Modifier.padding(14.dp)),
+        verticalArrangement = Arrangement.spacedBy(if (isFullscreen) 0.dp else 8.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(Icons.Rounded.Tv, contentDescription = null, tint = gold, modifier = Modifier.size(31.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("SINJAR TV", color = gold, fontSize = 21.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-                Text(status, color = muted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            IconButton(onClick = { scope.launch { runCatching { reloadLibrary() }.onFailure { status = "تعذّر تحديث المكتبة" } } }) {
-                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", tint = gold)
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SinjarTabButton(liveLabel, section == SinjarSection.LIVE, gold) { section = SinjarSection.LIVE }
-            SinjarTabButton(sourcesLabel, section == SinjarSection.SOURCES, gold) { section = SinjarSection.SOURCES }
-            SinjarTabButton(favoritesLabel, section == SinjarSection.FAVORITES, gold) { section = SinjarSection.FAVORITES }
-        }
-
-        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Column(
-                modifier = Modifier.weight(1.05f).fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        if (!isFullscreen) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(58.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (section == SinjarSection.SOURCES) {
+                Image(
+                    painter = painterResource(R.drawable.sinjar_show_logo),
+                    contentDescription = if (arabic) "شعار سنجار" else "Sinjar TV logo",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.width(186.dp).height(58.dp)
+                )
+                Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            runCatching { reloadLibrary() }
+                                .onFailure { status = "تعذّر تحديث المكتبة" }
+                        }
+                    }
+                ) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", tint = gold)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SinjarTabButton(liveLabel, section == SinjarSection.LIVE, gold) { section = SinjarSection.LIVE }
+                SinjarTabButton(sourcesLabel, section == SinjarSection.SOURCES, gold) { section = SinjarSection.SOURCES }
+                SinjarTabButton(favoritesLabel, section == SinjarSection.FAVORITES, gold) { section = SinjarSection.FAVORITES }
+            }
+        }
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(if (isFullscreen) 0.dp else 15.dp))
+                .background(panel)
+        ) {
+            if (section == SinjarSection.SOURCES) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
                     Text(
                         if (arabic) "مكتبة المصادر • محفوظ: $savedSourceCount" else "$sourcesLabel • Saved: $savedSourceCount",
-                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         items(packages, key = { it.id }) { item ->
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = panel),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B202B)),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(item.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    Text(item.description, color = muted, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Column(
+                                    Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Text(item.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(item.description, color = muted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     Text(
                                         item.sources.map { it.provider }.distinct().joinToString(" + "),
-                                        color = gold, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                                        color = gold, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
                                     item.sources.mapNotNull { it.attribution }.distinct().forEach { attribution ->
-                                        Text(attribution, color = muted, fontSize = 8.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text(attribution, color = muted, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     }
                                     Button(
                                         onClick = { downloadPackage(item) },
                                         enabled = busyPackageId == null,
-                                        colors = ButtonDefaults.buttonColors(containerColor = gold, contentColor = Color(0xFF111318)),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = gold,
+                                            contentColor = Color(0xFF111318)
+                                        ),
                                         modifier = Modifier.align(Alignment.End)
                                     ) {
-                                        Icon(Icons.Rounded.CloudDownload, contentDescription = null, modifier = Modifier.size(15.dp))
+                                        Icon(Icons.Rounded.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(5.dp))
-                                        Text(if (busyPackageId == item.id) "جارٍ التحديث..." else if (arabic) "تنزيل / تحديث" else "Download / Update", fontSize = 10.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    Text(
-                        if (section == SinjarSection.FAVORITES) favoritesLabel else liveLabel,
-                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
-                    )
-                    if (visibleChannels.isEmpty()) {
-                        Text(
-                            if (section == SinjarSection.FAVORITES) {
-                                if (arabic) "لم تضف قنوات إلى المفضلة بعد." else "No favourite channels yet."
-                            } else {
-                                if (arabic) "لا توجد قنوات بعد. افتح «المصادر» لتنزيل باقة قنوات." else "No channels yet. Open Sources to download a channel package."
-                            },
-                            color = muted, fontSize = 12.sp
-                        )
-                    } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(visibleChannels, key = { it.streamUrl }) { channel ->
-                                Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (selectedChannel?.streamUrl == channel.streamUrl) Color(0xFF29251B) else panel
-                                    ),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.fillMaxWidth().clickable { playChannel(channel) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 9.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(channel.name, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text(
-                                                listOfNotNull(channel.country, channel.group).joinToString(" • ").ifBlank { "IPTV" },
-                                                color = muted, fontSize = 9.sp, maxLines = 1
-                                            )
-                                        }
-                                        IconButton(onClick = { toggleFavorite(channel) }, modifier = Modifier.size(34.dp)) {
-                                            Icon(
-                                                if (channel.streamUrl in favoriteUrls) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                                contentDescription = favoritesLabel,
-                                                tint = if (channel.streamUrl in favoriteUrls) gold else muted
-                                            )
-                                        }
+                                        Text(
+                                            if (busyPackageId == item.id) "جارٍ التحديث..." else if (arabic) "تنزيل / تحديث" else "Download / Update",
+                                            fontSize = 11.sp
+                                        )
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
-
-            Column(
-                modifier = Modifier.weight(1.15f).fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    selectedChannel?.name ?: if (arabic) "مشغل البث" else "Live player",
-                    color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Black),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth().height(245.dp)
-                ) {
-                    if (selectedChannel == null) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Rounded.Tv, contentDescription = null, tint = gold, modifier = Modifier.size(44.dp))
-                                Text(
-                                    if (arabic) "اختر قناة لبدء المشاهدة" else "Select a channel to start watching",
-                                    color = muted, fontSize = 11.sp
-                                )
-                            }
-                        }
-                    } else {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { viewContext ->
-                                PlayerView(viewContext).apply {
-                                    this.player = player
-                                    useController = false
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                                    keepScreenOn = true
-                                }
-                            },
-                            update = { view ->
-                                view.player = player
-                                view.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                view.keepScreenOn = true
-                            }
-                        )
-                    }
-                }
-                Text(
-                    if (arabic) "تُحفظ المصادر والمفضلة محلياً على جهاز التلفاز. لا يعني وجود رابط في فهرس عام أن بثه مرخّص أو متاح دائماً." else "Sources and favourites are stored locally on this TV. A public playlist entry does not guarantee broadcast rights or availability.",
-                    color = muted, fontSize = 9.sp
-                )
-                if (selectedChannel != null) {
-                    TextButton(onClick = {
+            } else if (isFullscreen) {
+                SinjarPlayerPane(
+                    modifier = Modifier.fillMaxSize(),
+                    player = player,
+                    selectedChannel = selectedChannel,
+                    status = status,
+                    arabic = arabic,
+                    gold = gold,
+                    muted = muted,
+                    isFullscreen = true,
+                    onToggleFullscreen = { isFullscreen = false },
+                    onStopPlayback = {
                         player.stop()
                         player.clearMediaItems()
                         selectedChannel = null
-                    }) {
-                        Text(if (arabic) "إيقاف المشاهدة" else "Stop playback", color = gold)
+                    }
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(9.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    SinjarPlayerPane(
+                        modifier = Modifier.weight(3.2f).fillMaxHeight(),
+                        player = player,
+                        selectedChannel = selectedChannel,
+                        status = status,
+                        arabic = arabic,
+                        gold = gold,
+                        muted = muted,
+                        isFullscreen = false,
+                        onToggleFullscreen = { isFullscreen = true },
+                        onStopPlayback = {
+                            player.stop()
+                            player.clearMediaItems()
+                            selectedChannel = null
+                        }
+                    )
+
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF10151E))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                if (section == SinjarSection.FAVORITES) favoritesLabel
+                                else if (arabic) "قائمة القنوات" else "Channels",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                visibleChannels.size.toString(),
+                                color = gold,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (visibleChannels.isEmpty()) {
+                            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    if (section == SinjarSection.FAVORITES) {
+                                        if (arabic) "لم تضف قنوات إلى المفضلة بعد." else "No favourite channels yet."
+                                    } else {
+                                        if (arabic) "لا توجد قنوات بعد. افتح «المصادر» لتنزيل باقة قنوات." else "No channels yet. Open Sources to download a channel package."
+                                    },
+                                    color = muted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(visibleChannels, key = { it.streamUrl }) { channel ->
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (selectedChannel?.streamUrl == channel.streamUrl) {
+                                                Color(0xFF29251B)
+                                            } else {
+                                                Color(0xFF1A202A)
+                                            }
+                                        ),
+                                        shape = RoundedCornerShape(9.dp),
+                                        modifier = Modifier.fillMaxWidth().clickable { playChannel(channel) }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .padding(start = 8.dp, end = 5.dp, top = 6.dp, bottom = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    channel.name,
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    listOfNotNull(channel.country, channel.group)
+                                                        .joinToString(" • ").ifBlank { "IPTV" },
+                                                    color = muted,
+                                                    fontSize = 9.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { toggleFavorite(channel) },
+                                                modifier = Modifier.size(31.dp)
+                                            ) {
+                                                Icon(
+                                                    if (channel.streamUrl in favoriteUrls) Icons.Rounded.Favorite
+                                                    else Icons.Rounded.FavoriteBorder,
+                                                    contentDescription = favoritesLabel,
+                                                    tint = if (channel.streamUrl in favoriteUrls) gold else muted,
+                                                    modifier = Modifier.size(19.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Text(
+                            status,
+                            color = muted,
+                            fontSize = 9.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -378,16 +488,124 @@ internal fun SinjarTvScreen(language: String) {
 }
 
 @Composable
+private fun SinjarPlayerPane(
+    modifier: Modifier,
+    player: ExoPlayer,
+    selectedChannel: RSTVChannel?,
+    status: String,
+    arabic: Boolean,
+    gold: Color,
+    muted: Color,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onStopPlayback: () -> Unit
+) {
+    Column(
+        modifier = modifier.clip(RoundedCornerShape(if (isFullscreen) 0.dp else 12.dp))
+            .background(Color.Black)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .height(if (isFullscreen) 46.dp else 38.dp)
+                .background(Color(0xFF11151D))
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                selectedChannel?.name ?: if (arabic) "مشغّل البث المباشر" else "Live player",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            if (selectedChannel != null) {
+                TextButton(onClick = onStopPlayback) {
+                    Text(if (arabic) "إيقاف" else "Stop", color = muted, fontSize = 10.sp)
+                }
+                TextButton(onClick = onToggleFullscreen) {
+                    Text(
+                        if (isFullscreen) {
+                            if (arabic) "تصغير" else "Exit full screen"
+                        } else {
+                            if (arabic) "ملء الشاشة" else "Full screen"
+                        },
+                        color = gold,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier.fillMaxWidth().weight(1f)
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selectedChannel == null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Rounded.Tv,
+                        contentDescription = null,
+                        tint = gold,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Text(
+                        if (arabic) "اختر قناة من القائمة لبدء المشاهدة" else "Choose a channel from the list to start watching",
+                        color = muted,
+                        fontSize = 11.sp
+                    )
+                }
+            } else {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { viewContext ->
+                        PlayerView(viewContext).apply {
+                            this.player = player
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                            keepScreenOn = true
+                        }
+                    },
+                    update = { view ->
+                        view.player = player
+                        view.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        view.keepScreenOn = true
+                    }
+                )
+            }
+        }
+
+        if (!isFullscreen) {
+            Text(
+                status,
+                color = muted,
+                fontSize = 9.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+                    .background(Color(0xFF11151D))
+                    .padding(horizontal = 9.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun SinjarTabButton(label: String, selected: Boolean, gold: Color, onClick: () -> Unit) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.border(
+        modifier = Modifier.height(36.dp).border(
             width = if (selected) 1.dp else 0.5.dp,
             color = if (selected) gold else Color.White.copy(alpha = 0.12f),
             shape = RoundedCornerShape(10.dp)
         ),
         colors = ButtonDefaults.textButtonColors(contentColor = if (selected) gold else Color.LightGray)
     ) {
-        Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, fontSize = 11.sp)
+        Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, fontSize = 10.sp)
     }
 }
