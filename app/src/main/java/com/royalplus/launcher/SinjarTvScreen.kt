@@ -487,6 +487,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     }
 }
 
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
 private fun SinjarPlayerPane(
     modifier: Modifier,
