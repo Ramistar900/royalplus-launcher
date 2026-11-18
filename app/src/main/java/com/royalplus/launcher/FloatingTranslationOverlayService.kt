@@ -41,7 +41,6 @@ import com.k2fsa.sherpa.onnx.Vad
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -88,7 +87,7 @@ class FloatingTranslationOverlayService : Service() {
     private data class PendingCaption(
         val text: String,
         val language: String,
-        val sourceLanguage: String?,
+        val sourceLanguage: String,
         val attempt: Int = 0
     )
 
@@ -103,9 +102,7 @@ class FloatingTranslationOverlayService : Service() {
     private val translationSessions = mutableMapOf<String, TranslationSession>()
     private val pendingTranslations = ArrayDeque<PendingCaption>()
     private var translationInFlight = false
-    private val cloudTranslationExecutor = Executors.newSingleThreadExecutor { task ->
-        Thread(task, "RoyalCloudTranslation").apply { isDaemon = true }
-    }
+    private var lastUnsupportedLanguageNotice: String? = null
     private val captionPhraseBuffer = CaptionPhraseBuffer(maxCharacters = MAX_CAPTION_BUFFER_CHARACTERS)
     private val captionPhraseFlushRunnable = Runnable { flushPendingCaptionPhrase() }
 
@@ -499,9 +496,8 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     /**
-     * Whisper returns a language identifier. Preserve generic ISO language codes instead
-     * of restricting the app to a manually maintained list. Unknown identifiers are
-     * still passed to the cloud auto-detect fallback as recognized text.
+     * Whisper supplies the detected source-language code. Keep it generic rather than
+     * maintaining a manual language allowlist; ML Kit checks local translation support.
      */
     private fun normalizeDetectedLanguage(rawLanguage: String): String {
         return rawLanguage.trim()
@@ -514,15 +510,24 @@ class FloatingTranslationOverlayService : Service() {
         mainHandler.post {
             if (!running.get()) return@post
             val normalizedLanguage = normalizeDetectedLanguage(detectedLanguage)
-            // ML Kit is preferred for local/offline translation. A null result is not
-            // treated as an unsupported caption: it goes to the multilingual cloud fallback.
-            val localSourceLanguage = TranslateLanguage.fromLanguageTag(normalizedLanguage)
+            val sourceLanguage = TranslateLanguage.fromLanguageTag(normalizedLanguage)
+            if (sourceLanguage.isNullOrBlank()) {
+                if (lastUnsupportedLanguageNotice != normalizedLanguage) {
+                    lastUnsupportedLanguageNotice = normalizedLanguage
+                    updateNotification(
+                        "لغة المصدر (${normalizedLanguage.ifBlank { "غير معروفة" }}) غير متاحة في الترجمة المحلية. " +
+                            "لم يتم إرسال النص إلى أي خدمة خارجية."
+                    )
+                }
+                return@post
+            }
 
+            lastUnsupportedLanguageNotice = null
             pendingTranslations.addLast(
                 PendingCaption(
                     text = text,
-                    language = normalizedLanguage.ifBlank { "und" },
-                    sourceLanguage = localSourceLanguage
+                    language = normalizedLanguage,
+                    sourceLanguage = sourceLanguage
                 )
             )
             processNextPendingTranslation()
@@ -530,9 +535,8 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     /**
-     * One FIFO preserves spoken order across languages and providers. ML Kit handles
-     * languages available on-device; any other language uses the server-side auto-detect
-     * provider. The recognized audio itself never leaves the device.
+     * One local FIFO preserves spoken order across source-language changes.
+     * Translation is performed by downloaded on-device ML Kit models only.
      */
     private fun processNextPendingTranslation() {
         if (!running.get() || translationInFlight) return
@@ -545,17 +549,11 @@ class FloatingTranslationOverlayService : Service() {
             return
         }
 
-        val localSourceLanguage = pending.sourceLanguage
-        if (localSourceLanguage == null) {
-            translateQueuedCaptionWithCloud(pending)
-            return
-        }
-
-        val session = translationSessions.getOrPut(localSourceLanguage) {
+        val session = translationSessions.getOrPut(pending.sourceLanguage) {
             TranslationSession(
                 translator = Translation.getClient(
                     TranslatorOptions.Builder()
-                        .setSourceLanguage(localSourceLanguage)
+                        .setSourceLanguage(pending.sourceLanguage)
                         .setTargetLanguage(TranslateLanguage.ARABIC)
                         .build()
                 )
@@ -599,7 +597,9 @@ class FloatingTranslationOverlayService : Service() {
         if (!running.get() || session.modelDownloadPending || session.modelReady) return
         session.modelDownloadPending = true
 
-        updateNotification("تنزيل نموذج " + pending.language.uppercase(Locale.ROOT) + " إلى العربية لأول مرة…")
+        updateNotification(
+            "تنزيل نموذج الترجمة ${pending.language.uppercase(Locale.ROOT)} إلى العربية لأول مرة…"
+        )
         session.translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
             .addOnSuccessListener {
                 if (!running.get()) return@addOnSuccessListener
@@ -610,80 +610,17 @@ class FloatingTranslationOverlayService : Service() {
             .addOnFailureListener { error ->
                 if (!running.get()) return@addOnFailureListener
                 session.modelDownloadPending = false
-                val detail = error.localizedMessage ?: "تحقق من الإنترنت ثم أعد المحاولة"
-                updateNotification("تعذر تجهيز النموذج المحلي؛ ستتم تجربة مزود الترجمة الاحتياطي")
-                // Preserve the exact phrase and order, then route it to cloud auto-detection.
-                if (pendingTranslations.peekFirst() === pending) {
-                    pendingTranslations.removeFirst()
-                    pendingTranslations.addFirst(pending.copy(sourceLanguage = null, attempt = 0))
-                }
-                mainHandler.postDelayed({ processNextPendingTranslation() }, TRANSLATION_RETRY_DELAY_MILLIS)
+                val detail = error.localizedMessage ?: "تحقق من اتصال الإنترنت ثم أعد المحاولة"
+                updateNotification(
+                    "تعذر تنزيل نموذج ${pending.language.uppercase(Locale.ROOT)}. " +
+                        "الجملة محفوظة وستتم إعادة المحاولة: $detail"
+                )
+                // Keep the exact phrase at the head of the FIFO; never fall back to a paid API.
+                mainHandler.postDelayed(
+                    { processNextPendingTranslation() },
+                    TRANSLATION_RETRY_DELAY_MILLIS
+                )
             }
-    }
-
-    private fun translateQueuedCaptionWithCloud(pending: PendingCaption) {
-        if (
-            !running.get() ||
-            translationInFlight ||
-            pendingTranslations.peekFirst() !== pending
-        ) return
-
-        translationInFlight = true
-        try {
-            cloudTranslationExecutor.execute {
-                val translated = runCatching {
-                    RoyalCloudTranslationClient.translate(applicationContext, pending.text)
-                }
-                mainHandler.post {
-                    if (!running.get()) return@post
-                    if (pendingTranslations.peekFirst() !== pending) {
-                        translationInFlight = false
-                        return@post
-                    }
-
-                    translationInFlight = false
-                    translated.onSuccess { arabic ->
-                        pendingTranslations.removeFirst()
-                        showCaption(arabic, pending.language)
-                        processNextPendingTranslation()
-                    }.onFailure { error ->
-                        // Keep the exact caption at the head of the FIFO. A missing
-                        // provider key or temporary network outage must never silently
-                        // discard recognized speech or reorder later captions.
-                        val retry = pending.copy(attempt = pending.attempt + 1)
-                        pendingTranslations.removeFirst()
-                        pendingTranslations.addFirst(retry)
-
-                        val delayMillis = (2_500L shl pending.attempt.coerceIn(0, 4))
-                            .coerceAtMost(40_000L)
-                        val code = error.message.orEmpty().substringBefore(':').take(90)
-                        val message = when (code) {
-                            "translator_not_configured" ->
-                                "الترجمة لهذه اللغة تحتاج إعداد مفتاح Google Translation على الخادم"
-                            "translation_rate_limit" ->
-                                "تم تجاوز حد طلبات الترجمة؛ ستتم إعادة المحاولة تلقائياً"
-                            "unauthorized" ->
-                                "انتهت جلسة الترجمة؛ أعد فتح تطبيق ROYAL+"
-                            else ->
-                                "تعذرت الترجمة السحابية مؤقتاً؛ الجملة محفوظة وستعاد المحاولة"
-                        }
-                        updateNotification(message)
-                        mainHandler.postDelayed({ processNextPendingTranslation() }, delayMillis)
-                    }
-                }
-            }
-        } catch (error: Exception) {
-            translationInFlight = false
-            val retry = pending.copy(attempt = pending.attempt + 1)
-            if (pendingTranslations.peekFirst() === pending) {
-                pendingTranslations.removeFirst()
-                pendingTranslations.addFirst(retry)
-            }
-            mainHandler.postDelayed(
-                { processNextPendingTranslation() },
-                (2_500L shl pending.attempt.coerceIn(0, 4)).coerceAtMost(40_000L)
-            )
-        }
     }
 
     private fun translateQueuedCaption(
@@ -1085,7 +1022,6 @@ class FloatingTranslationOverlayService : Service() {
         captionPhraseBuffer.clear()
         pendingTranslations.clear()
         translationInFlight = false
-        cloudTranslationExecutor.shutdownNow()
         translationSessions.values.forEach { session ->
             runCatching { session.translator.close() }
         }
