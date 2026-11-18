@@ -21,7 +21,7 @@ function cacheTtlSeconds(resource: SportsResource, params: URLSearchParams): num
   if (resource === "fifa_rankings") return 24 * 60 * 60;
   if (resource === "standings") return 60 * 60;
   if (params.has("date") || params.get("live") === "all") return 20 * 60;
-  if (params.has("next") || params.has("from") || params.has("to")) return 3 * 60 * 60;
+  if (params.has("next") || params.has("from") || params.has("to")) return 20 * 60;
   return 10 * 60;
 }
 
