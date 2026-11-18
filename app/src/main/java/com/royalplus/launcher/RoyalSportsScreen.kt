@@ -80,7 +80,7 @@ private const val SPORTS_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rltTQCQ_SlGk
  * Only official images returned by API-Sports are accepted. The in-memory cache
  * keeps these small illustrations local after the first successful fetch.
  */
-private object RoyalSportsProviderImageCache {
+internal object RoyalSportsProviderImageCache {
     private const val MAX_IMAGE_BYTES = 512 * 1024
     private const val EDGE_PX = 128
     private const val MAX_CACHE_BYTES = 3 * 1024 * 1024
@@ -185,7 +185,7 @@ internal fun RoyalSportsProviderImage(
     }
 }
 
-private enum class RoyalSportsTab {
+internal enum class RoyalSportsTab {
     LIVE, UPCOMING, FINISHED, RANKINGS
 }
 
