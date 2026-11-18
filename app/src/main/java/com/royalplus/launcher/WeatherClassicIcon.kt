@@ -180,13 +180,10 @@ internal fun RoyalClassicWeatherIcon(
             RoyalClassicWeatherKind.SUNRISE,
             RoyalClassicWeatherKind.SUNSET -> {
                 drawSun(
-                    Offset(size.width * 0.5f, size.height * 0.56f),
-                    edge * 0.19f,
-                    horizon = true,
+                    center = Offset(size.width * 0.5f, size.height * 0.56f),
+                    radius = edge * 0.19f,
                     rotationDegrees = sunRotation
                 )
-                val lineY = size.height * 0.67f
-                drawLine(Color.White.copy(alpha = 0.88f), Offset(size.width * 0.14f, lineY), Offset(size.width * 0.86f, lineY), edge * 0.025f, StrokeCap.Round)
             }
         }
     }
@@ -195,7 +192,6 @@ internal fun RoyalClassicWeatherIcon(
 private fun DrawScope.drawSun(
     center: Offset,
     radius: Float,
-    horizon: Boolean = false,
     rotationDegrees: Float = 0f
 ) {
     // Rotate the complete sun disc and its rays around the sun's own center.
@@ -208,15 +204,13 @@ private fun DrawScope.drawSun(
             val angle = Math.PI * index / 4.0
             val dx = cos(angle).toFloat()
             val dy = sin(angle).toFloat()
-            if (!horizon || dy <= 0.35f) {
-                drawLine(
-                    color = rayColor,
-                    start = Offset(center.x + dx * rayInner, center.y + dy * rayInner),
-                    end = Offset(center.x + dx * rayOuter, center.y + dy * rayOuter),
-                    strokeWidth = size.minDimension * 0.040f,
-                    cap = StrokeCap.Round
-                )
-            }
+            drawLine(
+                color = rayColor,
+                start = Offset(center.x + dx * rayInner, center.y + dy * rayInner),
+                end = Offset(center.x + dx * rayOuter, center.y + dy * rayOuter),
+                strokeWidth = size.minDimension * 0.040f,
+                cap = StrokeCap.Round
+            )
         }
         drawCircle(color = rayColor, radius = radius, center = center)
         drawCircle(
@@ -358,14 +352,31 @@ private fun DrawScope.drawLightning(edge: Float) {
 }
 
 private fun DrawScope.drawWind(edge: Float, count: Int) {
+    // Three-dimensional-looking S-curves read as moving gusts instead of flat lines.
     val color = Color(0xFFE4F3FB)
     repeat(count) { index ->
-        val y = size.height * (0.72f + index * 0.10f)
+        val startX = size.width * (0.12f + (index % 2) * 0.035f)
+        val span = size.width * (0.76f - (index % 2) * 0.07f)
+        val y = size.height * (0.70f + index * 0.095f)
+        val wave = edge * (0.022f + index * 0.004f)
         val path = Path().apply {
-            moveTo(size.width * 0.18f, y)
-            cubicTo(size.width * 0.42f, y - edge * 0.06f, size.width * 0.58f, y + edge * 0.07f, size.width * 0.82f, y)
+            moveTo(startX, y)
+            cubicTo(
+                startX + span * 0.16f, y - wave * 1.7f,
+                startX + span * 0.33f, y + wave * 1.8f,
+                startX + span * 0.52f, y + wave * 0.12f
+            )
+            cubicTo(
+                startX + span * 0.68f, y - wave * 1.7f,
+                startX + span * 0.84f, y - wave * 0.95f,
+                startX + span, y - wave * 0.25f
+            )
         }
-        drawPath(path, color, style = Stroke(width = edge * 0.032f, cap = StrokeCap.Round))
+        drawPath(
+            path,
+            color.copy(alpha = 0.90f - index * 0.08f),
+            style = Stroke(width = edge * 0.032f, cap = StrokeCap.Round)
+        )
     }
 }
 
