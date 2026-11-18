@@ -237,31 +237,12 @@ private data class RoyalSportsSession(
     val expiresAtMillis: Long
 )
 
-internal data class RoyalSupabaseTranslationAuth(
-    val projectUrl: String,
-    val publishableKey: String,
-    val accessToken: String
-)
-
 internal object RoyalSportsRepository {
     private const val SESSION_PREFS = "royalplus_sports_secure_session"
     private const val SESSION_VALUE = "encrypted_session"
     private const val KEY_ALIAS = "royalplus.sports.session.v1"
     private const val LOCAL_CACHE_PREFS = "royalplus_sports_local_cache"
     private val sessionLock = Any()
-
-    /**
-     * Returns only the public project key and the current user-scoped JWT.
-     * The service-role/secret key is never read or exposed to the Android app.
-     */
-    internal fun translationAuth(context: Context): RoyalSupabaseTranslationAuth {
-        val session = ensureSession(context)
-        return RoyalSupabaseTranslationAuth(
-            projectUrl = SPORTS_SUPABASE_URL,
-            publishableKey = SPORTS_SUPABASE_PUBLISHABLE_KEY,
-            accessToken = session.accessToken
-        )
-    }
 
     suspend fun loadFixtures(context: Context, tab: RoyalSportsTab): RoyalSportsLoadResult {
         return withContext(Dispatchers.IO) {
