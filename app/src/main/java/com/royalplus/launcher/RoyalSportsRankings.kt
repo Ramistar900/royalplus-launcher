@@ -351,7 +351,11 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
                     subtitle = if (fifaDate.isNotBlank()) fifaDate else if (arabic) "أحدث إصدار رسمي متاح" else "Latest available official edition"
                 )
                 if (fifaTeams.isEmpty()) {
-                    RankingEmptyState(loading, error, emptyText)
+                    RankingEmptyState(
+                loading, error, emptyText,
+                if (arabic) "جارٍ تحميل التصنيفات..." else if (turkish) "Sıralamalar yükleniyor..." else "Loading rankings...",
+                if (arabic) "تعذر تحميل بيانات التصنيف" else if (turkish) "Sıralama verileri yüklenemedi" else "Ranking data could not be loaded"
+            )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -367,11 +371,15 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
                 val current = standings
                 val selectedName = selectedCompetition?.name.orEmpty()
                 RankingSectionHeading(
-                    title = if (arabic) selectedName else selectedName,
+                    title = localizedRankingCompetitionName(selectedName, arabic, turkish),
                     subtitle = if (arabic) "ترتيب الفرق والنقاط ومناطق التأهل والهبوط" else if (turkish) "Takım sıralaması, puanlar ve düşme hattı" else "Team table, points, qualification and relegation zones"
                 )
                 if (current == null || current.groups.isEmpty()) {
-                    RankingEmptyState(loading, error, emptyText)
+                    RankingEmptyState(
+                        loading, error, emptyText,
+                        if (arabic) "جارٍ تحميل التصنيفات..." else if (turkish) "Sıralamalar yükleniyor..." else "Loading rankings...",
+                        if (arabic) "تعذر تحميل بيانات التصنيف" else if (turkish) "Sıralama verileri yüklenemedi" else "Ranking data could not be loaded"
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -392,7 +400,7 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
                                 )
                             }
                             item(key = "standing-head-$groupIndex") {
-                                StandingsColumnHeader(arabic)
+                                StandingsColumnHeader(arabic, turkish)
                             }
                             items(group.entries, key = { "$groupIndex-${it.teamId}-${it.rank}" }) { entry ->
                                 StandingsEntryRow(entry, arabic, turkish)
@@ -482,12 +490,18 @@ private fun RankingSectionHeading(title: String, subtitle: String) {
 }
 
 @Composable
-private fun RankingEmptyState(loading: Boolean, error: String?, emptyText: String) {
+private fun RankingEmptyState(
+    loading: Boolean,
+    error: String?,
+    emptyText: String,
+    loadingText: String,
+    errorText: String
+) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             when {
-                loading -> "جارٍ تحميل التصنيفات..."
-                error != null -> "تعذر تحميل بيانات التصنيف ($error)"
+                loading -> loadingText
+                error != null -> "$errorText ($error)"
                 else -> emptyText
             },
             color = if (error != null) Color(0xFFFFB4A9) else RoyalColors.Pearl,
@@ -546,7 +560,7 @@ private fun FifaRankingRow(team: RoyalSportsFifaTeam) {
 }
 
 @Composable
-private fun StandingsColumnHeader(arabic: Boolean) {
+private fun StandingsColumnHeader(arabic: Boolean, turkish: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(Color(0xAA122F27))
@@ -555,10 +569,10 @@ private fun StandingsColumnHeader(arabic: Boolean) {
     ) {
         Text(if (arabic) "م" else "Pos", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(25.dp))
         Text(if (arabic) "النادي" else "Club", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.weight(1f))
-        Text("لعب", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(28.dp))
-        Text("ف-ت-خ", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(48.dp))
+        Text(if (arabic) "لعب" else if (turkish) "O" else "P", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(28.dp))
+        Text(if (arabic) "ف-ت-خ" else if (turkish) "G-B-M" else "W-D-L", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(48.dp))
         Text("+/-", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(32.dp))
-        Text(if (arabic) "نقاط" else "Pts", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(30.dp))
+        Text(if (arabic) "نقاط" else if (turkish) "Puan" else "Pts", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(30.dp))
     }
 }
 
@@ -636,6 +650,39 @@ private fun localizedRankingGroupName(value: String, arabic: Boolean, turkish: B
             normalized.contains("overall") -> "Genel sıralama"
             else -> value
         }
+    }
+    return value
+}
+
+
+private fun localizedRankingCompetitionName(value: String, arabic: Boolean, turkish: Boolean): String {
+    val key = value.lowercase(Locale.ROOT)
+    if (arabic) return when {
+        key.contains("premier league") -> "الدوري الإنجليزي الممتاز"
+        key.contains("la liga") -> "الدوري الإسباني"
+        key.contains("serie a") -> "الدوري الإيطالي"
+        key.contains("bundesliga") -> "الدوري الألماني"
+        key.contains("ligue 1") -> "الدوري الفرنسي"
+        key.contains("süper lig") -> "الدوري التركي الممتاز"
+        key.contains("saudi pro") -> "الدوري السعودي للمحترفين"
+        key.contains("world cup") -> "كأس العالم"
+        key.contains("champions league") -> "دوري أبطال أوروبا"
+        key.contains("europa league") -> "الدوري الأوروبي"
+        key.contains("european championship") -> "بطولة أمم أوروبا"
+        key.contains("africa cup") -> "كأس أمم إفريقيا"
+        key.contains("copa américa") -> "كوبا أمريكا"
+        key.contains("asian cup") -> "كأس آسيا"
+        else -> value
+    }
+    if (turkish) return when {
+        key.contains("premier league") -> "İngiltere Premier Ligi"
+        key.contains("la liga") -> "İspanya La Liga"
+        key.contains("serie a") -> "İtalya Serie A"
+        key.contains("bundesliga") -> "Almanya Bundesliga"
+        key.contains("world cup") -> "Dünya Kupası"
+        key.contains("champions league") -> "Şampiyonlar Ligi"
+        key.contains("european championship") -> "Avrupa Şampiyonası"
+        else -> value
     }
     return value
 }
