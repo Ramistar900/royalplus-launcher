@@ -185,7 +185,7 @@ private fun RoyalSportsProviderImage(
     }
 }
 
-private enum class RoyalSportsTab {
+internal enum class RoyalSportsTab {
     MATCHES, SCHEDULE
 }
 
