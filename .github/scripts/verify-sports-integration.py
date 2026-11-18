@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SPORTS = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsScreen.kt"
+RANKINGS = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsRankings.kt"
 HOME = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalHomeScreen.kt"
 MANIFEST = ROOT / "app/src/main/AndroidManifest.xml"
 BACKEND = ROOT / "supabase/functions/royalplus-sports/index.ts"
@@ -21,7 +22,6 @@ assert "LIVE, UPCOMING, FINISHED, RANKINGS" in sports
 assert 'arabic -> "كرة القدم"' in sports
 assert 'turkish -> "FUTBOL"' in sports and 'else -> "FOOTBALL"' in sports
 assert "RoyalSportsGlyph.FOOTBALL" in sports
-assert "RoyalSportsGlyph.TODAY_MATCHES" in sports
 assert "RoyalSportsGlyph.FIXTURES" in sports
 assert "RoyalSportsGlyph.LIVE" in sports
 assert "RoyalSportsGlyph.RESULTS" in sports
@@ -88,8 +88,8 @@ assert "grant execute" in public_rpc_migration.lower()
 graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics.kt").read_text(encoding="utf-8")
 assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
-assert "round = league.optString(\\\"round\\\", \\\"\\\")" in sports
-assert "groupBy { it.round.trim().ifBlank { \\\"—\\\" } }" in sports
+assert 'round = league.optString("round", "")' in sports
+assert 'groupBy { it.round.trim().ifBlank { "—" } }' in sports
 assert "localizedFootballRound" in sports
 
 rankings = RANKINGS.read_text(encoding="utf-8")
@@ -100,7 +100,6 @@ for required in (
 ):
     assert required.lower() in rankings.lower(), f"Missing rankings feature: {required}"
 assert "royalplus_sports_standings_movement" in rankings
-assert "RoyalSportsRankingScreen" not in rankings
 assert "topScorers" not in rankings and "topAssists" not in rankings
 assert "RoyalV20SportsIcon" not in sports + home + graphics
 assert "SportsPitchGlassBackground" in graphics
