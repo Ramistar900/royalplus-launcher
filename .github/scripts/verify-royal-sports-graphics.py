@@ -5,11 +5,12 @@ ROOT = Path(__file__).resolve().parents[2]
 JAVA = ROOT / "app/src/main/java/com/royalplus/launcher"
 GRAPHICS = JAVA / "RoyalSportsGraphics.kt"
 SCREEN = JAVA / "RoyalSportsScreen.kt"
+RANKINGS = JAVA / "RoyalSportsRankings.kt"
 HOME = JAVA / "RoyalHomeScreen.kt"
 WORKFLOW = ROOT / ".github/workflows/build-apk.yml"
 GRADLE = ROOT / "app/build.gradle.kts"
 
-for path in (GRAPHICS, SCREEN, HOME, WORKFLOW, GRADLE):
+for path in (GRAPHICS, SCREEN, RANKINGS, HOME, WORKFLOW, GRADLE):
     assert path.is_file(), f"Required sports graphics file is missing: {path.relative_to(ROOT)}"
 
 graphics = GRAPHICS.read_text(encoding="utf-8")
@@ -45,7 +46,7 @@ assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in screen
-assert "groupBy { it.round.trim().ifBlank { \\\"—\\\" } }" in screen
+assert 'groupBy { it.round.trim().ifBlank { "—" } }' in screen
 assert "localizedFootballRound" in screen
 for tab in ("LIVE", "UPCOMING", "FINISHED", "RANKINGS"):
     assert "RoyalSportsTab." + tab in screen
