@@ -13,14 +13,15 @@ assert "-keep class com.k2fsa.sherpa.onnx.** { *; }" in proguard
 assert "-keep interface com.k2fsa.sherpa.onnx.** { *; }" in proguard
 
 weather = (JAVA / "RoyalWeatherAtmosphereOverlay.kt").read_text(encoding="utf-8")
-rain_guard = weather.split("if (isRain) {", 1)[1].split("val isSnow", 1)[0]
-rain_renderer = weather.split("private fun DrawScope.drawRoyalRain(", 1)[1].split("private fun DrawScope.drawRoyalSnow(", 1)[0]
-assert "drawRoyalRain(" in rain_guard and "return@Canvas" in rain_guard
+assert "drawRoyalRain(" not in weather, "Animated rain drops must not cover the local weather video"
+assert "drawRoyalSnow(" not in weather, "Animated snow particles must not cover the local weather video"
+assert "drawRoyalWind(" in weather, "Weather atmosphere must retain wind motion"
+assert "val windThreshold = if (isSnow) 12 else 18" in weather, "Wind gusts should remain visible during snow and stronger wind"
+gust_renderer = weather.split("private fun DrawScope.drawRoyalWind(", 1)[1]
 for forbidden in ("drawRoyalClouds", "drawRoyalSun", "drawRoyalFog", "drawRoyalNightSky", "drawRoyalLightning"):
     assert forbidden not in weather, f"Unwanted procedural weather layer remains: {forbidden}"
-assert "drawRoyalSnow(" in weather and "drawRoyalWind(" in weather
-assert "cubicTo(" in rain_renderer and "drawPath(" in rain_renderer
-assert "drawLine(" not in rain_renderer and "drawRect(" not in rain_renderer
+assert "cubicTo(" in gust_renderer and "trailingCurl" in gust_renderer and "drawPath(" in gust_renderer
+assert "drawLine(" not in weather and "drawRect(" not in weather
 
 weather_details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
 weather_card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
@@ -87,4 +88,4 @@ assert "RoyalWeatherAmbienceController.onBackground()" in home
 manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 assert "FOREGROUND_SERVICE_MEDIA_PROJECTION" in manifest
 assert 'foregroundServiceType="microphone|mediaProjection"' in manifest
-print("Verified rain/snow/wind-only atmosphere, VAD speech turns, audio-event filtering, lossless ordered captions and Android 8 microphone route.")
+print("Verified wind-gust-only weather atmosphere without rain/snow particles, VAD speech turns, audio-event filtering, lossless ordered captions and Android 8 microphone route.")
