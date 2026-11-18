@@ -39,6 +39,7 @@ function localizedName(value: unknown): string {
 }
 
 function asNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -206,7 +207,7 @@ Deno.serve(async (req: Request) => {
     )
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
-  if (canonicalQuery.length > 512) {
+  if (canonicalQuery.length + resource.length + 1 > 512) {
     return json({ error: "query_too_large" }, 400);
   }
   const cacheKey = `${resource}:${canonicalQuery}`;
