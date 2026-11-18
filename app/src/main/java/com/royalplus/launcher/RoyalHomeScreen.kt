@@ -2261,7 +2261,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[5], Icons.Rounded.Wifi, selectedDestination == LauncherDestination.SINJAR_TV, iconRes = R.drawable.royal_cast, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
+        SidebarNavItem(labels[5], null, selectedDestination == LauncherDestination.SINJAR_TV, sinjarLogo = true, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
             labels[6],
@@ -2336,6 +2336,7 @@ private fun SidebarNavItem(
     selected: Boolean,
     iconRes: Int? = null,
     sportsBall: Boolean = false,
+    sinjarLogo: Boolean = false,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -2391,7 +2392,7 @@ private fun SidebarNavItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (compactPhone) Arrangement.Center else Arrangement.SpaceBetween
     ) {
-        if (!compactPhone) Text(
+        if (!compactPhone && !sinjarLogo) Text(
             text = title,
             color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFE2A1) else RoyalColors.Pearl,
             fontSize = 12.sp,
@@ -2399,6 +2400,24 @@ private fun SidebarNavItem(
             maxLines = 1
         )
         when {
+            sinjarLogo -> Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.sinjar_show_logo),
+                    contentDescription = "Sinjar TV",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(width = 34.dp, height = 25.dp)
+                )
+                Text(
+                    "TV",
+                    color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
             sportsBall -> RoyalRotatingFootballIcon(
                 modifier = Modifier.size(royalSportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
                 contentDescription = title
