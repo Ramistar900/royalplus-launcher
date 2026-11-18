@@ -70,6 +70,8 @@ internal object RoyalWeatherAmbienceController {
     private const val MIN_THUNDER_INTERVAL_MS = 7L * 60L * 1000L
     private const val MAX_THUNDER_INTERVAL_MS = 15L * 60L * 1000L
     private const val MAX_AMBIENCE_VOLUME = 0.48f
+    private const val WIND_AUDIO_VOLUME_MULTIPLIER = 0.52f
+    private const val HEAVY_SNOW_WIND_VOLUME_MULTIPLIER = 0.46f
 
     private data class AmbienceScene(
         val key: String,
@@ -266,12 +268,16 @@ internal object RoyalWeatherAmbienceController {
                 isEnabled(context, WIND_ENABLED_KEY) ->
                 AmbienceScene(
                     key = "heavy-snow-wind",
-                    volumeMultiplier = 0.88f,
+                    volumeMultiplier = HEAVY_SNOW_WIND_VOLUME_MULTIPLIER,
                     streamUrl = HEAVY_SNOW_WIND_URL
                 )
             (weather.windSpeedKmh ?: 0) >= WIND_THRESHOLD_KMH &&
                 isEnabled(context, WIND_ENABLED_KEY) ->
-                AmbienceScene("wind", R.raw.nature_wind_gentle)
+                AmbienceScene(
+                    key = "wind",
+                    resourceId = R.raw.nature_wind_gentle,
+                    volumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER
+                )
             code in 0..1 && isMorning(weather) &&
                 isEnabled(context, BIRDS_ENABLED_KEY) ->
                 AmbienceScene("morning-birds", R.raw.nature_birds_morning)
@@ -312,7 +318,7 @@ internal object RoyalWeatherAmbienceController {
             if (scene.streamUrl != null && foreground) {
                 startLoopPlayer(
                     context,
-                    scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = 1.05f)
+                    scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER)
                 )
             }
             true
@@ -344,7 +350,7 @@ internal object RoyalWeatherAmbienceController {
                 if (foreground) {
                     startLoopPlayer(
                         context,
-                        scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = 1.05f)
+                        scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER)
                     )
                 } else {
                     maybeAbandonAudioFocus()
