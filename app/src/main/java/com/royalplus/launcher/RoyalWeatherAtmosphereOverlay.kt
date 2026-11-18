@@ -21,7 +21,8 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.sin
 
-/** Android 8-safe atmosphere: only rain, snow and wind animations are drawn. */
+/** Android 8-safe weather motion: only curved wind gusts are drawn over local weather videos. */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun RoyalWeatherAtmosphereOverlay(
     weatherCode: Int?,
@@ -32,11 +33,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
     sunsetMode: Boolean = false
 ) {
     val effectScale = RoyalInterfaceQualitySettings.budget(LocalContext.current).motionScale
-    val description = weatherDescription.orEmpty().lowercase()
-    val rainWords = listOf("rain", "drizzle", "مطر", "أمطار", "رذاذ", "yağmur", "çisenti")
-    val descriptionIndicatesRain = rainWords.any(description::contains)
-    val numericRainCode = weatherCode?.let { it in 51..67 || it in 80..82 || it in 95..99 } == true
-    val effectiveWeatherCode = if (descriptionIndicatesRain && !numericRainCode) 61 else weatherCode
+    val effectiveWeatherCode = weatherCode
     if (!motionEnabled || effectScale <= 0.25f || effectiveWeatherCode == null) return
 
     val transition = rememberInfiniteTransition(label = "royal-weather-atmosphere")
