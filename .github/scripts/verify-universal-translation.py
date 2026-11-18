@@ -35,7 +35,7 @@ assert "internal fun translationAuth(context: Context)" in sports
 # Server validates the Supabase JWT and keeps the Google key server-side.
 assert 'Deno.env.get("GOOGLE_TRANSLATE_API_KEY")' in edge
 assert '/auth/v1/user' in edge
-assert 'parameters.set("target", "ar")' in edge
+assert 'JSON.stringify({ q: text, target: "ar", format: "text" })' in edge
 assert 'parameters.set("source"' not in edge, "Cloud provider must auto-detect source language"
 assert "AudioRecord" not in client and "FloatArray" not in client and "ShortArray" not in client, "The app must send captions, not PCM audio buffers"
 print("Universal translation routing checks passed.")
