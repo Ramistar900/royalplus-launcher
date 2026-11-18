@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "fix/royalplus-abi-test-assets" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "fix/royalplus-abi-test-assets", "feature/sinjar-tv-embedded-integration" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -18,13 +18,15 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sinjar-tv-embedded-integration'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Download and verify approved Muslim PNG icons
         run: python3 .github/scripts/prepare-muslim-png-icons.py
@@ -199,19 +201,10 @@ jobs:
 
       - name: Smoke test on Android 8 (API 26)
         timeout-minutes: 20
-        uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_TEST_LABEL: Android 8 (API 26)
           EXPECTED_API_LEVEL: "26"
-        with:
-          api-level: 26
-          target: google_apis
-          arch: x86_64
-          profile: Nexus 6
-          emulator-boot-timeout: 600
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          script: bash .github/scripts/android8-smoke-test.sh
+        run: bash .github/scripts/android26-emulator-smoke.sh
 
       - name: Publish compact ARM test APKs to an isolated draft release
         if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
@@ -324,6 +317,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Download and verify approved Muslim PNG icons
         run: python3 .github/scripts/prepare-muslim-png-icons.py
@@ -534,18 +529,10 @@ jobs:
 
       - name: Smoke test on Android 8 (API 26)
         timeout-minutes: 20
-        uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_TEST_LABEL: Android 8 (API 26)
           EXPECTED_API_LEVEL: "26"
-        with:
-          api-level: 26
-          arch: x86_64
-          profile: Nexus 6
-          emulator-boot-timeout: 600
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          script: bash .github/scripts/android8-smoke-test.sh
+        run: bash .github/scripts/android26-emulator-smoke.sh
 
       - name: Publish automatic signed release on main or keep test draft
         env:
