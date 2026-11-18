@@ -44,7 +44,18 @@ assert "sportsBall = true" in home
 assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
-assert "groupBy { it.country.trim() to it.league.trim() }" in screen
+assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in screen
+assert "groupBy { it.round.trim().ifBlank { \\\"—\\\" } }" in screen
+assert "localizedFootballRound" in screen
+for tab in ("LIVE", "UPCOMING", "FINISHED", "RANKINGS"):
+    assert "RoyalSportsTab." + tab in screen
+rankings = (JAVA / "RoyalSportsRankings.kt").read_text(encoding="utf-8")
+assert "NATIONAL_TEAMS" in rankings
+assert "DOMESTIC_LEAGUES" in rankings
+assert "INTERNATIONAL_GROUPS" in rankings
+assert "RoyalSportsRankingRepository.loadFifaTop100" in rankings
+assert "RoyalSportsRankingRepository.loadStandings" in rankings
+assert "isRelegationZone" in rankings
 assert "RoyalSportsMatchBucket.LIVE" in screen
 assert "RoyalSportsMatchBucket.NOT_STARTED" in screen
 assert "RoyalSportsMatchBucket.PLAYED" in screen
