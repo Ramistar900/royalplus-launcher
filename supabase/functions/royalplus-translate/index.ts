@@ -96,17 +96,13 @@ Deno.serve(async (request: Request) => {
   try {
     // Omit "source": Google detects the source language instead of relying on a
     // short app-maintained list of language codes.
-    const parameters = new URLSearchParams();
-    parameters.set("q", text);
-    parameters.set("target", "ar");
-    parameters.set("format", "text");
-
     const translateResponse = await fetch(
       `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(googleKey)}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-        body: parameters,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        // Leave "source" unset so Google detects the incoming language automatically.
+        body: JSON.stringify({ q: text, target: "ar", format: "text" }),
         signal: AbortSignal.timeout(20_000),
       },
     );
