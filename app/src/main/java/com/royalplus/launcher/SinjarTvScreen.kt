@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -415,6 +416,7 @@ private fun SinjarPlayerPane(
     var controlsVisible by remember { mutableStateOf(true) }
     var controlsTimerKey by remember { mutableStateOf(0) }
     val focusRequester = remember { FocusRequester() }
+    val channelListState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         runCatching { focusRequester.requestFocus() }
@@ -433,6 +435,11 @@ private fun SinjarPlayerPane(
     LaunchedEffect(visibleChannels.size) {
         highlightedIndex = visibleChannels.indexOfFirst { it.streamUrl == selectedChannel?.streamUrl }
             .let { if (it >= 0) it else 0 }
+    }
+    LaunchedEffect(highlightedIndex, channelMenuVisible, visibleChannels.size) {
+        if (channelMenuVisible && visibleChannels.isNotEmpty()) {
+            channelListState.animateScrollToItem(highlightedIndex.coerceIn(0, visibleChannels.lastIndex))
+        }
     }
 
     val qualityLevel = when {
@@ -632,7 +639,7 @@ private fun SinjarPlayerPane(
 
         if (channelMenuVisible) {
             Column(
-                modifier = Modifier.align(Alignment.CenterStart)
+                modifier = Modifier.align(if (arabic) Alignment.CenterEnd else Alignment.CenterStart)
                     .fillMaxHeight(0.88f)
                     .width(if (isFullscreen) 290.dp else 250.dp)
                     .padding(start = 10.dp)
@@ -649,6 +656,7 @@ private fun SinjarPlayerPane(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp)
                 )
                 androidx.compose.foundation.lazy.LazyColumn(
+                    state = channelListState,
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
