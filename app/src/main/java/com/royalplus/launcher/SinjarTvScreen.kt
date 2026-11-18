@@ -32,6 +32,8 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,7 +57,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
@@ -84,7 +85,6 @@ import com.sinjartv.rstv.RemotePlaylistSources
 import com.sinjartv.rstv.RemoteSourceSnapshot
 import com.sinjartv.rstv.RSTVChannel
 import android.os.SystemClock
-import android.view.KeyEvent as AndroidKeyEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -429,7 +429,7 @@ private fun SinjarPlayerPane(
     }
     LaunchedEffect(controlsTimerKey, channelMenuVisible, favoritePromptChannel) {
         controlsVisible = true
-        delay(4500)
+        delay(5000)
         if (!channelMenuVisible && favoritePromptChannel == null) controlsVisible = false
     }
     LaunchedEffect(visibleChannels.size) {
@@ -511,32 +511,29 @@ private fun SinjarPlayerPane(
             .background(Color.Black)
             .focusRequester(focusRequester)
             .onPreviewKeyEvent { event ->
-                val key = event.nativeKeyEvent.keyCode
-                if (event.type == KeyEventType.KeyDown &&
-                    event.nativeKeyEvent.repeatCount == 0
-                ) {
+                val key = event.key
+                if (event.type == KeyEventType.KeyDown) {
                     controlsTimerKey++
                     when (key) {
-                        AndroidKeyEvent.KEYCODE_DPAD_UP -> {
+                        androidx.compose.ui.input.key.Key.DirectionUp -> {
                             if (channelMenuVisible && visibleChannels.isNotEmpty()) {
                                 highlightedIndex = (highlightedIndex - 1).coerceAtLeast(0)
                             }
                             true
                         }
-                        AndroidKeyEvent.KEYCODE_DPAD_DOWN -> {
+                        androidx.compose.ui.input.key.Key.DirectionDown -> {
                             if (channelMenuVisible && visibleChannels.isNotEmpty()) {
                                 highlightedIndex = (highlightedIndex + 1).coerceAtMost(visibleChannels.lastIndex)
                             }
                             true
                         }
-                        AndroidKeyEvent.KEYCODE_DPAD_CENTER,
-                        AndroidKeyEvent.KEYCODE_ENTER,
-                        AndroidKeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        androidx.compose.ui.input.key.Key.DirectionCenter,
+                        androidx.compose.ui.input.key.Key.Enter -> {
                             handleOk()
                             true
                         }
-                        AndroidKeyEvent.KEYCODE_BACK,
-                        AndroidKeyEvent.KEYCODE_ESCAPE -> {
+                        androidx.compose.ui.input.key.Key.Back,
+                        androidx.compose.ui.input.key.Key.Escape -> {
                             when {
                                 favoritePromptChannel != null -> favoritePromptChannel = null
                                 channelMenuVisible -> channelMenuVisible = false
@@ -572,6 +569,17 @@ private fun SinjarPlayerPane(
             }
         )
 
+        Image(
+            painter = painterResource(R.drawable.sinjar_show_logo),
+            contentDescription = if (arabic) "شعار سنجار" else "Sinjar TV",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.align(Alignment.TopEnd)
+                .padding(12.dp)
+                .width(72.dp)
+                .height(30.dp)
+                .background(Color.Black.copy(alpha = 0.12f), RoundedCornerShape(5.dp))
+        )
+
         if (selectedChannel == null) {
             Column(
                 modifier = Modifier.align(Alignment.Center)
@@ -599,28 +607,13 @@ private fun SinjarPlayerPane(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                selectedChannel?.name ?: if (arabic) "سنجار TV" else "Sinjar TV",
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = onStopPlayback, enabled = selectedChannel != null) {
-                Text(if (arabic) "إيقاف" else "Stop", color = muted, fontSize = 10.sp)
-            }
-            TextButton(onClick = onToggleFullscreen) {
-                Text(
-                    if (isFullscreen) {
-                        if (arabic) "تصغير" else "Exit"
-                    } else {
-                        if (arabic) "ملء الشاشة" else "Full screen"
-                    },
-                    color = gold,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onToggleFullscreen) {
+                Icon(
+                    imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
+                    contentDescription = if (isFullscreen) "Exit fullscreen" else "Fullscreen",
+                    tint = Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier.size(23.dp)
                 )
             }
         }
@@ -639,7 +632,7 @@ private fun SinjarPlayerPane(
 
         if (channelMenuVisible) {
             Column(
-                modifier = Modifier.align(if (arabic) Alignment.CenterEnd else Alignment.CenterStart)
+                modifier = Modifier.align(Alignment.CenterStart)
                     .fillMaxHeight(0.88f)
                     .width(if (isFullscreen) 290.dp else 250.dp)
                     .padding(start = 10.dp)
@@ -757,7 +750,7 @@ private fun SinjarPlayerPane(
                     Box(
                         modifier = Modifier.fillMaxWidth(qualityLevel / 4f)
                             .fillMaxHeight()
-                            .background(Color.White, RoundedCornerShape(5.dp))
+                            .background(qualityColor, RoundedCornerShape(5.dp))
                     )
                 }
                 Row(
