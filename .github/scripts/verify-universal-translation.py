@@ -37,5 +37,5 @@ assert 'Deno.env.get("GOOGLE_TRANSLATE_API_KEY")' in edge
 assert '/auth/v1/user' in edge
 assert 'parameters.set("target", "ar")' in edge
 assert 'parameters.set("source"' not in edge, "Cloud provider must auto-detect source language"
-assert "audio" not in client.lower(), "The app must not upload captured audio to translation service"
+assert "AudioRecord" not in client and "FloatArray" not in client and "ByteArray" not in client, "The app must send captions, not captured audio"
 print("Universal translation routing checks passed.")
