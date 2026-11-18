@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -20,10 +19,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.sin
 
-/** Android 8-safe atmosphere: only rain, snow and wind animations are drawn. */
+/** Android 8-safe weather motion: only curved wind gusts are drawn over local weather videos. */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun RoyalWeatherAtmosphereOverlay(
     weatherCode: Int?,
@@ -34,11 +33,7 @@ internal fun RoyalWeatherAtmosphereOverlay(
     sunsetMode: Boolean = false
 ) {
     val effectScale = RoyalInterfaceQualitySettings.budget(LocalContext.current).motionScale
-    val description = weatherDescription.orEmpty().lowercase()
-    val rainWords = listOf("rain", "drizzle", "مطر", "أمطار", "رذاذ", "yağmur", "çisenti")
-    val descriptionIndicatesRain = rainWords.any(description::contains)
-    val numericRainCode = weatherCode?.let { it in 51..67 || it in 80..82 || it in 95..99 } == true
-    val effectiveWeatherCode = if (descriptionIndicatesRain && !numericRainCode) 61 else weatherCode
+    val effectiveWeatherCode = weatherCode
     if (!motionEnabled || effectScale <= 0.25f || effectiveWeatherCode == null) return
 
     val transition = rememberInfiniteTransition(label = "royal-weather-atmosphere")
@@ -57,125 +52,13 @@ internal fun RoyalWeatherAtmosphereOverlay(
         if (width <= 0f || height <= 0f) return@Canvas
         val wind = (windSpeedKmh ?: 8).coerceIn(0, 70)
         val windStrength = wind / 70f
-
-        val isRain = effectiveWeatherCode in 51..67 ||
-            effectiveWeatherCode in 80..82 || effectiveWeatherCode in 95..99
-        if (isRain) {
-            val intensity = when (effectiveWeatherCode) {
-                51, 53, 61, 66, 80 -> 2
-                55, 63, 67, 81, 95 -> 3
-                else -> 4
-            }
-            drawRoyalRain(progress, width, height, intensity, windStrength, effectScale)
-            return@Canvas
-        }
-
         val isSnow = effectiveWeatherCode in 71..77 || effectiveWeatherCode in 85..86
-        if (isSnow) {
-            val intensity = when (effectiveWeatherCode) {
-                71, 85 -> 1
-                73 -> 2
-                else -> 3
-            }
-            drawRoyalSnow(progress, width, height, intensity, windStrength, effectScale)
-            if (wind >= 12) drawRoyalWind(progress, width, height, windStrength, effectScale)
-            return@Canvas
-        }
+        val windThreshold = if (isSnow) 12 else 18
 
-        if (wind >= 18) drawRoyalWind(progress, width, height, windStrength, effectScale)
-    }
-}
-
-private fun DrawScope.drawRoyalRain(
-    progress: Float,
-    width: Float,
-    height: Float,
-    intensity: Int,
-    windStrength: Float,
-    effectScale: Float
-) {
-    // Filled teardrops only: no animated clouds, streaks, wind trails, or splash layer.
-    val count = (when (intensity) { 1 -> 34; 2 -> 48; 3 -> 64; else -> 82 } * effectScale)
-        .toInt().coerceAtLeast(8)
-    val dropLength = height * when (intensity) { 1 -> 0.020f; 2 -> 0.024f; 3 -> 0.029f; else -> 0.034f }
-    val horizontalDrift = width * windStrength.coerceIn(0f, 1f) * 0.11f
-
-    repeat(count) { index ->
-        val seed = (index * 0.6180339f) % 1f
-        val phase = (index * 0.381966f + (index % 5) * 0.047f) % 1f
-        val speed = 0.78f + (index % 7) * 0.07f
-        val y = (height * phase + progress * height * 1.35f * speed) % (height + dropLength) - dropLength
-        val baseX = width * (0.018f + seed * 0.964f)
-        val drift = progress * horizontalDrift * (if (index % 2 == 0) 1f else -0.36f)
-        val x = (baseX + drift + width) % width
-        val dropWidth = dropLength * (0.34f + (index % 4) * 0.035f)
-        val alpha = (0.54f + (index % 5) * 0.055f).coerceAtMost(0.78f)
-
-        val droplet = Path().apply {
-            moveTo(x, y)
-            cubicTo(x - dropWidth * 0.20f, y + dropLength * 0.24f,
-                x - dropWidth * 0.92f, y + dropLength * 0.62f,
-                x - dropWidth * 0.68f, y + dropLength * 0.86f)
-            cubicTo(x - dropWidth * 0.34f, y + dropLength * 1.16f,
-                x + dropWidth * 0.34f, y + dropLength * 1.16f,
-                x + dropWidth * 0.68f, y + dropLength * 0.86f)
-            cubicTo(x + dropWidth * 0.92f, y + dropLength * 0.62f,
-                x + dropWidth * 0.20f, y + dropLength * 0.24f,
-                x, y)
-            close()
-        }
-        drawPath(path = droplet, color = Color(0xFFDDF2FF).copy(alpha = alpha))
-        drawCircle(
-            color = Color.White.copy(alpha = alpha * 0.34f),
-            radius = dropWidth * 0.12f,
-            center = Offset(x - dropWidth * 0.17f, y + dropLength * 0.73f)
-        )
-    }
-}
-
-private fun DrawScope.drawRoyalSnow(
-    progress: Float,
-    width: Float,
-    height: Float,
-    intensity: Int,
-    windStrength: Float,
-    effectScale: Float
-) {
-    val count = (when (intensity) {
-        1 -> 28
-        2 -> 40
-        else -> 52
-    } * effectScale).toInt().coerceAtLeast(8)
-    repeat(count) { index ->
-        val seed = (index * 0.7548777f) % 1f
-        val phase = (index * 0.193f + (index % 4) * 0.067f) % 1f
-        val fallSpeed = if (index % 4 == 0) 0.58f else 0.86f + (index % 3) * 0.08f
-        val y = (height * phase + progress * height * 0.76f * fallSpeed) % (height * 1.08f) - height * 0.04f
-        val sway = sin(progress * PI * 2.0 + index * 1.31).toFloat()
-        val drift = progress * windStrength * width * 0.10f
-        val x = (width * (0.025f + seed * 0.95f) + sway * (5.dp.toPx() + intensity * 1.8.dp.toPx()) +
-            drift * (if (index % 2 == 0) 1f else -0.25f))
-        val radius = (1.35f + (index % 4) * 0.58f + if (intensity == 3) 0.45f else 0f).dp.toPx()
-        val alpha = 0.48f + (index % 3) * 0.12f
-
-        drawCircle(Color(0xFFDCEEFF).copy(alpha = alpha * 0.45f), radius = radius * 1.8f, center = Offset(x, y))
-        drawCircle(Color(0xFFF7FCFF).copy(alpha = alpha), radius = radius, center = Offset(x, y))
-
-        // A restrained six-arm crystal on larger flakes makes snowfall look varied.
-        if (index % 3 == 0) {
-            val arm = radius * 2.4f
-            repeat(3) { armIndex ->
-                val angle = armIndex * PI / 3.0
-                val dx = cos(angle).toFloat() * arm
-                val dy = sin(angle).toFloat() * arm
-                drawLine(
-                    color = Color(0xBDEAF6FF).copy(alpha = alpha),
-                    start = Offset(x - dx, y - dy),
-                    end = Offset(x + dx, y + dy),
-                    strokeWidth = 0.75.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-            }
+        // Rain and snow particles are intentionally not drawn over the weather video.
+        // Only a clear, flowing gust animation remains when wind is noticeable.
+        if (wind >= windThreshold) {
+            drawRoyalWind(progress, width, height, windStrength, effectScale)
         }
     }
 }
@@ -187,25 +70,50 @@ private fun DrawScope.drawRoyalWind(
     strength: Float,
     effectScale: Float
 ) {
-    val lines = ((7 + (strength * 5f).toInt()) * effectScale).toInt().coerceAtLeast(3)
-    repeat(lines) { index ->
-        val phase = (progress * (0.9f + index * 0.035f) + index * 0.163f) % 1f
-        val x = phase * (width * 1.35f) - width * 0.18f
-        val y = height * (0.34f + (index % 5) * 0.105f)
-        val length = width * (0.075f + strength * 0.075f + (index % 3) * 0.018f)
-        val curve = height * (0.006f + strength * 0.012f)
-        val path = Path().apply {
+    // Broad S-shaped ribbons and a hooked tail make each moving mark read as a gust.
+    val gustCount = ((3f + strength * 2f) * effectScale).toInt().coerceIn(3, 5)
+    repeat(gustCount) { index ->
+        val speed = 0.72f + (index % 3) * 0.12f
+        val phase = (progress * speed + index * 0.217f) % 1f
+        val x = phase * (width * 1.48f) - width * 0.25f
+        val wave = sin(progress * PI * 2.0 + index * 0.91).toFloat()
+        val y = height * (0.25f + (index % 4) * 0.15f) + wave * height * 0.008f
+        val length = width * (0.13f + strength * 0.14f + (index % 2) * 0.035f)
+        val curve = height * (0.014f + strength * 0.025f)
+        val gust = Path().apply {
             moveTo(x, y)
             cubicTo(
-                x + length * 0.30f, y - curve,
-                x + length * 0.64f, y + curve,
-                x + length, y - curve * 0.18f
+                x + length * 0.17f, y - curve * 1.65f,
+                x + length * 0.34f, y + curve * 1.85f,
+                x + length * 0.52f, y + curve * 0.12f
+            )
+            cubicTo(
+                x + length * 0.68f, y - curve * 1.75f,
+                x + length * 0.84f, y - curve * 0.95f,
+                x + length, y - curve * 0.25f
+            )
+        }
+        val alpha = 0.18f + strength * 0.20f
+        val stroke = (1.8f + strength * 1.3f).dp.toPx()
+        drawPath(
+            path = gust,
+            color = Color(0xFFDDEBF2).copy(alpha = alpha),
+            style = Stroke(width = stroke, cap = StrokeCap.Round)
+        )
+
+        val trailingCurl = Path().apply {
+            moveTo(x + length * 0.43f, y + curve * 1.2f)
+            cubicTo(
+                x + length * 0.58f, y + curve * 2.1f,
+                x + length * 0.77f, y + curve * 1.25f,
+                x + length * 0.91f, y + curve * 0.78f
             )
         }
         drawPath(
-            path = path,
-            color = Color(0xFFDDEBF2).copy(alpha = 0.10f + strength * 0.12f),
-            style = Stroke(width = (1.0f + strength * 1.2f).dp.toPx(), cap = StrokeCap.Round)
+            path = trailingCurl,
+            color = Color(0xFFDDEBF2).copy(alpha = alpha * 0.62f),
+            style = Stroke(width = stroke * 0.72f, cap = StrokeCap.Round)
         )
     }
 }
+

@@ -10,6 +10,8 @@ card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
 details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
 screensaver = (JAVA / "RoyalSmartScreensaver.kt").read_text(encoding="utf-8")
 settings = (JAVA / "RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
+atmosphere = (JAVA / "RoyalWeatherAtmosphereOverlay.kt").read_text(encoding="utf-8")
+audio = (JAVA / "RoyalWeatherAmbienceController.kt").read_text(encoding="utf-8")
 
 assert not (JAVA / "V21WeatherAnimatedIcon.kt").exists(), "V21 icon component must be removed"
 assert not (ASSETS / "weather_v21").exists(), "V21 SVG icon assets must be removed"
@@ -28,6 +30,12 @@ assert "RoyalV21Weather" not in card + details + screensaver + settings + compon
 assert "rememberInfiniteTransition" in component, "Sun rotation animation must remain enabled"
 assert "animateFloat" in component and "rotationDegrees = sunRotation" in component, "Sun rotation must be wired into the icon renderer"
 assert "rotate(degrees = rotationDegrees, pivot = center)" in component, "The complete sun disc must rotate around its center"
+assert "horizon = true" not in component, "Sunrise/sunset must not clip the sun rays"
+assert "drawLine(Color.White.copy(alpha = 0.88f)" not in component, "Remove the unexplained white horizon line"
+assert "drawRoyalRain(" not in atmosphere and "drawRoyalSnow(" not in atmosphere, "Animated rain and snow particles must stay off the weather video"
+assert "drawRoyalWind(" in atmosphere and "trailingCurl" in atmosphere, "Keep clear curved wind-gust animation"
+assert "WIND_AUDIO_VOLUME_MULTIPLIER = 0.52f" in audio, "Lower wind ambience independently"
+assert "HEAVY_SNOW_WIND_VOLUME_MULTIPLIER = 0.46f" in audio, "Lower heavy-snow wind ambience independently"
 assert "BitmapFactory" not in component and "SVG.getFromAsset" not in component
 
 # Keep scenic weather backgrounds and render animated atmosphere only in Weather details.
@@ -44,4 +52,4 @@ assert "RoyalWeatherAtmosphereOverlay(" not in card, "Home weather card must not
 assert "RoyalWeatherAtmosphereOverlay(" in details, "Weather details must retain its atmosphere"
 assert "RoyalWeatherAtmosphereOverlay(" not in screensaver, "Screensaver must not render weather atmosphere"
 
-print("Verified the home weather card has no drawn/static weather artwork and retains local weather video playback; detailed forecast keeps classic icons and atmosphere.")
+print("Verified full animated sun rays without the white horizon line, wind-only curved atmosphere, no animated rain/snow particles, reduced wind audio, and preserved local weather videos.")
