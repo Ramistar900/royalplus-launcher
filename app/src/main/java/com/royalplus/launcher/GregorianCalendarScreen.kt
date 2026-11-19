@@ -282,6 +282,7 @@ internal fun GregorianCalendarScreen(language: String) {
                                         selectedDay == day
                                     val markerColor = when {
                                         dateReminders.any { it.repeat == CalendarReminderRepeat.YEARLY } -> RoyalCalendarPalette.Purple
+                                        dateReminders.any { it.repeat == CalendarReminderRepeat.MONTHLY } -> RoyalCalendarPalette.DeepGreen
                                         dateReminders.any { it.leadMinutes == 0 } -> RoyalCalendarPalette.Red
                                         dateReminders.isNotEmpty() -> RoyalCalendarPalette.Turquoise
                                         else -> RoyalCalendarPalette.OatCrystal
@@ -411,8 +412,11 @@ internal fun GregorianCalendarScreen(language: String) {
                                     Box(
                                         modifier = Modifier.size(7.dp).clip(CircleShape)
                                             .background(
-                                                if (reminder.repeat == CalendarReminderRepeat.YEARLY) RoyalCalendarPalette.Purple
-                                                else RoyalCalendarPalette.Turquoise
+                                                when (reminder.repeat) {
+                                                    CalendarReminderRepeat.YEARLY -> RoyalCalendarPalette.Purple
+                                                    CalendarReminderRepeat.MONTHLY -> RoyalCalendarPalette.DeepGreen
+                                                    CalendarReminderRepeat.NONE -> RoyalCalendarPalette.Turquoise
+                                                }
                                             )
                                     )
                                     Column(modifier = Modifier.weight(1f).padding(start = 9.dp)) {
