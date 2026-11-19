@@ -25,6 +25,20 @@ class Small100BpeTokenizerTest {
     }
 
     @Test
+    fun pinnedModelTokenizerRoundTripsArabicTurkishAndEnglish() {
+        val fixture = java.io.File("src/test/resources/small100-tokenizer.json")
+        assertEquals(true, fixture.isFile)
+        val tokenizer = Small100BpeTokenizer.fromFile(fixture)
+        listOf(
+            "Hello world!",
+            "Merhaba dünya!",
+            "مرحبا بالعالم"
+        ).forEach { sentence ->
+            assertEquals(sentence, tokenizer.decode(tokenizer.encode(sentence)))
+        }
+    }
+
+    @Test
     fun unknownSymbolsAreFusedIntoOneUnknownToken() {
         val tokenizer = Small100BpeTokenizer(
             vocab = mapOf("<unk>" to 3L, "▁" to 4L, "a" to 5L),
