@@ -219,7 +219,7 @@ private fun RoyalSettingsActionRow(
     icon: ImageVector,
     title: String,
     detail: String,
-    onClick: () -> Unit
+    onClick: (() -> Unit)? = null
 ) {
     val shape = RoundedCornerShape(12.dp)
     Row(
@@ -227,8 +227,7 @@ private fun RoyalSettingsActionRow(
             .clip(shape)
             .background(RoyalColors.Panel)
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.52f), shape)
-            .then(royalGlassFocus(shape))
-            .clickable(onClick = onClick)
+            .then(if (onClick != null) royalGlassFocus(shape).clickable { onClick() } else Modifier)
             .padding(horizontal = 13.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -278,7 +277,7 @@ internal fun RoyalAboutSettingsSection(language: String) {
                 turkish -> "Royal Geliştirici • Rami Al-Ahmad"
                 else -> "المطور الملكي • رامي الأحمد"
             }
-        ) { }
+        )
         RoyalSettingsActionRow(
             icon = Icons.Rounded.Storage,
             title = when { english -> "Device information"; turkish -> "Cihaz bilgileri"; else -> "معلومات الجهاز" },
