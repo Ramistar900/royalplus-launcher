@@ -6,6 +6,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 JAVA = ROOT / "app/src/main/java/com/royalplus/launcher"
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
+activity = (JAVA / "MainActivity.kt").read_text(encoding="utf-8")
+capability = (JAVA / "TranslationDeviceCapability.kt").read_text(encoding="utf-8")
+capability_tests = (ROOT / "app/src/test/java/com/royalplus/launcher/TranslationDeviceCapabilityTest.kt").read_text(encoding="utf-8")
 models = (JAVA / "WhisperModelRepository.kt").read_text(encoding="utf-8")
 translator = (JAVA / "Small100Translator.kt").read_text(encoding="utf-8")
 repository = (JAVA / "Small100ModelRepository.kt").read_text(encoding="utf-8")
@@ -39,6 +42,21 @@ assert "com.google.mlkit:translate" not in gradle
 assert "Small100Translator.create(files)" in service
 assert "translationExecutor.execute" in service
 assert "ACTION_DOWNLOAD_TRANSLATION_MODEL" in service
+assert "createVerifiedTranslationEngine(files)" in service
+assert "TranslationDeviceCapability.checkBeforeModelLoad(applicationContext)" in service
+assert "TranslationDeviceCapability.benchmark(applicationContext, engine)" in service
+assert "failTranslationForCapability(assessment)" in service
+assert "ACTION_DEVICE_CAPABILITY_FAILED" in service
+assert "translationCapabilityFailed" in service
+assert "TranslationDeviceCapability.checkHardware(this)" in activity
+assert "showTranslationCapabilityDialog" in activity
+assert "RECEIVER_NOT_EXPORTED" in activity
+assert "evaluateHardware" in capability and "evaluateAvailableMemory" in capability
+assert "evaluateBenchmark" in capability and "SystemClock.elapsedRealtime()" in capability
+assert "MAX_AVERAGE_TRANSLATION_MILLIS" in capability
+assert "NET_CAPABILITY_NOT_METERED" not in capability
+assert "rejectsSlowLocalInference" in capability_tests
+assert "rejectsInsufficientAvailableMemoryBeforeModelLoad" in capability_tests
 assert "NET_CAPABILITY_NOT_METERED" in repository
 assert "map.length() == 100" in repository
 assert "languageToId.containsKey(\"ar\")" in translator
@@ -56,4 +74,4 @@ assert not (JAVA / "RoyalCloudTranslationClient.kt").exists()
 assert not (ROOT / "supabase/functions/royalplus-translate/index.ts").exists()
 assert "ACCESS_NETWORK_STATE" in manifest
 
-print("Free SMaLL-100 on-device translation checks passed.")
+print("Free SMaLL-100 on-device translation and device-capability checks passed.")
