@@ -130,12 +130,13 @@ internal fun WeatherDetailsScreen(
         val longitude = weather.longitude
         if (!weather.isLoading && weather.city.isNotBlank() && latitude != null && longitude != null) {
             val current = WeatherCitySuggestion(
-                id = (latitude * 100000 + longitude * 100000).toLong(),
+                id = java.lang.Double.doubleToLongBits(latitude) xor
+                    java.lang.Long.rotateLeft(java.lang.Double.doubleToLongBits(longitude), 1),
                 name = weather.city, admin1 = null, admin2 = null, country = null,
                 latitude = latitude, longitude = longitude
             )
             val updated = (savedWeatherCities.filterNot {
-                kotlin.math.abs(it.latitude - latitude) < 0.01 && kotlin.math.abs(it.longitude - longitude) < 0.01
+                kotlin.math.abs(it.latitude - latitude) < 0.001 && kotlin.math.abs(it.longitude - longitude) < 0.001
             } + current).takeLast(12)
             savedWeatherCities = updated
             saveSavedWeatherCities(context, updated)
