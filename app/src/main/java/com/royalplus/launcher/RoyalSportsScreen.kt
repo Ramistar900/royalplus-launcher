@@ -116,6 +116,15 @@ internal object RoyalSportsProviderImageCache {
             connection.setRequestProperty("User-Agent", "ROYAL-Launcher/1.0")
             if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
 
+            // FIFA's flag endpoint has no file extension, so detect SVG/raster
+            // format from the actual HTTP Content-Type instead of the URL suffix.
+            val contentType = connection.contentType
+                ?.substringBefore(';')
+                ?.trim()
+                ?.lowercase(Locale.ROOT)
+                .orEmpty()
+            if (!contentType.startsWith("image/")) return@withContext null
+
             val bytes = connection.inputStream.use { input ->
                 val output = ByteArrayOutputStream()
                 val buffer = ByteArray(8 * 1024)
@@ -131,7 +140,9 @@ internal object RoyalSportsProviderImageCache {
             }
             if (bytes.isEmpty()) return@withContext null
 
-            val bitmap = if (url.substringBefore('?').endsWith(".svg", ignoreCase = true)) {
+            val isSvg = contentType == "image/svg+xml" ||
+                url.substringBefore('?').endsWith(".svg", ignoreCase = true)
+            val bitmap = if (isSvg) {
                 val svg = SVG.getFromString(String(bytes, Charsets.UTF_8))
                 svg.setDocumentWidth(EDGE_PX.toFloat())
                 svg.setDocumentHeight(EDGE_PX.toFloat())
@@ -141,7 +152,8 @@ internal object RoyalSportsProviderImageCache {
             } else {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-                val largestEdge = maxOf(bounds.outWidth, bounds.outHeight).coerceAtLeast(1)
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+                val largestEdge = maxOf(bounds.outWidth, bounds.outHeight)
                 val sample = (largestEdge / EDGE_PX).coerceAtLeast(1)
                 val options = BitmapFactory.Options().apply { inSampleSize = sample }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
