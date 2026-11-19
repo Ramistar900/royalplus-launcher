@@ -51,7 +51,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-internal fun RoyalDeviceSettingsSection(language: String) {
+internal fun RoyalDeviceSettingsSection(
+    language: String,
+    showDeviceSettings: Boolean = true,
+    showAudioSettings: Boolean = true
+) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     val audioPreferences = remember(context) {
@@ -86,6 +90,7 @@ internal fun RoyalDeviceSettingsSection(language: String) {
     val device = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
     val androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(adaptiveProfile.itemSpacing)) {
+        if (showDeviceSettings) {
         Text(if (language == "en") "Device & system" else if (language == "tr") "Cihaz ve sistem" else "الجهاز والنظام",
             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
         SettingsInfoRow(Icons.Rounded.Storage,
@@ -158,6 +163,8 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             else "الحد الفعلي: ${effectiveQuality.label} • فيديوهات الطقس لا تتجاوز دقتها المصدرية 720p.",
             color = RoyalColors.Muted, fontSize = 10.sp
         )
+        }
+        if (showAudioSettings) {
         SettingsInfoRow(Icons.Rounded.VolumeUp,
             if (language == "en") "Sound settings" else if (language == "tr") "Ses ayarları" else "إعدادات الصوت",
             if (language == "en") "Volume and audio output" else if (language == "tr") "Ses seviyesi ve çıkışı" else "مستوى الصوت ومخرج الصوت") {
@@ -244,6 +251,8 @@ internal fun RoyalDeviceSettingsSection(language: String) {
             },
             valueRange = 0f..1f
         )
+        }
+        if (showDeviceSettings) {
         SettingsInfoRow(Icons.Rounded.Info,
             if (language == "en") "System information" else if (language == "tr") "Sistem bilgileri" else "معلومات النظام وإصدار Android",
             androidVersion) { openSystemSettings(context, Settings.ACTION_DEVICE_INFO_SETTINGS) }
