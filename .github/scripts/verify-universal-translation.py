@@ -12,6 +12,7 @@ repository = (JAVA / "Small100ModelRepository.kt").read_text(encoding="utf-8")
 tokenizer = (JAVA / "Small100BpeTokenizer.kt").read_text(encoding="utf-8")
 gradle = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+workflow = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 # Whisper must auto-detect source speech language locally.
 assert 'language = ""' in models
@@ -24,6 +25,10 @@ assert "MediaRecorder.AudioSource.VOICE_RECOGNITION" in service
 
 # SMaLL-100 local model, 100-language token map, and pure Kotlin tokenizer.
 assert 'libs/onnxruntime-android-1.28.2.aar' in gradle
+assert 'pickFirsts += "**/libonnxruntime.so"' in gradle
+assert "onnxruntime-android-1.28.2.zip" in workflow
+assert "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d" in workflow
+assert "cmp \"/tmp/royal-onnx/sherpa-$abi.so\" \"/tmp/royal-onnx/ort-$abi.so\"" in workflow
 assert "com.google.mlkit:translate" not in gradle
 assert "Small100Translator.create(files)" in service
 assert "translationExecutor.execute" in service
