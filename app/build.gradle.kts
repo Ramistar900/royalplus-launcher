@@ -24,7 +24,8 @@ android {
 
     defaultConfig {
         applicationId = "com.royalplus.launcher"
-        minSdk = 23
+        // ONNX Runtime 1.28.2 requires Android 7.0 (API 24) or newer.
+        minSdk = 24
         targetSdk = 35
         versionCode = royalPlusVersionCode
         versionName = "1.0.0"
@@ -73,6 +74,14 @@ android {
         }
     }
 
+    // Sherpa and the Java/Kotlin ONNX AAR both contain the exact same 1.28.2
+    // libonnxruntime.so; the workflow verifies the native files are byte-identical.
+    packaging {
+        jniLibs {
+            pickFirsts += "**/libonnxruntime.so"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -94,7 +103,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("com.google.mlkit:translate:17.0.3")
+    implementation(files("libs/onnxruntime-android-1.28.2.aar"))
     implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("com.google.zxing:core:3.5.3")
@@ -110,4 +119,6 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.5.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    // Local JVM tests need a real JSON implementation instead of Android's mocked org.json stubs.
+    testImplementation("org.json:json:20260814")
 }
