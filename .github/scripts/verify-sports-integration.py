@@ -80,7 +80,10 @@ assert "verify_jwt" not in backend  # Gateway verification is configured as true
 assert "fifa_rankings" in backend
 assert 'view === "upcoming" || params.has("next")' in backend
 assert 'view === "finished" || params.has("last")' in backend
-assert 'view === "live" && params.get("live") !== "all"' in backend
+assert 'view === "live" && params.get("live") !== "all" && !params.has("date")' in backend
+assert 'RoyalSportsTab.LIVE -> "view=live&date=$today&$timeZoneParam"' in sports
+assert "matches_today_alerts" not in sports
+assert "loadFixtures(context, RoyalSportsTab.LIVE)" in (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsAlerts.kt").read_text(encoding="utf-8")
 assert "maxWindowMs = 7 * 24 * 60 * 60 * 1000" in backend
 assert "toTime - fromTime > maxWindowMs" in backend
 assert "fixture_view_requires_current_seven_day_window" in backend
