@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "Verify the translation branch, or explicitly build a signed release"
+        required: true
+        type: choice
+        default: verify
+        options:
+          - verify
+          - signed-release
 
 permissions:
   contents: read
@@ -18,7 +27,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/universal-language-translation'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/universal-language-translation')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'verify' && github.ref == 'refs/heads/feature/universal-language-translation')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -338,7 +347,7 @@ jobs:
 
   release-main:
     name: Build signed APK and create GitHub draft release
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'signed-release') || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
