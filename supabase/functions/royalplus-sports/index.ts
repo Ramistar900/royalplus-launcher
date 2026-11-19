@@ -20,8 +20,11 @@ type SportsResource = "fixtures" | "standings" | "fifa_rankings";
 function cacheTtlSeconds(resource: SportsResource, params: URLSearchParams): number {
   if (resource === "fifa_rankings") return 24 * 60 * 60;
   if (resource === "standings") return 60 * 60;
-  if (params.has("date") || params.get("live") === "all") return 20 * 60;
-  if (params.has("next") || params.has("from") || params.has("to")) return 20 * 60;
+  // Protect the shared 90/day provider budget: live scores refresh every 20 min,
+  // upcoming fixtures are cached 3 hours, and finished results 6 hours.
+  if (params.get("live") === "all" || params.has("date")) return 20 * 60;
+  if (params.has("next") || params.has("from") || params.has("to")) return 3 * 60 * 60;
+  if (params.has("last")) return 6 * 60 * 60;
   return 10 * 60;
 }
 
