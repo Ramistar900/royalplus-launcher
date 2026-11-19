@@ -58,6 +58,9 @@ assert "INTERNATIONAL_GROUPS" in rankings
 assert "RoyalSportsRankingRepository.loadFifaTop100" in rankings
 assert "RoyalSportsRankingRepository.loadStandings" in rankings
 assert "isRelegationZone" in rankings
+assert "val isArchived: Boolean = false" in rankings
+assert rankings.count("isArchived = true") == 5
+assert " • Archive" in rankings
 assert "RoyalSportsMatchBucket.LIVE" in screen
 assert "RoyalSportsMatchBucket.NOT_STARTED" in screen
 assert "RoyalSportsMatchBucket.PLAYED" in screen
@@ -68,6 +71,9 @@ assert "awayLogo = away.optString(\"logo\", \"\")" in screen
 assert "RoyalSportsProviderImage(" in screen
 assert "media.api-sports.io" in screen
 assert "api.fifa.com" in screen
+assert "connection.contentType" in screen
+assert '"image/svg+xml"' in screen
+assert "bounds.outWidth <= 0 || bounds.outHeight <= 0" in screen
 assert "SVG.getFromString" in screen
 assert "SportsPitchGlassBackground" in graphics
 assert "drawCircle(line" in graphics and "drawRect(line" in graphics
