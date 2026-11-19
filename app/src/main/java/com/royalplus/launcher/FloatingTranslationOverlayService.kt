@@ -60,6 +60,7 @@ class FloatingTranslationOverlayService : Service() {
     private var projectionResultCode: Int = Activity.RESULT_CANCELED
     private var projectionResultData: Intent? = null
     private var consecutiveUnrecognizedSegments = 0
+    private var consecutiveSlowRecognitionSegments = 0
     private var lastBacklogNoticeElapsedRealtime = 0L
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
@@ -450,12 +451,32 @@ class FloatingTranslationOverlayService : Service() {
 
                 val engine = recognizer ?: continue
                 val stream = engine.createStream()
+                var speechRecognitionTooSlow = false
                 val result = try {
                     stream.acceptWaveform(samples, SAMPLE_RATE)
+                    val audioDurationMillis = samples.size.toLong() * 1_000L / SAMPLE_RATE
+                    val decodeStartedAt = SystemClock.elapsedRealtime()
                     engine.decode(stream)
+                    val decodeElapsedMillis = SystemClock.elapsedRealtime() - decodeStartedAt
+                    if (audioDurationMillis >= 1_500L) {
+                        val slowDecodeLimit = maxOf(5_000L, audioDurationMillis * 2L)
+                        if (decodeElapsedMillis > slowDecodeLimit) {
+                            consecutiveSlowRecognitionSegments++
+                        } else {
+                            consecutiveSlowRecognitionSegments = 0
+                        }
+                        speechRecognitionTooSlow = consecutiveSlowRecognitionSegments >= 3
+                    } else {
+                        consecutiveSlowRecognitionSegments = 0
+                    }
                     engine.getResult(stream)
                 } finally {
                     stream.release()
+                }
+
+                if (speechRecognitionTooSlow) {
+                    failTranslationForCapability(TranslationDeviceCapability.slowSpeechRecognition())
+                    break
                 }
 
                 val recognized = result.text.replace(Regex("\\s+"), " ").trim()
