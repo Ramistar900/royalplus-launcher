@@ -244,7 +244,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish compact ARM test APKs to an isolated draft release
-        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/weather-tv-load-optimization-main-rebased')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'verify' && github.ref == 'refs/heads/feature/universal-language-translation')
         env:
           GH_TOKEN: ${{ github.token }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
@@ -276,7 +276,10 @@ jobs:
             du -h "$APK"
           done
 
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/feature/universal-language-translation" ]]; then
+            TAG="royalplus-test-translation-local"
+            TITLE="ROYAL+ Launcher • Local Translation Engine Test"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             test -n "$PULL_REQUEST_NUMBER"
             if [[ "${GITHUB_HEAD_REF:-}" == "fix/translation-speech-only-sync" ]]; then
               TAG="royalplus-test-pr-${PULL_REQUEST_NUMBER}-translation-sync"
