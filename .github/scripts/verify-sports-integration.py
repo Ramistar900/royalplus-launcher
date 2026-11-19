@@ -91,7 +91,10 @@ assert 'RoyalSportsTab.UPCOMING -> "from=$today&to=${dateOffset(7)}&$timeZonePar
 assert 'RoyalSportsTab.FINISHED -> "from=${dateOffset(-7)}&to=$today&$timeZoneParam"' in sports
 assert "loadFixtures(context, RoyalSportsTab.LIVE)" in alerts
 assert "loadFixtures(context, RoyalSportsTab.UPCOMING)" in alerts
-assert "maxWindowMs = 7 * 24 * 60 * 60 * 1000" in backend
+assert "const dayMs = 24 * 60 * 60 * 1000" in backend
+assert "const maxWindowMs = 7 * dayMs" in backend
+assert 'view === "upcoming" ? 1 : 8' in backend
+assert 'view === "finished" ? 1 : 8' in backend
 assert "toTime - fromTime > maxWindowMs" in backend
 assert "fixture_view_requires_current_seven_day_window" in backend
 assert 'incoming.searchParams.get("view")' in backend
