@@ -45,6 +45,9 @@ assert "ACTION_DOWNLOAD_TRANSLATION_MODEL" in service
 assert "createVerifiedTranslationEngine(files)" in service
 assert "TranslationDeviceCapability.checkBeforeModelLoad(applicationContext)" in service
 assert "TranslationDeviceCapability.benchmark(applicationContext, engine)" in service
+assert "consecutiveSlowRecognitionSegments" in service
+assert "engine.decode(stream)" in service
+assert "TranslationDeviceCapability.slowSpeechRecognition()" in service
 assert "failTranslationForCapability(assessment)" in service
 assert "ACTION_DEVICE_CAPABILITY_FAILED" in service
 assert "translationCapabilityFailed" in service
@@ -56,6 +59,7 @@ assert "evaluateBenchmark" in capability and "SystemClock.elapsedRealtime()" in 
 assert "MAX_AVERAGE_TRANSLATION_MILLIS" in capability
 assert "NET_CAPABILITY_NOT_METERED" not in capability
 assert "rejectsSlowLocalInference" in capability_tests
+assert "reportsSustainedSlowSpeechRecognition" in capability_tests
 assert "rejectsInsufficientAvailableMemoryBeforeModelLoad" in capability_tests
 assert "NET_CAPABILITY_NOT_METERED" in repository
 assert "map.length() == 100" in repository
