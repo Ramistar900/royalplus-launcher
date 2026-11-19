@@ -214,7 +214,7 @@ jobs:
           script: bash .github/scripts/android8-smoke-test.sh
 
       - name: Publish compact ARM test APKs to an isolated draft release
-        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/feature/royal-sports-four-panels' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
         env:
           GH_TOKEN: ${{ github.token }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
@@ -264,6 +264,9 @@ jobs:
           elif [[ "$GITHUB_REF" == "refs/heads/fix/royalplus-abi-test-assets" ]]; then
             TAG="royalplus-test-arm-split"
             TITLE="ROYAL+ Launcher • Compact ARM Test APKs"
+          elif [[ "$GITHUB_REF" == "refs/heads/feature/royal-sports-four-panels" ]]; then
+            TAG="royalplus-test-royal-sports-favorites"
+            TITLE="ROYAL+ Launcher • Favorite Teams & Alerts Test"
           else
             TAG="royalplus-test-installers"
             TITLE="ROYAL+ Launcher • Latest Test Installers"
