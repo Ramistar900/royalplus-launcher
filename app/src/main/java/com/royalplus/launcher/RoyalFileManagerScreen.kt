@@ -72,7 +72,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -611,8 +610,9 @@ private fun RoyalFilePreview(
 @Composable
 private fun RoyalInternalImagePreview(uri: Uri) {
     val context = LocalContext.current
-    val bitmap by produceState<Bitmap?>(initialValue = null, uri) {
-        value = withContext(Dispatchers.IO) {
+    var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(uri) {
+        bitmap = withContext(Dispatchers.IO) {
             runCatching {
                 openRoyalFileStream(context, uri, null)?.use { input ->
                     val options = BitmapFactory.Options().apply { inSampleSize = 2 }
@@ -629,7 +629,6 @@ private fun RoyalInternalImagePreview(uri: Uri) {
         }
     }
 }
-
 @Composable
 private fun RoyalInternalMediaPreview(uri: Uri) {
     val context = LocalContext.current
@@ -658,8 +657,9 @@ private fun RoyalInternalMediaPreview(uri: Uri) {
 @Composable
 private fun RoyalInternalTextPreview(entry: RoyalFileEntry) {
     val context = LocalContext.current
-    val text by produceState(initialValue = "جارٍ تحميل النص…", entry.uri) {
-        value = withContext(Dispatchers.IO) {
+    var text by remember(entry.uri) { mutableStateOf("جارٍ تحميل النص…") }
+    LaunchedEffect(entry.uri) {
+        text = withContext(Dispatchers.IO) {
             runCatching {
                 openRoyalFileStream(context, entry.uri, entry.file)?.bufferedReader()?.use { reader ->
                     val buffer = CharArray(8192)
@@ -682,12 +682,12 @@ private fun RoyalInternalTextPreview(entry: RoyalFileEntry) {
             .verticalScroll(rememberScrollState()).padding(16.dp)
     )
 }
-
 @Composable
 private fun RoyalInternalPdfPreview(entry: RoyalFileEntry) {
     val context = LocalContext.current
-    val bitmap by produceState<Bitmap?>(initialValue = null, entry.uri) {
-        value = withContext(Dispatchers.IO) {
+    var bitmap by remember(entry.uri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(entry.uri) {
+        bitmap = withContext(Dispatchers.IO) {
             runCatching {
                 val descriptor = if (entry.file != null) {
                     ParcelFileDescriptor.open(entry.file, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -715,7 +715,6 @@ private fun RoyalInternalPdfPreview(entry: RoyalFileEntry) {
         else Text("تعذر عرض صفحة PDF", color = RoyalColors.Muted)
     }
 }
-
 private fun isRoyalTextPreview(name: String, mime: String): Boolean =
     mime.startsWith("text/") || listOf(".txt", ".md", ".csv", ".json", ".xml", ".log").any { name.endsWith(it, true) }
 
