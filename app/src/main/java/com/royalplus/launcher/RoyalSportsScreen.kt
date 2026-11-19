@@ -90,12 +90,15 @@ internal object RoyalSportsProviderImageCache {
 
     fun isAllowed(url: String): Boolean = runCatching {
         val uri = URI(url)
-        uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host.equals("media.api-sports.io", ignoreCase = true) &&
+        val secure = uri.scheme.equals("https", ignoreCase = true)
+        val apiSportsImage = uri.host.equals("media.api-sports.io", ignoreCase = true) &&
             (uri.path.startsWith("/football/leagues/") ||
                 uri.path.startsWith("/football/teams/") ||
                 uri.path.startsWith("/flags/")) &&
             (uri.path.endsWith(".png", ignoreCase = true) || uri.path.endsWith(".svg", ignoreCase = true))
+        val fifaFlag = uri.host.equals("api.fifa.com", ignoreCase = true) &&
+            uri.path.matches(Regex("/api/v3/picture/flags-sq-2/[A-Z]{3}"))
+        secure && (apiSportsImage || fifaFlag)
     }.getOrDefault(false)
 
     suspend fun load(url: String): Bitmap? = withContext(Dispatchers.IO) {
