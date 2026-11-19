@@ -230,8 +230,8 @@ Deno.serve(async (req: Request) => {
     ) {
       return json({ error: "fixture_view_requires_current_seven_day_window" }, 400);
     }
-  } else if (resource === "fixtures" && view === "live" && params.get("live") !== "all") {
-    return json({ error: "live_view_requires_all_live_fixtures" }, 400);
+  } else if (resource === "fixtures" && view === "live" && params.get("live") !== "all" && !params.has("date")) {
+    return json({ error: "live_view_requires_all_live_fixtures_or_today_date" }, 400);
   } else if (resource === "fifa_rankings") {
     const gender = params.get("gender") ?? "1";
     if (gender !== "1" && gender !== "2") {
