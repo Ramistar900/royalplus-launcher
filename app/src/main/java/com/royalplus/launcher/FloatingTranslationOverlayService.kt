@@ -586,12 +586,17 @@ class FloatingTranslationOverlayService : Service() {
                     processNextPendingTranslation()
                 }.onFailure { error ->
                     pendingTranslations.addFirst(pending.copy(attempt = pending.attempt + 1))
-                    val detail = error.localizedMessage ?: "خطأ محلي في محرك ONNX"
-                    updateNotification("تعذرت الترجمة المحلية؛ حُفظت الجملة لإعادة المحاولة: $detail")
-                    mainHandler.postDelayed(
-                        { processNextPendingTranslation() },
-                        TRANSLATION_RETRY_DELAY_MILLIS
-                    )
+                    if (error is OutOfMemoryError) {
+                        System.gc()
+                        updateNotification("ذاكرة التلفاز لا تكفي لمعالجة الجملة حالياً. حُفظت الجملة ولم تتم إعادة المحاولة تلقائياً.")
+                    } else {
+                        val detail = error.localizedMessage ?: "خطأ محلي في محرك ONNX"
+                        updateNotification("تعذرت الترجمة المحلية؛ حُفظت الجملة لإعادة المحاولة: $detail")
+                        mainHandler.postDelayed(
+                            { processNextPendingTranslation() },
+                            TRANSLATION_RETRY_DELAY_MILLIS
+                        )
+                    }
                 }
             }
         }
@@ -627,6 +632,10 @@ class FloatingTranslationOverlayService : Service() {
                     updateNotification("محرك SMaLL-100 المحلي جاهز؛ الترجمة تعمل دون اشتراك أو اتصال بخدمة خارجية.")
                     processNextPendingTranslation()
                 }
+            } catch (error: OutOfMemoryError) {
+                System.gc()
+                translationModelSetup.set(false)
+                updateNotification("ذاكرة التلفاز لا تكفي لتحميل نموذج الترجمة الكبير حالياً. أوقف التطبيقات الأخرى ثم أعد المحاولة؛ لم يتم إرسال أي نص إلى الخارج.")
             } catch (error: Exception) {
                 translationModelSetup.set(false)
                 val detail = error.localizedMessage ?: "تعذر تهيئة نموذج الترجمة"
@@ -664,6 +673,10 @@ class FloatingTranslationOverlayService : Service() {
                     updateNotification("اكتمل تنزيل نموذج SMaLL-100 وأصبح جاهزاً للعمل محلياً دون إنترنت.")
                     processNextPendingTranslation()
                 }
+            } catch (error: OutOfMemoryError) {
+                System.gc()
+                translationModelSetup.set(false)
+                updateNotification("ذاكرة التلفاز لا تكفي لتشغيل نموذج الترجمة. لم يتم تفعيل أي خدمة خارجية أو مدفوعة.")
             } catch (error: Exception) {
                 translationModelSetup.set(false)
                 val detail = error.localizedMessage ?: "تحقق من الاتصال والمساحة الحرة"
