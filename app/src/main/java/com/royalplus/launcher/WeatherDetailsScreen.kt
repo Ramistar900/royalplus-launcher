@@ -287,10 +287,29 @@ internal fun WeatherDetailsScreen(
         AlertDialog(
             onDismissRequest = { showCityPicker = false },
             title = {
-                Text(
-                    when (language) { "en" -> "Choose a city or town"; "tr" -> "Şehir veya kasaba seç"; else -> "اختيار مدينة أو بلدة" },
-                    color = gold
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        when (language) { "en" -> "Choose a city or town"; "tr" -> "Şehir veya kasaba seç"; else -> "اختيار مدينة أو بلدة" },
+                        color = gold
+                    )
+                    Text(
+                        when (language) { "en" -> "Location data: Open-Meteo / GeoNames"; "tr" -> "Konum verileri: Open-Meteo / GeoNames"; else -> "مصدر بيانات المواقع: Open-Meteo / GeoNames" },
+                        modifier = Modifier.clickable {
+                            try {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://open-meteo.com/en/docs/geocoding-api")
+                                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            } catch (_: Exception) {
+                                // Keep the city picker usable if the device has no browser.
+                            }
+                        },
+                        color = gold.copy(alpha = 0.82f),
+                        fontSize = 10.sp
+                    )
+                }
             },
             text = {
                 Column(
