@@ -92,6 +92,7 @@ class FloatingTranslationOverlayService : Service() {
         Thread(task, "RoyalSmall100Inference").apply { isDaemon = true }
     }
     private val translationModelSetup = AtomicBoolean(false)
+    private val translationCapabilityFailed = AtomicBoolean(false)
     @Volatile private var small100Translator: Small100Translator? = null
     @Volatile private var translationModelInstalled = false
     private var translationModelThread: Thread? = null
@@ -603,7 +604,7 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     private fun prepareInstalledTranslationEngine() {
-        if (!running.get() || small100Translator != null) return
+        if (!running.get() || small100Translator != null || translationCapabilityFailed.get()) return
         if (!translationModelSetup.compareAndSet(false, true)) return
         translationModelThread = Thread({
             try {
@@ -614,7 +615,7 @@ class FloatingTranslationOverlayService : Service() {
                     updateNotification("محرك الترجمة المحلي غير مثبت بعد. اضغط «تنزيل الترجمة» لتنزيل النموذج مرة واحدة عبر اتصال غير محدود.")
                     return@Thread
                 }
-                val engine = Small100Translator.create(files)
+                val engine = createVerifiedTranslationEngine(files) ?: return@Thread
                 if (!running.get()) {
                     engine.close()
                     translationModelSetup.set(false)
@@ -629,33 +630,41 @@ class FloatingTranslationOverlayService : Service() {
                     small100Translator = engine
                     translationModelInstalled = true
                     translationModelSetup.set(false)
-                    updateNotification("محرك SMaLL-100 المحلي جاهز؛ الترجمة تعمل دون اشتراك أو اتصال بخدمة خارجية.")
+                    updateNotification("اجتاز جهازك اختبار الترجمة المحلية وأصبح المحرك جاهزاً.")
                     processNextPendingTranslation()
                 }
             } catch (error: OutOfMemoryError) {
                 System.gc()
-                translationModelSetup.set(false)
-                updateNotification("ذاكرة التلفاز لا تكفي لتحميل نموذج الترجمة الكبير حالياً. أوقف التطبيقات الأخرى ثم أعد المحاولة؛ لم يتم إرسال أي نص إلى الخارج.")
+                failTranslationForCapability(
+                    TranslationDeviceCapability.insufficientMemory(
+                        "لم تتوفر ذاكرة كافية لتهيئة نموذج الترجمة."
+                    )
+                )
             } catch (error: Exception) {
                 translationModelSetup.set(false)
-                val detail = error.localizedMessage ?: "تعذر تهيئة نموذج الترجمة"
-                updateNotification("تعذر تشغيل محرك الترجمة المحلي: $detail")
+                val detail = error.localizedMessage ?: "تعذر التحقق من ملفات نموذج الترجمة"
+                updateNotification("تعذر تجهيز نموذج الترجمة المحلي: $detail")
             }
         }, "RoyalSmall100Setup").apply { isDaemon = true; start() }
     }
 
     private fun startTranslationModelDownload() {
-        if (!running.get() || small100Translator != null) return
+        if (!running.get() || small100Translator != null || translationCapabilityFailed.get()) return
         if (!translationModelSetup.compareAndSet(false, true)) {
             updateNotification("تنزيل أو تجهيز نموذج الترجمة جارٍ بالفعل.")
             return
         }
         translationModelThread = Thread({
             try {
+                val capacity = TranslationDeviceCapability.checkBeforeModelLoad(applicationContext)
+                if (!capacity.supported) {
+                    failTranslationForCapability(capacity)
+                    return@Thread
+                }
                 val files = Small100ModelRepository.ensureDownloaded(applicationContext) { progress ->
                     updateNotification("تنزيل نموذج الترجمة المحلي — $progress")
                 }
-                val engine = Small100Translator.create(files)
+                val engine = createVerifiedTranslationEngine(files) ?: return@Thread
                 if (!running.get()) {
                     engine.close()
                     translationModelSetup.set(false)
@@ -670,19 +679,84 @@ class FloatingTranslationOverlayService : Service() {
                     small100Translator = engine
                     translationModelInstalled = true
                     translationModelSetup.set(false)
-                    updateNotification("اكتمل تنزيل نموذج SMaLL-100 وأصبح جاهزاً للعمل محلياً دون إنترنت.")
+                    updateNotification("اكتمل التنزيل واجتاز جهازك اختبار سرعة الترجمة المحلية.")
                     processNextPendingTranslation()
                 }
             } catch (error: OutOfMemoryError) {
                 System.gc()
-                translationModelSetup.set(false)
-                updateNotification("ذاكرة التلفاز لا تكفي لتشغيل نموذج الترجمة. لم يتم تفعيل أي خدمة خارجية أو مدفوعة.")
+                failTranslationForCapability(
+                    TranslationDeviceCapability.insufficientMemory(
+                        "نفدت الذاكرة أثناء تنزيل نموذج الترجمة أو تهيئته."
+                    )
+                )
             } catch (error: Exception) {
                 translationModelSetup.set(false)
                 val detail = error.localizedMessage ?: "تحقق من الاتصال والمساحة الحرة"
                 updateNotification("تعذر تنزيل نموذج الترجمة: $detail")
             }
         }, "RoyalSmall100Download").apply { isDaemon = true; start() }
+    }
+
+    /**
+     * Avoids wasting a 621 MB download on devices that cannot load the model,
+     * then verifies real local inference before declaring translation ready.
+     */
+    private fun createVerifiedTranslationEngine(
+        files: Small100ModelRepository.ModelFiles
+    ): Small100Translator? {
+        val capacity = TranslationDeviceCapability.checkBeforeModelLoad(applicationContext)
+        if (!capacity.supported) {
+            failTranslationForCapability(capacity)
+            return null
+        }
+
+        val engine = try {
+            Small100Translator.create(files)
+        } catch (error: OutOfMemoryError) {
+            System.gc()
+            failTranslationForCapability(
+                TranslationDeviceCapability.insufficientMemory(
+                    "لم تكفِ ذاكرة الجهاز لتحميل نموذج الترجمة."
+                )
+            )
+            return null
+        } catch (error: Exception) {
+            failTranslationForCapability(
+                TranslationDeviceCapability.engineUnavailable(
+                    error.localizedMessage ?: "تعذر تهيئة محرك ONNX على هذا الجهاز."
+                )
+            )
+            return null
+        }
+
+        val assessment = TranslationDeviceCapability.benchmark(applicationContext, engine)
+        if (!assessment.supported) {
+            runCatching { engine.close() }
+            failTranslationForCapability(assessment)
+            return null
+        }
+        return engine
+    }
+
+    private fun failTranslationForCapability(
+        assessment: TranslationDeviceCapability.Assessment
+    ) {
+        if (!translationCapabilityFailed.compareAndSet(false, true)) return
+        translationModelSetup.set(false)
+        running.set(false)
+        mainHandler.post {
+            getSharedPreferences(PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply()
+            updateStatus(assessment.message)
+            sendBroadcast(
+                Intent(ACTION_DEVICE_CAPABILITY_FAILED)
+                    .setPackage(packageName)
+                    .putExtra(EXTRA_CAPABILITY_MESSAGE, assessment.message)
+                    .putExtra(EXTRA_CAPABILITY_TITLE, assessment.title)
+            )
+            // Keep the on-screen explanation visible before releasing the overlay and audio resources.
+            mainHandler.postDelayed({ stopSelf() }, STATUS_DISPLAY_MILLIS + 500L)
+        }
     }
 
     private fun showCaption(text: String, language: String) {
@@ -941,7 +1015,7 @@ class FloatingTranslationOverlayService : Service() {
                 android.R.drawable.ic_menu_view, "إظهار", showPendingIntent
             ).build())
             .apply {
-                if (!translationModelInstalled) {
+                if (!translationModelInstalled && !translationCapabilityFailed.get()) {
                     val downloadIntent = Intent(this@FloatingTranslationOverlayService, FloatingTranslationOverlayService::class.java)
                         .setAction(ACTION_DOWNLOAD_TRANSLATION_MODEL)
                     val downloadPendingIntent = PendingIntent.getService(
@@ -1119,6 +1193,9 @@ class FloatingTranslationOverlayService : Service() {
         const val ACTION_SHOW = "com.royalplus.launcher.action.SHOW_TRANSLATION_OVERLAY"
         const val ACTION_STOP = "com.royalplus.launcher.action.STOP_TRANSLATION_OVERLAY"
         const val ACTION_DOWNLOAD_TRANSLATION_MODEL = "com.royalplus.launcher.action.DOWNLOAD_TRANSLATION_MODEL"
+        const val ACTION_DEVICE_CAPABILITY_FAILED = "com.royalplus.launcher.action.TRANSLATION_DEVICE_CAPABILITY_FAILED"
+        const val EXTRA_CAPABILITY_MESSAGE = "translation_capability_message"
+        const val EXTRA_CAPABILITY_TITLE = "translation_capability_title"
         const val PREFERENCES = "royalplus_launcher_preferences"
         const val KEY_ENABLED = "floating_translation_overlay_enabled"
         const val EXTRA_PROJECTION_RESULT_CODE = "royal_projection_result_code"
