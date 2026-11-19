@@ -28,6 +28,7 @@ assert "Intent.ACTION_SEND" in SHARE
 assert "noPublishedRelease" in SHARE and "failed = true" in SHARE
 assert "versionCode = royalPlusVersionCode" in GRADLE
 assert 'minSdk = 23' in GRADLE
-assert WORKFLOW.count('-ProyalplusVersionCode="$GITHUB_RUN_NUMBER"') >= 2
+assert WORKFLOW.count('-ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE"') >= 2
+assert "ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'" in WORKFLOW
 assert 'gh release create "$TAG"' in WORKFLOW and '--latest' in WORKFLOW
 print("Verified: all settings categories, retained controls, QR/share actions, official-release-only checks, and dynamic production version codes.")
