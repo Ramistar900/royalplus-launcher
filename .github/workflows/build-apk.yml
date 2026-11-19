@@ -2,10 +2,19 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "fix/royalplus-abi-test-assets", "feature/sinjar-tv-embedded-integration" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "fix/royalplus-abi-test-assets", "feature/sinjar-tv-embedded-integration", "feature/universal-language-translation" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "Verify the translation branch, or explicitly build a signed release"
+        required: true
+        type: choice
+        default: verify
+        options:
+          - verify
+          - signed-release
 
 permissions:
   contents: read
@@ -18,7 +27,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sinjar-tv-embedded-integration'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sinjar-tv-embedded-integration' || github.ref == 'refs/heads/feature/universal-language-translation')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'verify' && github.ref == 'refs/heads/feature/universal-language-translation')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,6 +39,9 @@ jobs:
 
       - name: Download and verify approved Muslim PNG icons
         run: python3 .github/scripts/prepare-muslim-png-icons.py
+
+      - name: Verify multilingual translation fallback
+        run: python3 .github/scripts/verify-universal-translation.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -77,12 +89,21 @@ jobs:
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
 
-      - name: Download verified Sherpa ONNX runtime
+      - name: Download and verify matching Sherpa and ONNX Runtime 1.28.2
         run: |
           set -euo pipefail
-          mkdir -p app/libs
+          mkdir -p app/libs /tmp/royal-onnx
           curl --fail --location --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar --output app/libs/sherpa-onnx-2.0.1.aar
           echo "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7  app/libs/sherpa-onnx-2.0.1.aar" | sha256sum --check
+          curl --fail --location --retry 3 https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip --output /tmp/royal-onnx/onnxruntime-android-1.28.2.zip
+          echo "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d  /tmp/royal-onnx/onnxruntime-android-1.28.2.zip" | sha256sum --check
+          mv /tmp/royal-onnx/onnxruntime-android-1.28.2.zip app/libs/onnxruntime-android-1.28.2.aar
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            unzip -p app/libs/sherpa-onnx-2.0.1.aar "jni/$abi/libonnxruntime.so" > "/tmp/royal-onnx/sherpa-$abi.so"
+            unzip -p app/libs/onnxruntime-android-1.28.2.aar "jni/$abi/libonnxruntime.so" > "/tmp/royal-onnx/ort-$abi.so"
+            cmp "/tmp/royal-onnx/sherpa-$abi.so" "/tmp/royal-onnx/ort-$abi.so"
+          done
+          unzip -l app/libs/onnxruntime-android-1.28.2.aar | grep -q 'jni/arm64-v8a/libonnxruntime4j_jni.so'
 
       - name: Optimize bundled media without removing features
         shell: bash
@@ -157,6 +178,15 @@ jobs:
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
 
+      - name: Download pinned SMaLL-100 tokenizer test fixture
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/test/resources
+          curl --fail --location --retry 3 https://huggingface.co/casawolice/small100-onnx/resolve/a0d8498bbf489866eeff5e53b53f6997d2b299db/tokenizer.json --output app/src/test/resources/small100-tokenizer.json
+          TOKENIZER_BYTES="$(stat -c%s app/src/test/resources/small100-tokenizer.json)"
+          test "$TOKENIZER_BYTES" -ge 5000000
+          test "$TOKENIZER_BYTES" -le 7000000
+
       - name: Run launcher and adaptive display unit tests
         run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
 
@@ -210,7 +240,7 @@ jobs:
         run: bash .github/scripts/android26-emulator-smoke.sh
 
       - name: Publish compact ARM test APKs to an isolated draft release
-        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased'))
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && (github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-videos-optimized' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'verify' && github.ref == 'refs/heads/feature/universal-language-translation')
         env:
           GH_TOKEN: ${{ github.token }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
@@ -242,7 +272,10 @@ jobs:
             du -h "$APK"
           done
 
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/feature/universal-language-translation" ]]; then
+            TAG="royalplus-test-translation-local"
+            TITLE="ROYAL+ Launcher • Local Translation Engine Test"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             test -n "$PULL_REQUEST_NUMBER"
             if [[ "${GITHUB_HEAD_REF:-}" == "fix/translation-speech-only-sync" ]]; then
               TAG="royalplus-test-pr-${PULL_REQUEST_NUMBER}-translation-sync"
@@ -313,7 +346,7 @@ jobs:
 
   release-main:
     name: Build signed APK and create GitHub draft release
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'signed-release' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
     runs-on: ubuntu-latest
     env:
       ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_number || '1' }}
@@ -407,12 +440,21 @@ jobs:
           echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/royalplus-release.keystore"
           chmod 600 "$RUNNER_TEMP/royalplus-release.keystore"
 
-      - name: Download verified Sherpa ONNX runtime
+      - name: Download and verify matching Sherpa and ONNX Runtime 1.28.2
         run: |
           set -euo pipefail
-          mkdir -p app/libs
+          mkdir -p app/libs /tmp/royal-onnx
           curl --fail --location --retry 3 https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar --output app/libs/sherpa-onnx-2.0.1.aar
           echo "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7  app/libs/sherpa-onnx-2.0.1.aar" | sha256sum --check
+          curl --fail --location --retry 3 https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip --output /tmp/royal-onnx/onnxruntime-android-1.28.2.zip
+          echo "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d  /tmp/royal-onnx/onnxruntime-android-1.28.2.zip" | sha256sum --check
+          mv /tmp/royal-onnx/onnxruntime-android-1.28.2.zip app/libs/onnxruntime-android-1.28.2.aar
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            unzip -p app/libs/sherpa-onnx-2.0.1.aar "jni/$abi/libonnxruntime.so" > "/tmp/royal-onnx/sherpa-$abi.so"
+            unzip -p app/libs/onnxruntime-android-1.28.2.aar "jni/$abi/libonnxruntime.so" > "/tmp/royal-onnx/ort-$abi.so"
+            cmp "/tmp/royal-onnx/sherpa-$abi.so" "/tmp/royal-onnx/ort-$abi.so"
+          done
+          unzip -l app/libs/onnxruntime-android-1.28.2.aar | grep -q 'jni/arm64-v8a/libonnxruntime4j_jni.so'
 
       - name: Optimize bundled media without removing features
         shell: bash
