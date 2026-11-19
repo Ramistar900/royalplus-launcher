@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -286,28 +287,6 @@ internal fun QuranReaderScreen(
                 )
             }
 
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF183B3C))
-                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                    .clickable { mossadSelectionsOpen = true }
-                    .focusable()
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.muslim_qaris),
-                    contentDescription = "القراء والتلاوات",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(42.dp)
-                )
-                Column(Modifier.weight(1f)) {
-                    Text("مختارات عبد الرحمن مسعد", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("17 تلاوة مختارة • تنزيل للاستماع دون إنترنت", color = RoyalColors.Pearl, fontSize = 10.sp)
-                }
-                Text("استعراض  ›", color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -540,6 +519,159 @@ internal fun QuranReaderScreen(
                     if (target >= 0) scope.launch { verseListState.animateScrollToItem(target) }
                 }
             }
+            if (selectedReader == "mossad") {
+                val mossadSurahSelections = remember(surah.number) {
+                    QuranMossadSelectionsRepository.selections.filter { it.surahNumber == surah.number }
+                }
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF183B3C).copy(alpha = 0.92f))
+                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(12.dp))
+                        .padding(9.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        "تلاوات عبد الرحمن مسعد • ${surah.name}",
+                        color = RoyalColors.Gold,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (mossadSurahSelections.isEmpty()) {
+                        Text(
+                            "لا يتوفر مقطع مختار لهذه السورة حالياً. النص العثماني متاح للقراءة دون إنترنت.",
+                            color = RoyalColors.Pearl,
+                            fontSize = 10.sp
+                        )
+                    } else {
+                        LazyRow(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            items(mossadSurahSelections, key = { it.id }) { selection ->
+                                val selectionFile = QuranMossadSelectionsRepository.fileFor(
+                                    context.applicationContext,
+                                    selection
+                                )
+                                val isSelectionDownloaded = selectionFile.isFile && selectionFile.length() > 1_024
+                                Box(
+                                    Modifier.width(if (adaptiveProfile.isTelevision) 210.dp else 170.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                        .background(Color(0xFF203B3A))
+                                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.5f), RoundedCornerShape(9.dp))
+                                        .clickable(enabled = !audioDownloadInProgress && !audioLoading) {
+                                            playLauncherUiSound(
+                                                context,
+                                                if (isSelectionDownloaded) RoyalUiSound.MEDIA_PLAY else RoyalUiSound.ACTION_DOWNLOAD
+                                            )
+                                            audioDownloadInProgress = true
+                                            audioLoading = true
+                                            audioMessage = "جارٍ تجهيز ${selection.title}…"
+                                            scope.launch {
+                                                val file = withContext(Dispatchers.IO) {
+                                                    if (selectionFile.isFile && selectionFile.length() > 1_024) {
+                                                        selectionFile
+                                                    } else {
+                                                        QuranMossadSelectionsRepository.download(
+                                                            context.applicationContext,
+                                                            selection
+                                                        )
+                                                    }
+                                                }
+                                                if (file == null) {
+                                                    audioDownloadInProgress = false
+                                                    audioLoading = false
+                                                    audioMessage = "تعذر تنزيل التلاوة المختارة. تحقق من الاتصال."
+                                                } else {
+                                                    activeAudioSurah = surah.number
+                                                    activeTimings = emptyList()
+                                                    currentAudioVerse = 0
+                                                    val targetIndex = surah.verses.indexOfFirst {
+                                                        it.number == selection.startAyah
+                                                    }
+                                                    if (targetIndex >= 0) {
+                                                        scope.launch { verseListState.animateScrollToItem(targetIndex) }
+                                                    }
+                                                    runCatching {
+                                                        audioPlayer.reset()
+                                                        audioPlayer.setAudioAttributes(
+                                                            AudioAttributes.Builder()
+                                                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                                .build()
+                                                        )
+                                                        audioPlayer.setVolume(
+                                                            if (audioMuted) 0f else 1f,
+                                                            if (audioMuted) 0f else 1f
+                                                        )
+                                                        audioPlayer.setOnPreparedListener { prepared ->
+                                                            audioDownloadInProgress = false
+                                                            audioLoading = false
+                                                            audioReady = true
+                                                            audioPlaying = true
+                                                            prepared.start()
+                                                        }
+                                                        audioPlayer.setOnCompletionListener {
+                                                            audioPlaying = false
+                                                            audioReady = false
+                                                            audioLoading = false
+                                                            currentAudioVerse = 0
+                                                        }
+                                                        audioPlayer.setOnErrorListener { _, _, _ ->
+                                                            audioDownloadInProgress = false
+                                                            audioLoading = false
+                                                            audioReady = false
+                                                            audioPlaying = false
+                                                            audioMessage = "تعذر تشغيل التلاوة المختارة"
+                                                            true
+                                                        }
+                                                        audioMessage = if (isSelectionDownloaded) {
+                                                            "تعمل الآن مع نص المصحف • المقطع من الآية ${selection.startAyah} إلى ${selection.endAyah}"
+                                                        } else {
+                                                            "اكتمل التنزيل • تعمل التلاوة مع نص المصحف"
+                                                        }
+                                                        audioPlayer.setDataSource(file.absolutePath)
+                                                        audioPlayer.prepareAsync()
+                                                    }.onFailure {
+                                                        audioDownloadInProgress = false
+                                                        audioLoading = false
+                                                        audioReady = false
+                                                        audioPlaying = false
+                                                        audioMessage = "تعذر فتح ملف التلاوة المختارة"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .focusable(enabled = !audioDownloadInProgress && !audioLoading)
+                                        .padding(horizontal = 9.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            selection.title,
+                                            color = RoyalColors.Pearl,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Text(
+                                            if (isSelectionDownloaded) "تشغيل ▶" else "تنزيل وتشغيل ↓",
+                                            color = RoyalColors.Gold,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        "المقاطع المتاحة فقط • يظهر النص العثماني أثناء الاستماع، ولا تتوفر مزامنة توقيت الآيات لهذه المقاطع.",
+                        color = RoyalColors.Muted,
+                        fontSize = 9.sp
+                    )
+                }
+            }
+
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
                     .background(Color(0xFF121C28).copy(alpha = 0.94f))
@@ -640,7 +772,7 @@ internal fun QuranReaderScreen(
                                 "القارئ: " + when (selectedReader) {
                                     "maher" -> "ماهر المعيقلي"
                                     "sudais" -> "عبد الرحمن السديس"
-                                    "mossad" -> "عبد الرحمن مسعد • تلاوات مختارة"
+                                    "mossad" -> "عبد الرحمن مسعد"
                                     else -> "مشاري العفاسي"
                                 }
                             } else "هذه السورة غير محمّلة لهذا القارئ"
@@ -877,7 +1009,7 @@ internal fun QuranReaderScreen(
                         "afasy" to "مشاري العفاسي",
                         "maher" to "ماهر المعيقلي",
                         "sudais" to "عبد الرحمن السديس",
-                        "mossad" to "عبد الرحمن مسعد • تلاوات مختارة"
+                        "mossad" to "عبد الرحمن مسعد"
                     ), key = { it.first }) { (key, label) ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
@@ -982,7 +1114,7 @@ internal fun QuranReaderScreen(
         val readerLabel = when (selectedReader) {
             "maher" -> "ماهر المعيقلي"
             "sudais" -> "عبد الرحمن السديس"
-            "mossad" -> "عبد الرحمن مسعد • تلاوات مختارة"
+            "mossad" -> "عبد الرحمن مسعد"
             else -> "مشاري العفاسي"
         }
         AlertDialog(
