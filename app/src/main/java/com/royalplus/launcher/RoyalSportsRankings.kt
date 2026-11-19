@@ -50,7 +50,8 @@ private data class RoyalSportsRankingCompetition(
     val id: Int,
     val name: String,
     val season: Int,
-    val country: String
+    val country: String,
+    val isArchived: Boolean = false
 ) {
     val logoUrl: String
         get() = "https://media.api-sports.io/football/leagues/$id.png"
@@ -115,14 +116,16 @@ private object RoyalSportsRankingCatalog {
         RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")
     )
 
+    // Put current-season club competitions first. Completed national tournaments
+    // remain available as historical tables and are explicitly marked as archives.
     val internationalCompetitions = listOf(
-        RoyalSportsRankingCompetition(1, "FIFA World Cup", 2026, "International"),
         RoyalSportsRankingCompetition(2, "UEFA Champions League", SEASON, "Europe"),
         RoyalSportsRankingCompetition(3, "UEFA Europa League", SEASON, "Europe"),
-        RoyalSportsRankingCompetition(4, "UEFA European Championship", 2024, "Europe"),
-        RoyalSportsRankingCompetition(6, "Africa Cup of Nations", 2025, "Africa"),
-        RoyalSportsRankingCompetition(9, "Copa América", 2024, "South America"),
-        RoyalSportsRankingCompetition(17, "AFC Asian Cup", 2023, "Asia")
+        RoyalSportsRankingCompetition(1, "FIFA World Cup", 2026, "International", isArchived = true),
+        RoyalSportsRankingCompetition(4, "UEFA European Championship", 2024, "Europe", isArchived = true),
+        RoyalSportsRankingCompetition(6, "Africa Cup of Nations", 2025, "Africa", isArchived = true),
+        RoyalSportsRankingCompetition(9, "Copa América", 2024, "South America", isArchived = true),
+        RoyalSportsRankingCompetition(17, "AFC Asian Cup", 2023, "Asia", isArchived = true)
     )
 }
 
@@ -360,9 +363,28 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
             else -> {
                 val current = standings
                 val selectedName = selectedCompetition?.name.orEmpty()
+                val competitionSubtitle = when {
+                    selectedCompetition?.isArchived == true && arabic ->
+                        "أرشيف بطولة منتهية • ترتيب الموسم"
+                    selectedCompetition?.isArchived == true && turkish ->
+                        "Arşiv • Tamamlanan turnuva sıralaması"
+                    selectedCompetition?.isArchived == true ->
+                        "Archive • Completed competition standings"
+                    arabic -> "ترتيب الفرق والنقاط ومناطق التأهل والهبوط"
+                    turkish -> "Takım sıralaması, puanlar ve düşme hattı"
+                    else -> "Team table, points, qualification and relegation zones"
+                }
+                val competitionTitle = localizedRankingCompetitionName(
+                    selectedName,
+                    selectedCompetition?.country.orEmpty(),
+                    arabic,
+                    turkish
+                ) + if (selectedCompetition?.isArchived == true) {
+                    if (arabic) " • أرشيف" else if (turkish) " • Arşiv" else " • Archive"
+                } else ""
                 RankingSectionHeading(
-                    title = localizedRankingCompetitionName(selectedName, selectedCompetition?.country.orEmpty(), arabic, turkish),
-                    subtitle = if (arabic) "ترتيب الفرق والنقاط ومناطق التأهل والهبوط" else if (turkish) "Takım sıralaması, puanlar ve düşme hattı" else "Team table, points, qualification and relegation zones"
+                    title = competitionTitle,
+                    subtitle = competitionSubtitle
                 )
                 if (current == null || current.groups.isEmpty()) {
                     RankingEmptyState(
@@ -441,6 +463,11 @@ private fun CompetitionChoice(
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(10.dp)
+    val competitionName = localizedRankingCompetitionName(
+        competition.name, competition.country, arabic, turkish
+    ) + if (competition.isArchived) {
+        if (arabic) " • أرشيف" else if (turkish) " • Arşiv" else " • Archive"
+    } else ""
     Row(
         modifier = Modifier.clip(shape)
             .background(if (selected) Color(0xCC1B6848) else Color(0x88304A3D))
@@ -458,7 +485,7 @@ private fun CompetitionChoice(
             description = competition.name
         )
         Text(
-            localizedRankingCompetitionName(competition.name, competition.country, arabic, turkish),
+            competitionName,
             color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
             fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
