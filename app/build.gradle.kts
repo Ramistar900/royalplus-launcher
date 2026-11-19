@@ -21,7 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "com.royalplus.launcher"
-        minSdk = 23
+        // ONNX Runtime 1.28.2 requires Android 7.0 (API 24) or newer.
+        minSdk = 24
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
