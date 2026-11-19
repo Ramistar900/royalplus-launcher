@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "fix/royalplus-abi-test-assets" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "feature/royal-sports-four-panels", "fix/royalplus-abi-test-assets" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/feature/royal-sports-four-panels' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
