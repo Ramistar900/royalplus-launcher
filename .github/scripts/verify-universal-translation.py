@@ -26,7 +26,7 @@ assert "MediaRecorder.AudioSource.VOICE_RECOGNITION" in service
 # SMaLL-100 local model, 100-language token map, and pure Kotlin tokenizer.
 assert 'libs/onnxruntime-android-1.28.2.aar' in gradle
 assert 'pickFirsts += "**/libonnxruntime.so"' in gradle
-assert "onnxruntime-android-1.28.2.zip" in workflow
+assert workflow.count("onnxruntime-android-1.28.2.zip") >= 2
 assert "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d" in workflow
 assert "cmp \"/tmp/royal-onnx/sherpa-$abi.so\" \"/tmp/royal-onnx/ort-$abi.so\"" in workflow
 assert "com.google.mlkit:translate" not in gradle
