@@ -174,9 +174,13 @@ internal object GregorianCalendarReminderScheduler {
         }
         var attempts = 0
         while (triggerAt <= nowMillis && attempts < 240) {
+            event.set(Calendar.DAY_OF_MONTH, 1)
             when (reminder.repeat) {
                 CalendarReminderRepeat.MONTHLY -> event.add(Calendar.MONTH, 1)
-                CalendarReminderRepeat.YEARLY -> event.add(Calendar.YEAR, 1)
+                CalendarReminderRepeat.YEARLY -> {
+                    event.add(Calendar.YEAR, 1)
+                    event.set(Calendar.MONTH, reminder.month)
+                }
                 CalendarReminderRepeat.NONE -> return null
             }
             val targetDay = reminder.day.coerceAtMost(event.getActualMaximum(Calendar.DAY_OF_MONTH))
