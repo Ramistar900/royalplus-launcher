@@ -150,6 +150,10 @@ internal object TranslationDeviceCapability {
         failure = Failure.INSUFFICIENT_MEMORY
     )
 
+    internal fun slowSpeechRecognition(): Assessment = weakPerformance(
+        "أظهر الاستخدام الفعلي أن التعرف على الكلام أبطأ من الصوت الوارد بشكل متكرر."
+    )
+
     internal fun engineUnavailable(detail: String): Assessment = Assessment(
         supported = false,
         title = "الترجمة غير متاحة على هذا الجهاز",
