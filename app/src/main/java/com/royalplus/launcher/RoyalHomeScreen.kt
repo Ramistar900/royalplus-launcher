@@ -1565,128 +1565,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "relax") {
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(22.dp))
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF18372C), Color(0xFF101916), Color(0xFF080B0A))
-                                        )
-                                    )
-                                    .border(1.dp, Color(0xFFD4AF37).copy(alpha = 0.72f), RoundedCornerShape(22.dp))
-                                    .padding(20.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = Color(0xFF20B8B0), modifier = Modifier.size(34.dp))
-                                    Spacer(Modifier.width(10.dp))
-                                    Column {
-                                        Text("ROYAL RELAX", color = Color(0xFFD4AF37), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                                        Text(
-                                            when (selectedLanguage) {
-                                                "en" -> "A peaceful world of nature"
-                                                "tr" -> "Doğanın huzurlu dünyası"
-                                                else -> "عالم من الطبيعة والهدوء"
-                                            },
-                                            color = Color(0xFFE8DDC8), fontSize = 12.sp
-                                        )
-                                    }
-                                    Spacer(Modifier.weight(1f))
-                                    RoyalRelaxRibbon()
-                                }
-                                Text(
-                                    when (selectedLanguage) {
-                                        "en" -> "Watch natural places and relaxing scenes"
-                                        "tr" -> "Doğal yerleri ve huzur veren sahneleri izleyin"
-                                        else -> "شاهد الطبيعة واستمتع بالمشاهد الهادئة"
-                                    },
-                                    color = Color(0xFFE8DDC8), fontSize = 18.sp, fontWeight = FontWeight.SemiBold
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    RoyalRelaxFeatureTile(
-                                        icon = Icons.Rounded.WbSunny,
-                                        title = when (selectedLanguage) { "en" -> "Live nature cameras"; "tr" -> "Canlı doğa kameraları"; else -> "كاميرات الطبيعة المباشرة" },
-                                        detail = when (selectedLanguage) { "en" -> "Seas, forests, lakes, waterfalls and wildlife only"; "tr" -> "Yalnızca denizler, ormanlar, göller, şelaleler ve yaban hayatı"; else -> "البحار والغابات والبحيرات والشلالات والحياة البرية فقط" },
-                                        accent = Color(0xFF20B8B0),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    RoyalRelaxFeatureTile(
-                                        icon = Icons.Rounded.Bolt,
-                                        title = when (selectedLanguage) { "en" -> "Fireplace & logs"; "tr" -> "Şömine ve odun ateşi"; else -> "النار والحطب" },
-                                        detail = when (selectedLanguage) { "en" -> "Warm fire and crackling wood videos"; "tr" -> "Sıcak şömine ve çıtırdayan odun videoları"; else -> "فيديوهات المدفأة والحطب المشتعل" },
-                                        accent = Color(0xFFD4AF37),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    RoyalRelaxFeatureTile(
-                                        icon = Icons.Rounded.AcUnit,
-                                        title = when (selectedLanguage) { "en" -> "Winter ambience"; "tr" -> "Kış atmosferi"; else -> "أجواء الشتاء" },
-                                        detail = when (selectedLanguage) { "en" -> "Snowfall, snowy cabins and winter forests"; "tr" -> "Kar yağışı, karlı kulübeler ve kış ormanları"; else -> "تساقط الثلوج والأكواخ والغابات الشتوية" },
-                                        accent = Color(0xFF20B8B0),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    RoyalRelaxFeatureTile(
-                                        icon = Icons.Rounded.WaterDrop,
-                                        title = when (selectedLanguage) { "en" -> "Rain & water"; "tr" -> "Yağmur ve su"; else -> "المطر والمياه" },
-                                        detail = when (selectedLanguage) { "en" -> "Rain, storms, rivers and waterfalls"; "tr" -> "Yağmur, fırtınalar, nehirler ve şelaleler"; else -> "المطر والعواصف والأنهار والشلالات" },
-                                        accent = Color(0xFF1677C8),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Text(
-                                    when (selectedLanguage) { "en" -> "Choose your audio atmosphere"; "tr" -> "Ses atmosferinizi seçin"; else -> "اختر الأجواء الصوتية" },
-                                    color = Color(0xFFD4AF37), fontSize = 16.sp, fontWeight = FontWeight.Bold
-                                )
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    RoyalRelaxAudioModeRow(
-                                        icon = Icons.Rounded.Star,
-                                        title = when (selectedLanguage) { "en" -> "Quran recitation"; "tr" -> "Kur'an tilaveti"; else -> "القرآن الكريم" },
-                                        detail = when (selectedLanguage) { "en" -> "A separate listening mode, never mixed with music or effects"; "tr" -> "Müzik veya efektlerle asla karıştırılmayan ayrı bir dinleme modu"; else -> "وضع مستقل تماماً، لا يُخلط بالموسيقى أو المؤثرات" },
-                                        accent = Color(0xFFD4AF37)
-                                    )
-                                    RoyalRelaxAudioModeRow(
-                                        icon = Icons.Rounded.MusicNote,
-                                        title = when (selectedLanguage) { "en" -> "Calm instrumental music"; "tr" -> "Sakin enstrümantal müzik"; else -> "موسيقى هادئة وآلات موسيقية" },
-                                        detail = when (selectedLanguage) { "en" -> "Optional, with independent volume control"; "tr" -> "İsteğe bağlı, ayrı ses seviyesi kontrolüyle"; else -> "اختيارية مع تحكم مستقل بمستوى الصوت" },
-                                        accent = Color(0xFFD4AF37)
-                                    )
-                                    RoyalRelaxAudioModeRow(
-                                        icon = Icons.Rounded.WaterDrop,
-                                        title = when (selectedLanguage) { "en" -> "Nature sounds"; "tr" -> "Doğa sesleri"; else -> "أصوات الطبيعة" },
-                                        detail = when (selectedLanguage) { "en" -> "Rain, wind, birds, waves and fire crackle"; "tr" -> "Yağmur, rüzgâr, kuşlar, dalgalar ve ateş sesi"; else -> "المطر والرياح والطيور والأمواج وفرقعة الحطب" },
-                                        accent = Color(0xFF20B8B0)
-                                    )
-                                    RoyalRelaxAudioModeRow(
-                                        icon = Icons.Rounded.Cloud,
-                                        title = when (selectedLanguage) { "en" -> "Nature + music mix"; "tr" -> "Doğa + müzik karışımı"; else -> "مزج الطبيعة مع الموسيقى" },
-                                        detail = when (selectedLanguage) { "en" -> "Mix nature ambience and music, with separate volume controls"; "tr" -> "Doğa seslerini ve müziği ayrı ses kontrolleriyle karıştırın"; else -> "امزج أصوات الطبيعة والموسيقى مع تحكم منفصل لكل صوت" },
-                                        accent = Color(0xFF20B8B0)
-                                    )
-                                    RoyalRelaxAudioModeRow(
-                                        icon = Icons.Rounded.Close,
-                                        title = when (selectedLanguage) { "en" -> "Silent viewing"; "tr" -> "Sessiz izleme"; else -> "المشاهدة الصامتة" },
-                                        detail = when (selectedLanguage) { "en" -> "Enjoy the picture without audio"; "tr" -> "Görüntünün keyfini sessizce çıkarın"; else -> "استمتع بالمشهد دون صوت" },
-                                        accent = Color(0xFFE8DDC8)
-                                    )
-                                }
-                                Text(
-                                    when (selectedLanguage) {
-                                        "en" -> "Lightweight by design: play only when requested, keep one video player active, do not download automatically, and release playback resources when leaving the section."
-                                        "tr" -> "Hafif tasarım: yalnızca istendiğinde oynatın, tek video oynatıcı kullanın, otomatik indirme yapmayın ve bölümden çıkınca oynatma kaynaklarını serbest bırakın."
-                                        else -> "مصمم ليكون خفيفاً: التشغيل عند الطلب فقط، ومشغل فيديو واحد، دون تنزيل تلقائي، وتحرير موارد التشغيل عند مغادرة القسم."
-                                    },
-                                    color = Color(0xFFE8DDC8).copy(alpha = 0.82f), fontSize = 11.sp
-                                )
-                                Text(
-                                    when (selectedLanguage) {
-                                        "en" -> "Nature-only camera sources and videos will be added after their embedding, playback and usage permissions are verified. All ROYAL RELAX options are free."
-                                        "tr" -> "Doğa kameraları ve videoları, yerleştirme, oynatma ve kullanım izinleri doğrulandıktan sonra eklenecektir. ROYAL RELAX seçeneklerinin tümü ücretsizdir."
-                                        else -> "ستُضاف كاميرات الطبيعة والفيديوهات بعد التحقق من أذونات التضمين والتشغيل والاستخدام. جميع خيارات ROYAL RELAX مجانية."
-                                    },
-                                    color = Color(0xFFE8DDC8).copy(alpha = 0.72f), fontSize = 11.sp
-                                )
-                            }
+                            RoyalRelaxSettingsSection(selectedLanguage)
                             Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "about") {
@@ -1720,6 +1599,132 @@ internal fun RoyalHomeScreen(
     }
 }
 
+
+@Composable
+private fun RoyalRelaxSettingsSection(selectedLanguage: String) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF18372C), Color(0xFF101916), Color(0xFF080B0A))
+                                )
+                            )
+                            .border(1.dp, Color(0xFFD4AF37).copy(alpha = 0.72f), RoundedCornerShape(22.dp))
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = Color(0xFF20B8B0), modifier = Modifier.size(34.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text("ROYAL RELAX", color = Color(0xFFD4AF37), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    when (selectedLanguage) {
+                                        "en" -> "A peaceful world of nature"
+                                        "tr" -> "Doğanın huzurlu dünyası"
+                                        else -> "عالم من الطبيعة والهدوء"
+                                    },
+                                    color = Color(0xFFE8DDC8), fontSize = 12.sp
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                            RoyalRelaxRibbon()
+                        }
+                        Text(
+                            when (selectedLanguage) {
+                                "en" -> "Watch natural places and relaxing scenes"
+                                "tr" -> "Doğal yerleri ve huzur veren sahneleri izleyin"
+                                else -> "شاهد الطبيعة واستمتع بالمشاهد الهادئة"
+                            },
+                            color = Color(0xFFE8DDC8), fontSize = 18.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.WbSunny,
+                                title = when (selectedLanguage) { "en" -> "Live nature cameras"; "tr" -> "Canlı doğa kameraları"; else -> "كاميرات الطبيعة المباشرة" },
+                                detail = when (selectedLanguage) { "en" -> "Seas, forests, lakes, waterfalls and wildlife only"; "tr" -> "Yalnızca denizler, ormanlar, göller, şelaleler ve yaban hayatı"; else -> "البحار والغابات والبحيرات والشلالات والحياة البرية فقط" },
+                                accent = Color(0xFF20B8B0),
+                                modifier = Modifier.weight(1f)
+                            )
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.Bolt,
+                                title = when (selectedLanguage) { "en" -> "Fireplace & logs"; "tr" -> "Şömine ve odun ateşi"; else -> "النار والحطب" },
+                                detail = when (selectedLanguage) { "en" -> "Warm fire and crackling wood videos"; "tr" -> "Sıcak şömine ve çıtırdayan odun videoları"; else -> "فيديوهات المدفأة والحطب المشتعل" },
+                                accent = Color(0xFFD4AF37),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.AcUnit,
+                                title = when (selectedLanguage) { "en" -> "Winter ambience"; "tr" -> "Kış atmosferi"; else -> "أجواء الشتاء" },
+                                detail = when (selectedLanguage) { "en" -> "Snowfall, snowy cabins and winter forests"; "tr" -> "Kar yağışı, karlı kulübeler ve kış ormanları"; else -> "تساقط الثلوج والأكواخ والغابات الشتوية" },
+                                accent = Color(0xFF20B8B0),
+                                modifier = Modifier.weight(1f)
+                            )
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.WaterDrop,
+                                title = when (selectedLanguage) { "en" -> "Rain & water"; "tr" -> "Yağmur ve su"; else -> "المطر والمياه" },
+                                detail = when (selectedLanguage) { "en" -> "Rain, storms, rivers and waterfalls"; "tr" -> "Yağmur, fırtınalar, nehirler ve şelaleler"; else -> "المطر والعواصف والأنهار والشلالات" },
+                                accent = Color(0xFF1677C8),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Text(
+                            when (selectedLanguage) { "en" -> "Choose your audio atmosphere"; "tr" -> "Ses atmosferinizi seçin"; else -> "اختر الأجواء الصوتية" },
+                            color = Color(0xFFD4AF37), fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.Star,
+                                title = when (selectedLanguage) { "en" -> "Quran recitation"; "tr" -> "Kur'an tilaveti"; else -> "القرآن الكريم" },
+                                detail = when (selectedLanguage) { "en" -> "A separate listening mode, never mixed with music or effects"; "tr" -> "Müzik veya efektlerle asla karıştırılmayan ayrı bir dinleme modu"; else -> "وضع مستقل تماماً، لا يُخلط بالموسيقى أو المؤثرات" },
+                                accent = Color(0xFFD4AF37)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.MusicNote,
+                                title = when (selectedLanguage) { "en" -> "Calm instrumental music"; "tr" -> "Sakin enstrümantal müzik"; else -> "موسيقى هادئة وآلات موسيقية" },
+                                detail = when (selectedLanguage) { "en" -> "Optional, with independent volume control"; "tr" -> "İsteğe bağlı, ayrı ses seviyesi kontrolüyle"; else -> "اختيارية مع تحكم مستقل بمستوى الصوت" },
+                                accent = Color(0xFFD4AF37)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.WaterDrop,
+                                title = when (selectedLanguage) { "en" -> "Nature sounds"; "tr" -> "Doğa sesleri"; else -> "أصوات الطبيعة" },
+                                detail = when (selectedLanguage) { "en" -> "Rain, wind, birds, waves and fire crackle"; "tr" -> "Yağmur, rüzgâr, kuşlar, dalgalar ve ateş sesi"; else -> "المطر والرياح والطيور والأمواج وفرقعة الحطب" },
+                                accent = Color(0xFF20B8B0)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.Cloud,
+                                title = when (selectedLanguage) { "en" -> "Nature + music mix"; "tr" -> "Doğa + müzik karışımı"; else -> "مزج الطبيعة مع الموسيقى" },
+                                detail = when (selectedLanguage) { "en" -> "Mix nature ambience and music, with separate volume controls"; "tr" -> "Doğa seslerini ve müziği ayrı ses kontrolleriyle karıştırın"; else -> "امزج أصوات الطبيعة والموسيقى مع تحكم منفصل لكل صوت" },
+                                accent = Color(0xFF20B8B0)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.Close,
+                                title = when (selectedLanguage) { "en" -> "Silent viewing"; "tr" -> "Sessiz izleme"; else -> "المشاهدة الصامتة" },
+                                detail = when (selectedLanguage) { "en" -> "Enjoy the picture without audio"; "tr" -> "Görüntünün keyfini sessizce çıkarın"; else -> "استمتع بالمشهد دون صوت" },
+                                accent = Color(0xFFE8DDC8)
+                            )
+                        }
+                        Text(
+                            when (selectedLanguage) {
+                                "en" -> "Lightweight by design: play only when requested, keep one video player active, do not download automatically, and release playback resources when leaving the section."
+                                "tr" -> "Hafif tasarım: yalnızca istendiğinde oynatın, tek video oynatıcı kullanın, otomatik indirme yapmayın ve bölümden çıkınca oynatma kaynaklarını serbest bırakın."
+                                else -> "مصمم ليكون خفيفاً: التشغيل عند الطلب فقط، ومشغل فيديو واحد، دون تنزيل تلقائي، وتحرير موارد التشغيل عند مغادرة القسم."
+                            },
+                            color = Color(0xFFE8DDC8).copy(alpha = 0.82f), fontSize = 11.sp
+                        )
+                        Text(
+                            when (selectedLanguage) {
+                                "en" -> "Nature-only camera sources and videos will be added after their embedding, playback and usage permissions are verified. All ROYAL RELAX options are free."
+                                "tr" -> "Doğa kameraları ve videoları, yerleştirme, oynatma ve kullanım izinleri doğrulandıktan sonra eklenecektir. ROYAL RELAX seçeneklerinin tümü ücretsizdir."
+                                else -> "ستُضاف كاميرات الطبيعة والفيديوهات بعد التحقق من أذونات التضمين والتشغيل والاستخدام. جميع خيارات ROYAL RELAX مجانية."
+                            },
+                            color = Color(0xFFE8DDC8).copy(alpha = 0.72f), fontSize = 11.sp
+                        )
+                    }
+}
 
 @Composable
 private fun RoyalRelaxRibbon() {
