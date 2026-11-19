@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.zxing.BarcodeFormat
@@ -140,28 +141,34 @@ internal fun RoyalShareUpdatesSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            if (qrImage != null) {
-                Image(
-                    bitmap = qrImage,
-                    contentDescription = if (isEnglish) "ROYAL+ latest release QR code" else if (isTurkish) "ROYAL+ en son sürüm QR kodu" else "رمز QR لأحدث إصدار من ROYAL+",
-                    modifier = Modifier.size(174.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White)
-                        .padding(7.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (qrImage != null) {
+                    Image(
+                        bitmap = qrImage,
+                        contentDescription = if (isEnglish) "ROYAL+ latest release QR code" else if (isTurkish) "ROYAL+ en son sürüm QR kodu" else "رمز QR لأحدث إصدار من ROYAL+",
+                        modifier = Modifier.size(174.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White)
+                            .padding(7.dp)
+                    )
+                } else {
+                    Text("QR", color = Color(0xFF0B1119), modifier = Modifier.background(Color.White).padding(34.dp))
+                }
+                Text(
+                    statusText,
+                    color = if (updateAvailable) Color(0xFFFFD166) else Color(0xFFB9DCD8),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
                 )
-            } else {
-                Text("QR", color = Color(0xFF0B1119), modifier = Modifier.background(Color.White).padding(34.dp))
             }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    statusText,
-                    color = if (updateAvailable) Color(0xFFFFD166) else Color(0xFFB9DCD8),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
                 RoyalShareUpdateAction(
                     title = when {
                         isEnglish -> "Share app"
