@@ -121,6 +121,7 @@ private object RoyalSportsRankingCatalog {
     val internationalCompetitions = listOf(
         RoyalSportsRankingCompetition(2, "UEFA Champions League", SEASON, "Europe"),
         RoyalSportsRankingCompetition(3, "UEFA Europa League", SEASON, "Europe"),
+        RoyalSportsRankingCompetition(5, "UEFA Nations League", SEASON, "Europe"),
         RoyalSportsRankingCompetition(1, "FIFA World Cup", 2026, "International", isArchived = true),
         RoyalSportsRankingCompetition(4, "UEFA European Championship", 2024, "Europe", isArchived = true),
         RoyalSportsRankingCompetition(6, "Africa Cup of Nations", 2025, "Africa", isArchived = true),
@@ -656,6 +657,26 @@ private fun StandingsEntryRow(
 
 private fun localizedRankingGroupName(value: String, arabic: Boolean, turkish: Boolean): String {
     val normalized = value.lowercase(Locale.ROOT)
+    val leagueGroup = Regex("""(?i)\bleague\s+([a-d])(?:\s*[-–]?\s*group\s*(\d+))?\b""")
+        .find(value)
+    if (leagueGroup != null) {
+        val league = leagueGroup.groupValues[1].uppercase(Locale.ROOT)
+        val groupNumber = leagueGroup.groupValues[2]
+        if (arabic) {
+            return if (groupNumber.isNotBlank()) {
+                "الدوري $league • المجموعة $groupNumber"
+            } else {
+                "الدوري $league"
+            }
+        }
+        if (turkish) {
+            return if (groupNumber.isNotBlank()) {
+                "Lig $league • Grup $groupNumber"
+            } else {
+                "Lig $league"
+            }
+        }
+    }
     if (arabic) {
         return when {
             normalized.contains("group a") -> "المجموعة A"
@@ -664,8 +685,8 @@ private fun localizedRankingGroupName(value: String, arabic: Boolean, turkish: B
             normalized.contains("group d") -> "المجموعة D"
             normalized.contains("group e") -> "المجموعة E"
             normalized.contains("group f") -> "المجموعة F"
-            normalized.contains("overall") || normalized.contains("league") -> "الترتيب العام / مرحلة الدوري"
             normalized.contains("relegation") -> "مجموعة الهبوط"
+            normalized.contains("overall") || normalized == "league" -> "الترتيب العام / مرحلة الدوري"
             else -> value
         }
     }
@@ -695,6 +716,7 @@ private fun localizedRankingCompetitionName(value: String, country: String, arab
         key.contains("world cup") -> "كأس العالم"
         key.contains("champions league") -> "دوري أبطال أوروبا"
         key.contains("europa league") -> "الدوري الأوروبي"
+        key.contains("nations league") -> "دوري الأمم الأوروبية"
         key.contains("european championship") -> "بطولة أمم أوروبا"
         key.contains("africa cup") -> "كأس أمم إفريقيا"
         key.contains("copa américa") -> "كوبا أمريكا"
@@ -713,6 +735,7 @@ private fun localizedRankingCompetitionName(value: String, country: String, arab
         key.contains("world cup") -> "Dünya Kupası"
         key.contains("champions league") -> "Şampiyonlar Ligi"
         key.contains("europa league") -> "Avrupa Ligi"
+        key.contains("nations league") -> "UEFA Uluslar Ligi"
         key.contains("european championship") -> "Avrupa Şampiyonası"
         key.contains("africa cup") -> "Afrika Uluslar Kupası"
         key.contains("copa américa") -> "Copa América"
