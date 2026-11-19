@@ -198,6 +198,7 @@ internal fun RoyalHomeScreen(
     val settingsInitialFocusRequester = remember { FocusRequester() }
     val settingsScrollState = rememberScrollState()
     var selectedSettingsCategory by remember { mutableStateOf("prayer") }
+    var selectedPremiumPlan by remember { mutableStateOf("monthly") }
     val navigateSettingsSection: (String) -> Unit = { section -> selectedSettingsCategory = section }
     LaunchedEffect(selectedSettingsCategory) { settingsScrollState.scrollTo(0) }
     LaunchedEffect(showWallpaperSettings) {
@@ -881,6 +882,7 @@ internal fun RoyalHomeScreen(
                             RoyalSettingsNavigationItem(Icons.Rounded.Schedule, when (selectedLanguage) { "en" -> "Date & time"; "tr" -> "Tarih ve saat"; else -> "التاريخ والساعة" }, selectedSettingsCategory == "clock") { navigateSettingsSection("clock") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Language, when (selectedLanguage) { "en" -> "Language & fonts"; "tr" -> "Dil ve yazı tipleri"; else -> "اللغة والخطوط" }, selectedSettingsCategory == "language") { navigateSettingsSection("language") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Wifi, when (selectedLanguage) { "en" -> "Network & device"; "tr" -> "Ağ ve cihaz"; else -> "الشبكة والجهاز" }, selectedSettingsCategory == "device") { navigateSettingsSection("device") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Star, when (selectedLanguage) { "en" -> "ROYAL+ PREMIUM"; "tr" -> "ROYAL+ PREMIUM"; else -> "اشتراك ROYAL+ PREMIUM" }, selectedSettingsCategory == "premium") { navigateSettingsSection("premium") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Info, when (selectedLanguage) { "en" -> "Share & updates"; "tr" -> "Paylaşım ve güncellemeler"; else -> "مشاركة التطبيق والتحديثات" }, selectedSettingsCategory == "share") { navigateSettingsSection("share") }
                             Spacer(Modifier.height(8.dp))
                             Row(
@@ -916,6 +918,7 @@ internal fun RoyalHomeScreen(
                                 "clock" -> if (selectedLanguage == "en") "Date & time" else if (selectedLanguage == "tr") "Tarih ve saat" else "التاريخ والساعة"
                                 "language" -> if (selectedLanguage == "en") "Language & fonts" else if (selectedLanguage == "tr") "Dil ve yazı tipleri" else "اللغة والخطوط"
                                 "device" -> if (selectedLanguage == "en") "Network & device" else if (selectedLanguage == "tr") "Ağ ve cihaz" else "الشبكة والجهاز"
+                                "premium" -> "ROYAL+ PREMIUM"
                                 else -> if (selectedLanguage == "en") "Share & updates" else if (selectedLanguage == "tr") "Paylaşım ve güncellemeler" else "مشاركة التطبيق والتحديثات"
                             },
                             color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold
@@ -931,6 +934,7 @@ internal fun RoyalHomeScreen(
                                 "clock" -> if (selectedLanguage == "en") "Choose how date and time appear" else if (selectedLanguage == "tr") "Tarih ve saatin görünümünü seçin" else "اختر طريقة عرض التاريخ والساعة"
                                 "language" -> if (selectedLanguage == "en") "Choose the interface language and font" else if (selectedLanguage == "tr") "Arayüz dilini ve yazı tipini seçin" else "اختر لغة الواجهة ونوع الخط"
                                 "device" -> if (selectedLanguage == "en") "Network, storage and device information" else if (selectedLanguage == "tr") "Ağ, depolama ve cihaz bilgileri" else "الشبكة والتخزين ومعلومات الجهاز"
+                                "premium" -> if (selectedLanguage == "en") "Explore exclusive features and choose a subscription plan" else if (selectedLanguage == "tr") "Özel özellikleri keşfedin ve abonelik planını seçin" else "اكتشف المزايا الحصرية واختر باقة الاشتراك"
                                 else -> if (selectedLanguage == "en") "Share the app or check for the latest official release" else if (selectedLanguage == "tr") "Uygulamayı paylaşın veya en yeni resmî sürümü kontrol edin" else "شارك التطبيق أو تحقق من أحدث إصدار رسمي"
                             },
                             color = RoyalColors.Pearl, fontSize = 14.sp
@@ -1477,6 +1481,110 @@ internal fun RoyalHomeScreen(
                         )
                         Spacer(Modifier.height(14.dp))
                         }
+                        if (selectedSettingsCategory == "premium") {
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(22.dp))
+                                    .background(Brush.linearGradient(listOf(Color(0xFF171B2A), Color(0xFF080A0F))))
+                                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.62f), RoundedCornerShape(22.dp))
+                                    .padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.Star, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(34.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Column {
+                                        Text("ROYAL+ PREMIUM", color = RoyalColors.Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            when (selectedLanguage) { "en" -> "A more personal, cinematic experience"; "tr" -> "Daha kişisel ve sinematik bir deneyim"; else -> "تجربة أكثر تميزاً وغنى" },
+                                            color = RoyalColors.Pearl, fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Unlock the premium world"; "tr" -> "Premium dünyasının kilidini açın"; else -> "افتح عالم المزايا الحصرية" },
+                                    color = RoyalColors.Pearl, fontSize = 19.sp, fontWeight = FontWeight.SemiBold
+                                )
+                                val premiumBenefits = when (selectedLanguage) {
+                                    "en" -> listOf("Exclusive cinematic wallpapers", "Expanded natural sound library", "Advanced weather experience", "Smart floating translation", "Premium sports center", "More launcher customization")
+                                    "tr" -> listOf("Özel sinematik duvar kâğıtları", "Genişletilmiş doğa sesleri", "Gelişmiş hava durumu deneyimi", "Akıllı kayan çeviri", "Premium spor merkezi", "Daha fazla başlatıcı özelleştirmesi")
+                                    else -> listOf("خلفيات سينمائية حصرية", "مكتبة أصوات طبيعية موسّعة", "تجربة طقس متقدمة", "الترجمة العائمة الذكية", "مركز رياضة Premium", "خيارات تخصيص أوسع للانشر")
+                                }
+                                premiumBenefits.forEach { benefit ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Rounded.Star, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(17.dp))
+                                        Spacer(Modifier.width(9.dp))
+                                        Text(benefit, color = RoyalColors.Pearl, fontSize = 13.sp)
+                                    }
+                                }
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Choose your plan"; "tr" -> "Planınızı seçin"; else -> "اختر باقة الاشتراك" },
+                                    color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    listOf("monthly", "yearly").forEach { plan ->
+                                        val selected = selectedPremiumPlan == plan
+                                        Column(
+                                            modifier = Modifier.weight(1f)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(if (selected) RoyalColors.Gold.copy(alpha = 0.16f) else Color(0xFF080A0F))
+                                                .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Pearl.copy(alpha = 0.22f), RoundedCornerShape(14.dp))
+                                                .then(royalGlassFocus(RoundedCornerShape(14.dp)))
+                                                .clickable { selectedPremiumPlan = plan }
+                                                .padding(13.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                if (plan == "monthly") when (selectedLanguage) { "en" -> "Monthly"; "tr" -> "Aylık"; else -> "شهري" }
+                                                else when (selectedLanguage) { "en" -> "Yearly"; "tr" -> "Yıllık"; else -> "سنوي" },
+                                                color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                                                fontSize = 15.sp, fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                when (selectedLanguage) { "en" -> "Price announced later"; "tr" -> "Fiyat daha sonra açıklanacak"; else -> "السعر يحدد لاحقاً" },
+                                                color = RoyalColors.Muted, fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(RoyalColors.Gold.copy(alpha = 0.18f))
+                                        .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
+                                        .then(royalGlassFocus(RoundedCornerShape(14.dp)))
+                                        .clickable {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                when (selectedLanguage) {
+                                                    "en" -> "Subscription payments will be enabled after the payment provider is connected."
+                                                    "tr" -> "Ödeme sağlayıcısı bağlandıktan sonra abonelik ödemeleri açılacaktır."
+                                                    else -> "سيتم تفعيل الدفع بعد ربط منصة التحصيل."
+                                                },
+                                                android.widget.Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                        .padding(vertical = 15.dp, horizontal = 18.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        when (selectedLanguage) { "en" -> "Subscribe now"; "tr" -> "Şimdi abone ol"; else -> "اشترك الآن" },
+                                        color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    when (selectedLanguage) {
+                                        "en" -> "Payments are not active yet. The payment link and WhatsApp Business contact will be configurable by the developer, without fixing a phone number or provider in the app."
+                                        "tr" -> "Ödemeler henüz etkin değil. Ödeme bağlantısı ve WhatsApp Business iletişimi, uygulamaya sabit numara veya sağlayıcı eklemeden geliştirici tarafından ayarlanabilecektir."
+                                        else -> "الدفع غير مفعّل حالياً. سيصبح رابط الدفع وحساب WhatsApp Business قابلين للتغيير من إعدادات المطوّر دون تثبيت رقم أو منصة داخل التطبيق."
+                                    },
+                                    color = RoyalColors.Muted, fontSize = 11.sp
+                                )
+                            }
+                            Spacer(Modifier.height(14.dp))
+                        }
+
                     }
                     }
                 }
