@@ -125,6 +125,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -135,6 +136,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -308,6 +310,12 @@ internal fun RoyalHomeScreen(
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
     var isSinjarPlayerFullscreen by remember { mutableStateOf(false) }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
+    var lightThemeEnabled by remember(wallpaperPreferences) {
+        mutableStateOf(wallpaperPreferences.getString("launcher_theme_mode", "dark") == "light")
+    }
+    var launcherTextScale by remember(wallpaperPreferences) {
+        mutableStateOf(wallpaperPreferences.getFloat("launcher_text_scale", 1.0f).coerceIn(0.9f, 1.15f))
+    }
     val selectedFontFamily = remember(selectedFont) {
         when (selectedFont) {
             "tajawal" -> FontFamily(Font(R.font.tajawal_regular))
@@ -505,7 +513,11 @@ internal fun RoyalHomeScreen(
         filteredApps.filterNot { it.packageName in favoritePackages }
     }
 
-    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)) {
+    val baseDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(baseDensity.density, launcherTextScale),
+        LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)
+    ) {
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()
@@ -840,7 +852,7 @@ internal fun RoyalHomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xF5080A10))
+                        .background(RoyalColors.Overlay)
                         .padding(horizontal = 28.dp, vertical = 22.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -849,7 +861,7 @@ internal fun RoyalHomeScreen(
                             .fillMaxWidth()
                             .fillMaxHeight(0.92f)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color(0xFF10131B))
+                            .background(RoyalColors.Panel)
                             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
                             .padding(18.dp)
                             .focusGroup()
@@ -881,7 +893,9 @@ internal fun RoyalHomeScreen(
                             RoyalSettingsNavigationItem(Icons.Rounded.Schedule, when (selectedLanguage) { "en" -> "Date & time"; "tr" -> "Tarih ve saat"; else -> "التاريخ والساعة" }, selectedSettingsCategory == "clock") { navigateSettingsSection("clock") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Language, when (selectedLanguage) { "en" -> "Language & fonts"; "tr" -> "Dil ve yazı tipleri"; else -> "اللغة والخطوط" }, selectedSettingsCategory == "language") { navigateSettingsSection("language") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Wifi, when (selectedLanguage) { "en" -> "Network & device"; "tr" -> "Ağ ve cihaz"; else -> "الشبكة والجهاز" }, selectedSettingsCategory == "device") { navigateSettingsSection("device") }
-                            RoyalSettingsNavigationItem(Icons.Rounded.Info, when (selectedLanguage) { "en" -> "Share & updates"; "tr" -> "Paylaşım ve güncellemeler"; else -> "مشاركة التطبيق والتحديثات" }, selectedSettingsCategory == "share") { navigateSettingsSection("share") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Mic, when (selectedLanguage) { "en" -> "Privacy & permissions"; "tr" -> "Gizlilik ve izinler"; else -> "الخصوصية والأذونات" }, selectedSettingsCategory == "privacy") { navigateSettingsSection("privacy") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Refresh, when (selectedLanguage) { "en" -> "Share & updates"; "tr" -> "Paylaşım ve güncellemeler"; else -> "مشاركة التطبيق والتحديثات" }, selectedSettingsCategory == "share") { navigateSettingsSection("share") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Info, when (selectedLanguage) { "en" -> "About & support"; "tr" -> "Hakkında ve destek"; else -> "حول التطبيق والدعم" }, selectedSettingsCategory == "about") { navigateSettingsSection("about") }
                             Spacer(Modifier.height(8.dp))
                             Row(
                                 Modifier.fillMaxWidth()
@@ -916,7 +930,9 @@ internal fun RoyalHomeScreen(
                                 "clock" -> if (selectedLanguage == "en") "Date & time" else if (selectedLanguage == "tr") "Tarih ve saat" else "التاريخ والساعة"
                                 "language" -> if (selectedLanguage == "en") "Language & fonts" else if (selectedLanguage == "tr") "Dil ve yazı tipleri" else "اللغة والخطوط"
                                 "device" -> if (selectedLanguage == "en") "Network & device" else if (selectedLanguage == "tr") "Ağ ve cihaz" else "الشبكة والجهاز"
-                                else -> if (selectedLanguage == "en") "Share & updates" else if (selectedLanguage == "tr") "Paylaşım ve güncellemeler" else "مشاركة التطبيق والتحديثات"
+                                "privacy" -> if (selectedLanguage == "en") "Privacy & permissions" else if (selectedLanguage == "tr") "Gizlilik ve izinler" else "الخصوصية والأذونات"
+                                "share" -> if (selectedLanguage == "en") "Share & updates" else if (selectedLanguage == "tr") "Paylaşım ve güncellemeler" else "مشاركة التطبيق والتحديثات"
+                                else -> if (selectedLanguage == "en") "About & support" else if (selectedLanguage == "tr") "Hakkında ve destek" else "حول التطبيق والدعم"
                             },
                             color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold
                         )
@@ -931,7 +947,9 @@ internal fun RoyalHomeScreen(
                                 "clock" -> if (selectedLanguage == "en") "Choose how date and time appear" else if (selectedLanguage == "tr") "Tarih ve saatin görünümünü seçin" else "اختر طريقة عرض التاريخ والساعة"
                                 "language" -> if (selectedLanguage == "en") "Choose the interface language and font" else if (selectedLanguage == "tr") "Arayüz dilini ve yazı tipini seçin" else "اختر لغة الواجهة ونوع الخط"
                                 "device" -> if (selectedLanguage == "en") "Network, storage and device information" else if (selectedLanguage == "tr") "Ağ, depolama ve cihaz bilgileri" else "الشبكة والتخزين ومعلومات الجهاز"
-                                else -> if (selectedLanguage == "en") "Share the app or check for the latest official release" else if (selectedLanguage == "tr") "Uygulamayı paylaşın veya en yeni resmî sürümü kontrol edin" else "شارك التطبيق أو تحقق من أحدث إصدار رسمي"
+                                "privacy" -> if (selectedLanguage == "en") "Review app permissions and open Android privacy controls" else if (selectedLanguage == "tr") "Uygulama izinlerini inceleyin ve Android gizlilik ayarlarını açın" else "راجع أذونات التطبيق وافتح إعدادات الخصوصية في أندرويد"
+                                "share" -> if (selectedLanguage == "en") "Share the app or check for the latest official release" else if (selectedLanguage == "tr") "Uygulamayı paylaşın veya en yeni resmî sürümü kontrol edin" else "شارك التطبيق أو تحقق من أحدث إصدار رسمي"
+                                else -> if (selectedLanguage == "en") "App version, developer information and support links" else if (selectedLanguage == "tr") "Uygulama sürümü, geliştirici bilgileri ve destek bağlantıları" else "إصدار التطبيق ومعلومات المطوّر وروابط الدعم"
                             },
                             color = RoyalColors.Pearl, fontSize = 14.sp
                         )
@@ -958,7 +976,7 @@ internal fun RoyalHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -998,7 +1016,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1063,7 +1081,7 @@ internal fun RoyalHomeScreen(
                             Triple("weather", if (selectedLanguage == "en") "Weather background" else if (selectedLanguage == "tr") "Hava durumu" else "خلفية الطقس", weatherMotionEnabled)
                         ).forEach { (key, label, enabled) ->
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F)).border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .background(RoyalColors.Surface).border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     val next = !enabled
@@ -1083,6 +1101,36 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "appearance") {
+                        Text(
+                            when (selectedLanguage) { "en" -> "Interface theme"; "tr" -> "Arayüz teması"; else -> "مظهر الواجهة" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            IconStyleChoice(
+                                Modifier.weight(1f),
+                                when (selectedLanguage) { "en" -> "Night mode"; "tr" -> "Koyu mod"; else -> "الوضع الليلي" },
+                                "dark",
+                                if (lightThemeEnabled) "light" else "dark",
+                                icon = Icons.Rounded.Schedule
+                            ) {
+                                lightThemeEnabled = false
+                                RoyalColors.setLightTheme(false)
+                                wallpaperPreferences.edit().putString("launcher_theme_mode", "dark").apply()
+                            }
+                            IconStyleChoice(
+                                Modifier.weight(1f),
+                                when (selectedLanguage) { "en" -> "Light mode"; "tr" -> "Açık mod"; else -> "الوضع الفاتح" },
+                                "light",
+                                if (lightThemeEnabled) "light" else "dark",
+                                icon = Icons.Rounded.WbSunny
+                            ) {
+                                lightThemeEnabled = true
+                                RoyalColors.setLightTheme(true)
+                                wallpaperPreferences.edit().putString("launcher_theme_mode", "light").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
                         Text(
                             when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
@@ -1179,7 +1227,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1218,7 +1266,7 @@ internal fun RoyalHomeScreen(
                                 }
                                 Box(
                                     Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
-                                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF080A0F))
+                                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else RoyalColors.Surface)
                                         .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f), RoundedCornerShape(9.dp))
                                         .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                         .clickable {
@@ -1320,7 +1368,7 @@ internal fun RoyalHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1348,7 +1396,7 @@ internal fun RoyalHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1419,6 +1467,38 @@ internal fun RoyalHomeScreen(
                             }
                         }
                         Spacer(Modifier.height(14.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Text size"; "tr" -> "Metin boyutu"; else -> "حجم النص" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            when (selectedLanguage) { "en" -> "Adjust text throughout ROYAL+ without changing TV resolution"; "tr" -> "TV çözünürlüğünü değiştirmeden ROYAL+ genelindeki metin boyutunu ayarlayın"; else -> "اضبط حجم النص في التطبيق دون تغيير دقة التلفاز" },
+                            color = RoyalColors.Muted, fontSize = 11.sp
+                        )
+                        val textScaleChoice = when {
+                            launcherTextScale < 0.95f -> "0.9"
+                            launcherTextScale < 1.08f -> "1.0"
+                            else -> "1.15"
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(
+                                Triple("0.9", "90%", "Smaller"),
+                                Triple("1.0", "100%", "Normal"),
+                                Triple("1.15", "115%", "Larger")
+                            ).forEach { (value, label, _) ->
+                                IconStyleChoice(
+                                    Modifier.weight(1f),
+                                    label,
+                                    value,
+                                    textScaleChoice,
+                                    icon = Icons.Rounded.TextFields
+                                ) {
+                                    launcherTextScale = value.toFloat()
+                                    wallpaperPreferences.edit().putFloat("launcher_text_scale", launcherTextScale).apply()
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "device") {
                         Text(
@@ -1470,11 +1550,19 @@ internal fun RoyalHomeScreen(
                         )
                         Spacer(Modifier.height(14.dp))
                         }
+                        if (selectedSettingsCategory == "privacy") {
+                        RoyalPrivacySettingsSection(language = selectedLanguage)
+                        Spacer(Modifier.height(14.dp))
+                        }
                         if (selectedSettingsCategory == "share") {
                         RoyalShareUpdatesSection(
                             language = selectedLanguage,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "about") {
+                        RoyalAboutSettingsSection(language = selectedLanguage)
                         Spacer(Modifier.height(14.dp))
                         }
                     }
@@ -1519,7 +1607,7 @@ private fun RoyalSettingsNavigationItem(
             .clip(shape)
             .background(
                 if (selected) Color(0xFF0B555B).copy(alpha = 0.42f)
-                else Color(0xFF080A0F)
+                else RoyalColors.Surface
             )
             .border(
                 1.dp,
@@ -1563,7 +1651,7 @@ private fun RoyalFeatureToggleRow(
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (checked) RoyalColors.Gold.copy(alpha = 0.12f) else Color(0xFF080A0F))
+            .background(if (checked) RoyalColors.Gold.copy(alpha = 0.12f) else RoyalColors.Surface)
             .border(
                 1.dp,
                 if (checked) RoyalColors.Gold.copy(alpha = 0.55f) else RoyalColors.Gold.copy(alpha = 0.24f),
@@ -1690,7 +1778,7 @@ private fun IconStyleChoice(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF080A0F))
+            .background(RoyalColors.Surface)
             .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
             .then(royalGlassFocus(RoundedCornerShape(12.dp)))
             .clickable(onClick = {
@@ -1742,7 +1830,7 @@ private fun WallpaperChoice(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF080A0F))
+            .background(RoyalColors.Surface)
             .border(
                 width = if (selected) 3.dp else 1.dp,
                 color = if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f),
