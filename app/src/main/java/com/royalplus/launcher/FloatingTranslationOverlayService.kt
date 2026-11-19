@@ -926,13 +926,13 @@ class FloatingTranslationOverlayService : Service() {
                         .setAction(ACTION_DOWNLOAD_TRANSLATION_MODEL)
                     val downloadPendingIntent = PendingIntent.getService(
                         this@FloatingTranslationOverlayService,
-                        4103,
+                        4104,
                         downloadIntent,
                         pendingFlags
                     )
                     addAction(Notification.Action.Builder(
                         android.R.drawable.stat_sys_download,
-                        "تنزيل الترجمة (609MB)",
+                        "تنزيل الترجمة (~621MB)",
                         downloadPendingIntent
                     ).build())
                 }
