@@ -38,7 +38,8 @@ assert "showAudioSettings: Boolean = true" in DEVICE_SETTINGS
 assert "showDeviceSettings = false" in HOME and "showAudioSettings = true" in HOME
 assert "showDeviceSettings = true" in HOME and "showAudioSettings = false" in HOME
 assert "versionCode = royalPlusVersionCode" in GRADLE
-assert 'minSdk = 23' in GRADLE
+assert 'minSdk = 24' in GRADLE
+assert 'minSdk = 23' not in GRADLE
 assert WORKFLOW.count('-ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE"') >= 2
 assert "ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'" in WORKFLOW
 assert 'gh release create "$TAG"' in WORKFLOW and '--latest' in WORKFLOW
