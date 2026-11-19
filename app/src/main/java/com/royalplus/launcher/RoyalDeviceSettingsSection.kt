@@ -253,9 +253,10 @@ internal fun RoyalDeviceSettingsSection(
         )
         }
         if (showDeviceSettings) {
-        SettingsInfoRow(Icons.Rounded.Info,
-            if (language == "en") "System information" else if (language == "tr") "Sistem bilgileri" else "معلومات النظام وإصدار Android",
-            androidVersion) { openSystemSettings(context, Settings.ACTION_DEVICE_INFO_SETTINGS) }
+            SettingsInfoRow(Icons.Rounded.Info,
+                if (language == "en") "System information" else if (language == "tr") "Sistem bilgileri" else "معلومات النظام وإصدار Android",
+                androidVersion) { openSystemSettings(context, Settings.ACTION_DEVICE_INFO_SETTINGS) }
+        }
     }
 }
 
