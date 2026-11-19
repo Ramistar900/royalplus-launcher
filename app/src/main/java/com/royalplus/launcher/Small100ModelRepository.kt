@@ -21,7 +21,7 @@ internal object Small100ModelRepository {
     private const val BASE_URL =
         "https://huggingface.co/casawolice/small100-onnx/resolve/$REVISION/"
     private const val MODEL_DIRECTORY = "royal_small100"
-    private const val MIN_FREE_BYTES = 680L * 1024L * 1024L
+    private const val MIN_FREE_BYTES = 720L * 1024L * 1024L
 
     data class ModelFiles(
         val encoder: File,
@@ -74,7 +74,7 @@ internal object Small100ModelRepository {
 
         val stat = StatFs(context.filesDir.absolutePath)
         if (stat.availableBytes < MIN_FREE_BYTES) {
-            throw IllegalStateException("يلزم توفير 680 ميغابايت على الأقل من المساحة الحرة لتنزيل نموذج الترجمة.")
+            throw IllegalStateException("يلزم توفير 720 ميغابايت على الأقل من المساحة الحرة لتنزيل نموذج الترجمة.")
         }
 
         remoteFiles.forEachIndexed { index, spec ->
@@ -103,16 +103,30 @@ internal object Small100ModelRepository {
         onProgress: (String) -> Unit
     ) {
         val partial = File(destination.parentFile, destination.name + ".part")
-        if (partial.isFile && partial.length() in spec.minimumBytes..spec.maximumBytes) {
+        val totalMarker = File(destination.parentFile, destination.name + ".part.total")
+        val recordedTotal = totalMarker.takeIf { it.isFile }
+            ?.readText()
+            ?.trim()
+            ?.toLongOrNull()
+        if (
+            partial.isFile &&
+            recordedTotal != null &&
+            partial.length() == recordedTotal &&
+            recordedTotal in spec.minimumBytes..spec.maximumBytes
+        ) {
+            destination.delete()
             if (!partial.renameTo(destination)) {
                 throw IllegalStateException("تعذر إكمال حفظ ${spec.name}.")
             }
+            totalMarker.delete()
             return
         }
-        var existingBytes = if (partial.isFile) partial.length() else 0L
-        if (existingBytes !in 0L until spec.maximumBytes) {
+        var existingBytes = if (partial.isFile && recordedTotal != null && partial.length() < recordedTotal) {
+            partial.length()
+        } else {
             partial.delete()
-            existingBytes = 0L
+            totalMarker.delete()
+            0L
         }
 
         val connection = (URL(BASE_URL + spec.relativePath).openConnection() as HttpURLConnection).apply {
@@ -144,9 +158,10 @@ internal object Small100ModelRepository {
             } else {
                 responseLength
             }
-            if (expectedTotal > 0L && expectedTotal !in spec.minimumBytes..spec.maximumBytes) {
-                throw IllegalStateException("حجم ${spec.name} لا يطابق النموذج المتوقع.")
+            if (expectedTotal <= 0L || expectedTotal !in spec.minimumBytes..spec.maximumBytes) {
+                throw IllegalStateException("تعذر التحقق من الحجم الكامل لملف ${spec.name}.")
             }
+            totalMarker.writeText(expectedTotal.toString())
 
             var downloaded = existingBytes
             BufferedInputStream(connection.inputStream).use { input ->
@@ -173,12 +188,14 @@ internal object Small100ModelRepository {
                 }
             }
 
-            if (partial.length() !in spec.minimumBytes..spec.maximumBytes) {
+            if (partial.length() != expectedTotal) {
                 throw IllegalStateException("لم يكتمل تنزيل ${spec.name}; ستتم متابعة التنزيل عند المحاولة التالية.")
             }
+            destination.delete()
             if (!partial.renameTo(destination)) {
                 throw IllegalStateException("تعذر حفظ ${spec.name} في مساحة التطبيق.")
             }
+            totalMarker.delete()
         } catch (error: Exception) {
             // Keep a partial download so a later explicit retry can resume it.
             throw error
