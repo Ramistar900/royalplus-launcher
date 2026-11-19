@@ -213,6 +213,8 @@ Deno.serve(async (req: Request) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
       return json({ error: "fixture_view_requires_valid_date_range" }, 400);
     }
+  } else if (resource === "fixtures" && view === "live" && params.get("live") !== "all") {
+    return json({ error: "live_view_requires_all_live_fixtures" }, 400);
   } else if (resource === "fifa_rankings") {
     const gender = params.get("gender") ?? "1";
     if (gender !== "1" && gender !== "2") {
