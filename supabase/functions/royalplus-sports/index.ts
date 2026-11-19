@@ -207,18 +207,19 @@ Deno.serve(async (req: Request) => {
     if (!/^\d{1,6}$/.test(league) || !/^\d{4}$/.test(season)) {
       return json({ error: "standings_require_league_and_season" }, 400);
     }
-  } else if (resource === "fixtures" && (view === "upcoming" || view === "finished")) {
+  } else if (resource === "fixtures" && (view === "upcoming" || view === "finished" || params.has("from") || params.has("to"))) {
     const from = params.get("from") ?? "";
     const to = params.get("to") ?? "";
     const fromTime = Date.parse(`${from}T00:00:00Z`);
     const toTime = Date.parse(`${to}T00:00:00Z`);
     const utcToday = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
-    const maxWindowMs = 7 * 24 * 60 * 60 * 1000;
-    const oldestAllowed = utcToday - (view === "finished" ? 8 : 1) * 24 * 60 * 60 * 1000;
-    const newestAllowed = utcToday + (view === "finished" ? 1 : 8) * 24 * 60 * 60 * 1000;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const maxWindowMs = 7 * dayMs;
+    const oldestAllowed = utcToday - (view === "upcoming" ? 1 : 8) * dayMs;
+    const newestAllowed = utcToday + (view === "finished" ? 1 : 8) * dayMs;
     if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
+      !/^\\d{4}-\\d{2}-\\d{2}$/.test(from) ||
+      !/^\\d{4}-\\d{2}-\\d{2}$/.test(to) ||
       !Number.isFinite(fromTime) ||
       !Number.isFinite(toTime) ||
       new Date(fromTime).toISOString().slice(0, 10) !== from ||
@@ -229,8 +230,7 @@ Deno.serve(async (req: Request) => {
       toTime > newestAllowed
     ) {
       return json({ error: "fixture_view_requires_current_seven_day_window" }, 400);
-    }
-  } else if (resource === "fixtures" && view === "live" && params.get("live") !== "all" && !params.has("date")) {
+    }  } else if (resource === "fixtures" && view === "live" && params.get("live") !== "all" && !params.has("date")) {
     return json({ error: "live_view_requires_all_live_fixtures_or_today_date" }, 400);
   } else if (resource === "fifa_rankings") {
     const gender = params.get("gender") ?? "1";
