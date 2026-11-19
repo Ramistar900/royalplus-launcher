@@ -128,7 +128,12 @@ assert "API-Football standings do not provide a previous-rank movement field" in
 # Keep the requested Saudi league and verify the Syrian league's API-Football v3 ID.
 assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
 assert 'RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")' in rankings
-assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
+assert 'RoyalSportsRankingCompetition(5, "UEFA Nations League", SEASON, "Europe")' in rankings
+assert 'key.contains("nations league") -> "دوري الأمم الأوروبية"' in rankings
+assert 'key.contains("nations league") -> "UEFA Uluslar Ligi"' in rankings
+assert 'Regex("""(?i)\\bleague\\s+([a-d])(?:\\s*[-–]?\\s*group\\s*(\\d+))?\\b""")' in rankings
+assert "Lig $league • Grup $groupNumber" in rankings
+assert "الدوري $league • المجموعة $groupNumber" in rankings
 assert "val isArchived: Boolean = false" in rankings
 assert rankings.count("isArchived = true") == 5
 assert "selectedCompetition?.isArchived == true" in rankings
