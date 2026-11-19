@@ -221,6 +221,8 @@ Deno.serve(async (req: Request) => {
       !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
       !Number.isFinite(fromTime) ||
       !Number.isFinite(toTime) ||
+      new Date(fromTime).toISOString().slice(0, 10) !== from ||
+      new Date(toTime).toISOString().slice(0, 10) !== to ||
       toTime < fromTime ||
       toTime - fromTime > maxWindowMs ||
       fromTime < oldestAllowed ||
