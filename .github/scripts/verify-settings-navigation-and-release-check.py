@@ -8,7 +8,7 @@ WORKFLOW = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8"
 
 for category in (
     "appearance", "motion", "icons", "sounds", "prayer",
-    "clock", "language", "device", "share",
+    "clock", "language", "device", "privacy", "share", "about",
 ):
     assert f'if (selectedSettingsCategory == "{category}")' in HOME, (
         f"Settings content is not isolated for category: {category}"
@@ -23,7 +23,9 @@ for existing_setting in (
     "ui_click_sounds_enabled", "screensaver_delay_seconds",
     "launcher_icon_style", "launcher_24_hour_clock",
     "launcher_show_date", "launcher_language", "launcher_font",
-    "ACTION_WIFI_SETTINGS", "RoyalDeviceSettingsSection",
+    "ACTION_WIFI_SETTINGS", "RoyalDeviceSettingsSection", "launcher_theme_mode",
+    "launcher_text_scale", "RoyalPrivacySettingsSection", "RoyalAboutSettingsSection",
+    "onChooseDefaultHome", "Clear ROYAL+ cache",
 ):
     assert existing_setting in HOME, f"Existing setting was removed: {existing_setting}"
 
@@ -37,6 +39,15 @@ assert "showDeviceSettings: Boolean = true" in DEVICE_SETTINGS
 assert "showAudioSettings: Boolean = true" in DEVICE_SETTINGS
 assert "showDeviceSettings = false" in HOME and "showAudioSettings = true" in HOME
 assert "showDeviceSettings = true" in HOME and "showAudioSettings = false" in HOME
+COLORS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalColors.kt").read_text(encoding="utf-8")
+MAIN = (ROOT / "app/src/main/java/com/royalplus/launcher/MainActivity.kt").read_text(encoding="utf-8")
+PRIVACY_ABOUT = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalPrivacyAboutSettingsSection.kt").read_text(encoding="utf-8")
+assert "RoyalColors.setLightTheme" in MAIN and "RoyalAppTheme" in MAIN
+assert "lightColorScheme" in COLORS and "darkColorScheme" in COLORS
+assert "canDrawOverlays" in PRIVACY_ABOUT and "canScheduleExactAlarms" in PRIVACY_ABOUT
+assert "versionName" in PRIVACY_ABOUT and "Ramistar900/royalplus-launcher" in PRIVACY_ABOUT
+assert "launcher_text_scale" in HOME and "LocalDensity provides Density" in HOME
+assert "launcher_theme_mode" in HOME and "RoyalColors.Surface" in HOME
 assert "versionCode = royalPlusVersionCode" in GRADLE
 assert 'minSdk = 23' in GRADLE
 assert WORKFLOW.count('-ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE"') >= 2
