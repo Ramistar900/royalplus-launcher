@@ -115,6 +115,25 @@ class FloatingTranslationOverlayService : Service() {
             startTranslationModelDownload()
             return START_NOT_STICKY
         }
+        val hardwareAssessment = TranslationDeviceCapability.checkHardware(applicationContext)
+        if (!hardwareAssessment.supported) {
+            getSharedPreferences(PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply()
+            sendBroadcast(
+                Intent(ACTION_DEVICE_CAPABILITY_FAILED)
+                    .setPackage(packageName)
+                    .putExtra(EXTRA_CAPABILITY_MESSAGE, hardwareAssessment.message)
+                    .putExtra(EXTRA_CAPABILITY_TITLE, hardwareAssessment.title)
+            )
+            android.widget.Toast.makeText(
+                applicationContext,
+                hardwareAssessment.message,
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
