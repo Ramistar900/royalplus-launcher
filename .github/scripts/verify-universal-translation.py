@@ -13,6 +13,7 @@ tokenizer = (JAVA / "Small100BpeTokenizer.kt").read_text(encoding="utf-8")
 gradle = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
+tokenizer_tests = (ROOT / "app/src/test/java/com/royalplus/launcher/Small100BpeTokenizerTest.kt").read_text(encoding="utf-8")
 
 # Whisper must auto-detect source speech language locally.
 assert 'language = ""' in models
@@ -38,6 +39,9 @@ assert "map.length() == 100" in repository
 assert "languageToId.containsKey(\"ar\")" in translator
 assert "model.getJSONArray(\"merges\")" in tokenizer
 assert "HuggingFaceTokenizer" not in tokenizer
+assert "small100-tokenizer.json" in workflow
+assert "pinnedModelTokenizerRoundTripsArabicTurkishAndEnglish" in tokenizer_tests
+assert "مرحبا بالعالم" in tokenizer_tests and "Merhaba dünya!" in tokenizer_tests
 
 # No cloud translator, API key, or remote translation endpoint.
 for source in (service, translator, repository):
