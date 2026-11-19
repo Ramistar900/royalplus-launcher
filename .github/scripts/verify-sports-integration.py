@@ -77,8 +77,11 @@ assert "canonicalQuery.length + resource.length + 1 > 512" in backend
 assert "API_SPORTS_KEY" in backend and "x-apisports-key" in backend
 assert "verify_jwt" not in backend  # Gateway verification is configured as true at deployment.
 assert "fifa_rankings" in backend
-assert "params.has(\"next\") || params.has(\"from\") || params.has(\"to\")) return 3 * 60 * 60" in backend
-assert "params.has(\"last\")) return 6 * 60 * 60" in backend
+assert 'view === "upcoming" || params.has("next")' in backend
+assert 'view === "finished" || params.has("last")' in backend
+assert 'incoming.searchParams.get("view")' in backend
+assert 'key === "resource" || key === "view"' in backend
+assert 'cacheKey = `${resource}:${view || "default"}:${canonicalQuery}`' in backend
 assert "rankingschedules/all" in backend
 assert "rankingsbyschedule" in backend
 assert "https://api.fifa.com/api/v3/picture/flags-sq-2/" in backend
@@ -98,8 +101,10 @@ assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation"
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
 assert 'round = league.optString("round", "")' in sports
 assert 'leg = ""' in sports
-assert 'next=99&$timeZoneParam' in sports
-assert 'last=99&$timeZoneParam' in sports
+assert 'view=upcoming&from=$today&to=${dateOffset(7)}&$timeZoneParam' in sports
+assert 'view=finished&from=${dateOffset(-7)}&to=$today&$timeZoneParam' in sports
+assert "private fun dateOffset(days: Int)" in sports
+assert "import java.util.Calendar" in sports
 assert "localizedFootballRound" in sports
 assert "localizedFootballLeagueName(leagueName, countryName, arabic, turkish)" in sports
 assert 'isSyria && isPremierLeague' in sports
