@@ -43,7 +43,7 @@ assert "showDeviceSettings = true" in HOME and "showAudioSettings = false" in HO
 COLORS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalColors.kt").read_text(encoding="utf-8")
 MAIN = (ROOT / "app/src/main/java/com/royalplus/launcher/MainActivity.kt").read_text(encoding="utf-8")
 PRIVACY_ABOUT = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalPrivacyAboutSettingsSection.kt").read_text(encoding="utf-8")
-assert "RoyalColors.setLightTheme" in MAIN and "RoyalAppTheme" in MAIN
+assert "RoyalColors.applyLightTheme" in MAIN and "RoyalAppTheme" in MAIN
 assert "lightColorScheme" in COLORS and "darkColorScheme" in COLORS
 assert "canDrawOverlays" in PRIVACY_ABOUT and "canScheduleExactAlarms" in PRIVACY_ABOUT
 assert "versionName" in PRIVACY_ABOUT and "Ramistar900/royalplus-launcher" in PRIVACY_ABOUT
