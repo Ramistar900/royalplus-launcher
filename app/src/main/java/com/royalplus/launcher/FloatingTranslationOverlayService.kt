@@ -218,6 +218,13 @@ class FloatingTranslationOverlayService : Service() {
             audioTagger = tagger
             prepareInstalledTranslationEngine()
             decodeThread = Thread({ decodeSpeechSegments() }, "RoyalWhisperDecode").apply { start() }
+        } catch (error: OutOfMemoryError) {
+            System.gc()
+            failTranslationForCapability(
+                TranslationDeviceCapability.insufficientMemory(
+                    "ذاكرة الجهاز لا تكفي لتجهيز محرك التعرف على الكلام والترجمة معاً."
+                )
+            )
         } catch (error: Exception) {
             if (running.get()) {
                 val detail = error.localizedMessage ?: "تحقق من الإنترنت والمساحة"
@@ -507,6 +514,14 @@ class FloatingTranslationOverlayService : Service() {
                 }
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
+                break
+            } catch (error: OutOfMemoryError) {
+                System.gc()
+                failTranslationForCapability(
+                    TranslationDeviceCapability.insufficientMemory(
+                        "نفدت ذاكرة الجهاز أثناء التعرف على الكلام؛ تم إيقاف الترجمة لحماية استقرار ROYAL+."
+                    )
+                )
                 break
             } catch (error: Exception) {
                 val detail = error.localizedMessage ?: "خطأ في محرك التعرّف"
