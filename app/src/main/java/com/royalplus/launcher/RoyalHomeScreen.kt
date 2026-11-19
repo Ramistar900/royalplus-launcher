@@ -155,7 +155,8 @@ internal fun RoyalHomeScreen(
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
     onRefreshApps: () -> Unit,
-    onChooseWeatherCity: (String) -> Unit,
+    onChooseWeatherCity: (WeatherCitySuggestion) -> Unit,
+    onChooseWeatherCityByName: (String) -> Unit,
     onUseDeviceLocation: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
     onOpenSettings: () -> Unit,
@@ -810,7 +811,7 @@ internal fun RoyalHomeScreen(
             }
 
             if (showWeatherDetails) {
-                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation, onChooseCity = onChooseWeatherCity, onUseDeviceLocation = onUseDeviceLocation, motionEnabled = weatherMotionEnabled)
+                WeatherDetailsScreen(weather = weather, prayerTimes = prayerTimesForHome, currentTimeMillis = currentTime, timeText = timeText, dateText = dateText, language = selectedLanguage, onBack = { showWeatherDetails = false }, onRefresh = onRefreshWeather, onRequestLocation = onRequestLocation, onChooseCity = onChooseWeatherCity, onChooseCityByName = onChooseWeatherCityByName, onUseDeviceLocation = onUseDeviceLocation, motionEnabled = weatherMotionEnabled)
             }
             if (showSmartScreensaver && !showWallpaperSettings && !showWeatherDetails && !showQuickControls) {
                 RoyalSmartScreensaver(

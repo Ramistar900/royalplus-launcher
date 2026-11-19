@@ -151,6 +151,7 @@ class MainActivity : ComponentActivity() {
                     onRefreshWeather = { refreshWeather() },
                     onRefreshApps = { loadInstalledApps(forceRefresh = true) },
                     onChooseWeatherCity = { city -> saveAndLoadManualWeatherCity(city) },
+                    onChooseWeatherCityByName = { city -> saveAndLoadManualWeatherCityByName(city) },
                     onUseDeviceLocation = { clearManualWeatherCityAndUseDeviceLocation() },
                     onLaunchApp = { app ->
                         try {
@@ -560,11 +561,37 @@ class MainActivity : ComponentActivity() {
         !getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
             .getString("weather_manual_city", null).isNullOrBlank()
 
-    private fun saveAndLoadManualWeatherCity(city: String) {
+    private fun saveAndLoadManualWeatherCity(city: WeatherCitySuggestion) {
+        val normalized = city.displayName.trim()
+        if (normalized.isBlank() || city.latitude !in -90.0..90.0 ||
+            city.longitude !in -180.0..180.0
+        ) return
+        getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+            .edit()
+            .putString("weather_manual_city", normalized)
+            .putString("weather_manual_latitude", city.latitude.toString())
+            .putString("weather_manual_longitude", city.longitude.toString())
+            .apply()
+        weatherState = WeatherUiState(
+            city = normalized,
+            description = "جارٍ تحميل الطقس للمدينة المختارة",
+            isLoading = true,
+            isManualLocation = true
+        )
+        RoyalWeatherRepository.fetchForLocation(this, normalized, city.latitude, city.longitude) { result ->
+            runOnUiThread { weatherState = result }
+        }
+    }
+
+    private fun saveAndLoadManualWeatherCityByName(city: String) {
         val normalized = city.trim()
         if (normalized.isBlank()) return
         getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
-            .edit().putString("weather_manual_city", normalized).apply()
+            .edit()
+            .putString("weather_manual_city", normalized)
+            .remove("weather_manual_latitude")
+            .remove("weather_manual_longitude")
+            .apply()
         weatherState = WeatherUiState(
             city = normalized,
             description = "جارٍ تحميل الطقس للمدينة المختارة",
@@ -578,7 +605,11 @@ class MainActivity : ComponentActivity() {
 
     private fun clearManualWeatherCityAndUseDeviceLocation() {
         getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
-            .edit().remove("weather_manual_city").apply()
+            .edit()
+            .remove("weather_manual_city")
+            .remove("weather_manual_latitude")
+            .remove("weather_manual_longitude")
+            .apply()
         refreshWeather()
     }
 
@@ -592,17 +623,29 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshWeather() {
         lastWeatherRefreshAt = System.currentTimeMillis()
-        val manualCity = getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
-            .getString("weather_manual_city", null)
+        val weatherPreferences = getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+        val manualCity = weatherPreferences.getString("weather_manual_city", null)
         if (!manualCity.isNullOrBlank()) {
+            val manualLatitude = weatherPreferences.getString("weather_manual_latitude", null)?.toDoubleOrNull()
+            val manualLongitude = weatherPreferences.getString("weather_manual_longitude", null)?.toDoubleOrNull()
             weatherState = WeatherUiState(
                 city = manualCity,
                 description = "جارٍ تحميل الطقس للمدينة المختارة",
                 isLoading = true,
                 isManualLocation = true
             )
-            RoyalWeatherRepository.fetchForCity(this, manualCity) { result ->
-                runOnUiThread { weatherState = result }
+            if (manualLatitude != null && manualLongitude != null &&
+                manualLatitude in -90.0..90.0 && manualLongitude in -180.0..180.0
+            ) {
+                RoyalWeatherRepository.fetchForLocation(
+                    this, manualCity, manualLatitude, manualLongitude
+                ) { result ->
+                    runOnUiThread { weatherState = result }
+                }
+            } else {
+                RoyalWeatherRepository.fetchForCity(this, manualCity) { result ->
+                    runOnUiThread { weatherState = result }
+                }
             }
             return
         }

@@ -88,4 +88,23 @@ assert "RoyalWeatherAmbienceController.onBackground()" in home
 manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 assert "FOREGROUND_SERVICE_MEDIA_PROJECTION" in manifest
 assert 'foregroundServiceType="microphone|mediaProjection"' in manifest
-print("Verified wind-gust-only weather atmosphere without rain/snow particles, VAD speech turns, audio-event filtering, lossless ordered captions and Android 8 microphone route.")
+weather_locations = (JAVA / "WeatherLocationRepository.kt").read_text(encoding="utf-8")
+city_search = weather_locations.split("fun searchCities(", 1)[1].split("fun fetchForCity(", 1)[0]
+assert "&count=100" in city_search, "City search must request the full 100-result geocoding response"
+assert "admin1" in city_search and "admin2" in city_search and '"country"' in city_search
+assert "mapNotNull" in city_search, "Every valid returned place must be retained in the city suggestions"
+assert "population" not in city_search, "Do not remove small towns or villages using a population threshold"
+assert "fun fetchForLocation(" in weather_locations, "Selected geocoding coordinates must be used directly for weather"
+
+city_screen = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
+assert "RoyalWeatherRepository.searchCities(query)" in city_screen
+assert "citySuggestions.forEach" in city_screen, "The city picker must render all returned suggestions"
+assert "focusedTextColor = gold" in city_screen and "unfocusedTextColor = gold" in city_screen
+assert ".border(1.5.dp, Color.White, searchShape)" in city_screen
+assert "Brush.linearGradient(" in city_screen and "Color(0xFF078F91)" in city_screen and "Color(0xFF126DB2)" in city_screen
+
+activity = (JAVA / "MainActivity.kt").read_text(encoding="utf-8")
+assert "weather_manual_latitude" in activity and "weather_manual_longitude" in activity
+assert "fetchForLocation(this, normalized, city.latitude, city.longitude)" in activity
+
+print("Verified 100-place weather geocoding search, small-settlement inclusion, exact selected coordinates and gold text on a teal-blue search field with a white frame.")
