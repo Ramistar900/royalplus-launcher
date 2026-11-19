@@ -24,8 +24,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,7 +35,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -105,10 +102,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -203,7 +197,6 @@ internal fun RoyalHomeScreen(
     var showWallpaperSettings by remember { mutableStateOf(false) }
     val settingsInitialFocusRequester = remember { FocusRequester() }
     val settingsScrollState = rememberScrollState()
-    val settingsCoroutineScope = rememberCoroutineScope()
     var selectedSettingsCategory by remember { mutableStateOf("prayer") }
     val navigateSettingsSection: (String) -> Unit = { section -> selectedSettingsCategory = section }
     LaunchedEffect(selectedSettingsCategory) { settingsScrollState.scrollTo(0) }
@@ -945,7 +938,6 @@ internal fun RoyalHomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned { settingsSectionOffsets["prayer"] = it.positionInParent().y.roundToInt() }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
@@ -1043,7 +1035,6 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "motion") {
                         Text(
                             when (selectedLanguage) { "en" -> "ROYAL Motion • Background movement"; "tr" -> "ROYAL Motion • Arka plan hareketi"; else -> "حيوية الخلفيات • ROYAL Motion" },
-                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["motion"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
                         )
                         Text(when (selectedLanguage) { "en" -> "Enable or freeze each background independently"; "tr" -> "Her arka planı ayrı ayrı hareket ettirin veya sabitleyin"; else -> "شغّل الحركة أو ثبّت كل خلفية بشكل مستقل" }, color = RoyalColors.Muted, fontSize = 11.sp)
@@ -1075,7 +1066,6 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "appearance") {
                         Text(
                             when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" },
-                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["appearance"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.height(8.dp))
@@ -1120,7 +1110,6 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "sounds") {
                         Text(
                             when (selectedLanguage) { "en" -> "Ambient sound & background effects"; "tr" -> "Ortam sesleri ve arka plan efektleri"; else -> "أصوات الطبيعة ومؤثرات الخلفيات" },
-                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["sounds"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.SemiBold
                         )
                         RoyalFeatureToggleRow(
@@ -1271,7 +1260,6 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "icons") {
                         Text(
                             when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" },
-                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["icons"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.height(8.dp))
@@ -1330,7 +1318,6 @@ internal fun RoyalHomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned { settingsSectionOffsets["clock"] = it.positionInParent().y.roundToInt() }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
@@ -1385,7 +1372,6 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "language") {
                         Text(
                             when (selectedLanguage) { "en" -> "Interface language"; "tr" -> "Arayüz dili"; else -> "لغة الواجهة" },
-                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["language"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.height(8.dp))
@@ -1436,7 +1422,6 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "device") {
                         Text(
                             when (selectedLanguage) { "en" -> "Network & device settings"; "tr" -> "Ağ ve cihaz ayarları"; else -> "الشبكة وإعدادات الجهاز" },
-                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["device"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.height(8.dp))
@@ -1487,9 +1472,7 @@ internal fun RoyalHomeScreen(
                         if (selectedSettingsCategory == "share") {
                         RoyalShareUpdatesSection(
                             language = selectedLanguage,
-                            modifier = Modifier.fillMaxWidth().onGloballyPositioned {
-                                settingsSectionOffsets["share"] = it.positionInParent().y.roundToInt()
-                            }
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(Modifier.height(14.dp))
                         }
