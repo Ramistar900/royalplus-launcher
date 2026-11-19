@@ -347,7 +347,7 @@ jobs:
 
   release-main:
     name: Build signed APK and create GitHub draft release
-    if: (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'signed-release') || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'signed-release' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
