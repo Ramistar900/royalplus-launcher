@@ -2868,7 +2868,7 @@ private fun SidebarNavItem(
                 if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
                 shape
             )
-            .then(if (focused) Modifier.border(1.dp, RoyalColors.Activity.copy(alpha = 0.92f), shape))
+            .then(if (focused) Modifier.border(1.dp, RoyalColors.Activity.copy(alpha = 0.92f), shape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = {
                 playLauncherUiSound(context, sound)
@@ -2922,7 +2922,7 @@ private fun SidebarNavItem(
                 painter = painterResource(iconRes),
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.size(royalAdaptiveIconSize(20.dp))
+                modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isTelevision) 31.dp else if (compactPhone) 22.dp else 27.dp))
             )
         }
     }
