@@ -363,16 +363,17 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
             else -> {
                 val current = standings
                 val selectedName = selectedCompetition?.name.orEmpty()
+                val selectedSeason = selectedCompetition?.season?.toString().orEmpty()
                 val competitionSubtitle = when {
                     selectedCompetition?.isArchived == true && arabic ->
-                        "أرشيف بطولة منتهية • ترتيب الموسم"
+                        "أرشيف بطولة منتهية • موسم $selectedSeason"
                     selectedCompetition?.isArchived == true && turkish ->
-                        "Arşiv • Tamamlanan turnuva sıralaması"
+                        "Arşiv • Tamamlanan turnuva • Sezon $selectedSeason"
                     selectedCompetition?.isArchived == true ->
-                        "Archive • Completed competition standings"
-                    arabic -> "ترتيب الفرق والنقاط ومناطق التأهل والهبوط"
-                    turkish -> "Takım sıralaması, puanlar ve düşme hattı"
-                    else -> "Team table, points, qualification and relegation zones"
+                        "Archive • Completed competition • Season $selectedSeason"
+                    arabic -> "موسم $selectedSeason • ترتيب الفرق والنقاط ومناطق التأهل والهبوط"
+                    turkish -> "Sezon $selectedSeason • Takım sıralaması ve puanlar"
+                    else -> "Season $selectedSeason • Team table and points"
                 }
                 val competitionTitle = localizedRankingCompetitionName(
                     selectedName,
@@ -706,9 +707,16 @@ private fun localizedRankingCompetitionName(value: String, country: String, arab
         key.contains("la liga") -> "İspanya La Liga"
         key.contains("serie a") -> "İtalya Serie A"
         key.contains("bundesliga") -> "Almanya Bundesliga"
+        key.contains("ligue 1") -> "Fransa Ligue 1"
+        key.contains("süper lig") -> "Türkiye Süper Ligi"
+        key.contains("saudi pro") -> "Suudi Pro Ligi"
         key.contains("world cup") -> "Dünya Kupası"
         key.contains("champions league") -> "Şampiyonlar Ligi"
+        key.contains("europa league") -> "Avrupa Ligi"
         key.contains("european championship") -> "Avrupa Şampiyonası"
+        key.contains("africa cup") -> "Afrika Uluslar Kupası"
+        key.contains("copa américa") -> "Copa América"
+        key.contains("asian cup") -> "Asya Kupası"
         else -> value
     }
     return value
