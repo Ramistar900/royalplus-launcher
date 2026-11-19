@@ -500,10 +500,18 @@ class FloatingTranslationOverlayService : Service() {
      * 100-language token map after its local model has been installed.
      */
     private fun normalizeDetectedLanguage(rawLanguage: String): String {
-        return rawLanguage.trim()
+        val detected = rawLanguage.trim()
             .lowercase(Locale.ROOT)
             .replace('_', '-')
             .substringBefore('-')
+        // Whisper and ISO language registries use a few different legacy aliases.
+        return when (detected) {
+            "jw" -> "jv"
+            "yue" -> "zh"
+            "fil" -> "tl"
+            "nb", "nn" -> "no"
+            else -> detected
+        }
     }
 
     private fun translateCaption(text: String, detectedLanguage: String) {
