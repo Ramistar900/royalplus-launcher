@@ -204,14 +204,9 @@ internal fun RoyalHomeScreen(
     val settingsInitialFocusRequester = remember { FocusRequester() }
     val settingsScrollState = rememberScrollState()
     val settingsCoroutineScope = rememberCoroutineScope()
-    val settingsSectionOffsets = remember { mutableMapOf<String, Int>() }
     var selectedSettingsCategory by remember { mutableStateOf("prayer") }
-    val navigateSettingsSection: (String) -> Unit = { section ->
-        selectedSettingsCategory = section
-        settingsCoroutineScope.launch {
-            settingsScrollState.animateScrollTo((settingsSectionOffsets[section] ?: 0).coerceAtLeast(0))
-        }
-    }
+    val navigateSettingsSection: (String) -> Unit = { section -> selectedSettingsCategory = section }
+    LaunchedEffect(selectedSettingsCategory) { settingsScrollState.scrollTo(0) }
     LaunchedEffect(showWallpaperSettings) {
         if (showWallpaperSettings) {
             withFrameNanos { }
@@ -917,9 +912,36 @@ internal fun RoyalHomeScreen(
                                 .focusGroup(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                        Text(when (selectedLanguage) { "en" -> "Customize interface"; "tr" -> "Arayüzü özelleştir"; else -> "تخصيص الواجهة" }, color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            when (selectedSettingsCategory) {
+                                "appearance" -> if (selectedLanguage == "en") "Appearance" else if (selectedLanguage == "tr") "Görünüm" else "مظهر الشاشة"
+                                "motion" -> if (selectedLanguage == "en") "Backgrounds & motion" else if (selectedLanguage == "tr") "Arka plan ve hareket" else "الخلفيات والحركة"
+                                "icons" -> if (selectedLanguage == "en") "Icons & launcher" else if (selectedLanguage == "tr") "Simgeler ve başlatıcı" else "الأيقونات والواجهة"
+                                "sounds" -> if (selectedLanguage == "en") "Sounds & effects" else if (selectedLanguage == "tr") "Sesler ve efektler" else "الأصوات والمؤثرات"
+                                "prayer" -> if (selectedLanguage == "en") "Prayer & Adhan" else if (selectedLanguage == "tr") "Namaz ve ezan" else "الصلاة والأذان"
+                                "clock" -> if (selectedLanguage == "en") "Date & time" else if (selectedLanguage == "tr") "Tarih ve saat" else "التاريخ والساعة"
+                                "language" -> if (selectedLanguage == "en") "Language & fonts" else if (selectedLanguage == "tr") "Dil ve yazı tipleri" else "اللغة والخطوط"
+                                "device" -> if (selectedLanguage == "en") "Network & device" else if (selectedLanguage == "tr") "Ağ ve cihaz" else "الشبكة والجهاز"
+                                else -> if (selectedLanguage == "en") "Share & updates" else if (selectedLanguage == "tr") "Paylaşım ve güncellemeler" else "مشاركة التطبيق والتحديثات"
+                            },
+                            color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold
+                        )
                         Spacer(Modifier.height(6.dp))
-                        Text(when (selectedLanguage) { "en" -> "Choose wallpaper and app icon style"; "tr" -> "Duvar kâğıdını ve uygulama simgelerini seçin"; else -> "اختر الخلفية وشكل أيقونات التطبيقات" }, color = RoyalColors.Pearl, fontSize = 14.sp)
+                        Text(
+                            when (selectedSettingsCategory) {
+                                "appearance" -> if (selectedLanguage == "en") "Choose the home screen wallpaper" else if (selectedLanguage == "tr") "Ana ekran duvar kâğıdını seçin" else "اختر خلفية الشاشة الرئيسية"
+                                "motion" -> if (selectedLanguage == "en") "Control movement and the smart screensaver" else if (selectedLanguage == "tr") "Hareketi ve akıllı ekran koruyucuyu yönetin" else "تحكم بحركة الخلفيات وشاشة التوقف الذكية"
+                                "icons" -> if (selectedLanguage == "en") "Choose icon styles and your default TV launcher" else if (selectedLanguage == "tr") "Simge stillerini ve varsayılan TV başlatıcısını seçin" else "اختر شكل الأيقونات وواجهة التلفاز الافتراضية"
+                                "sounds" -> if (selectedLanguage == "en") "Manage nature sounds and background effects" else if (selectedLanguage == "tr") "Doğa seslerini ve arka plan efektlerini yönetin" else "تحكم بأصوات الطبيعة ومؤثرات الخلفيات"
+                                "prayer" -> if (selectedLanguage == "en") "Prayer notifications and precise alarms" else if (selectedLanguage == "tr") "Namaz bildirimleri ve hassas alarmlar" else "تنبيهات الصلاة والأذان الدقيق"
+                                "clock" -> if (selectedLanguage == "en") "Choose how date and time appear" else if (selectedLanguage == "tr") "Tarih ve saatin görünümünü seçin" else "اختر طريقة عرض التاريخ والساعة"
+                                "language" -> if (selectedLanguage == "en") "Choose the interface language and font" else if (selectedLanguage == "tr") "Arayüz dilini ve yazı tipini seçin" else "اختر لغة الواجهة ونوع الخط"
+                                "device" -> if (selectedLanguage == "en") "Network, storage and device information" else if (selectedLanguage == "tr") "Ağ, depolama ve cihaz bilgileri" else "الشبكة والتخزين ومعلومات الجهاز"
+                                else -> if (selectedLanguage == "en") "Share the app or check for the latest official release" else if (selectedLanguage == "tr") "Uygulamayı paylaşın veya en yeni resmî sürümü kontrol edin" else "شارك التطبيق أو تحقق من أحدث إصدار رسمي"
+                            },
+                            color = RoyalColors.Pearl, fontSize = 14.sp
+                        )
+                        if (selectedSettingsCategory == "prayer") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1017,6 +1039,8 @@ internal fun RoyalHomeScreen(
                             )
                         }
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "motion") {
                         Text(
                             when (selectedLanguage) { "en" -> "ROYAL Motion • Background movement"; "tr" -> "ROYAL Motion • Arka plan hareketi"; else -> "حيوية الخلفيات • ROYAL Motion" },
                             modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["motion"] = it.positionInParent().y.roundToInt() },
@@ -1047,6 +1071,8 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.height(6.dp))
                         }
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "appearance") {
                         Text(
                             when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" },
                             modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["appearance"] = it.positionInParent().y.roundToInt() },
@@ -1090,6 +1116,8 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.height(8.dp))
                         }
                         Spacer(Modifier.height(6.dp))
+                        }
+                        if (selectedSettingsCategory == "sounds") {
                         Text(
                             when (selectedLanguage) { "en" -> "Ambient sound & background effects"; "tr" -> "Ortam sesleri ve arka plan efektleri"; else -> "أصوات الطبيعة ومؤثرات الخلفيات" },
                             modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["sounds"] = it.positionInParent().y.roundToInt() },
@@ -1150,6 +1178,13 @@ internal fun RoyalHomeScreen(
                             }
                         )
                         Spacer(Modifier.height(8.dp))
+                        RoyalDeviceSettingsSection(
+                            language = selectedLanguage,
+                            showDeviceSettings = false,
+                            showAudioSettings = true
+                        )
+                        }
+                        if (selectedSettingsCategory == "motion") {
                         Text(when (selectedLanguage) { "en" -> "Smart screensaver"; "tr" -> "Akıllı ekran koruyucu"; else -> "الشاشة الذكية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
                         Row(
@@ -1232,6 +1267,8 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.height(8.dp))
                         }
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "icons") {
                         Text(
                             when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" },
                             modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["icons"] = it.positionInParent().y.roundToInt() },
@@ -1288,6 +1325,8 @@ internal fun RoyalHomeScreen(
                             )
                         }
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "clock") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1342,6 +1381,8 @@ internal fun RoyalHomeScreen(
                             Text(if (showDateOnHome) "ON" else "OFF", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "language") {
                         Text(
                             when (selectedLanguage) { "en" -> "Interface language"; "tr" -> "Arayüz dili"; else -> "لغة الواجهة" },
                             modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["language"] = it.positionInParent().y.roundToInt() },
@@ -1391,6 +1432,8 @@ internal fun RoyalHomeScreen(
                             }
                         }
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "device") {
                         Text(
                             when (selectedLanguage) { "en" -> "Network & device settings"; "tr" -> "Ağ ve cihaz ayarları"; else -> "الشبكة وإعدادات الجهاز" },
                             modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["device"] = it.positionInParent().y.roundToInt() },
@@ -1434,8 +1477,14 @@ internal fun RoyalHomeScreen(
                             }
                         }
                         Spacer(Modifier.height(14.dp))
-                        RoyalDeviceSettingsSection(language = selectedLanguage)
+                        RoyalDeviceSettingsSection(
+                            language = selectedLanguage,
+                            showDeviceSettings = true,
+                            showAudioSettings = false
+                        )
                         Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "share") {
                         RoyalShareUpdatesSection(
                             language = selectedLanguage,
                             modifier = Modifier.fillMaxWidth().onGloballyPositioned {
@@ -1443,6 +1492,7 @@ internal fun RoyalHomeScreen(
                             }
                         )
                         Spacer(Modifier.height(14.dp))
+                        }
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
