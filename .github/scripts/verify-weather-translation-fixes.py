@@ -69,14 +69,14 @@ assert "append(if (character.isAllowedCaptionCharacter()) character else ' ')" i
 assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "else createMicrophoneRecord()" in service and "VOICE_RECOGNITION" in service
 assert "normalizeDetectedLanguage" in service
-assert "TranslateLanguage.fromLanguageTag(normalizedLanguage)" in service
-assert "translationSessions.getOrPut(pending.sourceLanguage)" in service
-assert "sourceLanguage.isNullOrBlank()" in service
-assert "translateQueuedCaptionWithCloud" not in service
+assert "Small100Translator.create(files)" in service
+assert "translationExecutor.execute" in service
+assert "translationModelSetup" in service
+assert "ACTION_DOWNLOAD_TRANSLATION_MODEL" in service
+assert "translationSessions" not in service
+assert "TranslateLanguage" not in service
 assert "RoyalCloudTranslationClient" not in service
-assert "RemoteModelManager.getInstance()" in service
-assert "getDownloadedModels(TranslateRemoteModel::class.java)" in service
-assert "session.translator.downloadModelIfNeeded(" in service
+assert "NET_CAPABILITY_NOT_METERED" in (JAVA / "Small100ModelRepository.kt").read_text(encoding="utf-8")
 assert "translator === activeTranslator" not in service
 assert "queueCaptionPhrase(recognized, language)" in service
 assert "captionPhraseBuffer" in service
