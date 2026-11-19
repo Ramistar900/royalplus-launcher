@@ -1,4 +1,5 @@
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 HOME = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalHomeScreen.kt").read_text(encoding="utf-8")
@@ -36,4 +37,5 @@ assert "verify-royal-file-manager.py" in WORKFLOW
 for icon in ("royal_apps_luxe", "royal_calendar_luxe", "royal_manage_apps_luxe", "royal_gallery_luxe", "royal_songs_luxe", "royal_files_luxe", "royal_settings_luxe"):
     path = ROOT / ("app/src/main/res/drawable/" + icon + ".xml")
     assert path.exists(), f"Missing premium sidebar icon: {icon}"
+    ET.parse(path)
 print("Verified ROYAL+ sidebar order, approved theme accents, internal previews, storage access and delete-confirmation paths.")
