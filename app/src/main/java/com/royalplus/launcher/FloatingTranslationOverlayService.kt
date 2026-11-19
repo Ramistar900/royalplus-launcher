@@ -608,7 +608,11 @@ class FloatingTranslationOverlayService : Service() {
                     pendingTranslations.addFirst(pending.copy(attempt = pending.attempt + 1))
                     if (error is OutOfMemoryError) {
                         System.gc()
-                        updateNotification("ذاكرة التلفاز لا تكفي لمعالجة الجملة حالياً. حُفظت الجملة ولم تتم إعادة المحاولة تلقائياً.")
+                        failTranslationForCapability(
+                            TranslationDeviceCapability.insufficientMemory(
+                                "نفدت ذاكرة الجهاز أثناء ترجمة الكلام. تم إيقاف الترجمة لحماية استقرار التطبيق."
+                            )
+                        )
                     } else {
                         val detail = error.localizedMessage ?: "خطأ محلي في محرك ONNX"
                         updateNotification("تعذرت الترجمة المحلية؛ حُفظت الجملة لإعادة المحاولة: $detail")
@@ -748,6 +752,7 @@ class FloatingTranslationOverlayService : Service() {
             return null
         }
 
+        updateNotification("اكتمل تنزيل النموذج؛ يجري الآن اختبار سرعة الترجمة المحلية وقدرة الجهاز.")
         val assessment = TranslationDeviceCapability.benchmark(applicationContext, engine)
         if (!assessment.supported) {
             runCatching { engine.close() }
