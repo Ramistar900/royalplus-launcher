@@ -73,7 +73,8 @@ assert "consume_royalplus_sports_request" in backend
 assert '.rpc("consume_royalplus_sports_request")' in backend
 assert '.schema("private")' not in backend
 assert "royalplus_sports_response_cache" in backend
-assert "canonicalQuery.length + resource.length + 1 > 512" in backend
+assert "if (cacheKey.length > 512)" in backend
+assert "const cacheKey = `${resource}:${view || \"default\"}:${canonicalQuery}`" in backend
 assert "API_SPORTS_KEY" in backend and "x-apisports-key" in backend
 assert "verify_jwt" not in backend  # Gateway verification is configured as true at deployment.
 assert "fifa_rankings" in backend
