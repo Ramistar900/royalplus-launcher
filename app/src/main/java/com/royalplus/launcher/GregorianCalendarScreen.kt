@@ -8,13 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarToday
@@ -53,16 +51,16 @@ internal fun GregorianCalendarScreen(language: String) {
             else -> Locale("ar")
         }
     }
-    var visibleMonth by remember {
-        mutableStateOf(Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) })
+    var visibleMonth by remember(locale) {
+        mutableStateOf(Calendar.getInstance(locale).apply { set(Calendar.DAY_OF_MONTH, 1) })
     }
     var selectedDateMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val today = Calendar.getInstance()
+    val today = Calendar.getInstance(locale)
     val monthTitle = remember(visibleMonth.timeInMillis, locale) {
         SimpleDateFormat("MMMM yyyy", locale).format(visibleMonth.time)
     }
     val selectedDate = Calendar.getInstance().apply { timeInMillis = selectedDateMillis }
-    val selectedDateText = SimpleDateFormat("EEEE، d MMMM yyyy", locale).format(selectedDate.time)
+    val selectedDateText = SimpleDateFormat(if (language == "ar") "EEEE، d MMMM yyyy" else "EEEE, d MMMM yyyy", locale).format(selectedDate.time)
     val monthCalendar = (visibleMonth.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val firstDayOfWeek = monthCalendar.firstDayOfWeek
     val firstWeekOffset = (monthCalendar.get(Calendar.DAY_OF_WEEK) - firstDayOfWeek + 7) % 7
@@ -94,7 +92,7 @@ internal fun GregorianCalendarScreen(language: String) {
                 color = Color(0xFFE0BD72), fontSize = 11.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF2A2418))
                     .clickable {
-                        visibleMonth = Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH, 1) }
+                        visibleMonth = Calendar.getInstance(locale).apply { set(Calendar.DAY_OF_MONTH, 1) }
                         selectedDateMillis = System.currentTimeMillis()
                     }.padding(horizontal = 13.dp, vertical = 9.dp).focusable()
             )
