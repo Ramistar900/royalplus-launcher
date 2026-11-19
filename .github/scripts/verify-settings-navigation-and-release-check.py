@@ -7,10 +7,16 @@ GRADLE = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 WORKFLOW = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 for category in (
-    '"appearance"', '"motion"', '"icons"', '"sounds"', '"prayer"',
-    '"clock"', '"language"', '"device"', '"share"',
+    "appearance", "motion", "icons", "sounds", "prayer",
+    "clock", "language", "device", "share",
 ):
-    assert category in HOME, f"Missing settings category: {category}"
+    assert f'if (selectedSettingsCategory == "{category}")' in HOME, (
+        f"Settings content is not isolated for category: {category}"
+    )
+
+assert HOME.index("val homeWallpapers = listOf(") < HOME.index(
+    'if (selectedSettingsCategory == "appearance")'
+), "Shared wallpaper choices must remain available to the screensaver category"
 
 for existing_setting in (
     "adhan_enabled", "motion_home", "launcher_wallpaper",
@@ -26,6 +32,11 @@ assert "releases/latest" in SHARE and "api.github.com/repos/Ramistar900/royalplu
 assert "royalplus-(\\\\d+)$" in SHARE
 assert "Intent.ACTION_SEND" in SHARE
 assert "noPublishedRelease" in SHARE and "failed = true" in SHARE
+DEVICE_SETTINGS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
+assert "showDeviceSettings: Boolean = true" in DEVICE_SETTINGS
+assert "showAudioSettings: Boolean = true" in DEVICE_SETTINGS
+assert "showDeviceSettings = false" in HOME and "showAudioSettings = true" in HOME
+assert "showDeviceSettings = true" in HOME and "showAudioSettings = false" in HOME
 assert "versionCode = royalPlusVersionCode" in GRADLE
 assert 'minSdk = 23' in GRADLE
 assert WORKFLOW.count('-ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE"') >= 2
