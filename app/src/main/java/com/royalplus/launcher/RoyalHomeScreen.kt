@@ -145,7 +145,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, SINJAR_TV, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SINJAR_TV, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -761,6 +761,7 @@ internal fun RoyalHomeScreen(
                                         onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
+                                    LauncherDestination.CALENDAR -> GregorianCalendarScreen(language = selectedLanguage)
                                     LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage, onFullscreenChange = { isSinjarPlayerFullscreen = it })
                                     LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
@@ -2226,7 +2227,7 @@ private fun RoyalSidePanel(
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
-    val sidebarFocusRequesters = remember { List(10) { FocusRequester() } }
+    val sidebarFocusRequesters = remember { List(11) { FocusRequester() } }
     val navigationFocusModifiers = remember(sidebarFocusRequesters) {
         sidebarFocusRequesters.mapIndexed { index, requester ->
             Modifier.focusRequester(requester).focusProperties {
@@ -2236,9 +2237,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Sinjar TV", "Sports", "Gallery", "Songs", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Calendar", "Sinjar TV", "Sports", "Gallery", "Songs", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Takvim", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "التقويم الميلادي", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
