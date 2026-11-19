@@ -110,7 +110,9 @@ private object RoyalSportsRankingCatalog {
         RoyalSportsRankingCompetition(78, "Bundesliga", SEASON, "Germany"),
         RoyalSportsRankingCompetition(61, "Ligue 1", SEASON, "France"),
         RoyalSportsRankingCompetition(203, "Süper Lig", SEASON, "Türkiye"),
-        RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")
+        RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia"),
+        // API-Football v3 league 425; 2026 season is listed with Syrian standings.
+        RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")
     )
 
     val internationalCompetitions = listOf(
@@ -337,6 +339,8 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
                     CompetitionChoice(
                         competition = competition,
                         selected = selectedCompetitionId == competition.id,
+                        arabic = arabic,
+                        turkish = turkish,
                         onClick = { selectedCompetitionId = competition.id }
                     )
                 }
@@ -371,7 +375,7 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
                 val current = standings
                 val selectedName = selectedCompetition?.name.orEmpty()
                 RankingSectionHeading(
-                    title = localizedRankingCompetitionName(selectedName, arabic, turkish),
+                    title = localizedRankingCompetitionName(selectedName, selectedCompetition?.country.orEmpty(), arabic, turkish),
                     subtitle = if (arabic) "ترتيب الفرق والنقاط ومناطق التأهل والهبوط" else if (turkish) "Takım sıralaması, puanlar ve düşme hattı" else "Team table, points, qualification and relegation zones"
                 )
                 if (current == null || current.groups.isEmpty()) {
@@ -446,6 +450,8 @@ private fun RankingCategoryButton(
 private fun CompetitionChoice(
     competition: RoyalSportsRankingCompetition,
     selected: Boolean,
+    arabic: Boolean,
+    turkish: Boolean,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(10.dp)
@@ -466,7 +472,7 @@ private fun CompetitionChoice(
             description = competition.name
         )
         Text(
-            competition.name,
+            localizedRankingCompetitionName(competition.name, competition.country, arabic, turkish),
             color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
             fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
@@ -655,9 +661,11 @@ private fun localizedRankingGroupName(value: String, arabic: Boolean, turkish: B
 }
 
 
-private fun localizedRankingCompetitionName(value: String, arabic: Boolean, turkish: Boolean): String {
+private fun localizedRankingCompetitionName(value: String, country: String, arabic: Boolean, turkish: Boolean): String {
     val key = value.lowercase(Locale.ROOT)
+    val isSyria = country.equals("Syria", ignoreCase = true)
     if (arabic) return when {
+        isSyria && key.contains("premier league") -> "الدوري السوري الممتاز"
         key.contains("premier league") -> "الدوري الإنجليزي الممتاز"
         key.contains("la liga") -> "الدوري الإسباني"
         key.contains("serie a") -> "الدوري الإيطالي"
@@ -675,6 +683,7 @@ private fun localizedRankingCompetitionName(value: String, arabic: Boolean, turk
         else -> value
     }
     if (turkish) return when {
+        isSyria && key.contains("premier league") -> "Suriye Premier Ligi"
         key.contains("premier league") -> "İngiltere Premier Ligi"
         key.contains("la liga") -> "İspanya La Liga"
         key.contains("serie a") -> "İtalya Serie A"
