@@ -222,12 +222,15 @@ private fun RoyalSettingsActionRow(
     onClick: (() -> Unit)? = null
 ) {
     val shape = RoundedCornerShape(12.dp)
+    val interactionModifier = onClick?.let { action ->
+        Modifier.then(royalGlassFocus(shape)).clickable(onClick = action)
+    } ?: Modifier
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
             .background(RoyalColors.Panel)
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.52f), shape)
-            .then(if (onClick != null) royalGlassFocus(shape).clickable { onClick() } else Modifier)
+            .then(interactionModifier)
             .padding(horizontal = 13.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
