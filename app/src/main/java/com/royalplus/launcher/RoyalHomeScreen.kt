@@ -934,6 +934,24 @@ internal fun RoyalHomeScreen(
                             },
                             color = RoyalColors.Pearl, fontSize = 14.sp
                         )
+                        val homeWallpapers = listOf(
+                            Triple("color", if (selectedLanguage == "en") "Colorful" else if (selectedLanguage == "tr") "Renkli" else "ملونة", R.drawable.royal_color_wallpaper),
+                            Triple("nature", if (selectedLanguage == "en") "Nature" else if (selectedLanguage == "tr") "Doğa" else "طبيعة", R.drawable.royal_nature_wallpaper),
+                            Triple("forest", if (selectedLanguage == "en") "Forest" else if (selectedLanguage == "tr") "Orman" else "غابة", R.drawable.royal_wallpaper_forest_04),
+                            Triple("green", if (selectedLanguage == "en") "Green" else if (selectedLanguage == "tr") "Yeşil" else "خضراء", R.drawable.royal_wallpaper_grreen_07),
+                            Triple("lake", if (selectedLanguage == "en") "Lake" else if (selectedLanguage == "tr") "Göl" else "بحيرة", R.drawable.royal_wallpaper_lake_03),
+                            Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
+                            Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
+                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
+                            Triple("city_night", if (selectedLanguage == "en") "Night city" else if (selectedLanguage == "tr") "Gece şehri" else "مدينة ليلية", R.drawable.royal_city_night),
+                            Triple("space", if (selectedLanguage == "en") "Space" else if (selectedLanguage == "tr") "Uzay" else "الفضاء", R.drawable.royal_space),
+                            Triple("rami_golden_nature", if (selectedLanguage == "en") "Rami's golden nature" else if (selectedLanguage == "tr") "Rami'nin altın doğası" else "طبيعة ذهبية من رامي", R.drawable.royal_rami_golden_nature),
+                            Triple("mountain_nature", if (selectedLanguage == "en") "Mountain nature" else if (selectedLanguage == "tr") "Dağ doğası" else "طبيعة جبلية", R.drawable.royal_mountain_nature),
+                            Triple("blue_gold_magic", if (selectedLanguage == "en") "Blue & gold magic" else if (selectedLanguage == "tr") "Mavi ve altın büyüsü" else "السحر الأزرق الذهبي", R.drawable.royal_blue_gold_magic),
+                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
+                            Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k),
+                            Triple("syria", if (selectedLanguage == "en") "Syrian flag" else if (selectedLanguage == "tr") "Suriye bayrağı" else "علم سوريا", R.drawable.royal_syria_flag_4k)
+                        )
                         if (selectedSettingsCategory == "prayer") {
                         Row(
                             modifier = Modifier
@@ -1069,24 +1087,6 @@ internal fun RoyalHomeScreen(
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.height(8.dp))
-                        val homeWallpapers = listOf(
-                            Triple("color", if (selectedLanguage == "en") "Colorful" else if (selectedLanguage == "tr") "Renkli" else "ملونة", R.drawable.royal_color_wallpaper),
-                            Triple("nature", if (selectedLanguage == "en") "Nature" else if (selectedLanguage == "tr") "Doğa" else "طبيعة", R.drawable.royal_nature_wallpaper),
-                            Triple("forest", if (selectedLanguage == "en") "Forest" else if (selectedLanguage == "tr") "Orman" else "غابة", R.drawable.royal_wallpaper_forest_04),
-                            Triple("green", if (selectedLanguage == "en") "Green" else if (selectedLanguage == "tr") "Yeşil" else "خضراء", R.drawable.royal_wallpaper_grreen_07),
-                            Triple("lake", if (selectedLanguage == "en") "Lake" else if (selectedLanguage == "tr") "Göl" else "بحيرة", R.drawable.royal_wallpaper_lake_03),
-                            Triple("mountains", if (selectedLanguage == "en") "Mountains" else if (selectedLanguage == "tr") "Dağlar" else "جبال", R.drawable.royal_wallpaper_mountains_02),
-                            Triple("sunset", if (selectedLanguage == "en") "Sunset" else if (selectedLanguage == "tr") "Gün batımı" else "غروب", R.drawable.royal_wallpaper_sunset_05),
-                            Triple("waterfall", if (selectedLanguage == "en") "Waterfall" else if (selectedLanguage == "tr") "Şelale" else "شلال", R.drawable.royal_wallpaper_waterfall_06),
-                            Triple("city_night", if (selectedLanguage == "en") "Night city" else if (selectedLanguage == "tr") "Gece şehri" else "مدينة ليلية", R.drawable.royal_city_night),
-                            Triple("space", if (selectedLanguage == "en") "Space" else if (selectedLanguage == "tr") "Uzay" else "الفضاء", R.drawable.royal_space),
-                            Triple("rami_golden_nature", if (selectedLanguage == "en") "Rami's golden nature" else if (selectedLanguage == "tr") "Rami'nin altın doğası" else "طبيعة ذهبية من رامي", R.drawable.royal_rami_golden_nature),
-                            Triple("mountain_nature", if (selectedLanguage == "en") "Mountain nature" else if (selectedLanguage == "tr") "Dağ doğası" else "طبيعة جبلية", R.drawable.royal_mountain_nature),
-                            Triple("blue_gold_magic", if (selectedLanguage == "en") "Blue & gold magic" else if (selectedLanguage == "tr") "Mavi ve altın büyüsü" else "السحر الأزرق الذهبي", R.drawable.royal_blue_gold_magic),
-                            Triple("fire", if (selectedLanguage == "en") "Fireplace" else if (selectedLanguage == "tr") "Şömine" else "المدفأة", R.drawable.royal_live_fire_4k),
-                            Triple("ocean", if (selectedLanguage == "en") "Ocean waves" else if (selectedLanguage == "tr") "Okyanus" else "موج البحر", R.drawable.royal_ocean_4k),
-                            Triple("syria", if (selectedLanguage == "en") "Syrian flag" else if (selectedLanguage == "tr") "Suriye bayrağı" else "علم سوريا", R.drawable.royal_syria_flag_4k)
-                        )
                         homeWallpapers.chunked(4).forEach { wallpaperRow ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 wallpaperRow.forEach { (key, title, imageRes) ->
