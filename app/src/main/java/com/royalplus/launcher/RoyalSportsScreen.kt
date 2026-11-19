@@ -1,7 +1,10 @@
 package com.royalplus.launcher
 
+import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
+import android.widget.Toast
 import android.graphics.BitmapFactory
 import android.graphics.Canvas as AndroidCanvas
 import android.security.keystore.KeyGenParameterSpec
@@ -28,7 +31,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -604,6 +614,56 @@ internal fun RoyalSportsScreen(language: String) {
     var loading by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf<String?>(null) }
     var refreshSequence by remember { mutableStateOf(0) }
+    var favoriteTeams by remember { mutableStateOf(RoyalSportsFavorites.load(context)) }
+    var alertSettings by remember { mutableStateOf(RoyalSportsFavorites.loadAlertSettings(context)) }
+    var showFavoritesDialog by remember { mutableStateOf(false) }
+    var pendingPermissionUpdate by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val pending = pendingPermissionUpdate
+        pendingPermissionUpdate = null
+        if (granted && pending != null) {
+            val updated = updateSportsAlertSetting(alertSettings, pending.first, pending.second)
+            alertSettings = updated
+            RoyalSportsFavorites.saveAlertSettings(context, updated)
+            RoyalSportsAlertsScheduler.refresh(context)
+        } else if (!granted) {
+            Toast.makeText(
+                context,
+                if (arabic) "لم يتم السماح بالإشعارات؛ يمكنك تفعيلها من إعدادات الجهاز" else "Notification permission was not granted",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    val favoriteTeamIds = favoriteTeams.mapTo(HashSet()) { it.id }
+    val onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit = { team ->
+        favoriteTeams = RoyalSportsFavorites.toggle(context, team)
+        RoyalSportsAlertsScheduler.refresh(context)
+    }
+    val onRemoveFavorite: (Int) -> Unit = { teamId ->
+        favoriteTeams = RoyalSportsFavorites.remove(context, teamId)
+        RoyalSportsAlertsScheduler.refresh(context)
+    }
+    val onToggleAlert: (String, Boolean) -> Unit = { key, enabled ->
+        val needsPermission = enabled &&
+            Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingPermissionUpdate = key to enabled
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            val updated = updateSportsAlertSetting(alertSettings, key, enabled)
+            alertSettings = updated
+            RoyalSportsFavorites.saveAlertSettings(context, updated)
+            RoyalSportsAlertsScheduler.refresh(context)
+        }
+    }
+
+    LaunchedEffect(language) {
+        RoyalSportsFavorites.setLanguage(context, language)
+    }
 
     LaunchedEffect(selectedTab, refreshSequence) {
         if (selectedTab == RoyalSportsTab.RANKINGS) return@LaunchedEffect
@@ -713,6 +773,28 @@ internal fun RoyalSportsScreen(language: String) {
                             },
                             color = RoyalColors.Muted,
                             fontSize = 11.sp
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x99214B39))
+                            .border(1.dp, Color(0x558EE6B4), RoundedCornerShape(12.dp))
+                            .clickable { showFavoritesDialog = true }
+                            .focusable()
+                            .padding(horizontal = 9.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Text("★", color = RoyalColors.Gold, fontSize = 14.sp)
+                        Text(
+                            when {
+                                arabic -> "المفضلة " + favoriteTeams.size
+                                turkish -> "Favoriler " + favoriteTeams.size
+                                else -> "Favorites " + favoriteTeams.size
+                            },
+                            color = RoyalColors.Pearl,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                     Row(
@@ -843,7 +925,13 @@ internal fun RoyalSportsScreen(language: String) {
                                         }
                                     }
                                     items(roundEntry.value, key = { it.id }) { fixture ->
-                                        SportsFixtureCard(fixture = fixture, arabic = arabic, turkish = turkish)
+                                        SportsFixtureCard(
+                                            fixture = fixture,
+                                            arabic = arabic,
+                                            turkish = turkish,
+                                            favoriteTeamIds = favoriteTeamIds,
+                                            onToggleFavorite = onToggleFavorite
+                                        )
                                     }
                                 }
                             }
@@ -865,7 +953,169 @@ internal fun RoyalSportsScreen(language: String) {
                     }
                 }
             }
+            if (showFavoritesDialog) {
+                SportsFavoritesDialog(
+                    favorites = favoriteTeams,
+                    settings = alertSettings,
+                    arabic = arabic,
+                    turkish = turkish,
+                    onRemoveFavorite = onRemoveFavorite,
+                    onToggleAlert = onToggleAlert,
+                    onDismiss = { showFavoritesDialog = false }
+                )
+            }
         }
+    }
+}
+
+private fun updateSportsAlertSetting(
+    current: RoyalSportsAlertSettings,
+    key: String,
+    enabled: Boolean
+): RoyalSportsAlertSettings = when (key) {
+    "match" -> current.copy(matchReminders = enabled)
+    "goal" -> current.copy(goalAlerts = enabled)
+    "result" -> current.copy(resultAlerts = enabled)
+    else -> current
+}
+
+@Composable
+private fun SportsFavoritesDialog(
+    favorites: List<RoyalSportsFavoriteTeam>,
+    settings: RoyalSportsAlertSettings,
+    arabic: Boolean,
+    turkish: Boolean,
+    onRemoveFavorite: (Int) -> Unit,
+    onToggleAlert: (String, Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                when {
+                    arabic -> "الفرق المفضلة والتنبيهات"
+                    turkish -> "Favori takımlar ve bildirimler"
+                    else -> "Favorite teams and alerts"
+                },
+                color = RoyalColors.Gold,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(
+                    when {
+                        favorites.isEmpty() && arabic -> "أضف فريقاً من قائمة المباريات بالضغط على النجمة بجانب اسمه."
+                        favorites.isEmpty() && turkish -> "Maç kartındaki takım yıldızına dokunarak favori ekleyin."
+                        favorites.isEmpty() -> "Add teams by selecting the star beside their names on match cards."
+                        arabic -> "فرقك المختارة"
+                        turkish -> "Seçtiğin takımlar"
+                        else -> "Your selected teams"
+                    },
+                    color = RoyalColors.Pearl,
+                    fontSize = 12.sp
+                )
+                favorites.forEach { team ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RoyalSportsProviderImage(
+                            url = team.logo,
+                            modifier = Modifier.size(30.dp),
+                            fallback = RoyalSportsGlyph.TEAMS,
+                            description = team.name
+                        )
+                        Text(
+                            team.name,
+                            color = RoyalColors.Pearl,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        TextButton(onClick = { onRemoveFavorite(team.id) }) {
+                            Text(
+                                if (arabic) "إزالة" else if (turkish) "Kaldır" else "Remove",
+                                color = Color(0xFFFFB4A9),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    if (arabic) "إعدادات التنبيهات" else if (turkish) "Bildirim ayarları" else "Notification settings",
+                    color = RoyalColors.Gold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                SportsAlertSettingRow(
+                    title = if (arabic) "تذكير قبل المباراة بـ30 دقيقة" else if (turkish) "Maçtan 30 dakika önce hatırlat" else "Remind me 30 minutes before kickoff",
+                    checked = settings.matchReminders,
+                    enabled = favorites.isNotEmpty(),
+                    onCheckedChange = { onToggleAlert("match", it) }
+                )
+                SportsAlertSettingRow(
+                    title = if (arabic) "تنبيهات الأهداف" else if (turkish) "Gol bildirimleri" else "Goal alerts",
+                    checked = settings.goalAlerts,
+                    enabled = favorites.isNotEmpty(),
+                    onCheckedChange = { onToggleAlert("goal", it) }
+                )
+                SportsAlertSettingRow(
+                    title = if (arabic) "النتيجة النهائية" else if (turkish) "Maç sonu sonucu" else "Final result alerts",
+                    checked = settings.resultAlerts,
+                    enabled = favorites.isNotEmpty(),
+                    onCheckedChange = { onToggleAlert("result", it) }
+                )
+                Text(
+                    when {
+                        arabic -> "يتم فحص الأهداف في الخلفية كل 30 دقيقة؛ وقد يتأخر التنبيه حسب اتصال الإنترنت وتحديث مزود النتائج."
+                        turkish -> "Goller arka planda 30 dakikada bir kontrol edilir; bildirimler internet ve veri sağlayıcısına bağlı olarak gecikebilir."
+                        else -> "Background goal checks run every 30 minutes. Alerts may be delayed by connectivity and provider updates."
+                    },
+                    color = RoyalColors.Muted,
+                    fontSize = 9.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (arabic) "تم" else if (turkish) "Tamam" else "Done", color = RoyalColors.Gold)
+            }
+        },
+        containerColor = Color(0xFF123C2E),
+        titleContentColor = RoyalColors.Gold,
+        textContentColor = RoyalColors.Pearl
+    )
+}
+
+@Composable
+private fun SportsAlertSettingRow(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            title,
+            color = if (enabled) RoyalColors.Pearl else RoyalColors.Muted,
+            fontSize = 11.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.focusable()
+        )
     }
 }
 
