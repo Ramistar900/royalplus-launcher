@@ -72,7 +72,8 @@ internal data class WeatherUiState(
 
 internal object RoyalWeatherRepository {
     private const val PREFS = "royalplus_launcher_preferences"
-    private const val CACHE_KEY = "weather_last_successful_payload"
+    private const val LEGACY_CACHE_KEY = "weather_last_successful_payload"
+    private const val CACHE_KEY_PREFIX = "weather_city_cache_"
     private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
     private const val WEATHER_CACHE_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
     private const val MET_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
@@ -173,11 +174,27 @@ internal object RoyalWeatherRepository {
         val appContext = context.applicationContext
         val requestedCity = cityQuery.trim()
         executor.execute {
+            val savedCity = findSavedWeatherCity(appContext, requestedCity)
+            val savedLocation = savedCity?.let {
+                Location("royalplus-saved-city").apply {
+                    latitude = it.latitude
+                    longitude = it.longitude
+                }
+            }
             val result = try {
-                fetchCityWeather(appContext, requestedCity).copy(isManualLocation = true)
+                if (savedCity != null && savedLocation != null) {
+                    fetchCurrentWeather(appContext, savedLocation, savedCity.displayName)
+                        .copy(isManualLocation = true)
+                } else {
+                    fetchCityWeather(appContext, requestedCity).copy(isManualLocation = true)
+                }
             } catch (_: Exception) {
-                cachedWeatherForLastLocation(appContext)?.copy(isManualLocation = true, city = requestedCity)
-                    ?: WeatherUiState(
+                val cached = savedLocation?.let { readWeatherCache(appContext, it)?.first }
+                cached?.copy(
+                    city = savedCity?.displayName ?: requestedCity,
+                    isLoading = false,
+                    isManualLocation = true
+                ) ?: WeatherUiState(
                     city = requestedCity.ifBlank { "مدينة غير محددة" },
                     description = "تعذّر العثور على المدينة أو تحميل الطقس؛ تحقق من الاسم والإنترنت",
                     isLoading = false,
@@ -203,18 +220,28 @@ internal object RoyalWeatherRepository {
                 this.latitude = latitude
                 this.longitude = longitude
             }
+            val cached = if (
+                normalizedCity.isNotBlank() &&
+                latitude in -90.0..90.0 && longitude in -180.0..180.0
+            ) readWeatherCache(appContext, location)?.first else null
+
+            // Show this city's own saved forecast immediately while a network refresh runs.
+            cached?.let {
+                onResult(it.copy(city = normalizedCity, isLoading = false, isManualLocation = true))
+            }
+
             val result = try {
                 require(normalizedCity.isNotBlank())
                 require(latitude in -90.0..90.0 && longitude in -180.0..180.0)
                 fetchCurrentWeather(appContext, location, normalizedCity).copy(isManualLocation = true)
             } catch (_: Exception) {
-                readWeatherCache(appContext, location)?.first?.copy(
+                cached?.copy(
                     city = normalizedCity,
                     isLoading = false,
                     isManualLocation = true
                 ) ?: WeatherUiState(
                     city = normalizedCity.ifBlank { "مدينة غير محددة" },
-                    description = "تعذّر تحميل طقس المدينة المختارة؛ تحقق من الإنترنت",
+                    description = "تعذّر تحميل طقس المدينة المختارة؛ لا توجد بيانات محفوظة صالحة",
                     latitude = latitude,
                     longitude = longitude,
                     isLoading = false,
@@ -226,40 +253,136 @@ internal object RoyalWeatherRepository {
     }
 
     /**
-     * Refreshes the saved location/city forecast for the periodic background worker.
-     * A successful response replaces the rolling seven-day forecast atomically;
-     * a failed request leaves the previous cache untouched.
+     * Refresh each saved city's rolling seven-day forecast independently.
+     * Existing city caches are only replaced after a successful forecast response.
      */
     fun refreshStoredWeather(context: Context): Boolean {
         val appContext = context.applicationContext
         return try {
             val preferences = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val savedArray = try {
+                JSONArray(preferences.getString("weather_saved_cities", "[]") ?: "[]")
+            } catch (_: Exception) {
+                JSONArray()
+            }
+            val cities = mutableListOf<WeatherCitySuggestion>()
+            for (index in 0 until savedArray.length()) {
+                val item = savedArray.optJSONObject(index) ?: continue
+                val latitude = item.optDouble("latitude", Double.NaN)
+                val longitude = item.optDouble("longitude", Double.NaN)
+                val name = item.optString("name").trim()
+                if (name.isBlank() || !latitude.isFinite() || !longitude.isFinite() ||
+                    latitude !in -90.0..90.0 || longitude !in -180.0..180.0
+                ) continue
+                cities += WeatherCitySuggestion(
+                    id = item.optLong("id"),
+                    name = name,
+                    admin1 = item.optString("admin1").takeIf { it.isNotBlank() },
+                    admin2 = item.optString("admin2").takeIf { it.isNotBlank() },
+                    country = item.optString("country").takeIf { it.isNotBlank() },
+                    latitude = latitude,
+                    longitude = longitude
+                )
+            }
+
             val manualCity = preferences.getString("weather_manual_city", null)?.trim()
+            val manualLatitude = preferences.getString("weather_manual_latitude", null)?.toDoubleOrNull()
+            val manualLongitude = preferences.getString("weather_manual_longitude", null)?.toDoubleOrNull()
+            if (!manualCity.isNullOrBlank() && manualLatitude != null && manualLongitude != null &&
+                manualLatitude in -90.0..90.0 && manualLongitude in -180.0..180.0 &&
+                cities.none {
+                    abs(it.latitude - manualLatitude) < 0.001 &&
+                        abs(it.longitude - manualLongitude) < 0.001
+                }
+            ) {
+                cities += WeatherCitySuggestion(
+                    id = 0L,
+                    name = manualCity,
+                    admin1 = null,
+                    admin2 = null,
+                    country = null,
+                    latitude = manualLatitude,
+                    longitude = manualLongitude
+                )
+            }
+
+            if (cities.isNotEmpty()) {
+                var hasUsableForecast = false
+                cities.take(12).forEach { city ->
+                    val location = Location("royalplus-saved-city-refresh").apply {
+                        latitude = city.latitude
+                        longitude = city.longitude
+                    }
+                    try {
+                        val updated = fetchCurrentWeather(
+                            appContext, location, city.displayName, saveAsLastLocation = false
+                        )
+                        if (updated.forecast.size >= 7) hasUsableForecast = true
+                    } catch (_: Exception) {
+                        // Keep this city's previous cache and continue refreshing the others.
+                        val cachedForecastSize = readWeatherCache(appContext, location)?.first?.forecast?.size ?: 0
+                        if (cachedForecastSize >= 7) hasUsableForecast = true
+                    }
+                }
+                return hasUsableForecast
+            }
+
             if (!manualCity.isNullOrBlank()) {
-                val latitude = preferences.getString("weather_manual_latitude", null)?.toDoubleOrNull()
-                val longitude = preferences.getString("weather_manual_longitude", null)?.toDoubleOrNull()
                 val updated = if (
-                    latitude != null && longitude != null &&
-                    latitude in -90.0..90.0 && longitude in -180.0..180.0
+                    manualLatitude != null && manualLongitude != null &&
+                    manualLatitude in -90.0..90.0 && manualLongitude in -180.0..180.0
                 ) {
                     val location = Location("royalplus-saved-manual").apply {
-                        this.latitude = latitude
-                        this.longitude = longitude
+                        latitude = manualLatitude
+                        longitude = manualLongitude
                     }
                     fetchCurrentWeather(appContext, location, manualCity).copy(isManualLocation = true)
                 } else {
                     fetchCityWeather(appContext, manualCity).copy(isManualLocation = true)
                 }
-                if (updated.forecast.isEmpty()) return false
-                if (updated.forecast.size >= 7) saveWeatherCache(appContext, updated)
-                true
-            } else {
-                val location = readLastLocation(appContext) ?: findLocation(appContext) ?: return false
-                val updated = fetchCurrentWeather(appContext, location, findCity(appContext, location))
-                updated.forecast.isNotEmpty()
+                return updated.forecast.size >= 7
             }
+
+            val location = readLastLocation(appContext) ?: findLocation(appContext) ?: return false
+            val updated = fetchCurrentWeather(appContext, location, findCity(appContext, location))
+            updated.forecast.size >= 7
         } catch (_: Exception) {
             false
+        }
+    }
+
+    private fun findSavedWeatherCity(context: Context, query: String): WeatherCitySuggestion? {
+        val normalizedQuery = query.trim().lowercase(Locale.ROOT)
+        if (normalizedQuery.isBlank()) return null
+        return try {
+            val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("weather_saved_cities", null) ?: return null
+            val array = JSONArray(raw)
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val latitude = item.optDouble("latitude", Double.NaN)
+                val longitude = item.optDouble("longitude", Double.NaN)
+                val name = item.optString("name").trim()
+                if (name.isBlank() || !latitude.isFinite() || !longitude.isFinite() ||
+                    latitude !in -90.0..90.0 || longitude !in -180.0..180.0
+                ) return@mapNotNull null
+                WeatherCitySuggestion(
+                    id = item.optLong("id"),
+                    name = name,
+                    admin1 = item.optString("admin1").takeIf { it.isNotBlank() },
+                    admin2 = item.optString("admin2").takeIf { it.isNotBlank() },
+                    country = item.optString("country").takeIf { it.isNotBlank() },
+                    latitude = latitude,
+                    longitude = longitude
+                )
+            }.firstOrNull { city ->
+                val shortName = city.name.substringBefore("،").substringBefore(",").trim()
+                city.name.equals(query.trim(), ignoreCase = true) ||
+                    city.displayName.equals(query.trim(), ignoreCase = true) ||
+                    shortName.equals(query.trim(), ignoreCase = true)
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -484,9 +607,10 @@ internal object RoyalWeatherRepository {
     private fun fetchCurrentWeather(
         context: Context,
         location: Location,
-        city: String
+        city: String,
+        saveAsLastLocation: Boolean = true
     ): WeatherUiState {
-        saveLastLocation(context, location)
+        if (saveAsLastLocation) saveLastLocation(context, location)
         try {
             val weather = fetchOpenMeteo(location, city)
             if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
@@ -682,9 +806,20 @@ internal object RoyalWeatherRepository {
         }
     }
 
+    private fun weatherCacheKey(location: Location): String {
+        val coordinates = String.format(
+            Locale.US,
+            "%.3f_%.3f",
+            location.latitude,
+            location.longitude
+        )
+        return CACHE_KEY_PREFIX + coordinates.replace("-", "m").replace(".", "_")
+    }
+
     private fun saveWeatherCache(context: Context, weather: WeatherUiState) {
         val latitude = weather.latitude ?: return
         val longitude = weather.longitude ?: return
+        if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return
         val forecast = JSONArray().apply {
             weather.forecast.forEach { day ->
                 put(JSONObject().apply {
@@ -710,33 +845,53 @@ internal object RoyalWeatherRepository {
             put("timezone", weather.timeZoneId)
             put("forecast", forecast)
         }
+        val location = Location("royalplus-weather-cache").apply {
+            this.latitude = latitude
+            this.longitude = longitude
+        }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(CACHE_KEY, json.toString()).apply()
+            .putString(weatherCacheKey(location), json.toString())
+            .apply()
     }
 
     private fun readWeatherCache(context: Context, location: Location): Pair<WeatherUiState, Long>? {
         return try {
-            val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString(CACHE_KEY, null) ?: return null
+            val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val cityCacheKey = weatherCacheKey(location)
+            var raw = preferences.getString(cityCacheKey, null)
+            var migratedLegacyCache = false
+            if (raw == null) {
+                // One-time compatibility path for installations with the former single-city cache.
+                raw = preferences.getString(LEGACY_CACHE_KEY, null)
+                migratedLegacyCache = raw != null
+            }
+            raw ?: return null
             val json = JSONObject(raw)
             val savedAt = json.getLong("savedAt")
             val age = System.currentTimeMillis() - savedAt
             if (age !in 0..WEATHER_CACHE_MAX_AGE_MS) return null
             val latitude = json.getDouble("latitude")
             val longitude = json.getDouble("longitude")
-            if (abs(latitude - location.latitude) > 0.15 || abs(longitude - location.longitude) > 0.15) {
-                return null
-            }
+            // New city caches must match the rounded-coordinate key very closely.
+            // The legacy single-city cache gets a slightly wider one-time migration window.
+            val coordinateTolerance = if (migratedLegacyCache) 0.005 else 0.0011
+            if (abs(latitude - location.latitude) > coordinateTolerance ||
+                abs(longitude - location.longitude) > coordinateTolerance
+            ) return null
+
             val forecastJson = json.optJSONArray("forecast") ?: JSONArray()
             val forecast = (0 until forecastJson.length()).mapNotNull { index ->
                 val day = forecastJson.optJSONObject(index) ?: return@mapNotNull null
+                val date = day.optString("date")
+                if (date.isBlank()) return@mapNotNull null
                 WeatherForecastDay(
-                    date = day.optString("date"),
+                    date = date,
                     weatherCode = day.optInt("code", 3),
                     maxTemperatureC = day.optInt("high"),
                     minTemperatureC = day.optInt("low")
                 )
             }
+            if (forecast.isEmpty()) return null
             val weather = WeatherUiState(
                 city = json.optString("city", "الموقع الحالي"),
                 temperatureC = json.optIntOrNull("temperature"),
@@ -753,6 +908,9 @@ internal object RoyalWeatherRepository {
                 forecast = forecast,
                 isLoading = false
             )
+            if (migratedLegacyCache) {
+                preferences.edit().putString(cityCacheKey, raw).apply()
+            }
             weather to savedAt
         } catch (_: Exception) {
             null
