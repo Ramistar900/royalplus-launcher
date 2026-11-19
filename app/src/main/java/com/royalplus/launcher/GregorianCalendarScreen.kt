@@ -119,10 +119,14 @@ internal fun GregorianCalendarScreen(language: String) {
                     }
                 }
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    weekdays.forEach { dayName ->
-                        Box(modifier = Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF17252A)), contentAlignment = Alignment.Center) {
-                            Text(dayName, color = Color(0xFFDFC27F), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        weekdays.forEach { dayName ->
+                            Box(modifier = Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF17252A)), contentAlignment = Alignment.Center) {
+                                Text(dayName, color = Color(0xFFDFC27F), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                            }
                         }
                     }
                 }
@@ -144,9 +148,9 @@ internal fun GregorianCalendarScreen(language: String) {
                                         modifier = Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(10.dp))
                                             .background(when { isToday -> Color(0xFFB99248); isSelected -> Color(0xFF183B40); else -> Color(0xFF111A21) })
                                             .then(if (isSelected && !isToday) Modifier.border(1.dp, Color(0xFF4EAAA1), RoundedCornerShape(10.dp)) else Modifier)
-                                            .clickable(enabled = day != null) {
-                                                if (day != null) selectedDateMillis = (visibleMonth.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, day) }.timeInMillis
-                                            }.focusable(),
+                                            .then(if (day != null) Modifier.clickable {
+                                                selectedDateMillis = (visibleMonth.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, day) }.timeInMillis
+                                            }.focusable() else Modifier),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (day != null) Text(numberFormat.format(day), color = if (isToday) Color(0xFF111111) else Color(0xFFF0EEE8), fontSize = 16.sp, fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Medium)
