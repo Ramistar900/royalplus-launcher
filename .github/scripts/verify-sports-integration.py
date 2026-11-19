@@ -34,6 +34,9 @@ assert "RoyalSportsMatchBucket.NOT_STARTED" in sports
 assert "RoyalSportsMatchBucket.PLAYED" in sports
 assert "media.api-sports.io" in sports
 assert "api.fifa.com" in sports
+assert "connection.contentType" in sports
+assert '"image/svg+xml"' in sports
+assert "bounds.outWidth <= 0 || bounds.outHeight <= 0" in sports
 assert "leagueLogo = league.optString(\"logo\", \"\")" in sports
 assert "countryFlag = league.optString(\"flag\", \"\")" in sports
 assert "homeLogo = home.optString(\"logo\", \"\")" in sports
@@ -114,6 +117,12 @@ assert "API-Football standings do not provide a previous-rank movement field" in
 # Keep the requested Saudi league and verify the Syrian league's API-Football v3 ID.
 assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
 assert 'RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")' in rankings
+assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
+assert "val isArchived: Boolean = false" in rankings
+assert rankings.count("isArchived = true") == 5
+assert "selectedCompetition?.isArchived == true" in rankings
+assert " • أرشيف" in rankings
+assert rankings.index('RoyalSportsRankingCompetition(2, "UEFA Champions League"') < rankings.index('RoyalSportsRankingCompetition(1, "FIFA World Cup"')
 assert 'isSyria && key.contains("premier league") -> "الدوري السوري الممتاز"' in rankings
 assert 'isSyria && key.contains("premier league") -> "Suriye Premier Ligi"' in rankings
 assert "topScorers" not in rankings and "topAssists" not in rankings
