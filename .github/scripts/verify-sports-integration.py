@@ -140,6 +140,11 @@ assert "RoyalSportsAlertsScheduler.refresh(this)" in (ROOT / "app/src/main/java/
 assert 'homeTeamId = home.optInt("id", 0)' in sports and 'awayTeamId = away.optInt("id", 0)' in sports
 assert "favoriteTeamIds" in sports and "SportsFavoriteTeamToggle" in sports
 assert "SportsFavoritesDialog" in sports and "onToggleAlert" in sports
+assert "favoriteTeamIds: Set<Int>" in rankings
+assert "onToggleFavoriteTeam: (RoyalSportsFavoriteTeam) -> Unit" in rankings
+assert "RoyalSportsFavoriteTeam(entry.teamId, entry.team, entry.logo)" in rankings
+assert "isFavorite = entry.teamId in favoriteTeamIds" in rankings
+assert "if (isFavorite) \"★\" else \"☆\"" in rankings
 assert "مباراة فريقك المفضل بعد 30 دقيقة" in alerts
 assert "localizedFootballRound" in sports
 assert "localizedFootballLeagueName(leagueName, countryName, arabic, turkish)" in sports
