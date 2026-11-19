@@ -29,6 +29,7 @@ import android.speech.SpeechRecognizer
 import android.view.View
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -264,12 +265,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         val filter = IntentFilter(FloatingTranslationOverlayService.ACTION_DEVICE_CAPABILITY_FAILED)
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(translationCapabilityReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(translationCapabilityReceiver, filter)
-        }
+        ContextCompat.registerReceiver(
+            this,
+            translationCapabilityReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         translationCapabilityReceiverRegistered = true
     }
 
