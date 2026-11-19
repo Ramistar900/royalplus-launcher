@@ -28,19 +28,14 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
-import com.google.mlkit.common.model.DownloadConditions
-import com.google.mlkit.common.model.RemoteModelManager
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.TranslateRemoteModel
-import com.google.mlkit.nl.translate.Translator
-import com.google.mlkit.nl.translate.TranslatorOptions
 import com.k2fsa.sherpa.onnx.AudioTagging
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.Vad
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -65,6 +60,7 @@ class FloatingTranslationOverlayService : Service() {
     private var projectionResultCode: Int = Activity.RESULT_CANCELED
     private var projectionResultData: Intent? = null
     private var consecutiveUnrecognizedSegments = 0
+    private var consecutiveSlowRecognitionSegments = 0
     private var lastBacklogNoticeElapsedRealtime = 0L
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
@@ -91,17 +87,18 @@ class FloatingTranslationOverlayService : Service() {
         val attempt: Int = 0
     )
 
-    private data class TranslationSession(
-        val translator: Translator,
-        var modelReady: Boolean = false,
-        var modelCheckPending: Boolean = false,
-        var modelDownloadPending: Boolean = false
-    )
-
     // One global FIFO preserves spoken order, including when the source language changes.
-    private val translationSessions = mutableMapOf<String, TranslationSession>()
     private val pendingTranslations = ArrayDeque<PendingCaption>()
+    private val translationExecutor = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "RoyalSmall100Inference").apply { isDaemon = true }
+    }
+    private val translationModelSetup = AtomicBoolean(false)
+    private val translationCapabilityFailed = AtomicBoolean(false)
+    @Volatile private var small100Translator: Small100Translator? = null
+    @Volatile private var translationModelInstalled = false
+    private var translationModelThread: Thread? = null
     private var translationInFlight = false
+    private var lastUnsupportedLanguageNotice: String? = null
     private val captionPhraseBuffer = CaptionPhraseBuffer(maxCharacters = MAX_CAPTION_BUFFER_CHARACTERS)
     private val captionPhraseFlushRunnable = Runnable { flushPendingCaptionPhrase() }
 
@@ -115,6 +112,29 @@ class FloatingTranslationOverlayService : Service() {
             updateNotification("الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة")
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) START_NOT_STICKY else START_STICKY
         }
+        if (intent?.action == ACTION_DOWNLOAD_TRANSLATION_MODEL && running.get()) {
+            startTranslationModelDownload()
+            return START_NOT_STICKY
+        }
+        val hardwareAssessment = TranslationDeviceCapability.checkHardware(applicationContext)
+        if (!hardwareAssessment.supported) {
+            getSharedPreferences(PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply()
+            sendBroadcast(
+                Intent(ACTION_DEVICE_CAPABILITY_FAILED)
+                    .setPackage(packageName)
+                    .putExtra(EXTRA_CAPABILITY_MESSAGE, hardwareAssessment.message)
+                    .putExtra(EXTRA_CAPABILITY_TITLE, hardwareAssessment.title)
+            )
+            android.widget.Toast.makeText(
+                applicationContext,
+                hardwareAssessment.message,
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
@@ -196,7 +216,15 @@ class FloatingTranslationOverlayService : Service() {
             }
             recognizer = engine
             audioTagger = tagger
+            prepareInstalledTranslationEngine()
             decodeThread = Thread({ decodeSpeechSegments() }, "RoyalWhisperDecode").apply { start() }
+        } catch (error: OutOfMemoryError) {
+            System.gc()
+            failTranslationForCapability(
+                TranslationDeviceCapability.insufficientMemory(
+                    "ذاكرة الجهاز لا تكفي لتجهيز محرك التعرف على الكلام والترجمة معاً."
+                )
+            )
         } catch (error: Exception) {
             if (running.get()) {
                 val detail = error.localizedMessage ?: "تحقق من الإنترنت والمساحة"
@@ -430,12 +458,32 @@ class FloatingTranslationOverlayService : Service() {
 
                 val engine = recognizer ?: continue
                 val stream = engine.createStream()
+                var speechRecognitionTooSlow = false
                 val result = try {
                     stream.acceptWaveform(samples, SAMPLE_RATE)
+                    val audioDurationMillis = samples.size.toLong() * 1_000L / SAMPLE_RATE
+                    val decodeStartedAt = SystemClock.elapsedRealtime()
                     engine.decode(stream)
+                    val decodeElapsedMillis = SystemClock.elapsedRealtime() - decodeStartedAt
+                    if (audioDurationMillis >= 1_500L) {
+                        val slowDecodeLimit = maxOf(5_000L, audioDurationMillis * 2L)
+                        if (decodeElapsedMillis > slowDecodeLimit) {
+                            consecutiveSlowRecognitionSegments++
+                        } else {
+                            consecutiveSlowRecognitionSegments = 0
+                        }
+                        speechRecognitionTooSlow = consecutiveSlowRecognitionSegments >= 3
+                    } else {
+                        consecutiveSlowRecognitionSegments = 0
+                    }
                     engine.getResult(stream)
                 } finally {
                     stream.release()
+                }
+
+                if (speechRecognitionTooSlow) {
+                    failTranslationForCapability(TranslationDeviceCapability.slowSpeechRecognition())
+                    break
                 }
 
                 val recognized = result.text.replace(Regex("\\s+"), " ").trim()
@@ -456,7 +504,7 @@ class FloatingTranslationOverlayService : Service() {
                         // result immediately; waiting for multiple votes would discard
                         // the first one or more spoken phrases.
                         val language = normalizeDetectedLanguage(result.lang)
-                        if (TranslateLanguage.fromLanguageTag(language).isNullOrBlank()) {
+                        if (language.isBlank()) {
                             updateNotification("تعذر تحديد لغة الكلام؛ لم تُحذف الجملة من التسجيل")
                         } else {
                             consecutiveUnrecognizedSegments = 0
@@ -466,6 +514,14 @@ class FloatingTranslationOverlayService : Service() {
                 }
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
+                break
+            } catch (error: OutOfMemoryError) {
+                System.gc()
+                failTranslationForCapability(
+                    TranslationDeviceCapability.insufficientMemory(
+                        "نفدت ذاكرة الجهاز أثناء التعرف على الكلام؛ تم إيقاف الترجمة لحماية استقرار ROYAL+."
+                    )
+                )
                 break
             } catch (error: Exception) {
                 val detail = error.localizedMessage ?: "خطأ في محرك التعرّف"
@@ -494,26 +550,22 @@ class FloatingTranslationOverlayService : Service() {
         translateCaption(phrase.text, phrase.language)
     }
 
+    /**
+     * Whisper detects the source language automatically. SMaLL-100 checks its own
+     * 100-language token map after its local model has been installed.
+     */
     private fun normalizeDetectedLanguage(rawLanguage: String): String {
-        val normalized = rawLanguage.trim().lowercase(Locale.ROOT)
+        val detected = rawLanguage.trim()
+            .lowercase(Locale.ROOT)
             .replace('_', '-')
             .substringBefore('-')
-        return when (normalized) {
-            "english" -> "en"
-            "turkish" -> "tr"
-            "arabic" -> "ar"
-            "spanish" -> "es"
-            "french" -> "fr"
-            "german" -> "de"
-            "russian" -> "ru"
-            "chinese" -> "zh"
-            "japanese" -> "ja"
-            "korean" -> "ko"
-            "portuguese" -> "pt"
-            "italian" -> "it"
-            "hindi" -> "hi"
-            "ukrainian" -> "uk"
-            else -> normalized
+        // Whisper and ISO language registries use a few different legacy aliases.
+        return when (detected) {
+            "jw" -> "jv"
+            "yue" -> "zh"
+            "fil" -> "tl"
+            "nb", "nn" -> "no"
+            else -> detected
         }
     }
 
@@ -521,17 +573,13 @@ class FloatingTranslationOverlayService : Service() {
         mainHandler.post {
             if (!running.get()) return@post
             val normalizedLanguage = normalizeDetectedLanguage(detectedLanguage)
-            val sourceLanguage = TranslateLanguage.fromLanguageTag(normalizedLanguage)
-            if (sourceLanguage.isNullOrBlank()) {
-                updateNotification("التقطت كلاماً بلغة غير مدعومة: " + detectedLanguage)
-                return@post
-            }
+            if (normalizedLanguage.isBlank()) return@post
 
             pendingTranslations.addLast(
                 PendingCaption(
                     text = text,
                     language = normalizedLanguage,
-                    sourceLanguage = sourceLanguage
+                    sourceLanguage = normalizedLanguage
                 )
             )
             processNextPendingTranslation()
@@ -539,120 +587,236 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     /**
-     * One global FIFO preserves the original spoken order across every source language.
-     * Recognized phrases are never aged out or removed to make room for newer phrases.
+     * Local SMaLL-100 translation runs on one worker so sentence order is preserved
+     * without blocking audio capture, the overlay, or the Android main thread.
      */
     private fun processNextPendingTranslation() {
         if (!running.get() || translationInFlight) return
         val pending = pendingTranslations.peekFirst() ?: return
 
-        if (pending.sourceLanguage == TranslateLanguage.ARABIC) {
+        if (pending.language == "ar") {
             pendingTranslations.removeFirst()
             showCaption(pending.text, pending.language)
             processNextPendingTranslation()
             return
         }
 
-        val session = translationSessions.getOrPut(pending.sourceLanguage) {
-            TranslationSession(
-                translator = Translation.getClient(
-                    TranslatorOptions.Builder()
-                        .setSourceLanguage(pending.sourceLanguage)
-                        .setTargetLanguage(TranslateLanguage.ARABIC)
-                        .build()
-                )
-            )
-        }
-
-        if (session.modelReady) {
-            translateQueuedCaption(pending, session)
+        val engine = small100Translator
+        if (engine == null) {
+            if (translationModelInstalled) {
+                prepareInstalledTranslationEngine()
+            } else {
+                updateNotification("محرك الترجمة المحلي يحتاج تنزيل نموذج 609 ميغابايت. اضغط «تنزيل الترجمة» في الإشعار؛ لا يوجد تنزيل تلقائي.")
+            }
             return
         }
-        if (session.modelCheckPending || session.modelDownloadPending) return
 
-        session.modelCheckPending = true
-        RemoteModelManager.getInstance()
-            .getDownloadedModels(TranslateRemoteModel::class.java)
-            .addOnSuccessListener { models ->
-                if (!running.get()) return@addOnSuccessListener
-                session.modelCheckPending = false
-
-                val sourceModelReady = pending.sourceLanguage == TranslateLanguage.ENGLISH ||
-                    models.any { it.language == pending.sourceLanguage }
-                val arabicModelReady = models.any { it.language == TranslateLanguage.ARABIC }
-                if (sourceModelReady && arabicModelReady) {
-                    session.modelReady = true
-                    processNextPendingTranslation()
-                } else {
-                    downloadTranslationModel(pending, session)
-                }
+        if (!engine.supportsSourceLanguage(pending.sourceLanguage)) {
+            pendingTranslations.removeFirst()
+            if (lastUnsupportedLanguageNotice != pending.sourceLanguage) {
+                lastUnsupportedLanguageNotice = pending.sourceLanguage
+                updateNotification(
+                    "لغة المصدر ${pending.sourceLanguage} غير موجودة ضمن لغات النموذج الـ100؛ لم يُرسل النص إلى أي خدمة خارجية."
+                )
             }
-            .addOnFailureListener {
-                if (!running.get()) return@addOnFailureListener
-                session.modelCheckPending = false
-                downloadTranslationModel(pending, session)
-            }
-    }
-
-    private fun downloadTranslationModel(
-        pending: PendingCaption,
-        session: TranslationSession
-    ) {
-        if (!running.get() || session.modelDownloadPending || session.modelReady) return
-        session.modelDownloadPending = true
-
-        updateNotification("تنزيل نموذج " + pending.language.uppercase(Locale.ROOT) + " إلى العربية لأول مرة…")
-        session.translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
-            .addOnSuccessListener {
-                if (!running.get()) return@addOnSuccessListener
-                session.modelDownloadPending = false
-                session.modelReady = true
-                processNextPendingTranslation()
-            }
-            .addOnFailureListener { error ->
-                if (!running.get()) return@addOnFailureListener
-                session.modelDownloadPending = false
-                val detail = error.localizedMessage ?: "تحقق من الإنترنت ثم أعد المحاولة"
-                updateNotification("تعذر تجهيز نموذج " + pending.language.uppercase(Locale.ROOT) + ": " + detail)
-                // Keep the pending phrase at the head of the FIFO; never overwrite it.
-            }
-    }
-
-    private fun translateQueuedCaption(
-        pending: PendingCaption,
-        session: TranslationSession
-    ) {
-        if (
-            !running.get() ||
-            translationInFlight ||
-            pendingTranslations.peekFirst() !== pending
-        ) return
+            processNextPendingTranslation()
+            return
+        }
 
         translationInFlight = true
-        session.translator.translate(pending.text)
-            .addOnSuccessListener { translated ->
-                mainHandler.post {
-                    if (pendingTranslations.peekFirst() === pending) {
-                        pendingTranslations.removeFirst()
+        translationExecutor.execute {
+            val translated = runCatching { engine.translate(pending.text, "ar") }
+            mainHandler.post {
+                if (!running.get()) return@post
+                if (pendingTranslations.peekFirst() === pending) {
+                    pendingTranslations.removeFirst()
+                }
+                translationInFlight = false
+                translated.onSuccess { caption ->
+                    lastUnsupportedLanguageNotice = null
+                    if (caption.isNotBlank()) {
+                        showCaption(caption, pending.language)
+                    } else {
+                        updateNotification("لم يُنتج نموذج الترجمة نصاً لهذه العبارة؛ ستتم متابعة الجملة التالية.")
                     }
-                    translationInFlight = false
-                    showCaption(translated, pending.language)
+                    processNextPendingTranslation()
+                }.onFailure { error ->
+                    pendingTranslations.addFirst(pending.copy(attempt = pending.attempt + 1))
+                    if (error is OutOfMemoryError) {
+                        System.gc()
+                        failTranslationForCapability(
+                            TranslationDeviceCapability.insufficientMemory(
+                                "نفدت ذاكرة الجهاز أثناء ترجمة الكلام. تم إيقاف الترجمة لحماية استقرار التطبيق."
+                            )
+                        )
+                    } else {
+                        val detail = error.localizedMessage ?: "خطأ محلي في محرك ONNX"
+                        updateNotification("تعذرت الترجمة المحلية؛ حُفظت الجملة لإعادة المحاولة: $detail")
+                        mainHandler.postDelayed(
+                            { processNextPendingTranslation() },
+                            TRANSLATION_RETRY_DELAY_MILLIS
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun prepareInstalledTranslationEngine() {
+        if (!running.get() || small100Translator != null || translationCapabilityFailed.get()) return
+        if (!translationModelSetup.compareAndSet(false, true)) return
+        translationModelThread = Thread({
+            try {
+                val files = Small100ModelRepository.installedFiles(applicationContext)
+                if (files == null) {
+                    translationModelInstalled = false
+                    translationModelSetup.set(false)
+                    updateNotification("محرك الترجمة المحلي غير مثبت بعد. اضغط «تنزيل الترجمة» لتنزيل النموذج مرة واحدة عبر اتصال غير محدود.")
+                    return@Thread
+                }
+                val engine = createVerifiedTranslationEngine(files) ?: return@Thread
+                if (!running.get()) {
+                    engine.close()
+                    translationModelSetup.set(false)
+                    return@Thread
+                }
+                mainHandler.post {
+                    if (!running.get()) {
+                        engine.close()
+                        translationModelSetup.set(false)
+                        return@post
+                    }
+                    small100Translator = engine
+                    translationModelInstalled = true
+                    translationModelSetup.set(false)
+                    updateNotification("اجتاز جهازك اختبار الترجمة المحلية وأصبح المحرك جاهزاً.")
                     processNextPendingTranslation()
                 }
+            } catch (error: OutOfMemoryError) {
+                System.gc()
+                failTranslationForCapability(
+                    TranslationDeviceCapability.insufficientMemory(
+                        "لم تتوفر ذاكرة كافية لتهيئة نموذج الترجمة."
+                    )
+                )
+            } catch (error: Exception) {
+                translationModelSetup.set(false)
+                val detail = error.localizedMessage ?: "تعذر التحقق من ملفات نموذج الترجمة"
+                updateNotification("تعذر تجهيز نموذج الترجمة المحلي: $detail")
             }
-            .addOnFailureListener { error ->
-                mainHandler.post {
-                    translationInFlight = false
-                    if (pendingTranslations.peekFirst() === pending) {
-                        // Keep the exact sentence and its place in the queue. Retry later.
-                        pendingTranslations.removeFirst()
-                        pendingTranslations.addFirst(pending.copy(attempt = pending.attempt + 1))
-                        val detail = error.localizedMessage ?: "خطأ مؤقت"
-                        updateNotification("تعذرت ترجمة العبارة؛ ستُعاد المحاولة دون إسقاطها: " + detail)
-                        mainHandler.postDelayed({ processNextPendingTranslation() }, TRANSLATION_RETRY_DELAY_MILLIS)
-                    }
+        }, "RoyalSmall100Setup").apply { isDaemon = true; start() }
+    }
+
+    private fun startTranslationModelDownload() {
+        if (!running.get() || small100Translator != null || translationCapabilityFailed.get()) return
+        if (!translationModelSetup.compareAndSet(false, true)) {
+            updateNotification("تنزيل أو تجهيز نموذج الترجمة جارٍ بالفعل.")
+            return
+        }
+        translationModelThread = Thread({
+            try {
+                val capacity = TranslationDeviceCapability.checkBeforeModelLoad(applicationContext)
+                if (!capacity.supported) {
+                    failTranslationForCapability(capacity)
+                    return@Thread
                 }
+                val files = Small100ModelRepository.ensureDownloaded(applicationContext) { progress ->
+                    updateNotification("تنزيل نموذج الترجمة المحلي — $progress")
+                }
+                val engine = createVerifiedTranslationEngine(files) ?: return@Thread
+                if (!running.get()) {
+                    engine.close()
+                    translationModelSetup.set(false)
+                    return@Thread
+                }
+                mainHandler.post {
+                    if (!running.get()) {
+                        engine.close()
+                        translationModelSetup.set(false)
+                        return@post
+                    }
+                    small100Translator = engine
+                    translationModelInstalled = true
+                    translationModelSetup.set(false)
+                    updateNotification("اكتمل التنزيل واجتاز جهازك اختبار سرعة الترجمة المحلية.")
+                    processNextPendingTranslation()
+                }
+            } catch (error: OutOfMemoryError) {
+                System.gc()
+                failTranslationForCapability(
+                    TranslationDeviceCapability.insufficientMemory(
+                        "نفدت الذاكرة أثناء تنزيل نموذج الترجمة أو تهيئته."
+                    )
+                )
+            } catch (error: Exception) {
+                translationModelSetup.set(false)
+                val detail = error.localizedMessage ?: "تحقق من الاتصال والمساحة الحرة"
+                updateNotification("تعذر تنزيل نموذج الترجمة: $detail")
             }
+        }, "RoyalSmall100Download").apply { isDaemon = true; start() }
+    }
+
+    /**
+     * Avoids wasting a 621 MB download on devices that cannot load the model,
+     * then verifies real local inference before declaring translation ready.
+     */
+    private fun createVerifiedTranslationEngine(
+        files: Small100ModelRepository.ModelFiles
+    ): Small100Translator? {
+        val capacity = TranslationDeviceCapability.checkBeforeModelLoad(applicationContext)
+        if (!capacity.supported) {
+            failTranslationForCapability(capacity)
+            return null
+        }
+
+        val engine = try {
+            Small100Translator.create(files)
+        } catch (error: OutOfMemoryError) {
+            System.gc()
+            failTranslationForCapability(
+                TranslationDeviceCapability.insufficientMemory(
+                    "لم تكفِ ذاكرة الجهاز لتحميل نموذج الترجمة."
+                )
+            )
+            return null
+        } catch (error: Exception) {
+            failTranslationForCapability(
+                TranslationDeviceCapability.engineUnavailable(
+                    error.localizedMessage ?: "تعذر تهيئة محرك ONNX على هذا الجهاز."
+                )
+            )
+            return null
+        }
+
+        updateNotification("اكتمل تنزيل النموذج؛ يجري الآن اختبار سرعة الترجمة المحلية وقدرة الجهاز.")
+        val assessment = TranslationDeviceCapability.benchmark(applicationContext, engine)
+        if (!assessment.supported) {
+            runCatching { engine.close() }
+            failTranslationForCapability(assessment)
+            return null
+        }
+        return engine
+    }
+
+    private fun failTranslationForCapability(
+        assessment: TranslationDeviceCapability.Assessment
+    ) {
+        if (!translationCapabilityFailed.compareAndSet(false, true)) return
+        translationModelSetup.set(false)
+        running.set(false)
+        mainHandler.post {
+            getSharedPreferences(PREFERENCES, MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply()
+            updateStatus(assessment.message)
+            sendBroadcast(
+                Intent(ACTION_DEVICE_CAPABILITY_FAILED)
+                    .setPackage(packageName)
+                    .putExtra(EXTRA_CAPABILITY_MESSAGE, assessment.message)
+                    .putExtra(EXTRA_CAPABILITY_TITLE, assessment.title)
+            )
+            // Keep the on-screen explanation visible before releasing the overlay and audio resources.
+            mainHandler.postDelayed({ stopSelf() }, STATUS_DISPLAY_MILLIS + 500L)
+        }
     }
 
     private fun showCaption(text: String, language: String) {
@@ -910,6 +1074,23 @@ class FloatingTranslationOverlayService : Service() {
             .addAction(Notification.Action.Builder(
                 android.R.drawable.ic_menu_view, "إظهار", showPendingIntent
             ).build())
+            .apply {
+                if (!translationModelInstalled && !translationCapabilityFailed.get()) {
+                    val downloadIntent = Intent(this@FloatingTranslationOverlayService, FloatingTranslationOverlayService::class.java)
+                        .setAction(ACTION_DOWNLOAD_TRANSLATION_MODEL)
+                    val downloadPendingIntent = PendingIntent.getService(
+                        this@FloatingTranslationOverlayService,
+                        4104,
+                        downloadIntent,
+                        pendingFlags
+                    )
+                    addAction(Notification.Action.Builder(
+                        android.R.drawable.stat_sys_download,
+                        "تنزيل الترجمة (~621MB)",
+                        downloadPendingIntent
+                    ).build())
+                }
+            }
             .addAction(Notification.Action.Builder(
                 android.R.drawable.ic_menu_close_clear_cancel, "إيقاف", stopPendingIntent
             ).build())
@@ -1017,10 +1198,25 @@ class FloatingTranslationOverlayService : Service() {
         captionPhraseBuffer.clear()
         pendingTranslations.clear()
         translationInFlight = false
-        translationSessions.values.forEach { session ->
-            runCatching { session.translator.close() }
+        translationModelThread?.interrupt()
+        translationModelThread = null
+        val translationEngineToRelease = small100Translator
+        small100Translator = null
+        translationExecutor.shutdownNow()
+        if (translationEngineToRelease != null) {
+            Thread({
+                var interrupted = false
+                while (!translationExecutor.isTerminated) {
+                    try {
+                        translationExecutor.awaitTermination(1, TimeUnit.SECONDS)
+                    } catch (_: InterruptedException) {
+                        interrupted = true
+                    }
+                }
+                runCatching { translationEngineToRelease.close() }
+                if (interrupted) Thread.currentThread().interrupt()
+            }, "RoyalSmall100Release").apply { isDaemon = true; start() }
         }
-        translationSessions.clear()
 
         mainHandler.removeCallbacks(captionHideRunnable)
         mainHandler.removeCallbacks(controlHideRunnable)
@@ -1056,6 +1252,10 @@ class FloatingTranslationOverlayService : Service() {
     companion object {
         const val ACTION_SHOW = "com.royalplus.launcher.action.SHOW_TRANSLATION_OVERLAY"
         const val ACTION_STOP = "com.royalplus.launcher.action.STOP_TRANSLATION_OVERLAY"
+        const val ACTION_DOWNLOAD_TRANSLATION_MODEL = "com.royalplus.launcher.action.DOWNLOAD_TRANSLATION_MODEL"
+        const val ACTION_DEVICE_CAPABILITY_FAILED = "com.royalplus.launcher.action.TRANSLATION_DEVICE_CAPABILITY_FAILED"
+        const val EXTRA_CAPABILITY_MESSAGE = "translation_capability_message"
+        const val EXTRA_CAPABILITY_TITLE = "translation_capability_title"
         const val PREFERENCES = "royalplus_launcher_preferences"
         const val KEY_ENABLED = "floating_translation_overlay_enabled"
         const val EXTRA_PROJECTION_RESULT_CODE = "royal_projection_result_code"

@@ -185,7 +185,7 @@ private fun RoyalSportsProviderImage(
     }
 }
 
-private enum class RoyalSportsTab {
+internal enum class RoyalSportsTab {
     MATCHES, SCHEDULE
 }
 
@@ -237,7 +237,7 @@ private data class RoyalSportsSession(
     val expiresAtMillis: Long
 )
 
-private object RoyalSportsRepository {
+internal object RoyalSportsRepository {
     private const val SESSION_PREFS = "royalplus_sports_secure_session"
     private const val SESSION_VALUE = "encrypted_session"
     private const val KEY_ALIAS = "royalplus.sports.session.v1"

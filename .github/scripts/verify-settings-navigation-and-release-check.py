@@ -51,6 +51,7 @@ assert "launcher_text_scale" in HOME and "LocalDensity provides Density" in HOME
 assert "launcher_theme_mode" in HOME and "RoyalColors.Surface" in HOME
 assert "versionCode = royalPlusVersionCode" in GRADLE
 assert 'minSdk = 24' in GRADLE
+assert 'minSdk = 23' not in GRADLE
 assert WORKFLOW.count('-ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE"') >= 2
 assert "ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'" in WORKFLOW
 assert 'gh release create "$TAG"' in WORKFLOW and '--latest' in WORKFLOW

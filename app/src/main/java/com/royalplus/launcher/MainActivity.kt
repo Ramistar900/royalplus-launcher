@@ -6,9 +6,12 @@ import com.royalplus.launcher.royalsounds.RoyalUiSounds
 
 import android.Manifest
 import android.app.ActivityManager
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
@@ -26,10 +29,10 @@ import android.speech.SpeechRecognizer
 import android.view.View
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -47,6 +50,19 @@ class MainActivity : ComponentActivity() {
     private var voiceSearchAvailable by mutableStateOf(false)
     private var voiceSearchResult by mutableStateOf("")
     private var showingCrashReport = false
+    private var translationCapabilityReceiverRegistered = false
+
+    private val translationCapabilityReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            translationOverlayEnabled = false
+            val title = intent?.getStringExtra(FloatingTranslationOverlayService.EXTRA_CAPABILITY_TITLE)
+                ?.takeIf { it.isNotBlank() } ?: "الترجمة غير متاحة على هذا الجهاز"
+            val message = intent?.getStringExtra(FloatingTranslationOverlayService.EXTRA_CAPABILITY_MESSAGE)
+                ?.takeIf { it.isNotBlank() }
+                ?: "نأسف، جهازك لا يستطيع تشغيل الترجمة المحلية بصورة مستقرة."
+            showTranslationCapabilityDialog(title, message)
+        }
+    }
 
     private val voiceSearchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -250,6 +266,26 @@ class MainActivity : ComponentActivity() {
         setContentView(root)
     }
 
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter(FloatingTranslationOverlayService.ACTION_DEVICE_CAPABILITY_FAILED)
+        ContextCompat.registerReceiver(
+            this,
+            translationCapabilityReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        translationCapabilityReceiverRegistered = true
+    }
+
+    override fun onStop() {
+        if (translationCapabilityReceiverRegistered) {
+            runCatching { unregisterReceiver(translationCapabilityReceiver) }
+            translationCapabilityReceiverRegistered = false
+        }
+        super.onStop()
+    }
+
     override fun onDestroy() {
         installedAppsLoadGeneration++
         installedAppsExecutor.shutdownNow()
@@ -348,6 +384,12 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        val hardwareAssessment = TranslationDeviceCapability.checkHardware(this)
+        if (!hardwareAssessment.supported) {
+            showTranslationCapabilityDialog(hardwareAssessment.title, hardwareAssessment.message)
+            return
+        }
+
         val preferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
         if (!preferences.getBoolean(KEY_TRANSLATION_CONSENT, false)) {
             android.app.AlertDialog.Builder(this)
@@ -366,6 +408,15 @@ class MainActivity : ComponentActivity() {
             return
         }
         continueTranslationPermissionFlow()
+    }
+
+    private fun showTranslationCapabilityDialog(title: String, message: String) {
+        if (isFinishing || isDestroyed) return
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("حسناً", null)
+            .show()
     }
 
     private fun continueTranslationPermissionFlow() {

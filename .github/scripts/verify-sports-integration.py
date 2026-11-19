@@ -56,7 +56,9 @@ assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in 
 assert "sportsBall = true" in home and "RoyalRotatingFootballIcon" in home
 assert "Icons.Rounded.SportsSoccer" not in home
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
+# ONNX Runtime 1.28.2 requires Android 7.0 (API 24) or newer.
 assert "minSdk = 24" in gradle
+assert "minSdk = 23" not in gradle
 
 # Server-side authentication, global budget, query bounds and cache must remain enforced.
 assert "admin.auth.getUser(token)" in backend
