@@ -254,11 +254,13 @@ internal class Small100Translator private constructor(
             options.setIntraOpNumThreads(2)
             options.setInterOpNumThreads(1)
             var encoder: OrtSession? = null
+            var decoder: OrtSession? = null
             try {
                 encoder = environment.createSession(files.encoder.absolutePath, options)
-                val decoder = environment.createSession(files.decoder.absolutePath, options)
+                decoder = environment.createSession(files.decoder.absolutePath, options)
                 return Small100Translator(environment, encoder, decoder, tokenizer, languageToId)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
+                runCatching { decoder?.close() }
                 runCatching { encoder?.close() }
                 throw error
             } finally {
