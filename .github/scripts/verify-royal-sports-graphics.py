@@ -46,8 +46,8 @@ assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in screen
-assert 'groupBy { listOf(it.round.trim(), it.leg.trim())' in screen
-assert 'leg = fixture.optString("leg", "")' in screen
+assert 'round = league.optString("round", "")' in screen
+assert 'leg = ""' in screen
 assert "localizedFootballRound" in screen
 for tab in ("LIVE", "UPCOMING", "FINISHED", "RANKINGS"):
     assert "RoyalSportsTab." + tab in screen
