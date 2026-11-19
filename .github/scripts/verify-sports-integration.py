@@ -92,6 +92,9 @@ assert 'round = league.optString("round", "")' in sports
 assert 'groupBy { listOf(it.round.trim(), it.leg.trim())' in sports
 assert 'leg = fixture.optString("leg", "")' in sports
 assert "localizedFootballRound" in sports
+assert "localizedFootballLeagueName(leagueName, countryName, arabic, turkish)" in sports
+assert 'isSyria && isPremierLeague' in sports
+assert '"الدوري السوري الممتاز"' in sports
 
 rankings = RANKINGS.read_text(encoding="utf-8")
 for required in (

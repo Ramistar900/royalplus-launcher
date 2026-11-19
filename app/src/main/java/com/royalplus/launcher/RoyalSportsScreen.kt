@@ -772,9 +772,9 @@ internal fun RoyalSportsScreen(language: String) {
                                 val leagueName = entry.key.third.ifBlank { title }
                                 val countryName = entry.key.second
                                 val heading = if (countryName.isBlank()) {
-                                    localizedFootballName(leagueName, arabic, turkish)
+                                    localizedFootballLeagueName(leagueName, countryName, arabic, turkish)
                                 } else {
-                                    localizedFootballName(leagueName, arabic, turkish) + " • " +
+                                    localizedFootballLeagueName(leagueName, countryName, arabic, turkish) + " • " +
                                         localizedFootballName(countryName, arabic, turkish)
                                 }
                                 val countLabel = when {
@@ -1166,6 +1166,25 @@ private fun formatFixtureTime(value: String, arabic: Boolean, turkish: Boolean):
     } catch (_: Exception) {
         value
     }
+}
+
+private fun localizedFootballLeagueName(
+    leagueName: String,
+    countryName: String,
+    arabic: Boolean,
+    turkish: Boolean
+): String {
+    val isSyria = countryName.trim().equals("Syria", ignoreCase = true)
+    val isPremierLeague = leagueName.trim().equals("Premier League", ignoreCase = true) ||
+        leagueName.trim().equals("Syrian Premier League", ignoreCase = true)
+    if (isSyria && isPremierLeague) {
+        return when {
+            arabic -> "الدوري السوري الممتاز"
+            turkish -> "Suriye Premier Ligi"
+            else -> "Syrian Premier League"
+        }
+    }
+    return localizedFootballName(leagueName, arabic, turkish)
 }
 
 private fun localizedFootballName(name: String, arabic: Boolean, turkish: Boolean): String {
