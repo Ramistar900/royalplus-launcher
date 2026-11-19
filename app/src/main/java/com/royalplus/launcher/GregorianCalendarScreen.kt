@@ -269,6 +269,7 @@ internal fun GregorianCalendarScreen(language: String) {
                         cells.chunked(7).forEach { week ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 week.forEach { day ->
+                                    var dayFocused by remember(day, visibleMonth.timeInMillis) { mutableStateOf(false) }
                                     val dateReminders = if (day == null) emptyList() else reminders.filter {
                                         it.occursOn(visibleMonth.get(Calendar.YEAR), visibleMonth.get(Calendar.MONTH), day)
                                     }
@@ -293,23 +294,28 @@ internal fun GregorianCalendarScreen(language: String) {
                                             .background(
                                                 when {
                                                     isToday -> RoyalCalendarPalette.Gold
+                                                    dayFocused -> RoyalCalendarPalette.Blue.copy(alpha = 0.30f)
                                                     isSelected -> RoyalCalendarPalette.Turquoise.copy(alpha = 0.15f)
                                                     else -> Color(0xFF151D27)
                                                 }
                                             )
                                             .then(
-                                                if (isSelected && !isToday) Modifier.border(
-                                                    1.dp,
-                                                    RoyalCalendarPalette.Turquoise,
-                                                    RoundedCornerShape(10.dp)
-                                                ) else Modifier
+                                                when {
+                                                    dayFocused -> Modifier.border(1.5.dp, RoyalCalendarPalette.OatCrystal, RoundedCornerShape(10.dp))
+                                                    isSelected && !isToday -> Modifier.border(
+                                                        1.dp,
+                                                        RoyalCalendarPalette.Turquoise,
+                                                        RoundedCornerShape(10.dp)
+                                                    )
+                                                    else -> Modifier
+                                                }
                                             )
                                             .then(
                                                 if (day != null) Modifier.clickable {
                                                     selectedDateMillis = (visibleMonth.clone() as Calendar).apply {
                                                         set(Calendar.DAY_OF_MONTH, day)
                                                     }.timeInMillis
-                                                }.focusable() else Modifier
+                                                }.onFocusChanged { dayFocused = it.isFocused }.focusable() else Modifier
                                             ),
                                         contentAlignment = Alignment.Center
                                     ) {
