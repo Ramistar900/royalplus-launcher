@@ -33,6 +33,7 @@ assert "RoyalSportsMatchBucket.LIVE" in sports
 assert "RoyalSportsMatchBucket.NOT_STARTED" in sports
 assert "RoyalSportsMatchBucket.PLAYED" in sports
 assert "media.api-sports.io" in sports
+assert "api.fifa.com" in sports
 assert "leagueLogo = league.optString(\"logo\", \"\")" in sports
 assert "countryFlag = league.optString(\"flag\", \"\")" in sports
 assert "homeLogo = home.optString(\"logo\", \"\")" in sports
@@ -75,6 +76,8 @@ assert "verify_jwt" not in backend  # Gateway verification is configured as true
 assert "fifa_rankings" in backend
 assert "rankingschedules/all" in backend
 assert "rankingsbyschedule" in backend
+assert "https://api.fifa.com/api/v3/picture/flags-sq-2/" in backend
+assert "countryCode = /^[A-Z]{3}$/.test(code)" in backend
 assert "resource === \"standings\"" in backend
 assert "resource !== \"fifa_rankings\"" in backend
 
