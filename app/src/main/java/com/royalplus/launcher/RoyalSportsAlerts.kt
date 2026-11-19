@@ -250,16 +250,17 @@ internal class RoyalSportsAlertsWorker(
             val previousHome = previousParts?.getOrNull(1)?.toIntOrNull()
             val previousAway = previousParts?.getOrNull(2)?.toIntOrNull()
 
+            val homeScored = previousHome != null && home > previousHome
+            val awayScored = previousAway != null && away > previousAway
             if (
                 sendGoalAlerts &&
-                previousHome != null &&
-                previousAway != null &&
-                (home != previousHome || away != previousAway) &&
+                (homeScored || awayScored) &&
                 status in LIVE_STATUSES
             ) {
                 val scoringTeam = when {
-                    home > previousHome -> fixture.homeTeam
-                    away > previousAway -> fixture.awayTeam
+                    homeScored && awayScored -> fixture.homeTeam + " / " + fixture.awayTeam
+                    homeScored -> fixture.homeTeam
+                    awayScored -> fixture.awayTeam
                     else -> ""
                 }
                 val language = RoyalSportsFavorites.language(context)
@@ -417,12 +418,22 @@ internal class RoyalSportsMatchReminderWorker(
         if (kickoff <= 0L) return Result.success()
 
         val language = RoyalSportsFavorites.language(context)
-        val title = localized(
-            language,
-            "مباراة فريقك المفضل بعد 30 دقيقة",
-            "Favori takımının maçı 30 dakika sonra",
-            "Your favorite team's match starts in 30 minutes"
-        )
+        val minutesUntilKickoff = TimeUnit.MILLISECONDS.toMinutes(kickoff - System.currentTimeMillis())
+        val title = if (minutesUntilKickoff <= 30L) {
+            localized(
+                language,
+                "مباراة فريقك المفضل ستبدأ قريباً",
+                "Favori takımının maçı yakında başlayacak",
+                "Your favorite team's match is starting soon"
+            )
+        } else {
+            localized(
+                language,
+                "مباراة فريقك المفضل بعد 30 دقيقة",
+                "Favori takımının maçı 30 dakika sonra",
+                "Your favorite team's match starts in 30 minutes"
+            )
+        }
         val details = if (System.currentTimeMillis() >= kickoff) {
             localized(language, "موعد مباراة: $home × $away", "Maç başladı: $home × $away", "Match time: $home × $away")
         } else {
