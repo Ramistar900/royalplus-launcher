@@ -147,7 +147,7 @@ internal fun RoyalDeviceSettingsSection(
                 Box(
                     Modifier.clip(RoundedCornerShape(10.dp))
                         .then(royalGlassFocus(RoundedCornerShape(10.dp)))
-                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.20f) else Color(0xFF080A0F))
+                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.20f) else RoyalColors.Surface)
                         .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.28f), RoundedCornerShape(10.dp))
                         .clickable { RoyalInterfaceQualitySettings.select(context, preset) }
                         .padding(horizontal = 13.dp, vertical = 10.dp)
@@ -270,7 +270,7 @@ private fun SettingsInfoRow(
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-        .background(Color(0xFF080A0F))
+        .background(RoyalColors.Surface)
         .border(1.dp, RoyalColors.Gold.copy(alpha = .28f), RoundedCornerShape(12.dp))
         .then(royalGlassFocus(RoundedCornerShape(12.dp)))
         .clickable(onClick = {
