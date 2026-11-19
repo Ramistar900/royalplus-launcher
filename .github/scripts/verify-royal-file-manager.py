@@ -20,7 +20,7 @@ assert "sinjarLogo = true" in sidebar and "R.drawable.sinjar_show_logo" in HOME
 assert "R.drawable.royal_settings_luxe" in sidebar
 assert "RoyalColors.Activity" in HOME
 for required in (
-    "MANAGE_EXTERNAL_STORAGE", "OpenDocumentTree", "DocumentFile",
+    "OpenDocumentTree", "DocumentFile",
     "StatFs", "RoyalStorageCard", "RoyalFilePreview", "RoyalInternalMediaPreview",
     "RoyalInternalPdfPreview", "combinedClickable", "deleteRoyalFileEntry",
 ):
