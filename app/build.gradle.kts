@@ -90,7 +90,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("com.google.mlkit:translate:17.0.3")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.compose.ui:ui")
