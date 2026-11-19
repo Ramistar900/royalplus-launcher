@@ -79,7 +79,9 @@ assert "verify_jwt" not in backend  # Gateway verification is configured as true
 assert "fifa_rankings" in backend
 assert 'view === "upcoming" || params.has("next")' in backend
 assert 'view === "finished" || params.has("last")' in backend
+assert 'view === "live" && params.get("live") !== "all"' in backend
 assert 'incoming.searchParams.get("view")' in backend
+assert 'if (cacheKey.length > 512)' in backend
 assert 'key === "resource" || key === "view"' in backend
 assert 'cacheKey = `${resource}:${view || "default"}:${canonicalQuery}`' in backend
 assert "rankingschedules/all" in backend
