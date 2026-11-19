@@ -1203,7 +1203,9 @@ private fun SportsTabButton(
 private fun SportsFixtureCard(
     fixture: RoyalSportsFixture,
     arabic: Boolean,
-    turkish: Boolean
+    turkish: Boolean,
+    favoriteTeamIds: Set<Int>,
+    onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit
 ) {
     val shape = RoundedCornerShape(15.dp)
     val statusText = when (fixture.status) {
@@ -1316,6 +1318,13 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            SportsFavoriteTeamToggle(
+                selected = fixture.homeTeamId in favoriteTeamIds,
+                enabled = fixture.homeTeamId > 0,
+                onClick = {
+                    onToggleFavorite(RoyalSportsFavoriteTeam(fixture.homeTeamId, fixture.homeTeam, fixture.homeLogo))
+                }
+            )
             RoyalSportsIcon(RoyalSportsGlyph.GOAL, modifier = Modifier.size(royalSportsIconSize(26.dp)), contentDescription = score)
             Text(score, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(
@@ -1327,6 +1336,13 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            SportsFavoriteTeamToggle(
+                selected = fixture.awayTeamId in favoriteTeamIds,
+                enabled = fixture.awayTeamId > 0,
+                onClick = {
+                    onToggleFavorite(RoyalSportsFavoriteTeam(fixture.awayTeamId, fixture.awayTeam, fixture.awayLogo))
+                }
+            )
             RoyalSportsProviderImage(
                 url = fixture.awayLogo,
                 modifier = Modifier.size(royalSportsIconSize(30.dp)),
@@ -1335,6 +1351,31 @@ private fun SportsFixtureCard(
             )
         }
     }
+}
+
+@Composable
+private fun SportsFavoriteTeamToggle(
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Text(
+        text = if (selected) "★" else "☆",
+        color = when {
+            !enabled -> RoyalColors.Muted
+            selected -> RoyalColors.Gold
+            else -> Color(0xFFB7D7D0)
+        },
+        fontSize = 16.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.size(25.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) Color(0x553F6A45) else Color(0x33264C3B))
+            .border(1.dp, if (selected) Color(0x887FE6A5) else Color(0x334F9473), RoundedCornerShape(50))
+            .clickable(enabled = enabled, onClick = onClick)
+            .focusable()
+            .padding(2.dp)
+    )
 }
 
 @Composable
