@@ -298,11 +298,10 @@ internal object RoyalSportsRepository {
         val timeZoneParam = "timezone=" + URLEncoder.encode(timezone, "UTF-8")
         return when (tab) {
             RoyalSportsTab.LIVE -> "live=all&$timeZoneParam"
-            RoyalSportsTab.UPCOMING -> "next=20&$timeZoneParam"
-            RoyalSportsTab.FINISHED -> {
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                "date=$today&status=FT-AET-PEN-AWD-WO-CANC-ABD&$timeZoneParam"
-            }
+            // A wider global window reduces omissions of less-followed domestic leagues.
+            RoyalSportsTab.UPCOMING -> "next=99&$timeZoneParam"
+            // Show recent completed fixtures, not only matches from the current day.
+            RoyalSportsTab.FINISHED -> "last=99&$timeZoneParam"
             RoyalSportsTab.RANKINGS -> error("rankings_are_not_fixtures")
         }
     }
@@ -341,7 +340,7 @@ internal object RoyalSportsRepository {
                     round = league.optString("round", ""),
                     leagueId = league.optInt("id", 0),
                     season = league.optInt("season", 0),
-                    leg = fixture.optString("leg", "")
+                    leg = ""
                 )
             )
         }
