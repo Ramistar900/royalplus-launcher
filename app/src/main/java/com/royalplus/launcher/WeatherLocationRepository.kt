@@ -314,13 +314,14 @@ internal object RoyalWeatherRepository {
                         longitude = city.longitude
                     }
                     try {
-                        val updated = fetchCurrentWeather(appContext, location, city.displayName)
+                        val updated = fetchCurrentWeather(
+                            appContext, location, city.displayName, saveAsLastLocation = false
+                        )
                         if (updated.forecast.size >= 7) hasUsableForecast = true
                     } catch (_: Exception) {
                         // Keep this city's previous cache and continue refreshing the others.
-                        if (readWeatherCache(appContext, location)?.first?.forecast?.size ?: 0 >= 7) {
-                            hasUsableForecast = true
-                        }
+                        val cachedForecastSize = readWeatherCache(appContext, location)?.first?.forecast?.size ?: 0
+                        if (cachedForecastSize >= 7) hasUsableForecast = true
                     }
                 }
                 return hasUsableForecast
@@ -606,9 +607,10 @@ internal object RoyalWeatherRepository {
     private fun fetchCurrentWeather(
         context: Context,
         location: Location,
-        city: String
+        city: String,
+        saveAsLastLocation: Boolean = true
     ): WeatherUiState {
-        saveLastLocation(context, location)
+        if (saveAsLastLocation) saveLastLocation(context, location)
         try {
             val weather = fetchOpenMeteo(location, city)
             if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
