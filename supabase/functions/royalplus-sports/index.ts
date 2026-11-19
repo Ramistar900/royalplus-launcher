@@ -218,8 +218,8 @@ Deno.serve(async (req: Request) => {
     const oldestAllowed = utcToday - (view === "upcoming" ? 1 : 8) * dayMs;
     const newestAllowed = utcToday + (view === "finished" ? 1 : 8) * dayMs;
     if (
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(from) ||
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(to) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
       !Number.isFinite(fromTime) ||
       !Number.isFinite(toTime) ||
       new Date(fromTime).toISOString().slice(0, 10) !== from ||
