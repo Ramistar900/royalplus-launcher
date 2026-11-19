@@ -25,7 +25,7 @@ for existing_setting in (
     "launcher_show_date", "launcher_language", "launcher_font",
     "ACTION_WIFI_SETTINGS", "RoyalDeviceSettingsSection", "launcher_theme_mode",
     "launcher_text_scale", "RoyalPrivacySettingsSection", "RoyalAboutSettingsSection",
-    "onChooseDefaultHome", "Clear ROYAL+ cache",
+    "onChooseDefaultHome",
 ):
     assert existing_setting in HOME, f"Existing setting was removed: {existing_setting}"
 
@@ -36,6 +36,7 @@ assert "Intent.ACTION_SEND" in SHARE
 assert "noPublishedRelease" in SHARE and "failed = true" in SHARE
 DEVICE_SETTINGS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
 assert "showDeviceSettings: Boolean = true" in DEVICE_SETTINGS
+assert "Clear ROYAL+ cache" in DEVICE_SETTINGS
 assert "showAudioSettings: Boolean = true" in DEVICE_SETTINGS
 assert "showDeviceSettings = false" in HOME and "showAudioSettings = true" in HOME
 assert "showDeviceSettings = true" in HOME and "showAudioSettings = false" in HOME
