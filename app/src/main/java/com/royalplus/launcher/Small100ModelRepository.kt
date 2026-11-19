@@ -103,6 +103,12 @@ internal object Small100ModelRepository {
         onProgress: (String) -> Unit
     ) {
         val partial = File(destination.parentFile, destination.name + ".part")
+        if (partial.isFile && partial.length() in spec.minimumBytes..spec.maximumBytes) {
+            if (!partial.renameTo(destination)) {
+                throw IllegalStateException("تعذر إكمال حفظ ${spec.name}.")
+            }
+            return
+        }
         var existingBytes = if (partial.isFile) partial.length() else 0L
         if (existingBytes !in 0L until spec.maximumBytes) {
             partial.delete()
