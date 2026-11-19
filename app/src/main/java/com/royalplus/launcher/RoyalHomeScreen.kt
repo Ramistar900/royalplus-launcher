@@ -884,7 +884,7 @@ internal fun RoyalHomeScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(Modifier.height(8.dp))
-                            RoyalSettingsNavigationItem(Icons.Rounded.Palette, when (selectedLanguage) { "en" -> "Appearance"; "tr" -> "Görünüm"; else -> "مظهر الشاشة" }, selectedSettingsCategory == "appearance") { navigateSettingsSection("appearance") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Palette, when (selectedLanguage) { "en" -> "Appearance"; "tr" -> "Görünüm"; else -> "مظهر الشاشة" }, selectedSettingsCategory == "appearance", focusRequester = settingsInitialFocusRequester) { navigateSettingsSection("appearance") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Tune, when (selectedLanguage) { "en" -> "Backgrounds & motion"; "tr" -> "Arka plan ve hareket"; else -> "الخلفيات والحركة" }, selectedSettingsCategory == "motion") { navigateSettingsSection("motion") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Apps, when (selectedLanguage) { "en" -> "Icons & launcher"; "tr" -> "Simgeler ve başlatıcı"; else -> "الأيقونات والواجهة" }, selectedSettingsCategory == "icons") { navigateSettingsSection("icons") }
                             RoyalSettingsNavigationItem(Icons.Rounded.MusicNote, when (selectedLanguage) { "en" -> "Sounds & effects"; "tr" -> "Sesler ve efektler"; else -> "الأصوات والمؤثرات" }, selectedSettingsCategory == "sounds") { navigateSettingsSection("sounds") }
@@ -927,7 +927,6 @@ internal fun RoyalHomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
-                                .focusRequester(settingsInitialFocusRequester)
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     isAdhanEnabled = !isAdhanEnabled
@@ -1489,11 +1488,13 @@ private fun RoyalSettingsNavigationItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     selected: Boolean,
+    focusRequester: FocusRequester? = null,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(12.dp)
     Row(
         modifier = Modifier.fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clip(shape)
             .background(
                 if (selected) Color(0xFF0B555B).copy(alpha = 0.42f)
