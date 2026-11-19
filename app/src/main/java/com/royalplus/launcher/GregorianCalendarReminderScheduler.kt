@@ -194,6 +194,9 @@ internal object GregorianCalendarReminderScheduler {
             event.set(Calendar.DAY_OF_MONTH, targetDay)
             triggerAt = event.timeInMillis - reminder.leadMinutes.coerceAtLeast(0) * 60_000L
             attempts++
+            if (event.timeInMillis > nowMillis && triggerAt <= nowMillis) {
+                return nowMillis + 5_000L
+            }
         }
         return triggerAt.takeIf { it > nowMillis }
     }
