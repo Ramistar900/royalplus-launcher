@@ -211,8 +211,10 @@ internal data class RoyalSportsFixture(
     val country: String,
     val leagueLogo: String,
     val countryFlag: String,
+    val homeTeamId: Int,
     val homeTeam: String,
     val homeLogo: String,
+    val awayTeamId: Int,
     val awayTeam: String,
     val awayLogo: String,
     val homeGoals: Int?,
@@ -302,7 +304,10 @@ internal object RoyalSportsRepository {
             val saved = context.getSharedPreferences(LOCAL_CACHE_PREFS, Context.MODE_PRIVATE)
                 .getString("payload_$cacheKey", null)
             if (saved != null) {
-                JSONObject(saved)
+                val cachedEnvelope = JSONObject(saved)
+                val cache = cachedEnvelope.optJSONObject("cache") ?: JSONObject()
+                cache.put("hit", true).put("stale", true)
+                cachedEnvelope.put("cache", cache)
             } else {
                 throw error
             }
@@ -358,8 +363,10 @@ internal object RoyalSportsRepository {
                     country = league.optString("country", ""),
                     leagueLogo = league.optString("logo", ""),
                     countryFlag = league.optString("flag", ""),
+                    homeTeamId = home.optInt("id", 0),
                     homeTeam = home.optString("name", "Home"),
                     homeLogo = home.optString("logo", ""),
+                    awayTeamId = away.optInt("id", 0),
                     awayTeam = away.optString("name", "Away"),
                     awayLogo = away.optString("logo", ""),
                     homeGoals = if (goals.isNull("home")) null else goals.optInt("home"),
