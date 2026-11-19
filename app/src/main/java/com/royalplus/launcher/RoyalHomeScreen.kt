@@ -1476,19 +1476,6 @@ internal fun RoyalHomeScreen(
                         )
                         Spacer(Modifier.height(14.dp))
                         }
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(RoyalColors.Gold.copy(alpha = 0.14f))
-                                .border(1.dp, RoyalColors.Gold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-                                .then(royalGlassFocus(RoundedCornerShape(12.dp)))
-                                .clickable { showWallpaperSettings = false }
-                                
-                                .padding(horizontal = 24.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(when (selectedLanguage) { "en" -> "Done"; "tr" -> "Tamam"; else -> "تم" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                        }
                     }
                     }
                 }
