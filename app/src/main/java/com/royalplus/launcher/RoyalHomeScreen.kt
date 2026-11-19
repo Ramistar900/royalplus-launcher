@@ -24,6 +24,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -102,7 +105,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -196,6 +202,16 @@ internal fun RoyalHomeScreen(
     }
     var showWallpaperSettings by remember { mutableStateOf(false) }
     val settingsInitialFocusRequester = remember { FocusRequester() }
+    val settingsScrollState = rememberScrollState()
+    val settingsCoroutineScope = rememberCoroutineScope()
+    val settingsSectionOffsets = remember { mutableMapOf<String, Int>() }
+    var selectedSettingsCategory by remember { mutableStateOf("prayer") }
+    val navigateSettingsSection: (String) -> Unit = { section ->
+        selectedSettingsCategory = section
+        settingsCoroutineScope.launch {
+            settingsScrollState.animateScrollTo((settingsSectionOffsets[section] ?: 0).coerceAtLeast(0))
+        }
+    }
     LaunchedEffect(showWallpaperSettings) {
         if (showWallpaperSettings) {
             withFrameNanos { }
@@ -839,23 +855,75 @@ internal fun RoyalHomeScreen(
                         .padding(horizontal = 28.dp, vertical = 22.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .fillMaxHeight(0.92f)
                             .clip(RoundedCornerShape(24.dp))
                             .background(Color(0xFF10131B))
                             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
-                            .padding(22.dp)
+                            .padding(18.dp)
                             .focusGroup()
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Column(
+                            modifier = Modifier
+                                .width(205.dp)
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            Text("ROYAL+", color = RoyalColors.Gold, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                when (selectedLanguage) {
+                                    "en" -> "SETTINGS"
+                                    "tr" -> "AYARLAR"
+                                    else -> "الإعدادات"
+                                },
+                                color = RoyalColors.Pearl,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            RoyalSettingsNavigationItem(Icons.Rounded.Palette, when (selectedLanguage) { "en" -> "Appearance"; "tr" -> "Görünüm"; else -> "مظهر الشاشة" }, selectedSettingsCategory == "appearance") { navigateSettingsSection("appearance") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Tune, when (selectedLanguage) { "en" -> "Backgrounds & motion"; "tr" -> "Arka plan ve hareket"; else -> "الخلفيات والحركة" }, selectedSettingsCategory == "motion") { navigateSettingsSection("motion") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Apps, when (selectedLanguage) { "en" -> "Icons & launcher"; "tr" -> "Simgeler ve başlatıcı"; else -> "الأيقونات والواجهة" }, selectedSettingsCategory == "icons") { navigateSettingsSection("icons") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.MusicNote, when (selectedLanguage) { "en" -> "Sounds & effects"; "tr" -> "Sesler ve efektler"; else -> "الأصوات والمؤثرات" }, selectedSettingsCategory == "sounds") { navigateSettingsSection("sounds") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.NotificationsActive, when (selectedLanguage) { "en" -> "Prayer & Adhan"; "tr" -> "Namaz ve ezan"; else -> "الصلاة والأذان" }, selectedSettingsCategory == "prayer") { navigateSettingsSection("prayer") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Schedule, when (selectedLanguage) { "en" -> "Date & time"; "tr" -> "Tarih ve saat"; else -> "التاريخ والساعة" }, selectedSettingsCategory == "clock") { navigateSettingsSection("clock") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Language, when (selectedLanguage) { "en" -> "Language & fonts"; "tr" -> "Dil ve yazı tipleri"; else -> "اللغة والخطوط" }, selectedSettingsCategory == "language") { navigateSettingsSection("language") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Wifi, when (selectedLanguage) { "en" -> "Network & device"; "tr" -> "Ağ ve cihaz"; else -> "الشبكة والجهاز" }, selectedSettingsCategory == "device") { navigateSettingsSection("device") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Info, when (selectedLanguage) { "en" -> "Share & updates"; "tr" -> "Paylaşım ve güncellemeler"; else -> "مشاركة التطبيق والتحديثات" }, selectedSettingsCategory == "share") { navigateSettingsSection("share") }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(RoyalColors.Gold.copy(alpha = 0.15f))
+                                    .border(1.dp, RoyalColors.Gold.copy(alpha = 0.62f), RoundedCornerShape(12.dp))
+                                    .then(royalGlassFocus(RoundedCornerShape(12.dp)))
+                                    .clickable { showWallpaperSettings = false }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(when (selectedLanguage) { "en" -> "Done"; "tr" -> "Tamam"; else -> "تم" }, color = RoyalColors.Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .verticalScroll(settingsScrollState)
+                                .focusGroup(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                         Text(when (selectedLanguage) { "en" -> "Customize interface"; "tr" -> "Arayüzü özelleştir"; else -> "تخصيص الواجهة" }, color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
                         Text(when (selectedLanguage) { "en" -> "Choose wallpaper and app icon style"; "tr" -> "Duvar kâğıdını ve uygulama simgelerini seçin"; else -> "اختر الخلفية وشكل أيقونات التطبيقات" }, color = RoyalColors.Pearl, fontSize = 14.sp)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .onGloballyPositioned { settingsSectionOffsets["prayer"] = it.positionInParent().y.roundToInt() }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
@@ -950,7 +1018,11 @@ internal fun RoyalHomeScreen(
                             )
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "ROYAL Motion • Background movement"; "tr" -> "ROYAL Motion • Arka plan hareketi"; else -> "حيوية الخلفيات • ROYAL Motion" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (selectedLanguage) { "en" -> "ROYAL Motion • Background movement"; "tr" -> "ROYAL Motion • Arka plan hareketi"; else -> "حيوية الخلفيات • ROYAL Motion" },
+                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["motion"] = it.positionInParent().y.roundToInt() },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
                         Text(when (selectedLanguage) { "en" -> "Enable or freeze each background independently"; "tr" -> "Her arka planı ayrı ayrı hareket ettirin veya sabitleyin"; else -> "شغّل الحركة أو ثبّت كل خلفية بشكل مستقل" }, color = RoyalColors.Muted, fontSize = 11.sp)
                         listOf(
                             Triple("home", if (selectedLanguage == "en") "Home background" else if (selectedLanguage == "tr") "Ana ekran" else "الخلفية الرئيسية", homeMotionEnabled),
@@ -976,7 +1048,11 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.height(6.dp))
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" },
+                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["appearance"] = it.positionInParent().y.roundToInt() },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(Modifier.height(8.dp))
                         val homeWallpapers = listOf(
                             Triple("color", if (selectedLanguage == "en") "Colorful" else if (selectedLanguage == "tr") "Renkli" else "ملونة", R.drawable.royal_color_wallpaper),
@@ -1017,6 +1093,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(
                             when (selectedLanguage) { "en" -> "Ambient sound & background effects"; "tr" -> "Ortam sesleri ve arka plan efektleri"; else -> "أصوات الطبيعة ومؤثرات الخلفيات" },
+                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["sounds"] = it.positionInParent().y.roundToInt() },
                             color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.SemiBold
                         )
                         RoyalFeatureToggleRow(
@@ -1156,7 +1233,11 @@ internal fun RoyalHomeScreen(
                             Spacer(Modifier.height(8.dp))
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (selectedLanguage) { "en" -> "Icon styles"; "tr" -> "Simge stilleri"; else -> "أشكال الأيقونات" },
+                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["icons"] = it.positionInParent().y.roundToInt() },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconStyleChoice(Modifier.weight(1f), when (selectedLanguage) { "en" -> "Rounded"; "tr" -> "Yuvarlak"; else -> "ناعم" }, "rounded", selectedIconStyle, icon = Icons.Rounded.Palette) {
@@ -1227,7 +1308,11 @@ internal fun RoyalHomeScreen(
                             Icon(Icons.Rounded.Schedule, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(when (selectedLanguage) { "en" -> "Clock format"; "tr" -> "Saat biçimi"; else -> "تنسيق الساعة" }, color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    when (selectedLanguage) { "en" -> "Clock format"; "tr" -> "Saat biçimi"; else -> "تنسيق الساعة" },
+                                    modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["clock"] = it.positionInParent().y.roundToInt() },
+                                    color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                                )
                                 Text(if (use24HourClock) "24 h" else "12 h", color = RoyalColors.Gold, fontSize = 12.sp)
                             }
                             Text(if (use24HourClock) "24H" else "12H", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1258,7 +1343,11 @@ internal fun RoyalHomeScreen(
                             Text(if (showDateOnHome) "ON" else "OFF", color = RoyalColors.Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "Interface language"; "tr" -> "Arayüz dili"; else -> "لغة الواجهة" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (selectedLanguage) { "en" -> "Interface language"; "tr" -> "Arayüz dili"; else -> "لغة الواجهة" },
+                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["language"] = it.positionInParent().y.roundToInt() },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             IconStyleChoice(Modifier.weight(1f), "العربية", "rounded", if (selectedLanguage == "ar") "rounded" else "", icon = Icons.Rounded.Language) {
@@ -1303,7 +1392,11 @@ internal fun RoyalHomeScreen(
                             }
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(when (selectedLanguage) { "en" -> "Network & device settings"; "tr" -> "Ağ ve cihaz ayarları"; else -> "الشبكة وإعدادات الجهاز" }, color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (selectedLanguage) { "en" -> "Network & device settings"; "tr" -> "Ağ ve cihaz ayarları"; else -> "الشبكة وإعدادات الجهاز" },
+                            modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["device"] = it.positionInParent().y.roundToInt() },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconStyleChoice(Modifier.weight(1f), "Wi‑Fi", "rounded", "", iconRes = R.drawable.royal_wifi) {
@@ -1344,6 +1437,13 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(14.dp))
                         RoyalDeviceSettingsSection(language = selectedLanguage)
                         Spacer(Modifier.height(14.dp))
+                        RoyalShareUpdatesSection(
+                            language = selectedLanguage,
+                            modifier = Modifier.fillMaxWidth().onGloballyPositioned {
+                                settingsSectionOffsets["share"] = it.positionInParent().y.roundToInt()
+                            }
+                        )
+                        Spacer(Modifier.height(14.dp))
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
@@ -1380,6 +1480,52 @@ internal fun RoyalHomeScreen(
             }
         }
     }
+    }
+}
+
+@Composable
+private fun RoyalSettingsNavigationItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(shape)
+            .background(
+                if (selected) Color(0xFF0B555B).copy(alpha = 0.42f)
+                else Color(0xFF080A0F)
+            )
+            .border(
+                1.dp,
+                if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.22f),
+                shape
+            )
+            .then(royalGlassFocus(shape))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (selected) RoyalColors.Gold else RoyalColors.Pearl.copy(alpha = 0.82f),
+            modifier = Modifier.size(21.dp)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            title,
+            color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 2
+        )
+        if (selected) {
+            Spacer(Modifier.weight(1f))
+            Text("•", color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
