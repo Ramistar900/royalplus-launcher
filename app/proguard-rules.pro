@@ -2,3 +2,7 @@
 # Keep native-recognizer classes and fields in minified release APKs.
 -keep class com.k2fsa.sherpa.onnx.** { *; }
 -keep interface com.k2fsa.sherpa.onnx.** { *; }
+
+# ONNX Runtime exposes native methods through JNI.
+-keep class ai.onnxruntime.** { *; }
+-keep interface ai.onnxruntime.** { *; }
