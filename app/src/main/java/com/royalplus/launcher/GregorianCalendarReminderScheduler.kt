@@ -169,6 +169,12 @@ internal object GregorianCalendarReminderScheduler {
             set(Calendar.MILLISECOND, 0)
         }
         var triggerAt = event.timeInMillis - reminder.leadMinutes.coerceAtLeast(0) * 60_000L
+        if (event.timeInMillis <= nowMillis) {
+            if (reminder.repeat == CalendarReminderRepeat.NONE) return null
+        } else if (triggerAt <= nowMillis) {
+            // The chosen advance warning time has passed, but the event itself is still upcoming.
+            return nowMillis + 5_000L
+        }
         if (reminder.repeat == CalendarReminderRepeat.NONE) {
             return triggerAt.takeIf { it > nowMillis }
         }
