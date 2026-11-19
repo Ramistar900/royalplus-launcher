@@ -17,14 +17,18 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
 
 type SportsResource = "fixtures" | "standings" | "fifa_rankings";
 
-function cacheTtlSeconds(resource: SportsResource, params: URLSearchParams): number {
+function cacheTtlSeconds(
+  resource: SportsResource,
+  params: URLSearchParams,
+  view: string,
+): number {
   if (resource === "fifa_rankings") return 24 * 60 * 60;
   if (resource === "standings") return 60 * 60;
-  // Protect the shared 90/day provider budget: live scores refresh every 20 min,
-  // upcoming fixtures are cached 3 hours, and finished results 6 hours.
-  if (params.get("live") === "all" || params.has("date")) return 20 * 60;
-  if (params.has("next") || params.has("from") || params.has("to")) return 3 * 60 * 60;
-  if (params.has("last")) return 6 * 60 * 60;
+  // Keep the shared 90/day provider budget bounded while preserving fresh live scores.
+  if (view === "live" || params.get("live") === "all" || params.has("date")) return 20 * 60;
+  if (view === "upcoming" || params.has("next")) return 3 * 60 * 60;
+  if (view === "finished" || params.has("last")) return 6 * 60 * 60;
+  if (params.has("from") || params.has("to")) return 3 * 60 * 60;
   return 10 * 60;
 }
 
@@ -171,6 +175,15 @@ Deno.serve(async (req: Request) => {
     return json({ error: "server_configuration_incomplete" }, 503);
   }
 
+  // "view" controls cache policy only; it is never forwarded to API-Football.
+  const view = incoming.searchParams.get("view") ?? "";
+  if (resource === "fixtures" && !["", "live", "upcoming", "finished"].includes(view)) {
+    return json({ error: "unsupported_fixture_view" }, 400);
+  }
+  if (resource !== "fixtures" && view !== "") {
+    return json({ error: "view_not_supported_for_resource" }, 400);
+  }
+
   const allowedByResource: Record<SportsResource, Set<string>> = {
     fixtures: new Set([
       "date", "league", "season", "team", "id", "live", "last", "next",
@@ -181,7 +194,7 @@ Deno.serve(async (req: Request) => {
   };
   const params = new URLSearchParams();
   for (const [key, value] of incoming.searchParams.entries()) {
-    if (key === "resource") continue;
+    if (key === "resource" || key === "view") continue;
     if (!allowedByResource[resource].has(key) || value.length > 100) {
       return json({ error: "unsupported_query_parameter", parameter: key }, 400);
     }
@@ -193,6 +206,12 @@ Deno.serve(async (req: Request) => {
     const season = params.get("season") ?? "";
     if (!/^\d{1,6}$/.test(league) || !/^\d{4}$/.test(season)) {
       return json({ error: "standings_require_league_and_season" }, 400);
+    }
+  } else if (resource === "fixtures" && (view === "upcoming" || view === "finished")) {
+    const from = params.get("from") ?? "";
+    const to = params.get("to") ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+      return json({ error: "fixture_view_requires_valid_date_range" }, 400);
     }
   } else if (resource === "fifa_rankings") {
     const gender = params.get("gender") ?? "1";
@@ -213,8 +232,8 @@ Deno.serve(async (req: Request) => {
   if (canonicalQuery.length + resource.length + 1 > 512) {
     return json({ error: "query_too_large" }, 400);
   }
-  const cacheKey = `${resource}:${canonicalQuery}`;
-  const ttlSeconds = cacheTtlSeconds(resource, params);
+  const cacheKey = `${resource}:${view || "default"}:${canonicalQuery}`;
+  const ttlSeconds = cacheTtlSeconds(resource, params, view);
   const now = new Date();
 
   const { data: cached, error: cacheReadError } = await admin
