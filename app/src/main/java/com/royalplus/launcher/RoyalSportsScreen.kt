@@ -63,6 +63,7 @@ import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -308,15 +309,29 @@ internal object RoyalSportsRepository {
         }
     }
 
+    private fun dateOffset(days: Int): String {
+        val timeZone = TimeZone.getDefault()
+        val calendar = Calendar.getInstance(timeZone, Locale.US).apply {
+            add(Calendar.DAY_OF_YEAR, days)
+        }
+        return SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            this.timeZone = timeZone
+        }.format(calendar.time)
+    }
+
     private fun buildQuery(tab: RoyalSportsTab): String {
         val timezone = TimeZone.getDefault().id
         val timeZoneParam = "timezone=" + URLEncoder.encode(timezone, "UTF-8")
+        val today = dateOffset(0)
         return when (tab) {
-            RoyalSportsTab.LIVE -> "live=all&$timeZoneParam"
-            // A wider global window reduces omissions of less-followed domestic leagues.
-            RoyalSportsTab.UPCOMING -> "next=99&$timeZoneParam"
-            // Show recent completed fixtures, not only matches from the current day.
-            RoyalSportsTab.FINISHED -> "last=99&$timeZoneParam"
+            RoyalSportsTab.LIVE -> "view=live&live=all&$timeZoneParam"
+            // Date ranges return every scheduled fixture in the window rather than
+            // only the next 99 worldwide, so smaller domestic leagues are not cut off.
+            RoyalSportsTab.UPCOMING ->
+                "view=upcoming&from=$today&to=${dateOffset(7)}&$timeZoneParam"
+            // Keep a full recent week of results across all competitions.
+            RoyalSportsTab.FINISHED ->
+                "view=finished&from=${dateOffset(-7)}&to=$today&$timeZoneParam"
             RoyalSportsTab.RANKINGS -> error("rankings_are_not_fixtures")
         }
     }
