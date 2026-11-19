@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SPORTS = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsScreen.kt"
 RANKINGS = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsRankings.kt"
+ALERTS = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsAlerts.kt"
 HOME = ROOT / "app/src/main/java/com/royalplus/launcher/RoyalHomeScreen.kt"
 MANIFEST = ROOT / "app/src/main/AndroidManifest.xml"
 BACKEND = ROOT / "supabase/functions/royalplus-sports/index.ts"
@@ -11,10 +12,11 @@ CACHE_MIGRATION = ROOT / "supabase/migrations/20261112043947_royalplus_sports_re
 PUBLIC_RPC_MIGRATION = ROOT / "supabase/migrations/20261112045800_royalplus_sports_public_budget_rpc.sql"
 APP_GRADLE = ROOT / "app/build.gradle.kts"
 
-for path in (SPORTS, RANKINGS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRATION, APP_GRADLE):
+for path in (SPORTS, RANKINGS, ALERTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRATION, APP_GRADLE):
     assert path.is_file(), f"Required file is missing: {path.relative_to(ROOT)}"
 
 sports = SPORTS.read_text(encoding="utf-8")
+alerts = ALERTS.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
 
 # The only user-facing sports category is football; both match tabs remain.
@@ -81,9 +83,12 @@ assert "fifa_rankings" in backend
 assert 'view === "upcoming" || params.has("next")' in backend
 assert 'view === "finished" || params.has("last")' in backend
 assert 'view === "live" && params.get("live") !== "all" && !params.has("date")' in backend
-assert 'RoyalSportsTab.LIVE -> "view=live&date=$today&$timeZoneParam"' in sports
-assert "matches_today_alerts" not in sports
-assert "loadFixtures(context, RoyalSportsTab.LIVE)" in (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsAlerts.kt").read_text(encoding="utf-8")
+assert 'resource === "fixtures" && (view === "upcoming" || view === "finished" || params.has("from") || params.has("to"))' in backend
+assert 'RoyalSportsTab.LIVE -> "date=$today&$timeZoneParam"' in sports
+assert 'RoyalSportsTab.UPCOMING -> "from=$today&to=${dateOffset(7)}&$timeZoneParam"' in sports
+assert 'RoyalSportsTab.FINISHED -> "from=${dateOffset(-7)}&to=$today&$timeZoneParam"' in sports
+assert "loadFixtures(context, RoyalSportsTab.LIVE)" in alerts
+assert "loadFixtures(context, RoyalSportsTab.UPCOMING)" in alerts
 assert "maxWindowMs = 7 * 24 * 60 * 60 * 1000" in backend
 assert "toTime - fromTime > maxWindowMs" in backend
 assert "fixture_view_requires_current_seven_day_window" in backend
@@ -110,10 +115,26 @@ assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation"
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
 assert 'round = league.optString("round", "")' in sports
 assert 'leg = ""' in sports
-assert 'view=upcoming&from=$today&to=${dateOffset(7)}&$timeZoneParam' in sports
-assert 'view=finished&from=${dateOffset(-7)}&to=$today&$timeZoneParam' in sports
+assert '"date=$today&$timeZoneParam"' in sports
+assert '"from=$today&to=${dateOffset(7)}&$timeZoneParam"' in sports
+assert '"from=${dateOffset(-7)}&to=$today&$timeZoneParam"' in sports
 assert "private fun dateOffset(days: Int)" in sports
 assert "import java.util.Calendar" in sports
+assert "RoyalSportsFavoriteTeam" in alerts
+assert "RoyalSportsFavorites" in alerts
+assert "loadAlertSettings" in alerts
+assert "matchReminders" in alerts and "goalAlerts" in alerts and "resultAlerts" in alerts
+assert "PeriodicWorkRequestBuilder<RoyalSportsAlertsWorker>" in alerts
+assert "POLL_INTERVAL_MINUTES = 30L" in alerts
+assert "OneTimeWorkRequestBuilder<RoyalSportsMatchReminderWorker>" in alerts
+assert "setInitialDelay(delayMillis" in alerts
+assert "processFinishedResults" in alerts and "processLiveScores" in alerts
+assert "NotificationChannel" in alerts and "POST_NOTIFICATIONS" in alerts
+assert "RoyalSportsAlertsScheduler.refresh(this)" in (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalPlusApplication.kt").read_text(encoding="utf-8")
+assert 'homeTeamId = home.optInt("id", 0)' in sports and 'awayTeamId = away.optInt("id", 0)' in sports
+assert "favoriteTeamIds" in sports and "SportsFavoriteTeamToggle" in sports
+assert "SportsFavoritesDialog" in sports and "onToggleAlert" in sports
+assert "مباراة فريقك المفضل بعد 30 دقيقة" in alerts
 assert "localizedFootballRound" in sports
 assert "localizedFootballLeagueName(leagueName, countryName, arabic, turkish)" in sports
 assert 'isSyria && isPremierLeague' in sports
