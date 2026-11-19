@@ -1292,6 +1292,7 @@ internal fun RoyalHomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .onGloballyPositioned { settingsSectionOffsets["clock"] = it.positionInParent().y.roundToInt() }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF080A0F))
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
@@ -1310,7 +1311,6 @@ internal fun RoyalHomeScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     when (selectedLanguage) { "en" -> "Clock format"; "tr" -> "Saat biçimi"; else -> "تنسيق الساعة" },
-                                    modifier = Modifier.onGloballyPositioned { settingsSectionOffsets["clock"] = it.positionInParent().y.roundToInt() },
                                     color = RoyalColors.Pearl, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
                                 )
                                 Text(if (use24HourClock) "24 h" else "12 h", color = RoyalColors.Gold, fontSize = 12.sp)
