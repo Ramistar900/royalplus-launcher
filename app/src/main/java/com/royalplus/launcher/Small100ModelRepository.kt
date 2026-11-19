@@ -164,6 +164,8 @@ internal object Small100ModelRepository {
             totalMarker.writeText(expectedTotal.toString())
 
             var downloaded = existingBytes
+            var lastReportedPercent = -1
+            var lastReportedMegabytes = -1L
             BufferedInputStream(connection.inputStream).use { input ->
                 BufferedOutputStream(FileOutputStream(partial, append)).use { output ->
                     val buffer = ByteArray(128 * 1024)
@@ -175,15 +177,17 @@ internal object Small100ModelRepository {
                         if (count < 0) break
                         output.write(buffer, 0, count)
                         downloaded += count
-                        val percent = if (expectedTotal > 0L) {
-                            ((downloaded * 100L) / expectedTotal).toInt().coerceIn(0, 100)
+                        val percent = ((downloaded * 100L) / expectedTotal).toInt().coerceIn(0, 100)
+                        if (percent != lastReportedPercent) {
+                            lastReportedPercent = percent
+                            onProgress("${fileNumber}/4 — ${spec.name}: $percent%")
                         } else {
-                            -1
+                            val megabytes = downloaded / (1024 * 1024)
+                            if (megabytes != lastReportedMegabytes && percent < 0) {
+                                lastReportedMegabytes = megabytes
+                                onProgress("${fileNumber}/4 — ${spec.name}: $megabytes MB")
+                            }
                         }
-                        onProgress(
-                            if (percent >= 0) "${fileNumber}/4 — ${spec.name}: $percent%"
-                            else "${fileNumber}/4 — ${spec.name}: ${downloaded / (1024 * 1024)} MB"
-                        )
                     }
                 }
             }
