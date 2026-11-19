@@ -64,6 +64,10 @@ internal object Small100ModelRepository {
         context: Context,
         onProgress: (String) -> Unit
     ): ModelFiles {
+        installedFiles(context)?.let { existing ->
+            Small100BpeTokenizer.fromFile(existing.tokenizer)
+            return existing
+        }
         check(isUnmeteredNetwork(context)) {
             "لحماية باقة الإنترنت، تنزيل نموذج الترجمة الكبير متاح عبر Wi-Fi أو اتصال غير محدود فقط."
         }
@@ -165,7 +169,6 @@ internal object Small100ModelRepository {
 
             var downloaded = existingBytes
             var lastReportedPercent = -1
-            var lastReportedMegabytes = -1L
             BufferedInputStream(connection.inputStream).use { input ->
                 BufferedOutputStream(FileOutputStream(partial, append)).use { output ->
                     val buffer = ByteArray(128 * 1024)
@@ -181,12 +184,6 @@ internal object Small100ModelRepository {
                         if (percent != lastReportedPercent) {
                             lastReportedPercent = percent
                             onProgress("${fileNumber}/4 — ${spec.name}: $percent%")
-                        } else {
-                            val megabytes = downloaded / (1024 * 1024)
-                            if (megabytes != lastReportedMegabytes && percent < 0) {
-                                lastReportedMegabytes = megabytes
-                                onProgress("${fileNumber}/4 — ${spec.name}: $megabytes MB")
-                            }
                         }
                     }
                 }
