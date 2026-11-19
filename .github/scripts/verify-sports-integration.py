@@ -101,6 +101,11 @@ for required in (
 ):
     assert required.lower() in rankings.lower(), f"Missing rankings feature: {required}"
 assert "royalplus_sports_standings_movement" in rankings
+# Keep the requested Saudi league and verify the Syrian league's API-Football v3 ID.
+assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
+assert 'RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")' in rankings
+assert 'isSyria && key.contains("premier league") -> "الدوري السوري الممتاز"' in rankings
+assert 'isSyria && key.contains("premier league") -> "Suriye Premier Ligi"' in rankings
 assert "topScorers" not in rankings and "topAssists" not in rankings
 assert "RoyalV20SportsIcon" not in sports + home + graphics
 assert "SportsPitchGlassBackground" in graphics
