@@ -41,6 +41,7 @@ internal data class WeatherUiState(
     val apparentTemperatureC: Int? = null,
     val humidityPercent: Int? = null,
     val windSpeedKmh: Int? = null,
+    val precipitationMm: Double? = null,
     val weatherCode: Int? = null,
     val description: String = "جارٍ تحميل الطقس",
     val timeZoneId: String? = null,
@@ -404,7 +405,7 @@ internal object RoyalWeatherRepository {
         val url = URL(
             "https://api.open-meteo.com/v1/forecast" +
                 "?latitude=${location.latitude}&longitude=${location.longitude}" +
-                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation" +
                 "&wind_speed_unit=kmh" +
                 "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
                 "&forecast_days=7&timezone=auto"
@@ -417,6 +418,8 @@ internal object RoyalWeatherRepository {
         val humidity = current.optInt("relative_humidity_2m", -1).takeIf { it in 0..100 }
         val wind = current.optDouble("wind_speed_10m", Double.NaN)
             .takeIf { it.isFinite() && it >= 0.0 }?.roundToInt()
+        val precipitation = current.optDouble("precipitation", Double.NaN)
+            .takeIf { it.isFinite() && it >= 0.0 }
         val code = current.getInt("weather_code")
         val daily = root.optJSONObject("daily")
         val dates = daily?.optJSONArray("time")
@@ -442,6 +445,7 @@ internal object RoyalWeatherRepository {
             apparentTemperatureC = apparent,
             humidityPercent = humidity,
             windSpeedKmh = wind,
+            precipitationMm = precipitation,
             weatherCode = code,
             description = weatherDescription(code),
             timeZoneId = timeZone,
@@ -474,6 +478,12 @@ internal object RoyalWeatherRepository {
             ?: firstData.optJSONObject("next_6_hours")?.optJSONObject("summary")?.optString("symbol_code")
                 ?.takeIf { !it.isNullOrBlank() }
         val code = metSymbolToWmo(symbol.orEmpty())
+        val precipitation = firstData.optJSONObject("next_1_hours")?.optJSONObject("details")
+            ?.optDouble("precipitation_amount", Double.NaN)
+            ?.takeIf { it.isFinite() && it >= 0.0 }
+            ?: firstData.optJSONObject("next_6_hours")?.optJSONObject("details")
+                ?.optDouble("precipitation_amount", Double.NaN)
+                ?.takeIf { it.isFinite() && it >= 0.0 }
         val humidity = instant.optDouble("relative_humidity", Double.NaN)
             .takeIf { it.isFinite() && it in 0.0..100.0 }?.roundToInt()
         val wind = instant.optDouble("wind_speed", Double.NaN)
@@ -513,6 +523,7 @@ internal object RoyalWeatherRepository {
             apparentTemperatureC = apparent,
             humidityPercent = humidity,
             windSpeedKmh = wind,
+            precipitationMm = precipitation,
             weatherCode = code,
             description = weatherDescription(code),
             latitude = location.latitude,
@@ -585,6 +596,7 @@ internal object RoyalWeatherRepository {
             put("apparent", weather.apparentTemperatureC)
             put("humidity", weather.humidityPercent)
             put("wind", weather.windSpeedKmh)
+            put("precipitationMm", weather.precipitationMm)
             put("code", weather.weatherCode)
             put("description", weather.description)
             put("timezone", weather.timeZoneId)
@@ -623,6 +635,8 @@ internal object RoyalWeatherRepository {
                 apparentTemperatureC = json.optIntOrNull("apparent"),
                 humidityPercent = json.optIntOrNull("humidity"),
                 windSpeedKmh = json.optIntOrNull("wind"),
+                precipitationMm = json.optDouble("precipitationMm", Double.NaN)
+                    .takeIf { it.isFinite() && it >= 0.0 },
                 weatherCode = json.optIntOrNull("code"),
                 description = json.optString("description", "حالة الطقس الحالية"),
                 timeZoneId = json.optString("timezone").takeIf { it.isNotBlank() && it != "null" },
