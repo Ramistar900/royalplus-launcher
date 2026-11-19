@@ -67,6 +67,7 @@ assert "homeLogo = home.optString(\"logo\", \"\")" in screen
 assert "awayLogo = away.optString(\"logo\", \"\")" in screen
 assert "RoyalSportsProviderImage(" in screen
 assert "media.api-sports.io" in screen
+assert "api.fifa.com" in screen
 assert "SVG.getFromString" in screen
 assert "SportsPitchGlassBackground" in graphics
 assert "drawCircle(line" in graphics and "drawRect(line" in graphics
