@@ -315,6 +315,8 @@ jobs:
     name: Build signed APK and create GitHub draft release
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/quran-audio-clean'))
     runs-on: ubuntu-latest
+    env:
+      ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_number || '1' }}
     permissions:
       contents: write
     steps:
@@ -474,7 +476,7 @@ jobs:
         run: python3 .github/scripts/optimize-weather-videos.py
 
       - name: Build debug APK
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon -ProyalplusVersionCode="$GITHUB_RUN_NUMBER" assembleDebug
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE" assembleDebug
 
       - name: Run Android API compatibility lint
         shell: bash
@@ -496,7 +498,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true -ProyalplusVersionCode="$GITHUB_RUN_NUMBER" assembleRelease
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true -ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE" assembleRelease
 
       - name: Verify APK signature
         if: steps.signing.outputs.available == 'true'
