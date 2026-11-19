@@ -1500,6 +1500,8 @@ internal fun RoyalHomeScreen(
                                             color = RoyalColors.Pearl, fontSize = 12.sp
                                         )
                                     }
+                                    Spacer(Modifier.width(10.dp))
+                                    RoyalPremiumRibbon()
                                 }
                                 Text(
                                     when (selectedLanguage) { "en" -> "Unlock the premium world"; "tr" -> "Premium dünyasının kilidini açın"; else -> "افتح عالم المزايا الحصرية" },
@@ -2567,6 +2569,34 @@ private fun RoyalSidePanel(
     }
 }
 
+
+@Composable
+private fun RoyalPremiumRibbon() {
+    val ribbonShape = RoundedCornerShape(4.dp)
+    Row(
+        modifier = Modifier
+            .clip(ribbonShape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFFFFE7A0), Color(0xFFD6A63D), Color(0xFFB98525))
+                )
+            )
+            .border(1.dp, Color(0xFF08090B), ribbonShape)
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text("♛", color = Color(0xFF111111), fontSize = 13.sp, fontWeight = FontWeight.Black)
+        Text(
+            "PREMIUM",
+            color = Color(0xFF111111),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.1.sp,
+            maxLines = 1
+        )
+    }
+}
 
 @Composable
 private fun StatusIcon(
