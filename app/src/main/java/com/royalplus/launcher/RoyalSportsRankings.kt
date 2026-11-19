@@ -234,7 +234,12 @@ private object RoyalSportsRankingRepository {
 }
 
 @Composable
-internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
+internal fun RoyalSportsRankingsScreen(
+    language: String,
+    refreshSequence: Int,
+    favoriteTeamIds: Set<Int>,
+    onToggleFavoriteTeam: (RoyalSportsFavoriteTeam) -> Unit
+) {
     val context = LocalContext.current.applicationContext
     val arabic = language == "ar"
     val turkish = language == "tr"
@@ -417,7 +422,19 @@ internal fun RoyalSportsRankingsScreen(language: String, refreshSequence: Int) {
                                 StandingsColumnHeader(arabic, turkish)
                             }
                             items(group.entries, key = { "$groupIndex-${it.teamId}-${it.rank}" }) { entry ->
-                                StandingsEntryRow(entry, arabic, turkish)
+                                StandingsEntryRow(
+                                    entry = entry,
+                                    arabic = arabic,
+                                    turkish = turkish,
+                                    isFavorite = entry.teamId in favoriteTeamIds,
+                                    onToggleFavorite = {
+                                        if (entry.teamId > 0) {
+                                            onToggleFavoriteTeam(
+                                                RoyalSportsFavoriteTeam(entry.teamId, entry.team, entry.logo)
+                                            )
+                                        }
+                                    }
+                                )
                             }
                         }
                     }
@@ -594,6 +611,7 @@ private fun StandingsColumnHeader(arabic: Boolean, turkish: Boolean) {
         Text(if (arabic) "ف-ت-خ" else if (turkish) "G-B-M" else "W-D-L", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(48.dp))
         Text("+/-", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(32.dp))
         Text(if (arabic) "نقاط" else if (turkish) "Puan" else "Pts", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(30.dp))
+        Text("★", color = RoyalColors.Gold, fontSize = 8.sp, modifier = Modifier.width(24.dp), textAlign = TextAlign.Center)
     }
 }
 
@@ -601,7 +619,9 @@ private fun StandingsColumnHeader(arabic: Boolean, turkish: Boolean) {
 private fun StandingsEntryRow(
     entry: RoyalSportsStandingEntry,
     arabic: Boolean,
-    turkish: Boolean
+    turkish: Boolean,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit
 ) {
     val movementText = when {
         entry.movement == null || entry.movement == 0 -> "—"
@@ -652,6 +672,16 @@ private fun StandingsEntryRow(
             modifier = Modifier.width(32.dp)
         )
         Text(entry.points.toString(), color = RoyalColors.Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp))
+        Text(
+            text = if (isFavorite) "★" else "☆",
+            color = if (isFavorite) RoyalColors.Gold else Color(0xFFB7D7D0),
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(24.dp)
+                .clip(RoundedCornerShape(50))
+                .clickable(enabled = entry.teamId > 0, onClick = onToggleFavorite)
+                .focusable()
+        )
     }
 }
 
