@@ -109,21 +109,21 @@ async function fetchFifaRanking(gender: string): Promise<Record<string, unknown>
     const points = asNumber(row.DecimalTotalPoints ?? row.TotalPoints ?? row.Points ?? row.points) ?? 0;
     const country = localizedName(row.TeamName ?? row.CountryName ?? row.Country ?? row.Name);
     const code = String(row.IdCountry ?? row.CountryCode ?? row.Code ?? "").toUpperCase();
-    const rawFlag = row.FlagUrl ?? row.flagUrl ?? row.Flag ?? row.flag;
-    const flag = typeof rawFlag === "string"
-      ? rawFlag
-      : rawFlag && typeof rawFlag === "object"
-      ? String((rawFlag as Record<string, unknown>).Url ?? (rawFlag as Record<string, unknown>).url ?? "")
+    // FIFA IdCountry is the official three-letter country code (ISO-style alpha-3).
+    // Build the documented FIFA flag-image URL from that validated code.
+    const countryCode = /^[A-Z]{3}$/.test(code) ? code : "";
+    const flag = countryCode
+      ? `https://api.fifa.com/api/v3/picture/flags-sq-2/${countryCode}`
       : "";
     const movement = movementValue ?? (previousRank !== null ? previousRank - rank : null);
     return {
       rank,
       country,
-      code,
+      code: countryCode,
       points,
       previousRank,
       movement,
-      flag: flag.startsWith("https://media.api-sports.io/flags/") ? flag : "",
+      flag,
     };
   }).filter((row) => row.rank >= 1 && row.rank <= 100 && row.country.length > 0)
     .sort((a, b) => a.rank - b.rank)
