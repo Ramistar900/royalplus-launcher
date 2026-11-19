@@ -118,7 +118,7 @@ internal object GregorianCalendarReminderScheduler {
             return
         }
         val manager = appContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val pendingIntent = pendingIntent(appContext, reminder.id, PendingIntent.FLAG_UPDATE_CURRENT)
+        val pendingIntent = pendingIntent(appContext, reminder.id, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
         try {
             when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canScheduleExactAlarms(manager) ->
