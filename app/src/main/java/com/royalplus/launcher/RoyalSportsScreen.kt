@@ -339,14 +339,14 @@ internal object RoyalSportsRepository {
         val timeZoneParam = "timezone=" + URLEncoder.encode(timezone, "UTF-8")
         val today = dateOffset(0)
         return when (tab) {
-            RoyalSportsTab.LIVE -> "view=live&date=$today&$timeZoneParam"
+            // Date filters are shared by the screen and background alerts, so both
+            // use the same server cache and remain compatible with the deployed fixtures endpoint.
+            RoyalSportsTab.LIVE -> "date=$today&$timeZoneParam"
             // Date ranges return every scheduled fixture in the window rather than
             // only the next 99 worldwide, so smaller domestic leagues are not cut off.
-            RoyalSportsTab.UPCOMING ->
-                "view=upcoming&from=$today&to=${dateOffset(7)}&$timeZoneParam"
+            RoyalSportsTab.UPCOMING -> "from=$today&to=${dateOffset(7)}&$timeZoneParam"
             // Keep a full recent week of results across all competitions.
-            RoyalSportsTab.FINISHED ->
-                "view=finished&from=${dateOffset(-7)}&to=$today&$timeZoneParam"
+            RoyalSportsTab.FINISHED -> "from=${dateOffset(-7)}&to=$today&$timeZoneParam"
             RoyalSportsTab.RANKINGS -> error("rankings_are_not_fixtures")
         }
     }
