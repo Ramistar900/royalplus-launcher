@@ -89,8 +89,10 @@ graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics
 assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
 assert 'round = league.optString("round", "")' in sports
-assert 'groupBy { listOf(it.round.trim(), it.leg.trim())' in sports
-assert 'leg = fixture.optString("leg", "")' in sports
+assert 'round = league.optString("round", "")' in sports
+assert 'leg = ""' in sports
+assert 'next=99&$timeZoneParam' in sports
+assert 'last=99&$timeZoneParam' in sports
 assert "localizedFootballRound" in sports
 assert "localizedFootballLeagueName(leagueName, countryName, arabic, turkish)" in sports
 assert 'isSyria && isPremierLeague' in sports
@@ -103,7 +105,8 @@ for required in (
     "FIFA World Ranking", "relegation", "RoyalSportsProviderImage",
 ):
     assert required.lower() in rankings.lower(), f"Missing rankings feature: {required}"
-assert "royalplus_sports_standings_movement" in rankings
+assert "royalplus_sports_standings_movement" not in rankings
+assert "API-Football standings do not provide a previous-rank movement field" in rankings
 # Keep the requested Saudi league and verify the Syrian league's API-Football v3 ID.
 assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
 assert 'RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")' in rankings
