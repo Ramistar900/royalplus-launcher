@@ -128,8 +128,14 @@ internal class Small100Translator private constructor(
         }
     }
 
-    private fun outputTensor(result: OrtSession.Result, name: String): OnnxTensor =
-        result.get(name).orElseThrow { IllegalStateException("مخرج ONNX مفقود: $name") } as OnnxTensor
+    private fun outputTensor(result: OrtSession.Result, name: String): OnnxTensor {
+        val iterator = result.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.key == name) return entry.value as OnnxTensor
+        }
+        throw IllegalStateException("مخرج ONNX مفقود: $name")
+    }
 
     private fun longTensor(values: LongArray): OnnxTensor =
         OnnxTensor.createTensor(
