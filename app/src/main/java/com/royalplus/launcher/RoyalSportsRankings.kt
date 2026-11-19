@@ -169,15 +169,6 @@ private object RoyalSportsRankingRepository {
         val result = response.optJSONObject(0) ?: JSONObject()
         val league = result.optJSONObject("league") ?: JSONObject()
         val standings = league.optJSONArray("standings") ?: JSONArray()
-        val movementPrefs = context.getSharedPreferences(
-            "royalplus_sports_standings_movement",
-            Context.MODE_PRIVATE
-        )
-        val movementKey = "ranks_${competition.id}_${competition.season}"
-        val previousRanks = runCatching {
-            movementPrefs.getString(movementKey, null)?.let(::JSONObject) ?: JSONObject()
-        }.getOrDefault(JSONObject())
-        val currentRanks = JSONObject()
         val groups = ArrayList<RoyalSportsStandingGroup>(standings.length())
 
         for (groupIndex in 0 until standings.length()) {
@@ -192,10 +183,9 @@ private object RoyalSportsRankingRepository {
                 val rank = row.optInt("rank", rowIndex + 1)
                 val teamId = team.optInt("id", 0)
                 val teamName = team.optString("name", "—")
-                val stableKey = if (teamId > 0) teamId.toString() else teamName
-                val oldRank = previousRanks.optInt(stableKey, 0).takeIf { it > 0 }
-                val movement = oldRank?.minus(rank)
-                currentRanks.put(stableKey, rank)
+                // API-Football standings do not provide a previous-rank movement field.
+                // Keep movement unknown rather than inventing arrows from local fetch timing.
+                val movement: Int? = null
                 if (groupName.isBlank()) {
                     groupName = row.optString("group", "")
                 }
@@ -227,10 +217,6 @@ private object RoyalSportsRankingRepository {
                     entries = entries.sortedBy { it.rank }
                 )
             }
-        }
-
-        if (currentRanks.length() > 0) {
-            movementPrefs.edit().putString(movementKey, currentRanks.toString()).apply()
         }
 
         RoyalSportsStandings(
@@ -589,13 +575,12 @@ private fun StandingsEntryRow(
     turkish: Boolean
 ) {
     val movementText = when {
-        entry.isRelegationZone -> "▼"
         entry.movement == null || entry.movement == 0 -> "—"
         entry.movement > 0 -> "▲"
         else -> "▼"
     }
     val movementColor = when {
-        entry.isRelegationZone || (entry.movement ?: 0) < 0 -> Color(0xFFFF7777)
+        (entry.movement ?: 0) < 0 -> Color(0xFFFF7777)
         (entry.movement ?: 0) > 0 -> Color(0xFF62E6A4)
         else -> RoyalColors.Muted
     }
@@ -630,7 +615,13 @@ private fun StandingsEntryRow(
         }
         Text(entry.played.toString(), color = RoyalColors.Pearl, fontSize = 9.sp, modifier = Modifier.width(28.dp))
         Text("${entry.wins}-${entry.draws}-${entry.losses}", color = RoyalColors.Pearl, fontSize = 8.sp, modifier = Modifier.width(48.dp))
-        Text(movementText, color = movementColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
+        Text(
+            if (entry.isRelegationZone) "●" else movementText,
+            color = if (entry.isRelegationZone) Color(0xFFFF7777) else movementColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(32.dp)
+        )
         Text(entry.points.toString(), color = RoyalColors.Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp))
     }
 }
