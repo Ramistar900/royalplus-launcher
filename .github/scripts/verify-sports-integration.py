@@ -80,6 +80,9 @@ assert "fifa_rankings" in backend
 assert 'view === "upcoming" || params.has("next")' in backend
 assert 'view === "finished" || params.has("last")' in backend
 assert 'view === "live" && params.get("live") !== "all"' in backend
+assert "maxWindowMs = 7 * 24 * 60 * 60 * 1000" in backend
+assert "toTime - fromTime > maxWindowMs" in backend
+assert "fixture_view_requires_current_seven_day_window" in backend
 assert 'incoming.searchParams.get("view")' in backend
 assert 'if (cacheKey.length > 512)' in backend
 assert 'key === "resource" || key === "view"' in backend
