@@ -339,7 +339,7 @@ internal object RoyalSportsRepository {
         val timeZoneParam = "timezone=" + URLEncoder.encode(timezone, "UTF-8")
         val today = dateOffset(0)
         return when (tab) {
-            RoyalSportsTab.LIVE -> "view=live&live=all&$timeZoneParam"
+            RoyalSportsTab.LIVE -> "view=live&date=$today&$timeZoneParam"
             // Date ranges return every scheduled fixture in the window rather than
             // only the next 99 worldwide, so smaller domestic leagues are not cut off.
             RoyalSportsTab.UPCOMING ->
