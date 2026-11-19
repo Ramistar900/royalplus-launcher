@@ -125,7 +125,7 @@ internal fun GregorianCalendarScreen(language: String) {
     val selectedMonth = selectedDate.get(Calendar.MONTH)
     val selectedDay = selectedDate.get(Calendar.DAY_OF_MONTH)
     val selectedReminders = reminders.filter {
-        it.year == selectedYear && it.month == selectedMonth && it.day == selectedDay
+        it.occursOn(selectedYear, selectedMonth, selectedDay)
     }.sortedWith(compareBy<GregorianCalendarReminder> { it.hour }.thenBy { it.minute })
     val monthCalendar = (visibleMonth.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val firstDayOfWeek = monthCalendar.firstDayOfWeek
@@ -270,9 +270,7 @@ internal fun GregorianCalendarScreen(language: String) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 week.forEach { day ->
                                     val dateReminders = if (day == null) emptyList() else reminders.filter {
-                                        it.year == visibleMonth.get(Calendar.YEAR) &&
-                                            it.month == visibleMonth.get(Calendar.MONTH) &&
-                                            it.day == day
+                                        it.occursOn(visibleMonth.get(Calendar.YEAR), visibleMonth.get(Calendar.MONTH), day)
                                     }
                                     val isToday = day != null &&
                                         visibleMonth.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
@@ -524,6 +522,24 @@ internal fun GregorianCalendarScreen(language: String) {
     }
 }
 
+
+private fun GregorianCalendarReminder.occursOn(year: Int, month: Int, day: Int): Boolean {
+    val requestedMonthIndex = year * 12 + month
+    val originalMonthIndex = this.year * 12 + this.month
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.YEAR, year)
+        set(Calendar.MONTH, month)
+        set(Calendar.DAY_OF_MONTH, 1)
+    }
+    val displayedDay = this.day.coerceAtMost(calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+    if (day != displayedDay) return false
+    return when (repeat) {
+        CalendarReminderRepeat.NONE -> year == this.year && month == this.month && day == this.day
+        CalendarReminderRepeat.MONTHLY -> requestedMonthIndex >= originalMonthIndex
+        CalendarReminderRepeat.YEARLY -> year >= this.year && month == this.month
+    }
+}
+
 @Composable
 private fun CalendarReminderDialog(
     language: String,
@@ -557,7 +573,9 @@ private fun CalendarReminderDialog(
     val timeParts = timeText.trim().split(":")
     val hour = timeParts.getOrNull(0)?.toIntOrNull()
     val minute = timeParts.getOrNull(1)?.toIntOrNull()
-    val validTime = timeParts.size == 2 && hour in 0..23 && minute in 0..59
+    val validTime = timeParts.size == 2 &&
+        hour != null && hour in 0..23 &&
+        minute != null && minute in 0..59
 
     AlertDialog(
         onDismissRequest = onDismiss,
