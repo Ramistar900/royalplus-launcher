@@ -37,13 +37,16 @@ import androidx.compose.material.icons.rounded.EditLocationAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
+import kotlinx.coroutines.delay
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -74,7 +78,8 @@ internal fun WeatherDetailsScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onRequestLocation: () -> Unit,
-    onChooseCity: (String) -> Unit,
+    onChooseCity: (WeatherCitySuggestion) -> Unit,
+    onChooseCityByName: (String) -> Unit,
     onUseDeviceLocation: () -> Unit,
     motionEnabled: Boolean = true
 ) {
@@ -114,6 +119,28 @@ internal fun WeatherDetailsScreen(
     }
     var cityInput by remember(weather.city) {
         mutableStateOf(weather.city.substringBefore("،").substringBefore(","))
+    }
+    var citySuggestions by remember { mutableStateOf(emptyList<WeatherCitySuggestion>()) }
+    var isSearchingCities by remember { mutableStateOf(false) }
+    val latestCityQuery = rememberUpdatedState(cityInput.trim())
+    val cityPickerVisible = rememberUpdatedState(showCityPicker)
+    LaunchedEffect(showCityPicker, cityInput) {
+        val query = cityInput.trim()
+        citySuggestions = emptyList()
+        if (!showCityPicker || query.length < 2) {
+            isSearchingCities = false
+            return@LaunchedEffect
+        }
+        isSearchingCities = true
+        delay(350L)
+        RoyalWeatherRepository.searchCities(query) { results ->
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                if (cityPickerVisible.value && latestCityQuery.value == query) {
+                    citySuggestions = results
+                    isSearchingCities = false
+                }
+            }
+        }
     }
     val zone = remember(weather.timeZoneId) { TimeZone.getTimeZone(weather.timeZoneId ?: TimeZone.getDefault().id) }
     val hour = remember(currentTimeMillis, weather.timeZoneId) {
@@ -261,25 +288,118 @@ internal fun WeatherDetailsScreen(
             onDismissRequest = { showCityPicker = false },
             title = {
                 Text(
-                    when (language) { "en" -> "Choose weather city"; "tr" -> "Hava durumu şehri"; else -> "اختيار مدينة الطقس" },
-                    color = Color(0xFFFFD36A)
+                    when (language) { "en" -> "Choose a city or town"; "tr" -> "Şehir veya kasaba seç"; else -> "اختيار مدينة أو بلدة" },
+                    color = gold
                 )
             },
             text = {
-                OutlinedTextField(
-                    value = cityInput,
-                    onValueChange = { cityInput = it },
-                    singleLine = true,
-                    label = { Text(when (language) { "en" -> "City name"; "tr" -> "Şehir adı"; else -> "اسم المدينة" }) }
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    val searchShape = RoundedCornerShape(16.dp)
+                    Box(
+                        Modifier.fillMaxWidth()
+                            .clip(searchShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF078F91), Color(0xFF126DB2))
+                                )
+                            )
+                            .border(1.5.dp, Color.White, searchShape)
+                    ) {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = cityInput,
+                            onValueChange = { cityInput = it },
+                            singleLine = true,
+                            label = {
+                                Text(
+                                    when (language) { "en" -> "City or town name"; "tr" -> "Şehir veya kasaba adı"; else -> "اسم المدينة أو البلدة" },
+                                    color = gold
+                                )
+                            },
+                            placeholder = {
+                                Text(
+                                    when (language) { "en" -> "Type at least 2 characters"; "tr" -> "En az 2 karakter yazın"; else -> "اكتب حرفين على الأقل" },
+                                    color = gold.copy(alpha = 0.78f)
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = gold,
+                                unfocusedTextColor = gold,
+                                focusedLabelColor = gold,
+                                unfocusedLabelColor = gold,
+                                cursorColor = gold,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent
+                            )
+                        )
+                    }
+                    when {
+                        cityInput.trim().length < 2 -> Text(
+                            when (language) { "en" -> "Enter at least 2 characters to search cities and villages"; "tr" -> "Şehirleri ve köyleri aramak için en az 2 karakter yazın"; else -> "اكتب حرفين على الأقل للبحث عن المدن والقرى" },
+                            color = gold,
+                            fontSize = 12.sp
+                        )
+                        isSearchingCities -> Text(
+                            when (language) { "en" -> "Searching cities and villages…"; "tr" -> "Şehirler ve köyler aranıyor…"; else -> "جارٍ البحث عن المدن والقرى…" },
+                            color = gold,
+                            fontSize = 12.sp
+                        )
+                        citySuggestions.isEmpty() -> Text(
+                            when (language) { "en" -> "No matching places found. Try another spelling."; "tr" -> "Eşleşen yer bulunamadı. Farklı yazmayı deneyin."; else -> "لم نعثر على أماكن مطابقة؛ جرّب كتابة الاسم بطريقة أخرى" },
+                            color = gold,
+                            fontSize = 12.sp
+                        )
+                        else -> Column(
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(max = 245.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            citySuggestions.forEach { suggestion ->
+                                val resultShape = RoundedCornerShape(12.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(resultShape)
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFF087F83), Color(0xFF175D9C))
+                                            )
+                                        )
+                                        .border(1.dp, Color.White.copy(alpha = 0.72f), resultShape)
+                                        .clickable {
+                                            onChooseCity(suggestion)
+                                            showCityPicker = false
+                                        }
+                                        .focusable()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = suggestion.displayName,
+                                        color = gold,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
                     val value = cityInput.trim()
-                    if (value.isNotBlank()) onChooseCity(value)
+                    if (value.isNotBlank()) onChooseCityByName(value)
                     showCityPicker = false
                 }) {
-                    Text(when (language) { "en" -> "Apply"; "tr" -> "Uygula"; else -> "تطبيق" }, color = Color(0xFFFFD36A))
+                    Text(when (language) { "en" -> "Apply"; "tr" -> "Uygula"; else -> "تطبيق" }, color = gold)
                 }
             },
             dismissButton = {
@@ -288,14 +408,14 @@ internal fun WeatherDetailsScreen(
                         showCityPicker = false
                         onUseDeviceLocation()
                     }) {
-                        Text(when (language) { "en" -> "Use my location"; "tr" -> "Konumumu kullan"; else -> "استخدام موقعي" }, color = Color.White)
+                        Text(when (language) { "en" -> "Use my location"; "tr" -> "Konumumu kullan"; else -> "استخدام موقعي" }, color = gold)
                     }
                     TextButton(onClick = { showCityPicker = false }) {
-                        Text(when (language) { "en" -> "Cancel"; "tr" -> "İptal"; else -> "إلغاء" }, color = Color.White)
+                        Text(when (language) { "en" -> "Cancel"; "tr" -> "İptal"; else -> "إلغاء" }, color = gold)
                     }
                 }
             },
-            containerColor = Color(0xFF101722)
+            containerColor = Color(0xFF123C50)
         )
     }
 
