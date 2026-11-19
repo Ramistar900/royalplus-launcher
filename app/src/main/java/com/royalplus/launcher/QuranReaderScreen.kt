@@ -270,17 +270,17 @@ internal fun QuranReaderScreen(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                     .background(Color(0x9A16A6A2))
                     .border(1.dp, RoyalColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                    .clickable { audioLibraryOpen = true }
+                    .clickable { if (selectedReader == "mossad") mossadSelectionsOpen = true else audioLibraryOpen = true }
                     .focusable()
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("مكتبتي الصوتية", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("السور المنزّلة للقارئ المحدد فقط", color = RoyalColors.Pearl, fontSize = 10.sp)
+                    Text(if (selectedReader == "mossad") "المقاطع المختارة المنزّلة لعبد الرحمن مسعد" else "السور المنزّلة للقارئ المحدد فقط", color = RoyalColors.Pearl, fontSize = 10.sp)
                 }
                 Text(
-                    "${downloadedAudioSurahs.size} / 114",
+                    if (selectedReader == "mossad") "${QuranMossadSelectionsRepository.downloadedIds(context.applicationContext).size} / 17" else "${downloadedAudioSurahs.size} / 114",
                     color = RoyalColors.Pearl,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -801,7 +801,7 @@ internal fun QuranReaderScreen(
                                     audioMessage = "اكتمل التنزيل • أصبحت السورة متاحة دون إنترنت"
                                 } else if (selectedReader == downloadReader) {
                                     audioMessage = if (downloadReader == "mossad")
-                                        "تلاوات عبد الرحمن مسعد المختارة لم تُربط بمصادر تنزيل موثوقة بعد"
+                                        "لا تتوفر تلاوة كاملة لهذه السورة حالياً؛ استخدم المقاطع المختارة الظاهرة في صفحة المصحف."
                                     else "تعذر تنزيل هذه السورة من مصدر القارئ"
                                 }
                                 audioDownloadInProgress = false
@@ -1033,7 +1033,7 @@ internal fun QuranReaderScreen(
                     item {
                         Spacer(Modifier.height(5.dp))
                         QuranReaderAction(
-                            label = if (downloadAllInProgress) "إيقاف تنزيل السور" else "تنزيل جميع سور هذا القارئ",
+                            label = if (downloadAllInProgress) "إيقاف تنزيل السور" else if (selectedReader == "mossad") "المتاح لهذا القارئ مقاطع مختارة فقط" else "تنزيل جميع سور هذا القارئ",
                             modifier = Modifier.fillMaxWidth(),
                             selected = downloadAllInProgress,
                             enabled = selectedReader != "mossad" || downloadAllInProgress
