@@ -99,7 +99,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        RoyalColors.setLightTheme(
+        RoyalColors.applyLightTheme(
             getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
                 .getString("launcher_theme_mode", "dark") == "light"
         )
