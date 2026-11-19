@@ -99,4 +99,12 @@ class TranslationDeviceCapabilityTest {
         assertFalse(assessment.supported)
         assertEquals(TranslationDeviceCapability.Failure.ENGINE_UNAVAILABLE, assessment.failure)
     }
+
+    @Test
+    fun reportsSustainedSlowSpeechRecognition() {
+        val assessment = TranslationDeviceCapability.slowSpeechRecognition()
+        assertFalse(assessment.supported)
+        assertEquals(TranslationDeviceCapability.Failure.SLOW_PERFORMANCE, assessment.failure)
+        assertTrue(assessment.message.contains("التعرف على الكلام"))
+    }
 }
