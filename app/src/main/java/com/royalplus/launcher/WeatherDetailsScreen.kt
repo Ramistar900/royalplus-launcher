@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -122,6 +123,24 @@ internal fun WeatherDetailsScreen(
     }
     var citySuggestions by remember { mutableStateOf(emptyList<WeatherCitySuggestion>()) }
     var isSearchingCities by remember { mutableStateOf(false) }
+    var savedWeatherCities by remember { mutableStateOf(readSavedWeatherCities(context)) }
+    var showSavedCitiesManager by remember { mutableStateOf(false) }
+    LaunchedEffect(weather.city, weather.latitude, weather.longitude, weather.isLoading) {
+        val latitude = weather.latitude
+        val longitude = weather.longitude
+        if (!weather.isLoading && weather.city.isNotBlank() && latitude != null && longitude != null) {
+            val current = WeatherCitySuggestion(
+                id = (latitude * 100000 + longitude * 100000).toLong(),
+                name = weather.city, admin1 = null, admin2 = null, country = null,
+                latitude = latitude, longitude = longitude
+            )
+            val updated = (savedWeatherCities.filterNot {
+                kotlin.math.abs(it.latitude - latitude) < 0.01 && kotlin.math.abs(it.longitude - longitude) < 0.01
+            } + current).takeLast(12)
+            savedWeatherCities = updated
+            saveSavedWeatherCities(context, updated)
+        }
+    }
     val latestCityQuery = rememberUpdatedState(cityInput.trim())
     val cityPickerVisible = rememberUpdatedState(showCityPicker)
     LaunchedEffect(showCityPicker, cityInput) {
@@ -283,6 +302,46 @@ internal fun WeatherDetailsScreen(
         )
     }
 
+    if (showSavedCitiesManager) {
+        AlertDialog(
+            onDismissRequest = { showSavedCitiesManager = false },
+            title = { Text(if (language == "en") "Saved weather cities" else if (language == "tr") "Kaydedilen şehirler" else "المدن المحفوظة", color = gold) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (savedWeatherCities.isEmpty()) {
+                        Text(if (language == "en") "No saved cities yet" else if (language == "tr") "Henüz kayıtlı şehir yok" else "لا توجد مدن محفوظة بعد", color = Color.White)
+                    }
+                    savedWeatherCities.forEach { city ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF123C50)).padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(city.displayName, color = gold, modifier = Modifier.weight(1f), maxLines = 2)
+                            TextButton(onClick = {
+                                onChooseCity(city)
+                                showSavedCitiesManager = false
+                            }) { Text(if (language == "en") "Open" else if (language == "tr") "Aç" else "فتح", color = gold) }
+                            TextButton(onClick = {
+                                savedWeatherCities = savedWeatherCities.filterNot { it.id == city.id }
+                                saveSavedWeatherCities(context, savedWeatherCities)
+                            }) { Text(if (language == "en") "Remove" else if (language == "tr") "Sil" else "حذف", color = Color(0xFFFF8A80)) }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSavedCitiesManager = false }) {
+                    Text(if (language == "en") "Done" else if (language == "tr") "Bitti" else "تم", color = gold)
+                }
+            },
+            containerColor = Color(0xFF101722)
+        )
+    }
+
     if (showCityPicker) {
         AlertDialog(
             onDismissRequest = { showCityPicker = false },
@@ -391,6 +450,9 @@ internal fun WeatherDetailsScreen(
                                         )
                                         .border(1.dp, Color.White.copy(alpha = 0.72f), resultShape)
                                         .clickable {
+                                            val updated = (savedWeatherCities.filterNot { it.id == suggestion.id } + suggestion).takeLast(12)
+                                            savedWeatherCities = updated
+                                            saveSavedWeatherCities(context, updated)
                                             onChooseCity(suggestion)
                                             showCityPicker = false
                                         }
@@ -487,6 +549,12 @@ internal fun WeatherDetailsScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                SavedWeatherCitiesBar(
+                    cities = savedWeatherCities, currentCity = weather.city, language = language,
+                    onManage = { showSavedCitiesManager = true },
+                    onAdd = { cityInput = ""; showCityPicker = true },
+                    onSelect = onChooseCity
+                )
                 WeatherCurrentDetailsPanel(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 340.dp),
                     weather = weather,
@@ -1156,4 +1224,70 @@ private fun WeatherAudioToggleRow(
             fontWeight = FontWeight.Bold
         )
     }
+}
+
+@Composable
+private fun SavedWeatherCitiesBar(
+    cities: List<WeatherCitySuggestion>,
+    currentCity: String,
+    language: String,
+    onManage: () -> Unit,
+    onAdd: () -> Unit,
+    onSelect: (WeatherCitySuggestion) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onAdd) {
+            Text(if (language == "en") "+ Add city" else if (language == "tr") "+ Şehir ekle" else "+ إضافة مدينة", color = Color(0xFFFFD36A))
+        }
+        cities.forEach { city ->
+            val selected = city.displayName.equals(currentCity, ignoreCase = true) || city.name.equals(currentCity, ignoreCase = true)
+            TextButton(
+                onClick = { onSelect(city) },
+                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) Color(0xFF176B70) else Color(0x55213D55))
+                    .border(1.dp, if (selected) Color(0xFFFFD36A) else Color.White.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            ) { Text(city.displayName, color = Color(0xFFFFD36A), maxLines = 1) }
+        }
+        TextButton(onClick = onManage) {
+            Text(if (language == "en") "Manage" else if (language == "tr") "Yönet" else "إدارة", color = Color.White)
+        }
+    }
+}
+
+private fun readSavedWeatherCities(context: android.content.Context): List<WeatherCitySuggestion> {
+    return try {
+        val raw = context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE)
+            .getString("weather_saved_cities", null) ?: return emptyList()
+        val array = org.json.JSONArray(raw)
+        (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val latitude = item.optDouble("latitude", Double.NaN)
+            val longitude = item.optDouble("longitude", Double.NaN)
+            if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return@mapNotNull null
+            WeatherCitySuggestion(
+                id = item.optLong("id"), name = item.optString("name"),
+                admin1 = item.optString("admin1").takeIf { it.isNotBlank() },
+                admin2 = item.optString("admin2").takeIf { it.isNotBlank() },
+                country = item.optString("country").takeIf { it.isNotBlank() },
+                latitude = latitude, longitude = longitude
+            )
+        }
+    } catch (_: Exception) { emptyList() }
+}
+
+private fun saveSavedWeatherCities(context: android.content.Context, cities: List<WeatherCitySuggestion>) {
+    val array = org.json.JSONArray()
+    cities.distinctBy { it.latitude.toString() + ":" + it.longitude.toString() }.takeLast(12).forEach { city ->
+        array.put(org.json.JSONObject().apply {
+            put("id", city.id); put("name", city.name); put("admin1", city.admin1 ?: "")
+            put("admin2", city.admin2 ?: ""); put("country", city.country ?: "")
+            put("latitude", city.latitude); put("longitude", city.longitude)
+        })
+    }
+    context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE)
+        .edit().putString("weather_saved_cities", array.toString()).apply()
 }
