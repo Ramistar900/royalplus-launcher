@@ -66,13 +66,24 @@ internal object Small100ModelRepository {
         onProgress: (String) -> Unit
     ): ModelFiles {
         installedFiles(context)?.let { existing ->
-            Small100BpeTokenizer.fromFile(existing.tokenizer)
-            return existing
+            if (runCatching { Small100BpeTokenizer.fromFile(existing.tokenizer) }.isSuccess) {
+                return existing
+            }
+        }
+        val directory = File(context.filesDir, MODEL_DIRECTORY)
+        val existingTokenizer = File(directory, "tokenizer.json")
+        if (existingTokenizer.isFile &&
+            runCatching { Small100BpeTokenizer.fromFile(existingTokenizer) }.isFailure
+        ) {
+            existingTokenizer.delete()
+        }
+        val existingLanguageTokens = File(directory, "lang_tokens.json")
+        if (existingLanguageTokens.isFile && !validLanguageTokens(existingLanguageTokens)) {
+            existingLanguageTokens.delete()
         }
         check(isUnmeteredNetwork(context)) {
             "لحماية باقة الإنترنت، تنزيل نموذج الترجمة الكبير متاح عبر Wi-Fi أو اتصال غير محدود فقط."
         }
-        val directory = File(context.filesDir, MODEL_DIRECTORY)
         if (!directory.exists() && !directory.mkdirs()) {
             throw IllegalStateException("تعذر إنشاء مجلد نموذج الترجمة")
         }
