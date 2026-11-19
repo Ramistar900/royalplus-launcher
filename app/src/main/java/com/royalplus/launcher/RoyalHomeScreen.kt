@@ -1115,7 +1115,7 @@ internal fun RoyalHomeScreen(
                                 icon = Icons.Rounded.Schedule
                             ) {
                                 lightThemeEnabled = false
-                                RoyalColors.setLightTheme(false)
+                                RoyalColors.applyLightTheme(false)
                                 wallpaperPreferences.edit().putString("launcher_theme_mode", "dark").apply()
                             }
                             IconStyleChoice(
@@ -1126,7 +1126,7 @@ internal fun RoyalHomeScreen(
                                 icon = Icons.Rounded.WbSunny
                             ) {
                                 lightThemeEnabled = true
-                                RoyalColors.setLightTheme(true)
+                                RoyalColors.applyLightTheme(true)
                                 wallpaperPreferences.edit().putString("launcher_theme_mode", "light").apply()
                             }
                         }
