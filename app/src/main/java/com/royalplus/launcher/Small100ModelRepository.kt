@@ -22,6 +22,7 @@ internal object Small100ModelRepository {
         "https://huggingface.co/casawolice/small100-onnx/resolve/$REVISION/"
     private const val MODEL_DIRECTORY = "royal_small100"
     private const val MIN_FREE_BYTES = 720L * 1024L * 1024L
+    private const val FREE_SPACE_RESERVE_BYTES = 80L * 1024L * 1024L
 
     data class ModelFiles(
         val encoder: File,
@@ -76,9 +77,33 @@ internal object Small100ModelRepository {
             throw IllegalStateException("تعذر إنشاء مجلد نموذج الترجمة")
         }
 
+        // Remove invalid completed files before calculating the remaining storage requirement.
+        remoteFiles.forEach { spec ->
+            val destination = File(directory, spec.name)
+            if (destination.exists() && destination.length() !in spec.minimumBytes..spec.maximumBytes) {
+                destination.delete()
+            }
+        }
+        val alreadyDownloadedBytes = remoteFiles.sumOf { spec ->
+            val destination = File(directory, spec.name)
+            if (destination.isFile && destination.length() in spec.minimumBytes..spec.maximumBytes) {
+                destination.length()
+            } else {
+                val partial = File(directory, spec.name + ".part")
+                val marker = File(directory, spec.name + ".part.total")
+                val expected = marker.takeIf { it.isFile }?.readText()?.trim()?.toLongOrNull()
+                if (partial.isFile && expected != null && expected in spec.minimumBytes..spec.maximumBytes &&
+                    partial.length() <= expected
+                ) partial.length() else 0L
+            }
+        }
+        val requiredFreeBytes = (MIN_FREE_BYTES - alreadyDownloadedBytes)
+            .coerceAtLeast(FREE_SPACE_RESERVE_BYTES)
         val stat = StatFs(context.filesDir.absolutePath)
-        if (stat.availableBytes < MIN_FREE_BYTES) {
-            throw IllegalStateException("يلزم توفير 720 ميغابايت على الأقل من المساحة الحرة لتنزيل نموذج الترجمة.")
+        if (stat.availableBytes < requiredFreeBytes) {
+            throw IllegalStateException(
+                "يلزم توفير مساحة إضافية قدرها ${requiredFreeBytes / (1024 * 1024)} ميغابايت لإكمال تنزيل نموذج الترجمة."
+            )
         }
 
         remoteFiles.forEachIndexed { index, spec ->
