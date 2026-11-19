@@ -97,7 +97,6 @@ class FloatingTranslationOverlayService : Service() {
     private var translationModelThread: Thread? = null
     private var translationInFlight = false
     private var lastUnsupportedLanguageNotice: String? = null
-    private var lastUnsupportedLanguageNotice: String? = null
     private val captionPhraseBuffer = CaptionPhraseBuffer(maxCharacters = MAX_CAPTION_BUFFER_CHARACTERS)
     private val captionPhraseFlushRunnable = Runnable { flushPendingCaptionPhrase() }
 
