@@ -210,8 +210,23 @@ Deno.serve(async (req: Request) => {
   } else if (resource === "fixtures" && (view === "upcoming" || view === "finished")) {
     const from = params.get("from") ?? "";
     const to = params.get("to") ?? "";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
-      return json({ error: "fixture_view_requires_valid_date_range" }, 400);
+    const fromTime = Date.parse(`${from}T00:00:00Z`);
+    const toTime = Date.parse(`${to}T00:00:00Z`);
+    const utcToday = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const maxWindowMs = 7 * 24 * 60 * 60 * 1000;
+    const oldestAllowed = utcToday - (view === "finished" ? 8 : 1) * 24 * 60 * 60 * 1000;
+    const newestAllowed = utcToday + (view === "finished" ? 1 : 8) * 24 * 60 * 60 * 1000;
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
+      !Number.isFinite(fromTime) ||
+      !Number.isFinite(toTime) ||
+      toTime < fromTime ||
+      toTime - fromTime > maxWindowMs ||
+      fromTime < oldestAllowed ||
+      toTime > newestAllowed
+    ) {
+      return json({ error: "fixture_view_requires_current_seven_day_window" }, 400);
     }
   } else if (resource === "fixtures" && view === "live" && params.get("live") !== "all") {
     return json({ error: "live_view_requires_all_live_fixtures" }, 400);
