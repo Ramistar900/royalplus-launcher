@@ -15,6 +15,7 @@ import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Calendar
+import java.util.Locale
 import java.util.TimeZone
 
 internal enum class CalendarReminderRepeat {
@@ -259,7 +260,13 @@ internal object GregorianCalendarReminderScheduler {
             openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val text = reminder.description.ifBlank { "حان موعد المناسبة" }
+        val text = reminder.description.ifBlank {
+            when (Locale.getDefault().language) {
+                "en" -> "Your occasion is due"
+                "tr" -> "Etkinliğinizin zamanı geldi"
+                else -> "حان موعد المناسبة"
+            }
+        }
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(context, CHANNEL_ID)
         } else {
