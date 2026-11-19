@@ -142,6 +142,9 @@ jobs:
                   print("Keeping original fireplace loop; optimized video was not smaller.")
           PY
 
+      - name: Verify settings navigation and release update detection
+        run: python3 .github/scripts/verify-settings-navigation-and-release-check.py
+
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 
@@ -471,7 +474,7 @@ jobs:
         run: python3 .github/scripts/optimize-weather-videos.py
 
       - name: Build debug APK
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -ProyalplusVersionCode="$GITHUB_RUN_NUMBER" assembleDebug
 
       - name: Run Android API compatibility lint
         shell: bash
@@ -493,7 +496,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true assembleRelease
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon -PenableAbiSplits=true -ProyalplusVersionCode="$GITHUB_RUN_NUMBER" assembleRelease
 
       - name: Verify APK signature
         if: steps.signing.outputs.available == 'true'
