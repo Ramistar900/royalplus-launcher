@@ -229,10 +229,10 @@ Deno.serve(async (req: Request) => {
     )
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
-  if (canonicalQuery.length + resource.length + 1 > 512) {
+  const cacheKey = `${resource}:${view || "default"}:${canonicalQuery}`;
+  if (cacheKey.length > 512) {
     return json({ error: "query_too_large" }, 400);
   }
-  const cacheKey = `${resource}:${view || "default"}:${canonicalQuery}`;
   const ttlSeconds = cacheTtlSeconds(resource, params, view);
   const now = new Date();
 
