@@ -838,7 +838,12 @@ internal fun RoyalSportsScreen(language: String) {
                 Spacer(Modifier.height(10.dp))
 
                 if (selectedTab == RoyalSportsTab.RANKINGS) {
-                    RoyalSportsRankingsScreen(language = language, refreshSequence = refreshSequence)
+                    RoyalSportsRankingsScreen(
+                        language = language,
+                        refreshSequence = refreshSequence,
+                        favoriteTeamIds = favoriteTeamIds,
+                        onToggleFavoriteTeam = onToggleFavorite
+                    )
                 } else {
                     val result = loaded
                     if (result?.stale == true) {
