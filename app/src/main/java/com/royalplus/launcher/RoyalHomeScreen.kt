@@ -2261,22 +2261,24 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[5], null, selectedDestination == LauncherDestination.SINJAR_TV, sinjarLogo = true, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
+        SidebarNavItem(labels[5], Icons.Rounded.CalendarToday, selectedDestination == LauncherDestination.CALENDAR, modifier = navigationFocusModifiers[5]) { onNavigate(LauncherDestination.CALENDAR) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(labels[6], null, selectedDestination == LauncherDestination.SINJAR_TV, sinjarLogo = true, modifier = navigationFocusModifiers[6], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[6],
+            labels[7],
             null,
             selectedDestination == LauncherDestination.SPORTS,
             sportsBall = true,
-            modifier = navigationFocusModifiers[6],
+            modifier = navigationFocusModifiers[7],
             onClick = { onNavigate(LauncherDestination.SPORTS) }
         )
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[7], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, modifier = navigationFocusModifiers[7], onClick = { onNavigate(LauncherDestination.GALLERY) })
+        SidebarNavItem(labels[8], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, modifier = navigationFocusModifiers[8], onClick = { onNavigate(LauncherDestination.GALLERY) })
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[8], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS, modifier = navigationFocusModifiers[8]) { onNavigate(LauncherDestination.SONGS) }
+        SidebarNavItem(labels[9], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS, modifier = navigationFocusModifiers[9]) { onNavigate(LauncherDestination.SONGS) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[9], Icons.Rounded.Settings, false, modifier = navigationFocusModifiers[9], onClick = onOpenSettings)
+        SidebarNavItem(labels[10], Icons.Rounded.Settings, false, modifier = navigationFocusModifiers[10], onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
