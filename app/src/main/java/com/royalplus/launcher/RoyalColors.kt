@@ -13,7 +13,7 @@ internal object RoyalColors {
     var isLightTheme by mutableStateOf(false)
         private set
 
-    fun setLightTheme(enabled: Boolean) {
+    fun applyLightTheme(enabled: Boolean) {
         isLightTheme = enabled
     }
 
