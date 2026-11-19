@@ -74,6 +74,8 @@ assert "canonicalQuery.length + resource.length + 1 > 512" in backend
 assert "API_SPORTS_KEY" in backend and "x-apisports-key" in backend
 assert "verify_jwt" not in backend  # Gateway verification is configured as true at deployment.
 assert "fifa_rankings" in backend
+assert "params.has(\"next\") || params.has(\"from\") || params.has(\"to\")) return 3 * 60 * 60" in backend
+assert "params.has(\"last\")) return 6 * 60 * 60" in backend
 assert "rankingschedules/all" in backend
 assert "rankingsbyschedule" in backend
 assert "https://api.fifa.com/api/v3/picture/flags-sq-2/" in backend
@@ -91,7 +93,6 @@ assert "grant execute" in public_rpc_migration.lower()
 graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics.kt").read_text(encoding="utf-8")
 assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
-assert 'round = league.optString("round", "")' in sports
 assert 'round = league.optString("round", "")' in sports
 assert 'leg = ""' in sports
 assert 'next=99&$timeZoneParam' in sports
