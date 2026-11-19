@@ -81,6 +81,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":sinjar-tv-core"))
     implementation(project(":royal-adaptive-ui"))
     implementation(project(":royal-ui-sounds"))
     val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
@@ -99,6 +100,10 @@ dependencies {
     implementation("androidx.compose.animation:animation-core")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-dash:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
 }

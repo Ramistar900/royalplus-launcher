@@ -145,7 +145,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, SINJAR_TV, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -301,6 +301,7 @@ internal fun RoyalHomeScreen(
     var adhanMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_adhan", true)) }
     var weatherMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_weather", true)) }
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
+    var isSinjarPlayerFullscreen by remember { mutableStateOf(false) }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
     val selectedFontFamily = remember(selectedFont) {
         when (selectedFont) {
@@ -646,7 +647,8 @@ internal fun RoyalHomeScreen(
                 else -> (maxWidth * 0.205f).coerceIn(120.dp, 188.dp)
             }
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
-                Column(Modifier.fillMaxSize().padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding)) {
+                Column(Modifier.fillMaxSize().then(if (isSinjarPlayerFullscreen) Modifier else Modifier.padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding))) {
+                    if (!isSinjarPlayerFullscreen) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome,
@@ -662,6 +664,7 @@ internal fun RoyalHomeScreen(
                         onToggleTranslationOverlay = onToggleTranslationOverlay,
                         selectedLanguage = selectedLanguage
                     )
+                    }
                     if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
                         Row(
                             Modifier.fillMaxWidth()
@@ -685,9 +688,9 @@ internal fun RoyalHomeScreen(
                         }
                         Spacer(Modifier.height(4.dp))
                     }
-                    Spacer(Modifier.height(9.dp))
-                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        RoyalSidePanel(
+                    if (!isSinjarPlayerFullscreen) Spacer(Modifier.height(9.dp))
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isSinjarPlayerFullscreen) 0.dp else 14.dp)) {
+                        if (!isSinjarPlayerFullscreen) RoyalSidePanel(
                             modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
@@ -758,6 +761,7 @@ internal fun RoyalHomeScreen(
                                         onManageApp = { appForManagement = it }
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
+                                    LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage, onFullscreenChange = { isSinjarPlayerFullscreen = it })
                                     LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
                                     LauncherDestination.SONGS -> RoyalSongsScreen()
@@ -785,8 +789,10 @@ internal fun RoyalHomeScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
+                    if (!isSinjarPlayerFullscreen) {
+                        Spacer(Modifier.height(8.dp))
+                        RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
+                    }
                 }
             }
 
@@ -2230,9 +2236,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Channels", "Sports", "Gallery", "Songs", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Kanallar", "Spor", "Galeri", "Şarkılar", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "القنوات", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Sinjar TV", "Sports", "Gallery", "Songs", "Settings")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Ayarlar")
+        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
     }
     val shape = RoundedCornerShape(19.dp)
     Column(
@@ -2255,7 +2261,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[5], Icons.Rounded.Wifi, false, iconRes = R.drawable.royal_cast, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.APPS) })
+        SidebarNavItem(labels[5], null, selectedDestination == LauncherDestination.SINJAR_TV, sinjarLogo = true, modifier = navigationFocusModifiers[5], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
             labels[6],
@@ -2330,6 +2336,7 @@ private fun SidebarNavItem(
     selected: Boolean,
     iconRes: Int? = null,
     sportsBall: Boolean = false,
+    sinjarLogo: Boolean = false,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -2385,7 +2392,7 @@ private fun SidebarNavItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (compactPhone) Arrangement.Center else Arrangement.SpaceBetween
     ) {
-        if (!compactPhone) Text(
+        if (!compactPhone && !sinjarLogo) Text(
             text = title,
             color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFE2A1) else RoyalColors.Pearl,
             fontSize = 12.sp,
@@ -2393,6 +2400,24 @@ private fun SidebarNavItem(
             maxLines = 1
         )
         when {
+            sinjarLogo -> Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = rememberRoyalBitmapPainter(R.drawable.sinjar_show_logo, maxEdgePx = 512, maxPixels = 262_144L),
+                    contentDescription = "Sinjar TV",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(width = 34.dp, height = 25.dp)
+                )
+                Text(
+                    "TV",
+                    color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
             sportsBall -> RoyalRotatingFootballIcon(
                 modifier = Modifier.size(royalSportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
                 contentDescription = title
