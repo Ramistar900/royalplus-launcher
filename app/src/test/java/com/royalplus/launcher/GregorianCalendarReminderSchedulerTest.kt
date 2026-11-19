@@ -48,6 +48,24 @@ class GregorianCalendarReminderSchedulerTest {
     }
 
     @Test
+    fun recurringReminderStillFiresSoonIfTheNextAdvanceWarningHasPassed() {
+        val reminder = reminder(
+            year = 2028,
+            month = Calendar.FEBRUARY,
+            day = 29,
+            hour = 9,
+            minute = 30,
+            lead = 1440,
+            repeat = CalendarReminderRepeat.YEARLY
+        )
+        val now = utcMillis(2029, Calendar.FEBRUARY, 27, 10, 0)
+
+        val actual = GregorianCalendarReminderScheduler.nextTriggerAt(reminder, now, utc)
+
+        assertEquals(now + 5_000L, actual)
+    }
+
+    @Test
     fun yearlyLeapDayReminderUsesFebruaryTwentyEighthInNonLeapYear() {
         val reminder = reminder(
             year = 2028,
