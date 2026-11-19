@@ -872,8 +872,11 @@ internal object RoyalWeatherRepository {
             if (age !in 0..WEATHER_CACHE_MAX_AGE_MS) return null
             val latitude = json.getDouble("latitude")
             val longitude = json.getDouble("longitude")
-            if (abs(latitude - location.latitude) > 0.02 ||
-                abs(longitude - location.longitude) > 0.02
+            // New city caches must match the rounded-coordinate key very closely.
+            // The legacy single-city cache gets a slightly wider one-time migration window.
+            val coordinateTolerance = if (migratedLegacyCache) 0.005 else 0.0011
+            if (abs(latitude - location.latitude) > coordinateTolerance ||
+                abs(longitude - location.longitude) > coordinateTolerance
             ) return null
 
             val forecastJson = json.optJSONArray("forecast") ?: JSONArray()
