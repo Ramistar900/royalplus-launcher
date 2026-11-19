@@ -1458,6 +1458,7 @@ internal fun RoyalHomeScreen(
                             Text(when (selectedLanguage) { "en" -> "Done"; "tr" -> "Tamam"; else -> "تم" }, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+                    }
                 }
             }
             activeAdhanPrayer?.let { prayerName ->
