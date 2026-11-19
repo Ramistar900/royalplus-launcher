@@ -227,7 +227,7 @@ internal fun RoyalFileManagerScreen(language: String) {
                         color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold
                     )
                     Text(
-                        currentDocumentDirectory?.name ?: currentDirectory.name.ifBlank { "التخزين الداخلي" },
+                        currentDocumentDirectory?.name ?: if (currentDirectory == root) when (language) { "en" -> "Internal storage"; "tr" -> "Dahili depolama"; else -> "التخزين الداخلي" } else currentDirectory.name,
                         color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -253,7 +253,7 @@ internal fun RoyalFileManagerScreen(language: String) {
                 }
             }
 
-            RoyalStorageCard(storage)
+            RoyalStorageCard(storage, language)
 
             if (!browsingAllowed) {
                 RoyalFileAccessPanel(
@@ -456,7 +456,7 @@ private fun RoyalFileAccessPanel(
 }
 
 @Composable
-private fun RoyalStorageCard(stats: RoyalStorageStats) {
+private fun RoyalStorageCard(stats: RoyalStorageStats, language: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -482,22 +482,22 @@ private fun RoyalStorageCard(stats: RoyalStorageStats) {
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(stats.percent.toString() + "%", color = RoyalColors.Pearl, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text("مستخدم", color = RoyalColors.Muted, fontSize = 8.sp)
+                    Text(when (language) { "en" -> "used"; "tr" -> "kullanılan"; else -> "مستخدم" }, color = RoyalColors.Muted, fontSize = 8.sp)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("مساحة التخزين", color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(when (language) { "en" -> "Storage"; "tr" -> "Depolama"; else -> "مساحة التخزين" }, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column {
-                        Text("المستخدم", color = RoyalColors.Muted, fontSize = 9.sp)
+                        Text(when (language) { "en" -> "Used"; "tr" -> "Kullanılan"; else -> "المستخدم" }, color = RoyalColors.Muted, fontSize = 9.sp)
                         Text(Formatter.formatFileSize(LocalContext.current, stats.used), color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Column {
-                        Text("المتبقي", color = RoyalColors.Muted, fontSize = 9.sp)
+                        Text(when (language) { "en" -> "Free"; "tr" -> "Boş"; else -> "المتبقي" }, color = RoyalColors.Muted, fontSize = 9.sp)
                         Text(Formatter.formatFileSize(LocalContext.current, stats.available), color = RoyalColors.Blue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Column {
-                        Text("الكلي", color = RoyalColors.Muted, fontSize = 9.sp)
+                        Text(when (language) { "en" -> "Total"; "tr" -> "Toplam"; else -> "الكلي" }, color = RoyalColors.Muted, fontSize = 9.sp)
                         Text(Formatter.formatFileSize(LocalContext.current, stats.total), color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
