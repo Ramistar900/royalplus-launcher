@@ -23,7 +23,7 @@ assert "createMicrophoneRecord()" in service
 assert "MediaRecorder.AudioSource.VOICE_RECOGNITION" in service
 
 # SMaLL-100 local model, 100-language token map, and pure Kotlin tokenizer.
-assert "onnxruntime-android:1.20.0" in gradle
+assert 'libs/onnxruntime-android-1.28.2.aar' in gradle
 assert "com.google.mlkit:translate" not in gradle
 assert "Small100Translator.create(files)" in service
 assert "translationExecutor.execute" in service
