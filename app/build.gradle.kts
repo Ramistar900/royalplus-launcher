@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         applicationId = "com.royalplus.launcher"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 35
         versionCode = royalPlusVersionCode
         versionName = "1.0.0"
@@ -108,6 +108,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.5.1")
     implementation("androidx.media3:media3-ui:1.5.1")
+    implementation("androidx.documentfile:documentfile:1.0.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
 }

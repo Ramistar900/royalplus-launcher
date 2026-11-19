@@ -145,6 +145,9 @@ jobs:
       - name: Verify settings navigation and release update detection
         run: python3 .github/scripts/verify-settings-navigation-and-release-check.py
 
+      - name: Verify ROYAL+ internal file manager and approved theme palette
+        run: python3 .github/scripts/verify-royal-file-manager.py
+
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 

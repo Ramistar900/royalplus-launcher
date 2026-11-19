@@ -20,19 +20,25 @@ internal object RoyalColors {
     val Black: Color
         get() = if (isLightTheme) Color(0xFFF3EFE5) else Color(0xFF080A12)
     val Panel: Color
-        get() = if (isLightTheme) Color(0xFFFFFCF6) else Color(0xFF171B29)
+        get() = if (isLightTheme) Color(0xFFF8F4EA) else Color(0xFF111620)
     val Surface: Color
-        get() = if (isLightTheme) Color(0xFFECE6D9) else Color(0xFF080A0F)
+        get() = if (isLightTheme) Color(0xFFE9E1D3) else Color(0xFF080A0F)
     val Overlay: Color
         get() = if (isLightTheme) Color(0xD9F3EFE5) else Color(0xF5080A10)
     val Gold: Color
-        get() = if (isLightTheme) Color(0xFF8B681F) else Color(0xFFD6B45D)
+        get() = if (isLightTheme) Color(0xFF94701F) else Color(0xFFD6B45D)
     val Pearl: Color
-        get() = if (isLightTheme) Color(0xFF202936) else Color(0xFFF5F0E4)
+        get() = if (isLightTheme) Color(0xFF26313D) else Color(0xFFF5F0E4)
     val Muted: Color
-        get() = if (isLightTheme) Color(0xFF626D7A) else Color(0xFFB7B9C4)
+        get() = if (isLightTheme) Color(0xFF68717C) else Color(0xFFB7B9C4)
     val Turquoise: Color
-        get() = if (isLightTheme) Color(0xFF167C78) else Color(0xFF62D4C4)
+        get() = if (isLightTheme) Color(0xFF147E78) else Color(0xFF54D3C4)
+    val Activity: Color
+        get() = Turquoise
+    val Green: Color
+        get() = if (isLightTheme) Color(0xFF20804B) else Color(0xFF55D28B)
+    val Blue: Color
+        get() = if (isLightTheme) Color(0xFF276BAE) else Color(0xFF79BFFF)
 }
 
 @Composable
