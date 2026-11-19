@@ -28,6 +28,23 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+internal data class WeatherCitySuggestion(
+    val id: Long,
+    val name: String,
+    val admin1: String?,
+    val admin2: String?,
+    val country: String?,
+    val latitude: Double,
+    val longitude: Double
+) {
+    val displayName: String
+        get() = listOfNotNull(name, admin1, admin2, country)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .joinToString("، ")
+}
+
 internal data class WeatherForecastDay(
     val date: String,
     val weatherCode: Int,
@@ -110,6 +127,48 @@ internal object RoyalWeatherRepository {
         }
     }
 
+    fun searchCities(cityQuery: String, onResult: (List<WeatherCitySuggestion>) -> Unit) {
+        val query = cityQuery.trim()
+        if (query.length < 2) {
+            onResult(emptyList())
+            return
+        }
+        executor.execute {
+            val matches = try {
+                val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
+                val language = Locale.getDefault().language.lowercase(Locale.ROOT).ifBlank { "en" }
+                val url = URL(
+                    "https://geocoding-api.open-meteo.com/v1/search" +
+                        "?name=$encodedQuery&count=100&language=$language&format=json"
+                )
+                val results = requestJson(url).optJSONArray("results") ?: JSONArray()
+                (0 until results.length()).mapNotNull { index ->
+                    val place = results.optJSONObject(index) ?: return@mapNotNull null
+                    val latitude = place.optDouble("latitude", Double.NaN)
+                    val longitude = place.optDouble("longitude", Double.NaN)
+                    val name = place.optString("name").trim()
+                    if (name.isBlank() || !latitude.isFinite() || !longitude.isFinite() ||
+                        latitude !in -90.0..90.0 || longitude !in -180.0..180.0
+                    ) return@mapNotNull null
+                    val id = place.optLong("id", -1L)
+                    if (id <= 0L) return@mapNotNull null
+                    WeatherCitySuggestion(
+                        id = id,
+                        name = name,
+                        admin1 = place.optString("admin1").takeIf { it.isNotBlank() },
+                        admin2 = place.optString("admin2").takeIf { it.isNotBlank() },
+                        country = place.optString("country").takeIf { it.isNotBlank() },
+                        latitude = latitude,
+                        longitude = longitude
+                    )
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+            onResult(matches)
+        }
+    }
+
     fun fetchForCity(context: Context, cityQuery: String, onResult: (WeatherUiState) -> Unit) {
         val appContext = context.applicationContext
         val requestedCity = cityQuery.trim()
@@ -130,6 +189,42 @@ internal object RoyalWeatherRepository {
     }
 
 
+    fun fetchForLocation(
+        context: Context,
+        cityName: String,
+        latitude: Double,
+        longitude: Double,
+        onResult: (WeatherUiState) -> Unit
+    ) {
+        val appContext = context.applicationContext
+        val normalizedCity = cityName.trim()
+        executor.execute {
+            val location = Location("royalplus-manual").apply {
+                this.latitude = latitude
+                this.longitude = longitude
+            }
+            val result = try {
+                require(normalizedCity.isNotBlank())
+                require(latitude in -90.0..90.0 && longitude in -180.0..180.0)
+                fetchCurrentWeather(appContext, location, normalizedCity).copy(isManualLocation = true)
+            } catch (_: Exception) {
+                readWeatherCache(appContext, location)?.first?.copy(
+                    city = normalizedCity,
+                    isLoading = false,
+                    isManualLocation = true
+                ) ?: WeatherUiState(
+                    city = normalizedCity.ifBlank { "مدينة غير محددة" },
+                    description = "تعذّر تحميل طقس المدينة المختارة؛ تحقق من الإنترنت",
+                    latitude = latitude,
+                    longitude = longitude,
+                    isLoading = false,
+                    isManualLocation = true
+                )
+            }
+            onResult(result)
+        }
+    }
+
     /**
      * Refreshes the saved location/city forecast for the periodic background worker.
      * A successful response replaces the rolling seven-day forecast atomically;
@@ -141,7 +236,20 @@ internal object RoyalWeatherRepository {
             val preferences = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val manualCity = preferences.getString("weather_manual_city", null)?.trim()
             if (!manualCity.isNullOrBlank()) {
-                val updated = fetchCityWeather(appContext, manualCity).copy(isManualLocation = true)
+                val latitude = preferences.getString("weather_manual_latitude", null)?.toDoubleOrNull()
+                val longitude = preferences.getString("weather_manual_longitude", null)?.toDoubleOrNull()
+                val updated = if (
+                    latitude != null && longitude != null &&
+                    latitude in -90.0..90.0 && longitude in -180.0..180.0
+                ) {
+                    val location = Location("royalplus-saved-manual").apply {
+                        this.latitude = latitude
+                        this.longitude = longitude
+                    }
+                    fetchCurrentWeather(appContext, location, manualCity).copy(isManualLocation = true)
+                } else {
+                    fetchCityWeather(appContext, manualCity).copy(isManualLocation = true)
+                }
                 if (updated.forecast.isEmpty()) return false
                 if (updated.forecast.size >= 7) saveWeatherCache(appContext, updated)
                 true
