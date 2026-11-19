@@ -8,6 +8,9 @@ val signingKeystorePath = System.getenv("SIGNING_KEYSTORE_PATH")
 val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
 val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+val royalPlusVersionCode = providers.gradleProperty("royalplusVersionCode")
+    .orNull?.toIntOrNull()?.takeIf { it > 0 } ?: 1
+
 val releaseSigningAvailable = listOf(
     signingKeystorePath,
     signingStorePassword,
@@ -23,7 +26,7 @@ android {
         applicationId = "com.royalplus.launcher"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
+        versionCode = royalPlusVersionCode
         versionName = "1.0.0"
     }
 
@@ -94,6 +97,7 @@ dependencies {
     implementation("com.google.mlkit:translate:17.0.3")
     implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("com.caverock:androidsvg-aar:1.4")
+    implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
