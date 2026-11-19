@@ -67,7 +67,9 @@ assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in 
 assert "sportsBall = true" in home and "RoyalRotatingFootballIcon" in home
 assert "Icons.Rounded.SportsSoccer" not in home
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
+assert 'android.permission.POST_NOTIFICATIONS' in manifest
 assert "minSdk = 23" in gradle
+assert 'androidx.work:work-runtime-ktx:2.9.1' in gradle
 
 # Server-side authentication, global budget, query bounds and cache must remain enforced.
 assert "admin.auth.getUser(token)" in backend
@@ -129,6 +131,10 @@ assert "POLL_INTERVAL_MINUTES = 30L" in alerts
 assert "OneTimeWorkRequestBuilder<RoyalSportsMatchReminderWorker>" in alerts
 assert "setInitialDelay(delayMillis" in alerts
 assert "processFinishedResults" in alerts and "processLiveScores" in alerts
+assert "homeScored = previousHome != null && home > previousHome" in alerts
+assert "awayScored = previousAway != null && away > previousAway" in alerts
+assert "Your favorite team's match is starting soon" in alerts
+assert "Your favorite team's match starts in 30 minutes" in alerts
 assert "NotificationChannel" in alerts and "POST_NOTIFICATIONS" in alerts
 assert "RoyalSportsAlertsScheduler.refresh(this)" in (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalPlusApplication.kt").read_text(encoding="utf-8")
 assert 'homeTeamId = home.optInt("id", 0)' in sports and 'awayTeamId = away.optInt("id", 0)' in sports
