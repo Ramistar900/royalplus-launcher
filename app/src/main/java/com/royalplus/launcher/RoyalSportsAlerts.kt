@@ -206,14 +206,21 @@ internal class RoyalSportsAlertsWorker(
         if (!RoyalSportsNotificationCenter.canPost(context)) return Result.success()
 
         return try {
-            if (settings.goalAlerts) {
-                val live = RoyalSportsRepository.loadFixtures(context, RoyalSportsTab.LIVE)
-                if (!live.stale) processLiveScores(context, live.fixtures, favorites)
-            }
-
-            if (settings.resultAlerts) {
-                val finished = RoyalSportsRepository.loadFixtures(context, RoyalSportsTab.FINISHED)
-                if (!finished.stale) processFinishedResults(context, finished.fixtures, favorites)
+            if (settings.goalAlerts || settings.resultAlerts) {
+                // One shared current-day fixture query drives both goal and final-result
+                // alerts, reusing the same 20-minute server cache as the Live tab.
+                val today = RoyalSportsRepository.loadFixtures(context, RoyalSportsTab.LIVE)
+                if (!today.stale) {
+                    if (settings.resultAlerts) {
+                        processFinishedResults(context, today.fixtures, favorites)
+                    }
+                    processLiveScores(
+                        context,
+                        today.fixtures,
+                        favorites,
+                        sendGoalAlerts = settings.goalAlerts
+                    )
+                }
             }
 
             if (settings.matchReminders) {
@@ -229,7 +236,8 @@ internal class RoyalSportsAlertsWorker(
     private fun processLiveScores(
         context: Context,
         fixtures: List<RoyalSportsFixture>,
-        favorites: List<RoyalSportsFavoriteTeam>
+        favorites: List<RoyalSportsFavoriteTeam>,
+        sendGoalAlerts: Boolean
     ) {
         val favoriteIds = favorites.mapTo(HashSet()) { it.id }
         fixtures.forEach { fixture ->
@@ -243,6 +251,7 @@ internal class RoyalSportsAlertsWorker(
             val previousAway = previousParts?.getOrNull(2)?.toIntOrNull()
 
             if (
+                sendGoalAlerts &&
                 previousHome != null &&
                 previousAway != null &&
                 (home != previousHome || away != previousAway) &&
