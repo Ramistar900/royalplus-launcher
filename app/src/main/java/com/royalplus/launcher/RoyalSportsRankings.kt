@@ -131,6 +131,68 @@ private object RoyalSportsRankingCatalog {
     )
 }
 
+
+internal fun calculateStandingMovement(currentRank: Int, previousRank: Int?): Int? =
+    previousRank?.takeIf { it > 0 && currentRank > 0 }?.let { it - currentRank }
+
+private fun calculateLocalStandingsMovement(
+    context: Context,
+    competition: RoyalSportsRankingCompetition,
+    groupIndex: Int,
+    groupName: String,
+    updatedAt: String,
+    entries: List<RoyalSportsStandingEntry>
+): List<RoyalSportsStandingEntry> {
+    if (entries.isEmpty() || updatedAt.isBlank()) return entries
+
+    val safeGroupName = groupName.lowercase(Locale.ROOT)
+        .replace(Regex("[^a-z0-9]+"), "_")
+        .trim('_')
+        .take(32)
+    val snapshotKey = "standing_snapshot_" + competition.id + "_" + competition.season +
+        "_" + groupIndex + "_" + safeGroupName
+    val preferences = context.getSharedPreferences(
+        "royalplus_sports_standings",
+        Context.MODE_PRIVATE
+    )
+
+    synchronized(preferences) {
+        val previousUpdatedAt = preferences.getString(snapshotKey + "_cached_at", null)
+        val previousRanks = runCatching {
+            JSONObject(preferences.getString(snapshotKey + "_ranks", "{}") ?: "{}")
+        }.getOrDefault(JSONObject())
+        val hasNewProviderSnapshot = previousUpdatedAt != null &&
+            previousUpdatedAt.isNotBlank() &&
+            previousUpdatedAt != updatedAt &&
+            previousRanks.length() > 0
+
+        val currentEntries = entries.map { entry ->
+            val oldRank = previousRanks.optInt(entry.teamId.toString(), 0)
+                .takeIf { it > 0 }
+            entry.copy(
+                movement = if (hasNewProviderSnapshot) {
+                    calculateStandingMovement(entry.rank, oldRank)
+                } else {
+                    null
+                }
+            )
+        }
+
+        if (previousUpdatedAt != updatedAt || previousRanks.length() == 0) {
+            val currentRanks = JSONObject()
+            entries.forEach { entry ->
+                if (entry.teamId > 0 && entry.rank > 0) {
+                    currentRanks.put(entry.teamId.toString(), entry.rank)
+                }
+            }
+            preferences.edit()
+                .putString(snapshotKey + "_cached_at", updatedAt)
+                .putString(snapshotKey + "_ranks", currentRanks.toString())
+                .apply()
+        }
+        currentEntries
+    }
+}
 private object RoyalSportsRankingRepository {
     suspend fun loadFifaTop100(context: Context): Pair<List<RoyalSportsFifaTeam>, String> =
         withContext(Dispatchers.IO) {
@@ -174,6 +236,7 @@ private object RoyalSportsRankingRepository {
         val result = response.optJSONObject(0) ?: JSONObject()
         val league = result.optJSONObject("league") ?: JSONObject()
         val standings = league.optJSONArray("standings") ?: JSONArray()
+        val cacheUpdatedAt = envelope.optJSONObject("cache")?.optString("cached_at", "").orEmpty()
         val groups = ArrayList<RoyalSportsStandingGroup>(standings.length())
 
         for (groupIndex in 0 until standings.length()) {
@@ -188,8 +251,8 @@ private object RoyalSportsRankingRepository {
                 val rank = row.optInt("rank", rowIndex + 1)
                 val teamId = team.optInt("id", 0)
                 val teamName = team.optString("name", "—")
-                // API-Football standings do not provide a previous-rank movement field.
-                // Keep movement unknown rather than inventing arrows from local fetch timing.
+                // API-Football has no prior-rank field; movement is derived from the
+                // previous distinct provider snapshot stored locally for this league.
                 val movement: Int? = null
                 if (groupName.isBlank()) {
                     groupName = row.optString("group", "")
@@ -217,9 +280,18 @@ private object RoyalSportsRankingRepository {
                 } else {
                     "Overall standings"
                 }
-                groups += RoyalSportsStandingGroup(
-                    name = groupName.ifBlank { fallbackName },
+                val resolvedGroupName = groupName.ifBlank { fallbackName }
+                val entriesWithMovement = calculateLocalStandingsMovement(
+                    context = context,
+                    competition = competition,
+                    groupIndex = groupIndex,
+                    groupName = resolvedGroupName,
+                    updatedAt = cacheUpdatedAt,
                     entries = entries.sortedBy { it.rank }
+                )
+                groups += RoyalSportsStandingGroup(
+                    name = resolvedGroupName,
+                    entries = entriesWithMovement
                 )
             }
         }
@@ -228,7 +300,7 @@ private object RoyalSportsRankingRepository {
             league = league.optString("name", competition.name),
             leagueLogo = league.optString("logo", competition.logoUrl),
             season = league.optInt("season", competition.season),
-            updatedAt = envelope.optJSONObject("cache")?.optString("cached_at", "").orEmpty(),
+            updatedAt = cacheUpdatedAt,
             groups = groups
         )
     }
