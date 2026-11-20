@@ -31,7 +31,7 @@ import android.widget.TextView
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import java.util.ArrayDeque
 import java.util.Locale
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -46,7 +46,7 @@ class FloatingTranslationOverlayService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     // VAD emits whole speech turns; this FIFO never discards recognized audio.
-    private val audioSegments = LinkedBlockingQueue<FloatArray>()
+    private val audioSegments = ArrayBlockingQueue<FloatArray>(4)
     private val queuedAudioSamples = AtomicLong(0L)
 
     @Volatile private var recognizer: OfflineRecognizer? = null
@@ -340,16 +340,25 @@ class FloatingTranslationOverlayService : Service() {
                         segment[filled++] = input[index] / 32768.0f
                         if (filled == SEGMENT_SAMPLES) {
                             val completed = segment.copyOf()
-                            audioSegments.offer(completed)
-                            val queuedMillis = queuedAudioSamples
-                                .addAndGet(completed.size.toLong()) * 1_000L / SAMPLE_RATE
-                            val now = SystemClock.elapsedRealtime()
-                            if (
-                                queuedMillis >= SPEECH_BACKLOG_WARNING_MILLIS &&
-                                now - lastBacklogNoticeElapsedRealtime >= BACKLOG_NOTICE_INTERVAL_MILLIS
-                            ) {
-                                lastBacklogNoticeElapsedRealtime = now
-                                updateNotification("تأخرت معالجة بعض المقاطع؛ احتُفظ بها في قائمة الانتظار")
+                            var accepted = audioSegments.offer(completed)
+                            if (!accepted) {
+                                // Bound memory while keeping the newest audio when the
+                                // recognizer is slower than live playback.
+                                val oldest = audioSegments.poll()
+                                if (oldest != null) queuedAudioSamples.addAndGet(-oldest.size.toLong())
+                                accepted = audioSegments.offer(completed)
+                            }
+                            if (accepted) {
+                                val queuedMillis = queuedAudioSamples
+                                    .addAndGet(completed.size.toLong()) * 1_000L / SAMPLE_RATE
+                                val now = SystemClock.elapsedRealtime()
+                                if (
+                                    queuedMillis >= SPEECH_BACKLOG_WARNING_MILLIS &&
+                                    now - lastBacklogNoticeElapsedRealtime >= BACKLOG_NOTICE_INTERVAL_MILLIS
+                                ) {
+                                    lastBacklogNoticeElapsedRealtime = now
+                                    updateNotification("تأخرت معالجة المقاطع؛ تُحفظ أحدث نوافذ الصوت لتقليل استهلاك الذاكرة")
+                                }
                             }
 
                             // Preserve the last 350 ms so words crossing a window boundary are not clipped.
@@ -676,7 +685,7 @@ class FloatingTranslationOverlayService : Service() {
                     translationModelInstalled = false
                     translationModelSetup.set(false)
                     translationDownloadNoticeShown = true
-                updateStatus("اكتمل نموذج التعرّف الصوتي. بقي تنزيل نموذج الترجمة العربي المحلي (~621MB) من إشعار ROYAL+ عبر Wi-Fi.")
+                    updateStatus("اكتمل نموذج التعرّف الصوتي. بقي تنزيل نموذج الترجمة العربي المحلي (~621MB) من إشعار ROYAL+ عبر Wi-Fi.")
                     return@Thread
                 }
                 val engine = createVerifiedTranslationEngine(files) ?: return@Thread
