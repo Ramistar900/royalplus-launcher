@@ -1,7 +1,10 @@
 package com.royalplus.launcher
 
+import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
+import android.widget.Toast
 import android.graphics.BitmapFactory
 import android.graphics.Canvas as AndroidCanvas
 import android.security.keystore.KeyGenParameterSpec
@@ -12,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +33,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,6 +75,7 @@ import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -80,7 +93,7 @@ private const val SPORTS_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rltTQCQ_SlGk
  * Only official images returned by API-Sports are accepted. The in-memory cache
  * keeps these small illustrations local after the first successful fetch.
  */
-private object RoyalSportsProviderImageCache {
+internal object RoyalSportsProviderImageCache {
     private const val MAX_IMAGE_BYTES = 512 * 1024
     private const val EDGE_PX = 128
     private const val MAX_CACHE_BYTES = 3 * 1024 * 1024
@@ -90,12 +103,15 @@ private object RoyalSportsProviderImageCache {
 
     fun isAllowed(url: String): Boolean = runCatching {
         val uri = URI(url)
-        uri.scheme.equals("https", ignoreCase = true) &&
-            uri.host.equals("media.api-sports.io", ignoreCase = true) &&
+        val secure = uri.scheme.equals("https", ignoreCase = true)
+        val apiSportsImage = uri.host.equals("media.api-sports.io", ignoreCase = true) &&
             (uri.path.startsWith("/football/leagues/") ||
                 uri.path.startsWith("/football/teams/") ||
                 uri.path.startsWith("/flags/")) &&
             (uri.path.endsWith(".png", ignoreCase = true) || uri.path.endsWith(".svg", ignoreCase = true))
+        val fifaFlag = uri.host.equals("api.fifa.com", ignoreCase = true) &&
+            uri.path.matches(Regex("/api/v3/picture/flags-sq-2/[A-Z]{3}"))
+        secure && (apiSportsImage || fifaFlag)
     }.getOrDefault(false)
 
     suspend fun load(url: String): Bitmap? = withContext(Dispatchers.IO) {
@@ -113,6 +129,15 @@ private object RoyalSportsProviderImageCache {
             connection.setRequestProperty("User-Agent", "ROYAL-Launcher/1.0")
             if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
 
+            // FIFA's flag endpoint has no file extension, so detect SVG/raster
+            // format from the actual HTTP Content-Type instead of the URL suffix.
+            val contentType = connection.contentType
+                ?.substringBefore(';')
+                ?.trim()
+                ?.lowercase(Locale.ROOT)
+                .orEmpty()
+            if (!contentType.startsWith("image/")) return@withContext null
+
             val bytes = connection.inputStream.use { input ->
                 val output = ByteArrayOutputStream()
                 val buffer = ByteArray(8 * 1024)
@@ -128,7 +153,9 @@ private object RoyalSportsProviderImageCache {
             }
             if (bytes.isEmpty()) return@withContext null
 
-            val bitmap = if (url.substringBefore('?').endsWith(".svg", ignoreCase = true)) {
+            val isSvg = contentType == "image/svg+xml" ||
+                url.substringBefore('?').endsWith(".svg", ignoreCase = true)
+            val bitmap = if (isSvg) {
                 val svg = SVG.getFromString(String(bytes, Charsets.UTF_8))
                 svg.setDocumentWidth(EDGE_PX.toFloat())
                 svg.setDocumentHeight(EDGE_PX.toFloat())
@@ -138,7 +165,8 @@ private object RoyalSportsProviderImageCache {
             } else {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-                val largestEdge = maxOf(bounds.outWidth, bounds.outHeight).coerceAtLeast(1)
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+                val largestEdge = maxOf(bounds.outWidth, bounds.outHeight)
                 val sample = (largestEdge / EDGE_PX).coerceAtLeast(1)
                 val options = BitmapFactory.Options().apply { inSampleSize = sample }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
@@ -154,7 +182,7 @@ private object RoyalSportsProviderImageCache {
 }
 
 @Composable
-private fun RoyalSportsProviderImage(
+internal fun RoyalSportsProviderImage(
     url: String?,
     modifier: Modifier = Modifier,
     fallback: RoyalSportsGlyph,
@@ -186,7 +214,7 @@ private fun RoyalSportsProviderImage(
 }
 
 internal enum class RoyalSportsTab {
-    MATCHES, SCHEDULE
+    LIVE, UPCOMING, FINISHED, RANKINGS
 }
 
 internal data class RoyalSportsFixture(
@@ -195,15 +223,21 @@ internal data class RoyalSportsFixture(
     val country: String,
     val leagueLogo: String,
     val countryFlag: String,
+    val homeTeamId: Int,
     val homeTeam: String,
     val homeLogo: String,
+    val awayTeamId: Int,
     val awayTeam: String,
     val awayLogo: String,
     val homeGoals: Int?,
     val awayGoals: Int?,
     val status: String,
     val elapsed: Int?,
-    val date: String
+    val date: String,
+    val round: String,
+    val leagueId: Int,
+    val season: Int,
+    val leg: String
 )
 
 private enum class RoyalSportsMatchBucket {
@@ -213,8 +247,8 @@ private enum class RoyalSportsMatchBucket {
 }
 
 private fun sportsMatchBucket(status: String): RoyalSportsMatchBucket = when (status.uppercase(Locale.ROOT)) {
-    "1H", "2H", "ET", "LIVE", "HT", "BT", "SUSP", "INT" -> RoyalSportsMatchBucket.LIVE
-    "FT", "AET", "PEN", "AWD", "WO" -> RoyalSportsMatchBucket.PLAYED
+    "1H", "2H", "ET", "LIVE", "HT", "BT", "P", "SUSP", "INT" -> RoyalSportsMatchBucket.LIVE
+    "FT", "AET", "PEN", "AWD", "WO", "CANC", "ABD" -> RoyalSportsMatchBucket.PLAYED
     else -> RoyalSportsMatchBucket.NOT_STARTED
 }
 
@@ -245,41 +279,77 @@ internal object RoyalSportsRepository {
     private val sessionLock = Any()
 
     suspend fun loadFixtures(context: Context, tab: RoyalSportsTab): RoyalSportsLoadResult {
-        return withContext(Dispatchers.IO) {
-            val cacheKey = if (tab == RoyalSportsTab.MATCHES) "matches_today" else "schedule_next"
-            try {
-                var session = ensureSession(context)
-                val query = buildQuery(tab)
-                val endpoint = "$SPORTS_SUPABASE_URL/functions/v1/royalplus-sports?$query"
-                val envelope = try {
-                    requestJson(endpoint, "GET", session.accessToken, null)
-                } catch (error: RoyalSportsHttpException) {
-                    if (error.statusCode != 401) throw error
-                    session = renewSession(context)
-                    requestJson(endpoint, "GET", session.accessToken, null)
-                }
-                val result = parseEnvelope(envelope)
-                saveLocalCache(context, cacheKey, envelope)
-                result
-            } catch (error: Exception) {
-                val saved = readLocalCache(context, cacheKey)
-                if (saved != null) {
-                    saved.copy(stale = true)
-                } else {
-                    throw error
-                }
+        require(tab != RoyalSportsTab.RANKINGS) { "rankings_are_not_fixtures" }
+        val cacheKey = when (tab) {
+            RoyalSportsTab.LIVE -> "matches_live"
+            RoyalSportsTab.UPCOMING -> "matches_upcoming"
+            RoyalSportsTab.FINISHED -> "matches_finished"
+            RoyalSportsTab.RANKINGS -> error("rankings_are_not_fixtures")
+        }
+        val envelope = loadSportsJson(context, buildQuery(tab), cacheKey)
+        return parseEnvelope(envelope)
+    }
+
+    /**
+     * All sports data uses the same authenticated Supabase Edge Function.
+     * The provider credential remains on the server; this method only sends
+     * the public client key and an encrypted anonymous-session bearer token.
+     */
+    internal suspend fun loadSportsJson(
+        context: Context,
+        query: String,
+        cacheKey: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        try {
+            var session = ensureSession(context)
+            val endpoint = "$SPORTS_SUPABASE_URL/functions/v1/royalplus-sports?$query"
+            val envelope = try {
+                requestJson(endpoint, "GET", session.accessToken, null)
+            } catch (error: RoyalSportsHttpException) {
+                if (error.statusCode != 401) throw error
+                session = renewSession(context)
+                requestJson(endpoint, "GET", session.accessToken, null)
+            }
+            saveLocalCache(context, cacheKey, envelope)
+            envelope
+        } catch (error: Exception) {
+            val saved = context.getSharedPreferences(LOCAL_CACHE_PREFS, Context.MODE_PRIVATE)
+                .getString("payload_$cacheKey", null)
+            if (saved != null) {
+                val cachedEnvelope = JSONObject(saved)
+                val cache = cachedEnvelope.optJSONObject("cache") ?: JSONObject()
+                cache.put("hit", true).put("stale", true)
+                cachedEnvelope.put("cache", cache)
+            } else {
+                throw error
             }
         }
+    }
+
+    private fun dateOffset(days: Int): String {
+        val timeZone = TimeZone.getDefault()
+        val calendar = Calendar.getInstance(timeZone, Locale.US).apply {
+            add(Calendar.DAY_OF_YEAR, days)
+        }
+        return SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            this.timeZone = timeZone
+        }.format(calendar.time)
     }
 
     private fun buildQuery(tab: RoyalSportsTab): String {
         val timezone = TimeZone.getDefault().id
         val timeZoneParam = "timezone=" + URLEncoder.encode(timezone, "UTF-8")
-        return if (tab == RoyalSportsTab.MATCHES) {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            "date=$today&$timeZoneParam"
-        } else {
-            "next=20&$timeZoneParam"
+        val today = dateOffset(0)
+        return when (tab) {
+            // Date filters are shared by the screen and background alerts, so both
+            // use the same server cache and remain compatible with the deployed fixtures endpoint.
+            RoyalSportsTab.LIVE -> "date=$today&$timeZoneParam"
+            // Date ranges return every scheduled fixture in the window rather than
+            // only the next 99 worldwide, so smaller domestic leagues are not cut off.
+            RoyalSportsTab.UPCOMING -> "from=$today&to=${dateOffset(7)}&$timeZoneParam"
+            // Keep a full recent week of results across all competitions.
+            RoyalSportsTab.FINISHED -> "from=${dateOffset(-7)}&to=$today&$timeZoneParam"
+            RoyalSportsTab.RANKINGS -> error("rankings_are_not_fixtures")
         }
     }
 
@@ -305,15 +375,21 @@ internal object RoyalSportsRepository {
                     country = league.optString("country", ""),
                     leagueLogo = league.optString("logo", ""),
                     countryFlag = league.optString("flag", ""),
+                    homeTeamId = home.optInt("id", 0),
                     homeTeam = home.optString("name", "Home"),
                     homeLogo = home.optString("logo", ""),
+                    awayTeamId = away.optInt("id", 0),
                     awayTeam = away.optString("name", "Away"),
                     awayLogo = away.optString("logo", ""),
                     homeGoals = if (goals.isNull("home")) null else goals.optInt("home"),
                     awayGoals = if (goals.isNull("away")) null else goals.optInt("away"),
                     status = status.optString("short", "NS"),
                     elapsed = if (status.isNull("elapsed")) null else status.optInt("elapsed"),
-                    date = fixture.optString("date", "")
+                    date = fixture.optString("date", ""),
+                    round = league.optString("round", ""),
+                    leagueId = league.optInt("id", 0),
+                    season = league.optInt("season", 0),
+                    leg = ""
                 )
             )
         }
@@ -535,13 +611,64 @@ internal fun RoyalSportsScreen(language: String) {
     val context = LocalContext.current.applicationContext
     val arabic = language == "ar"
     val turkish = language == "tr"
-    var selectedTab by remember { mutableStateOf(RoyalSportsTab.MATCHES) }
+    var selectedTab by remember { mutableStateOf(RoyalSportsTab.LIVE) }
     var loaded by remember { mutableStateOf<RoyalSportsLoadResult?>(null) }
     var loading by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf<String?>(null) }
     var refreshSequence by remember { mutableStateOf(0) }
+    var favoriteTeams by remember { mutableStateOf(RoyalSportsFavorites.load(context)) }
+    var alertSettings by remember { mutableStateOf(RoyalSportsFavorites.loadAlertSettings(context)) }
+    var showFavoritesDialog by remember { mutableStateOf(false) }
+    var pendingPermissionUpdate by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val pending = pendingPermissionUpdate
+        pendingPermissionUpdate = null
+        if (granted && pending != null) {
+            val updated = updateSportsAlertSetting(alertSettings, pending.first, pending.second)
+            alertSettings = updated
+            RoyalSportsFavorites.saveAlertSettings(context, updated)
+            RoyalSportsAlertsScheduler.refresh(context)
+        } else if (!granted) {
+            Toast.makeText(
+                context,
+                if (arabic) "لم يتم السماح بالإشعارات؛ يمكنك تفعيلها من إعدادات الجهاز" else "Notification permission was not granted",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    val favoriteTeamIds = favoriteTeams.mapTo(HashSet()) { it.id }
+    val onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit = { team ->
+        favoriteTeams = RoyalSportsFavorites.toggle(context, team)
+        RoyalSportsAlertsScheduler.refresh(context)
+    }
+    val onRemoveFavorite: (Int) -> Unit = { teamId ->
+        favoriteTeams = RoyalSportsFavorites.remove(context, teamId)
+        RoyalSportsAlertsScheduler.refresh(context)
+    }
+    val onToggleAlert: (String, Boolean) -> Unit = { key, enabled ->
+        val needsPermission = enabled &&
+            Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingPermissionUpdate = key to enabled
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            val updated = updateSportsAlertSetting(alertSettings, key, enabled)
+            alertSettings = updated
+            RoyalSportsFavorites.saveAlertSettings(context, updated)
+            RoyalSportsAlertsScheduler.refresh(context)
+        }
+    }
+
+    LaunchedEffect(language) {
+        RoyalSportsFavorites.setLanguage(context, language)
+    }
 
     LaunchedEffect(selectedTab, refreshSequence) {
+        if (selectedTab == RoyalSportsTab.RANKINGS) return@LaunchedEffect
         while (true) {
             loading = true
             try {
@@ -556,7 +683,7 @@ internal fun RoyalSportsScreen(language: String) {
             } finally {
                 loading = false
             }
-            delay(5 * 60 * 1000L)
+            delay(20 * 60 * 1000L)
         }
     }
 
@@ -565,20 +692,15 @@ internal fun RoyalSportsScreen(language: String) {
         turkish -> "FUTBOL"
         else -> "FOOTBALL"
     }
-    val matchesLabel = when {
-        arabic -> "مباريات اليوم"
-        turkish -> "Bugünün maçları"
-        else -> "Today's matches"
-    }
-    val scheduleLabel = when {
-        arabic -> "الجدول القادم"
-        turkish -> "Gelecek fikstür"
-        else -> "Upcoming schedule"
+    val tabLabels = when {
+        arabic -> listOf("مباريات الآن", "لم تبدأ", "انتهت", "التصنيفات")
+        turkish -> listOf("Canlı", "Başlamadı", "Bitti", "Sıralamalar")
+        else -> listOf("Live now", "Upcoming", "Finished", "Rankings")
     }
     val emptyLabel = when {
-        arabic -> "لا توجد مباريات في هذه الفترة"
-        turkish -> "Bu aralıkta maç bulunamadı"
-        else -> "No matches found for this period"
+        arabic -> "لا توجد مباريات في هذا القسم حالياً"
+        turkish -> "Bu bölümde şu anda maç yok"
+        else -> "No matches are available in this section"
     }
     val loadingLabel = when {
         arabic -> "جارٍ تحميل المباريات..."
@@ -591,9 +713,9 @@ internal fun RoyalSportsScreen(language: String) {
         else -> "Refresh"
     }
     val staleLabel = when {
-        arabic -> "نعرض آخر البيانات المحفوظة لتوفير الحصة"
-        turkish -> "Kotayı korumak için kayıtlı son veriler gösteriliyor"
-        else -> "Showing saved results to protect the API quota"
+        arabic -> "نعرض آخر البيانات المحفوظة"
+        turkish -> "Son kaydedilen veriler gösteriliyor"
+        else -> "Showing the latest saved data"
     }
     val errorLabel = when (errorCode) {
         "anonymous_provider_disabled", "Anonymous sign-ins are disabled" -> when {
@@ -602,12 +724,12 @@ internal fun RoyalSportsScreen(language: String) {
             else -> "Enable Anonymous Sign-Ins in Supabase, then retry"
         }
         "daily_or_rate_limit_reached" -> when {
-            arabic -> "اكتملت حصة الطلبات الحالية؛ ستظهر البيانات المحفوظة إن توفرت"
+            arabic -> "اكتملت حصة الطلبات؛ ستظهر البيانات المحفوظة إن توفرت"
             turkish -> "İstek kotası doldu; varsa kayıtlı veriler gösterilecek"
             else -> "The request quota is exhausted; saved data will be shown when available"
         }
         "request_budget_unavailable", "sports_cache_unavailable" -> when {
-            arabic -> "خدمة الرياضة غير متاحة مؤقتاً؛ لم يتم الاتصال بمزوّد المباريات"
+            arabic -> "خدمة الرياضة غير متاحة مؤقتاً"
             turkish -> "Spor servisi geçici olarak kullanılamıyor"
             else -> "The sports service is temporarily unavailable"
         }
@@ -627,211 +749,431 @@ internal fun RoyalSportsScreen(language: String) {
     CompositionLocalProvider(
         LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
-    Box(
-        modifier = Modifier.fillMaxSize()
-            .clip(RoundedCornerShape(22.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xD91A7652), Color(0xC40C4937), Color(0xDC082C25))
-                )
-            )
-            .border(1.dp, Color(0x667FFFC1), RoundedCornerShape(22.dp))
-    ) {
-        SportsPitchGlassBackground(Modifier.matchParentSize())
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)
+        Box(
+            modifier = Modifier.fillMaxSize()
+                .clip(RoundedCornerShape(22.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xD91A7652), Color(0xC40C4937), Color(0xDC082C25))))
+                .border(1.dp, Color(0x667FFFC1), RoundedCornerShape(22.dp))
         ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            RoyalSportsIcon(RoyalSportsGlyph.FOOTBALL, modifier = Modifier.size(royalSportsIconSize(52.dp)), contentDescription = title)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    when {
-                        arabic -> "مباريات كرة القدم والنتائج والجدول القادم"
-                        turkish -> "Futbol maçları, sonuçlar ve fikstür"
-                        else -> "Football matches, results and upcoming fixtures"
-                    },
-                    color = RoyalColors.Muted,
-                    fontSize = 11.sp
-                )
-            }
-            Row(
-                modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                    .background(Color(0x99214B39))
-                    .border(1.dp, Color(0x558EE6B4), RoundedCornerShape(12.dp))
-                    .clickable { refreshSequence += 1 }
-                    .focusable()
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            SportsPitchGlassBackground(Modifier.matchParentSize())
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                RoyalSportsIcon(RoyalSportsGlyph.REFRESH, modifier = Modifier.size(royalSportsIconSize(24.dp)), contentDescription = refreshLabel)
-                Text(refreshLabel, color = RoyalColors.Pearl, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            SportsTabButton(
-                label = matchesLabel,
-                icon = RoyalSportsGlyph.TODAY_MATCHES,
-                selected = selectedTab == RoyalSportsTab.MATCHES,
-                modifier = Modifier.weight(1f)
-            ) { selectedTab = RoyalSportsTab.MATCHES }
-            SportsTabButton(
-                label = scheduleLabel,
-                icon = RoyalSportsGlyph.FIXTURES,
-                selected = selectedTab == RoyalSportsTab.SCHEDULE,
-                modifier = Modifier.weight(1f)
-            ) { selectedTab = RoyalSportsTab.SCHEDULE }
-        }
-        Spacer(Modifier.height(11.dp))
-
-        val result = loaded
-        if (result?.stale == true) {
-            Text(staleLabel, color = Color(0xFFFFD27A), fontSize = 10.sp, modifier = Modifier.padding(bottom = 7.dp))
-        } else if (result?.remaining != null) {
-            val quotaText = when {
-                arabic -> "المتبقي من الحصة: " + result.remaining
-                turkish -> "Kalan istek: " + result.remaining
-                else -> "Requests remaining: " + result.remaining
-            }
-            Text(quotaText, color = RoyalColors.Muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 7.dp))
-        }
-        if (errorLabel != null) {
-            Text(errorLabel, color = Color(0xFFFFB4A9), fontSize = 11.sp, modifier = Modifier.padding(bottom = 7.dp))
-        }
-
-        if (result?.fixtures.isNullOrEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    if (loading) loadingLabel else (errorLabel ?: emptyLabel),
-                    color = RoyalColors.Pearl,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val fixturesByBucket = result!!.fixtures.groupBy { sportsMatchBucket(it.status) }
-                val bucketOrder = listOf(
-                    RoyalSportsMatchBucket.LIVE,
-                    RoyalSportsMatchBucket.NOT_STARTED,
-                    RoyalSportsMatchBucket.PLAYED
-                )
-                bucketOrder.forEach { bucket ->
-                    val bucketFixtures = fixturesByBucket[bucket].orEmpty().sortedBy { it.date }
-                    if (bucketFixtures.isNotEmpty()) {
-                        val bucketTitle = when (bucket) {
-                            RoyalSportsMatchBucket.LIVE -> when {
-                                arabic -> "المباريات المباشرة"
-                                turkish -> "Canlı maçlar"
-                                else -> "Live matches"
-                            }
-                            RoyalSportsMatchBucket.NOT_STARTED -> when {
-                                arabic -> "المباريات التي لم تبدأ"
-                                turkish -> "Henüz başlamayan maçlar"
-                                else -> "Not started"
-                            }
-                            RoyalSportsMatchBucket.PLAYED -> when {
-                                arabic -> "المباريات المنتهية"
-                                turkish -> "Tamamlanan maçlar"
-                                else -> "Finished matches"
-                            }
-                        }
-                        val bucketCaption = when (bucket) {
-                            RoyalSportsMatchBucket.LIVE -> when {
-                                arabic -> "تُحدّث النتائج المباشرة تلقائياً"
-                                turkish -> "Canlı skorlar otomatik yenilenir"
-                                else -> "Live scores refresh automatically"
-                            }
-                            RoyalSportsMatchBucket.NOT_STARTED -> when {
-                                arabic -> "مواعيد الانطلاق القادمة"
-                                turkish -> "Yaklaşan başlama saatleri"
-                                else -> "Upcoming kick-off times"
-                            }
-                            RoyalSportsMatchBucket.PLAYED -> when {
-                                arabic -> "النتائج النهائية"
-                                turkish -> "Maç sonuçları"
-                                else -> "Final results"
-                            }
-                        }
-                        val bucketCount = when {
-                            arabic -> bucketFixtures.size.toString() + " مباراة"
-                            turkish -> bucketFixtures.size.toString() + " maç"
-                            else -> bucketFixtures.size.toString() + " matches"
-                        }
-                        item(key = "bucket-" + bucket.name) {
-                            SportsMatchBucketHeader(
-                                title = bucketTitle,
-                                caption = bucketCaption,
-                                count = bucketCount,
-                                bucket = bucket
-                            )
-                        }
-
-                        val leagueGroups = bucketFixtures
-                            .groupBy { it.country.trim() to it.league.trim() }
-                            .entries
-                            .sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }
-                        leagueGroups.forEachIndexed { groupIndex, entry ->
-                            val leagueName = entry.key.second.ifBlank { title }
-                            val countryName = entry.key.first
-                            val heading = if (countryName.isBlank()) {
-                                localizedFootballName(leagueName, arabic, turkish)
-                            } else {
-                                localizedFootballName(leagueName, arabic, turkish) + " • " +
-                                    localizedFootballName(countryName, arabic, turkish)
-                            }
-                            val countLabel = when {
-                                arabic -> entry.value.size.toString() + " مباراة"
-                                turkish -> entry.value.size.toString() + " maç"
-                                else -> entry.value.size.toString() + " matches"
-                            }
-                            val firstFixture = entry.value.firstOrNull()
-                            val originalLogoOrFlag = firstFixture?.leagueLogo
-                                ?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
-                                ?: firstFixture?.countryFlag?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
-                            item(key = "league-" + bucket.name + "-" + groupIndex + "-" + entry.key.second) {
-                                SportsLeagueHeader(
-                                    title = heading,
-                                    caption = if (arabic) "مباريات البطولة" else if (turkish) "Lig maçları" else "League fixtures",
-                                    count = countLabel,
-                                    imageUrl = originalLogoOrFlag
-                                )
-                            }
-                            items(entry.value, key = { it.id }) { fixture ->
-                                SportsFixtureCard(fixture = fixture, arabic = arabic, turkish = turkish)
-                            }
-                        }
-                    }
-                }
-                if (loading) {
-                    item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    RoyalSportsIcon(RoyalSportsGlyph.FOOTBALL, modifier = Modifier.size(royalSportsIconSize(52.dp)), contentDescription = title)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(title, color = RoyalColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Text(
                             when {
-                                arabic -> "جارٍ التحقق من آخر النتائج..."
-                                turkish -> "Sonuçlar kontrol ediliyor..."
-                                else -> "Checking for updated results..."
+                                arabic -> "المباريات والبطولات والتصنيفات"
+                                turkish -> "Maçlar, turnuvalar ve sıralamalar"
+                                else -> "Matches, competitions and rankings"
                             },
                             color = RoyalColors.Muted,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            fontSize = 11.sp
                         )
+                    }
+                    Row(
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x99214B39))
+                            .border(1.dp, Color(0x558EE6B4), RoundedCornerShape(12.dp))
+                            .clickable { showFavoritesDialog = true }
+                            .focusable()
+                            .padding(horizontal = 9.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Text("★", color = RoyalColors.Gold, fontSize = 14.sp)
+                        Text(
+                            when {
+                                arabic -> "المفضلة " + favoriteTeams.size
+                                turkish -> "Favoriler " + favoriteTeams.size
+                                else -> "Favorites " + favoriteTeams.size
+                            },
+                            color = RoyalColors.Pearl,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x99214B39))
+                            .border(1.dp, Color(0x558EE6B4), RoundedCornerShape(12.dp))
+                            .clickable { refreshSequence += 1 }
+                            .focusable()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        RoyalSportsIcon(RoyalSportsGlyph.REFRESH, modifier = Modifier.size(royalSportsIconSize(22.dp)), contentDescription = refreshLabel)
+                        Text(refreshLabel, color = RoyalColors.Pearl, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val tabs = listOf(RoyalSportsTab.LIVE, RoyalSportsTab.UPCOMING, RoyalSportsTab.FINISHED, RoyalSportsTab.RANKINGS)
+                    tabs.forEachIndexed { index, tab ->
+                        SportsTabButton(
+                            label = tabLabels[index],
+                            icon = when (tab) {
+                                RoyalSportsTab.LIVE -> RoyalSportsGlyph.LIVE
+                                RoyalSportsTab.UPCOMING -> RoyalSportsGlyph.FIXTURES
+                                RoyalSportsTab.FINISHED -> RoyalSportsGlyph.RESULTS
+                                RoyalSportsTab.RANKINGS -> RoyalSportsGlyph.TEAMS
+                            },
+                            selected = selectedTab == tab,
+                            modifier = Modifier.weight(1f)
+                        ) { selectedTab = tab; loaded = null; errorCode = null }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+
+                if (selectedTab == RoyalSportsTab.RANKINGS) {
+                    RoyalSportsRankingsScreen(
+                        language = language,
+                        refreshSequence = refreshSequence,
+                        favoriteTeamIds = favoriteTeamIds,
+                        onToggleFavoriteTeam = onToggleFavorite
+                    )
+                } else {
+                    val result = loaded
+                    if (result?.stale == true) {
+                        Text(staleLabel, color = Color(0xFFFFD27A), fontSize = 10.sp, modifier = Modifier.padding(bottom = 6.dp))
+                    } else if (result?.remaining != null) {
+                        val quotaText = when {
+                            arabic -> "المتبقي من الحصة: " + result.remaining
+                            turkish -> "Kalan istek: " + result.remaining
+                            else -> "Requests remaining: " + result.remaining
+                        }
+                        Text(quotaText, color = RoyalColors.Muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 6.dp))
+                    }
+                    if (errorLabel != null) {
+                        Text(errorLabel, color = Color(0xFFFFB4A9), fontSize = 11.sp, modifier = Modifier.padding(bottom = 6.dp))
+                    }
+
+                    val wantedBucket = when (selectedTab) {
+                        RoyalSportsTab.LIVE -> RoyalSportsMatchBucket.LIVE
+                        RoyalSportsTab.UPCOMING -> RoyalSportsMatchBucket.NOT_STARTED
+                        RoyalSportsTab.FINISHED -> RoyalSportsMatchBucket.PLAYED
+                        RoyalSportsTab.RANKINGS -> error("rankings_have_no_fixture_bucket")
+                    }
+                    val selectedFixtures = result?.fixtures.orEmpty()
+                        .filter { sportsMatchBucket(it.status) == wantedBucket }
+                    val orderedFixtures = if (selectedTab == RoyalSportsTab.FINISHED) {
+                        selectedFixtures.sortedByDescending { it.date }
+                    } else {
+                        selectedFixtures.sortedBy { it.date }
+                    }
+
+                    if (selectedFixtures.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                if (loading) loadingLabel else (errorLabel ?: emptyLabel),
+                                color = RoyalColors.Pearl,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            val leagueGroups = orderedFixtures
+                                .groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }
+                                .entries
+                                .sortedBy { entry -> entry.value.firstOrNull()?.date.orEmpty() }
+                            leagueGroups.forEachIndexed { groupIndex, entry ->
+                                val leagueName = entry.key.third.ifBlank { title }
+                                val countryName = entry.key.second
+                                val heading = if (countryName.isBlank()) {
+                                    localizedFootballLeagueName(leagueName, countryName, arabic, turkish)
+                                } else {
+                                    localizedFootballLeagueName(leagueName, countryName, arabic, turkish) + " • " +
+                                        localizedFootballName(countryName, arabic, turkish)
+                                }
+                                val countLabel = when {
+                                    arabic -> entry.value.size.toString() + " مباراة"
+                                    turkish -> entry.value.size.toString() + " maç"
+                                    else -> entry.value.size.toString() + " matches"
+                                }
+                                val firstFixture = entry.value.firstOrNull()
+                                val officialLogo = firstFixture?.leagueLogo
+                                    ?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
+                                    ?: firstFixture?.countryFlag?.takeIf { RoyalSportsProviderImageCache.isAllowed(it) }
+                                item(key = "league-" + selectedTab.name + "-" + groupIndex + "-" + entry.key.third) {
+                                    SportsLeagueHeader(
+                                        title = heading,
+                                        caption = if (arabic) "البطولة والمسابقة" else if (turkish) "Lig ve turnuva" else "Competition",
+                                        count = countLabel,
+                                        imageUrl = officialLogo
+                                    )
+                                }
+
+                                val roundGroups = entry.value.groupBy { listOf(it.round.trim(), it.leg.trim()).filter { part -> part.isNotBlank() }.joinToString(" • ").ifBlank { "—" } }
+                                    .entries
+                                    .sortedBy { round -> round.value.firstOrNull()?.date.orEmpty() }
+                                roundGroups.forEachIndexed { roundIndex, roundEntry ->
+                                    if (roundEntry.key != "—") {
+                                        item(key = "round-" + groupIndex + "-" + roundIndex + "-" + roundEntry.key) {
+                                            SportsRoundHeader(
+                                                title = localizedFootballRound(roundEntry.key, arabic, turkish)
+                                            )
+                                        }
+                                    }
+                                    items(roundEntry.value, key = { it.id }) { fixture ->
+                                        SportsFixtureCard(
+                                            fixture = fixture,
+                                            arabic = arabic,
+                                            turkish = turkish,
+                                            favoriteTeamIds = favoriteTeamIds,
+                                            onToggleFavorite = onToggleFavorite
+                                        )
+                                    }
+                                }
+                            }
+                            if (loading) {
+                                item {
+                                    Text(
+                                        when {
+                                            arabic -> "جارٍ التحقق من آخر النتائج..."
+                                            turkish -> "Sonuçlar kontrol ediliyor..."
+                                            else -> "Checking for updated results..."
+                                        },
+                                        color = RoyalColors.Muted,
+                                        fontSize = 10.sp,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
+            if (showFavoritesDialog) {
+                SportsFavoritesDialog(
+                    favorites = favoriteTeams,
+                    settings = alertSettings,
+                    arabic = arabic,
+                    turkish = turkish,
+                    onRemoveFavorite = onRemoveFavorite,
+                    onToggleAlert = onToggleAlert,
+                    onDismiss = { showFavoritesDialog = false }
+                )
+            }
         }
     }
+}
+
+private fun updateSportsAlertSetting(
+    current: RoyalSportsAlertSettings,
+    key: String,
+    enabled: Boolean
+): RoyalSportsAlertSettings = when (key) {
+    "match" -> current.copy(matchReminders = enabled)
+    "goal" -> current.copy(goalAlerts = enabled)
+    "result" -> current.copy(resultAlerts = enabled)
+    else -> current
+}
+
+@Composable
+private fun SportsFavoritesDialog(
+    favorites: List<RoyalSportsFavoriteTeam>,
+    settings: RoyalSportsAlertSettings,
+    arabic: Boolean,
+    turkish: Boolean,
+    onRemoveFavorite: (Int) -> Unit,
+    onToggleAlert: (String, Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                when {
+                    arabic -> "الفرق المفضلة والتنبيهات"
+                    turkish -> "Favori takımlar ve bildirimler"
+                    else -> "Favorite teams and alerts"
+                },
+                color = RoyalColors.Gold,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Text(
+                    when {
+                        favorites.isEmpty() && arabic -> "أضف فريقاً من قائمة المباريات بالضغط على النجمة بجانب اسمه."
+                        favorites.isEmpty() && turkish -> "Maç kartındaki takım yıldızına dokunarak favori ekleyin."
+                        favorites.isEmpty() -> "Add teams by selecting the star beside their names on match cards."
+                        arabic -> "فرقك المختارة"
+                        turkish -> "Seçtiğin takımlar"
+                        else -> "Your selected teams"
+                    },
+                    color = RoyalColors.Pearl,
+                    fontSize = 12.sp
+                )
+                favorites.forEach { team ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RoyalSportsProviderImage(
+                            url = team.logo,
+                            modifier = Modifier.size(30.dp),
+                            fallback = RoyalSportsGlyph.TEAMS,
+                            description = team.name
+                        )
+                        Text(
+                            team.name,
+                            color = RoyalColors.Pearl,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        TextButton(onClick = { onRemoveFavorite(team.id) }) {
+                            Text(
+                                if (arabic) "إزالة" else if (turkish) "Kaldır" else "Remove",
+                                color = Color(0xFFFFB4A9),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    if (arabic) "إعدادات التنبيهات" else if (turkish) "Bildirim ayarları" else "Notification settings",
+                    color = RoyalColors.Gold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                SportsAlertSettingRow(
+                    title = if (arabic) "تذكير قبل المباراة بـ30 دقيقة" else if (turkish) "Maçtan 30 dakika önce hatırlat" else "Remind me 30 minutes before kickoff",
+                    checked = settings.matchReminders,
+                    enabled = favorites.isNotEmpty(),
+                    onCheckedChange = { onToggleAlert("match", it) }
+                )
+                SportsAlertSettingRow(
+                    title = if (arabic) "تنبيهات الأهداف" else if (turkish) "Gol bildirimleri" else "Goal alerts",
+                    checked = settings.goalAlerts,
+                    enabled = favorites.isNotEmpty(),
+                    onCheckedChange = { onToggleAlert("goal", it) }
+                )
+                SportsAlertSettingRow(
+                    title = if (arabic) "النتيجة النهائية" else if (turkish) "Maç sonu sonucu" else "Final result alerts",
+                    checked = settings.resultAlerts,
+                    enabled = favorites.isNotEmpty(),
+                    onCheckedChange = { onToggleAlert("result", it) }
+                )
+                Text(
+                    when {
+                        arabic -> "يتم فحص الأهداف في الخلفية كل 30 دقيقة؛ وقد يتأخر التنبيه حسب اتصال الإنترنت وتحديث مزود النتائج."
+                        turkish -> "Goller arka planda 30 dakikada bir kontrol edilir; bildirimler internet ve veri sağlayıcısına bağlı olarak gecikebilir."
+                        else -> "Background goal checks run every 30 minutes. Alerts may be delayed by connectivity and provider updates."
+                    },
+                    color = RoyalColors.Muted,
+                    fontSize = 9.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (arabic) "تم" else if (turkish) "Tamam" else "Done", color = RoyalColors.Gold)
+            }
+        },
+        containerColor = Color(0xFF123C2E),
+        titleContentColor = RoyalColors.Gold,
+        textContentColor = RoyalColors.Pearl
+    )
+}
+
+@Composable
+private fun SportsAlertSettingRow(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            title,
+            color = if (enabled) RoyalColors.Pearl else RoyalColors.Muted,
+            fontSize = 11.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.focusable()
+        )
+    }
+}
+
+private fun localizedFootballRound(value: String, arabic: Boolean, turkish: Boolean): String {
+    val normalized = value.trim().lowercase(Locale.ROOT)
+    if (arabic) {
+        return when {
+            normalized.contains("first leg") || normalized.contains("1st leg") -> "مباراة الذهاب • ${value.substringBefore(" • ")}"
+            normalized.contains("second leg") || normalized.contains("2nd leg") -> "مباراة الإياب • ${value.substringBefore(" • ")}"
+            normalized.contains("round of 16") -> "دور الـ16"
+            normalized.contains("round of 32") -> "دور الـ32"
+            normalized.contains("quarter") -> "ربع النهائي"
+            normalized.contains("semi") -> "نصف النهائي"
+            normalized == "final" || normalized.endsWith(" final") -> "النهائي"
+            normalized.contains("group") -> "مرحلة المجموعات • $value"
+            normalized.contains("league phase") -> "مرحلة الدوري • $value"
+            normalized.contains("regular season") -> value.replace(Regex("(?i)regular season\\s*-?\\s*"), "الجولة ")
+            normalized.contains("playoff") -> "الأدوار الإقصائية • $value"
+            else -> value
+        }
+    }
+    if (turkish) {
+        return when {
+            normalized.contains("first leg") || normalized.contains("1st leg") -> "İlk Maç • ${value.substringBefore(" • ")}"
+            normalized.contains("second leg") || normalized.contains("2nd leg") -> "Rövanş • ${value.substringBefore(" • ")}"
+            normalized.contains("round of 16") -> "Son 16 Turu"
+            normalized.contains("quarter") -> "Çeyrek Final"
+            normalized.contains("semi") -> "Yarı Final"
+            normalized == "final" -> "Final"
+            normalized.contains("group") -> "Grup Aşaması • $value"
+            normalized.contains("league phase") -> "Lig Aşaması • $value"
+            else -> value
+        }
+    }
+    return value
+}
+
+@Composable
+private fun SportsRoundHeader(title: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x80324F42))
+            .border(1.dp, Color(0x447CDCB0), RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, color = Color(0xFFBCE9D0), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -850,16 +1192,16 @@ private fun SportsTabButton(
             .border(1.dp, if (selected) Color(0xFF9BF1B8) else Color(0x448EE6B4), shape)
             .clickable(onClick = onClick)
             .focusable()
-            .padding(horizontal = 10.dp, vertical = 11.dp),
+            .padding(horizontal = 5.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        RoyalSportsIcon(icon = icon, modifier = Modifier.size(royalSportsIconSize(30.dp)), contentDescription = label)
-        Spacer(Modifier.width(6.dp))
+        RoyalSportsIcon(icon = icon, modifier = Modifier.size(royalSportsIconSize(22.dp)), contentDescription = label)
+        Spacer(Modifier.width(4.dp))
         Text(
             label,
             color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
-            fontSize = 12.sp,
+            fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -871,11 +1213,13 @@ private fun SportsTabButton(
 private fun SportsFixtureCard(
     fixture: RoyalSportsFixture,
     arabic: Boolean,
-    turkish: Boolean
+    turkish: Boolean,
+    favoriteTeamIds: Set<Int>,
+    onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit
 ) {
     val shape = RoundedCornerShape(15.dp)
     val statusText = when (fixture.status) {
-        "1H", "2H", "ET", "LIVE" -> when {
+        "1H", "2H", "ET", "LIVE", "P" -> when {
             arabic -> "مباشر"
             turkish -> "Canlı"
             else -> "LIVE"
@@ -928,7 +1272,7 @@ private fun SportsFixtureCard(
         fixture.homeGoals.toString() + " : " + fixture.awayGoals.toString()
     }
     val statusIcon = when (fixture.status) {
-        "1H", "2H", "ET", "LIVE", "HT", "BT" -> RoyalSportsGlyph.LIVE
+        "1H", "2H", "ET", "LIVE", "HT", "BT", "P" -> RoyalSportsGlyph.LIVE
         "FT", "AET", "PEN", "AWD", "WO" -> RoyalSportsGlyph.RESULTS
         else -> RoyalSportsGlyph.FIXTURES
     }
@@ -947,7 +1291,7 @@ private fun SportsFixtureCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     statusText,
-                    color = if (fixture.status in setOf("1H", "2H", "ET", "LIVE")) Color(0xFF61E1D0) else RoyalColors.Pearl,
+                    color = if (fixture.status in setOf("1H", "2H", "ET", "LIVE", "P")) Color(0xFF61E1D0) else RoyalColors.Pearl,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
@@ -984,6 +1328,13 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            SportsFavoriteTeamToggle(
+                selected = fixture.homeTeamId in favoriteTeamIds,
+                enabled = fixture.homeTeamId > 0,
+                onClick = {
+                    onToggleFavorite(RoyalSportsFavoriteTeam(fixture.homeTeamId, fixture.homeTeam, fixture.homeLogo))
+                }
+            )
             RoyalSportsIcon(RoyalSportsGlyph.GOAL, modifier = Modifier.size(royalSportsIconSize(26.dp)), contentDescription = score)
             Text(score, color = RoyalColors.Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(
@@ -995,6 +1346,13 @@ private fun SportsFixtureCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            SportsFavoriteTeamToggle(
+                selected = fixture.awayTeamId in favoriteTeamIds,
+                enabled = fixture.awayTeamId > 0,
+                onClick = {
+                    onToggleFavorite(RoyalSportsFavoriteTeam(fixture.awayTeamId, fixture.awayTeam, fixture.awayLogo))
+                }
+            )
             RoyalSportsProviderImage(
                 url = fixture.awayLogo,
                 modifier = Modifier.size(royalSportsIconSize(30.dp)),
@@ -1003,6 +1361,31 @@ private fun SportsFixtureCard(
             )
         }
     }
+}
+
+@Composable
+private fun SportsFavoriteTeamToggle(
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Text(
+        text = if (selected) "★" else "☆",
+        color = when {
+            !enabled -> RoyalColors.Muted
+            selected -> RoyalColors.Gold
+            else -> Color(0xFFB7D7D0)
+        },
+        fontSize = 16.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.size(25.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) Color(0x553F6A45) else Color(0x33264C3B))
+            .border(1.dp, if (selected) Color(0x887FE6A5) else Color(0x334F9473), RoundedCornerShape(50))
+            .clickable(enabled = enabled, onClick = onClick)
+            .focusable()
+            .padding(2.dp)
+    )
 }
 
 @Composable
@@ -1120,6 +1503,25 @@ private fun formatFixtureTime(value: String, arabic: Boolean, turkish: Boolean):
     } catch (_: Exception) {
         value
     }
+}
+
+private fun localizedFootballLeagueName(
+    leagueName: String,
+    countryName: String,
+    arabic: Boolean,
+    turkish: Boolean
+): String {
+    val isSyria = countryName.trim().equals("Syria", ignoreCase = true)
+    val isPremierLeague = leagueName.trim().equals("Premier League", ignoreCase = true) ||
+        leagueName.trim().equals("Syrian Premier League", ignoreCase = true)
+    if (isSyria && isPremierLeague) {
+        return when {
+            arabic -> "الدوري السوري الممتاز"
+            turkish -> "Suriye Premier Ligi"
+            else -> "Syrian Premier League"
+        }
+    }
+    return localizedFootballName(leagueName, arabic, turkish)
 }
 
 private fun localizedFootballName(name: String, arabic: Boolean, turkish: Boolean): String {
