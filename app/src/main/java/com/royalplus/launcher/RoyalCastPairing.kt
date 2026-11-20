@@ -59,38 +59,49 @@ internal object RoyalCastPairing {
         RoyalCastEndpoint(host, port, token, pin)
     }.getOrNull()
 
-    fun localIpv4Address(context: Context): String? = runCatching {
-        val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        val activeNetwork = connectivity?.activeNetwork
-        val capabilities = activeNetwork?.let(connectivity::getNetworkCapabilities)
-        val isLocalTransport = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true ||
-            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true
-        if (isLocalTransport && connectivity != null && activeNetwork != null) {
-            val activeAddress = connectivity.getLinkProperties(activeNetwork)?.linkAddresses
+    fun localIpv4Address(context: Context): String? {
+        val activeAddress = runCatching {
+            val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return@runCatching null
+            val network = connectivity.activeNetwork ?: return@runCatching null
+            val capabilities = connectivity.getNetworkCapabilities(network) ?: return@runCatching null
+            val isLocalTransport =
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            if (!isLocalTransport) return@runCatching null
+            connectivity.getLinkProperties(network)?.linkAddresses
                 ?.asSequence()
                 ?.map { it.address }
                 ?.filterIsInstance<Inet4Address>()
                 ?.firstOrNull { it.isSiteLocalAddress && isIpv4(it.hostAddress.orEmpty()) }
-            activeAddress?.hostAddress?.let { return it }
-        }
-        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return null
-        val addresses = mutableListOf<Pair<Int, String>>()
-        while (interfaces.hasMoreElements()) {
-            val network = interfaces.nextElement()
-            if (!network.isUp || network.isLoopback || network.isVirtual) continue
-            val name = network.name.lowercase()
-            if (name.startsWith("tun") || name.startsWith("ppp") || name.startsWith("lo")) continue
-            val values = network.inetAddresses
-            while (values.hasMoreElements()) {
-                val address = values.nextElement()
-                if (address !is Inet4Address || address.isLoopbackAddress || address.isLinkLocalAddress || !address.isSiteLocalAddress) continue
-                val host = address.hostAddress.orEmpty()
-                if (isIpv4(host)) addresses += 0 to host
-            }
-        }
-        addresses.sortedBy { it.first }.firstOrNull()?.second
-    }.getOrNull()
+                ?.hostAddress
+        }.getOrNull()
+        if (!activeAddress.isNullOrBlank()) return activeAddress
 
+        return runCatching {
+            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return@runCatching null
+            val addresses = mutableListOf<String>()
+            while (interfaces.hasMoreElements()) {
+                val network = interfaces.nextElement()
+                if (!network.isUp || network.isLoopback || network.isVirtual) continue
+                val name = network.name.lowercase()
+                if (name.startsWith("tun") || name.startsWith("ppp") ||
+                    name.startsWith("lo") || name.startsWith("rmnet") ||
+                    name.startsWith("ccmni")
+                ) continue
+                val values = network.inetAddresses
+                while (values.hasMoreElements()) {
+                    val address = values.nextElement()
+                    if (address !is Inet4Address || address.isLoopbackAddress ||
+                        address.isLinkLocalAddress || !address.isSiteLocalAddress
+                    ) continue
+                    val host = address.hostAddress.orEmpty()
+                    if (isIpv4(host)) addresses += host
+                }
+            }
+            addresses.firstOrNull()
+        }.getOrNull()
+    }
     private fun isIpv4(value: String): Boolean {
         val parts = value.split('.')
         if (parts.size != 4 || !parts.all { part ->
