@@ -1596,7 +1596,7 @@ private fun SportsMatchDetailsPage(
 @Composable
 private fun SportsMatchDetailSection(
     title: String,
-    content: @Composable Column.() -> Unit
+    content: @Composable () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -1604,10 +1604,10 @@ private fun SportsMatchDetailSection(
             .background(Color(0x99102F28))
             .border(1.dp, Color(0x44B8FFD7), RoundedCornerShape(16.dp))
             .padding(13.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-        content = content
+        verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         Text(title, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        content()
     }
 }
 
@@ -1800,7 +1800,7 @@ private fun formatFixtureTime(value: String, arabic: Boolean, turkish: Boolean):
             turkish -> "d MMMM EEE, HH:mm"
             else -> "EEE, MMM d, HH:mm"
         }
-        SimpleDateFormat(pattern, outputLocale).format(date)
+        SimpleDateFormat(pattern, outputLocale).apply { timeZone = TimeZone.getDefault() }.format(date)
     } catch (_: Exception) {
         value
     }
