@@ -175,6 +175,7 @@ internal class RoyalCaptionSender(
                 activeSocket = socket
                 socket.tcpNoDelay = true
                 socket.keepAlive = true
+                socket.soTimeout = 10_000
                 socket.connect(java.net.InetSocketAddress(host, RoyalCaptionTransport.PORT), 5_000)
                 val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
                 val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
@@ -191,6 +192,7 @@ internal class RoyalCaptionSender(
                 )
                 val response = RoyalCaptionTransport.readFrame(reader)
                 if (response.optBoolean("accepted").not()) throw SecurityException("رمز الاقتران غير صحيح")
+                socket.soTimeout = 0
                 retryDelay = 1_000L
                 onConnectionChanged(true, "اتصل الهاتف بالتلفاز؛ يتم إرسال الترجمة محلياً")
                 while (!closed.get() && !socket.isClosed) {
