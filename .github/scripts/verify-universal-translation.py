@@ -28,9 +28,12 @@ assert "createMicrophoneRecord()" in service
 assert "MediaRecorder.AudioSource.VOICE_RECOGNITION" in service
 
 # Speech must reach Whisper without a VAD or event-classifier hard gate.
+assert "ArrayBlockingQueue<FloatArray>(4)" in service
 assert "SEGMENT_SECONDS = 2" in service
 assert "SEGMENT_OVERLAP_MILLIS = 350" in service
 assert "audioSegments.offer(completed)" in service
+assert "audioSegments.poll()" in service
+assert "MAX_OVERLAP_WORDS = 4" in service
 assert "hasMeaningfulAudio(samples)" in service
 assert "SpeechCaptionFilter.isNonSpeechLabel(recognized)" in service
 assert "SpeechAudioGate.isPredominantlyNonSpeech" not in service
@@ -39,6 +42,7 @@ assert "createAudioTagger" not in models
 assert "SileroVadModelConfig" not in models
 assert "AudioTaggingModelConfig" not in models
 assert "queueCaptionPhrase(freshText, language)" in service
+assert "افتح إشعار ROYAL+" in service
 
 # SMaLL-100 local model, 100-language token map, and pure Kotlin tokenizer.
 assert 'libs/onnxruntime-android-1.28.2.aar' in gradle
