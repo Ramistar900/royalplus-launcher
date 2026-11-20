@@ -39,7 +39,7 @@ internal object WhisperModelRepository {
     ): OfflineRecognizer {
         val directory = File(context.filesDir, "royal_whisper_tiny").apply {
             if (!exists() && !mkdirs()) {
-                throw IllegalStateException("تعذر إنشاء مجلد نموذج الصوت")
+                throw IllegalStateException("تعذر إنشاء مجلد التعرّف الصوتي")
             }
         }
 
@@ -48,14 +48,14 @@ internal object WhisperModelRepository {
             name = ENCODER_NAME,
             expectedBytes = ENCODER_SIZE,
             expectedSha256 = ENCODER_SHA256,
-            onProgress = { onProgress("تنزيل نموذج الصوت 1/3: $it") }
+            onProgress = { onProgress("تنزيل نموذج التعرّف الصوتي 1/3: $it") }
         )
         val decoder = ensureFile(
             directory = directory,
             name = DECODER_NAME,
             expectedBytes = DECODER_SIZE,
             expectedSha256 = DECODER_SHA256,
-            onProgress = { onProgress("تنزيل نموذج الصوت 2/3: $it") }
+            onProgress = { onProgress("تنزيل نموذج التعرّف الصوتي 2/3: $it") }
         )
         val tokens = ensureFile(
             directory = directory,
@@ -93,7 +93,6 @@ internal object WhisperModelRepository {
         name: String,
         expectedBytes: Long,
         expectedSha256: String?,
-        baseUrl: String = MODEL_BASE,
         onProgress: (String) -> Unit
     ): File {
         val destination = File(directory, name)
@@ -105,7 +104,7 @@ internal object WhisperModelRepository {
         destination.delete()
         val temporary = File(directory, "$name.part")
         temporary.delete()
-        val connection = (URL(baseUrl + name).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(MODEL_BASE + name).openConnection() as HttpURLConnection).apply {
             connectTimeout = 20_000
             readTimeout = 60_000
             instanceFollowRedirects = true
@@ -116,7 +115,7 @@ internal object WhisperModelRepository {
             connection.connect()
             val response = connection.responseCode
             if (response !in 200..299) {
-                throw IllegalStateException("تعذر تنزيل نموذج الصوت (HTTP $response)")
+                throw IllegalStateException("تعذر تنزيل ملف التعرّف الصوتي (HTTP $response)")
             }
             val totalBytes = (connection.getHeaderField("Content-Length")?.toLongOrNull() ?: -1L)
             val digest = MessageDigest.getInstance("SHA-256")
@@ -145,17 +144,17 @@ internal object WhisperModelRepository {
             }
 
             if (expectedBytes > 0L && downloaded != expectedBytes) {
-                throw IllegalStateException("حجم ملف نموذج الصوت غير مطابق؛ أُعيد تنزيله عند المحاولة التالية")
+                throw IllegalStateException("حجم ملف التعرّف الصوتي غير مطابق؛ أُعيد تنزيله عند المحاولة التالية")
             }
             val actualHash = digest.digest().joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
             if (expectedSha256 != null && !actualHash.equals(expectedSha256, ignoreCase = true)) {
-                throw IllegalStateException("فشل التحقق من سلامة ملف نموذج الصوت")
+                throw IllegalStateException("فشل التحقق من سلامة ملف التعرّف الصوتي")
             }
             if (name == TOKENS_NAME && downloaded !in 700_000L..1_000_000L) {
-                throw IllegalStateException("ملف قاموس الصوت غير مكتمل")
+                throw IllegalStateException("ملف قاموس التعرّف الصوتي غير مكتمل")
             }
             if (!temporary.renameTo(destination)) {
-                throw IllegalStateException("تعذر حفظ ملف نموذج الصوت")
+                throw IllegalStateException("تعذر حفظ ملف التعرّف الصوتي")
             }
             return destination
         } catch (error: Exception) {
@@ -165,7 +164,6 @@ internal object WhisperModelRepository {
             connection.disconnect()
         }
     }
-
 
     private fun isValid(
         file: File,
