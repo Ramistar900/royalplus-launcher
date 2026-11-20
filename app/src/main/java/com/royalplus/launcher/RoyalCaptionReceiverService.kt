@@ -42,7 +42,7 @@ class RoyalCaptionReceiverService : Service() {
     private var captionView: TextView? = null
     private var windowManager: WindowManager? = null
     private val hideCaption = Runnable { captionView?.visibility = View.GONE }
-    private var captionGeneration = 0L
+    private var pendingDisplayRunnable: Runnable? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -161,11 +161,11 @@ class RoyalCaptionReceiverService : Service() {
         mainHandler.post {
             val manager = windowManager ?: getSystemService(WINDOW_SERVICE) as WindowManager
             windowManager = manager
-            val generation = ++captionGeneration
+            pendingDisplayRunnable?.let(mainHandler::removeCallbacks)
             val delay = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
                 .getInt(KEY_DISPLAY_DELAY_MS, 0).coerceIn(0, 5_000)
-            mainHandler.postDelayed({
-                if (!running.get() || generation != captionGeneration) return@postDelayed
+            val display = Runnable {
+                if (!running.get()) return@Runnable
                 val caption = captionView ?: createCaptionView().also { view ->
                     val params = WindowManager.LayoutParams(
                     (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtLeast(dp(240)),
@@ -192,7 +192,9 @@ class RoyalCaptionReceiverService : Service() {
                 caption.bringToFront()
                 mainHandler.removeCallbacks(hideCaption)
                 mainHandler.postDelayed(hideCaption, 4_500L)
-            }, delay.toLong())
+            }
+            pendingDisplayRunnable = display
+            mainHandler.postDelayed(display, delay.toLong())
         }
     }
 
@@ -279,6 +281,8 @@ class RoyalCaptionReceiverService : Service() {
         runCatching { serverSocket?.close() }
         serverSocket = null
         mainHandler.removeCallbacks(hideCaption)
+        pendingDisplayRunnable?.let(mainHandler::removeCallbacks)
+        pendingDisplayRunnable = null
         captionView?.let { view -> runCatching { windowManager?.removeView(view) } }
         captionView = null
         windowManager = null
