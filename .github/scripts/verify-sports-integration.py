@@ -126,7 +126,7 @@ graphics = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSportsGraphics
 assert "rememberInfiniteTransition" in graphics and "rotationDegrees = rotation" in graphics
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in sports
 assert 'round = league.optString("round", "")' in sports
-assert 'leg = ""' in sports
+assert 'leg = fixture.optString("leg", item.optString("leg", ""))' in sports
 assert '"date=$today&$timeZoneParam"' in sports
 assert '"from=$today&to=${dateOffset(7)}&$timeZoneParam"' in sports
 assert '"from=${dateOffset(-7)}&to=$today&$timeZoneParam"' in sports
@@ -149,9 +149,19 @@ assert "NotificationChannel" in alerts and "POST_NOTIFICATIONS" in alerts
 assert "RoyalSportsAlertsScheduler.refresh(this)" in (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalPlusApplication.kt").read_text(encoding="utf-8")
 assert 'homeTeamId = home.optInt("id", 0)' in sports and 'awayTeamId = away.optInt("id", 0)' in sports
 assert "favoriteTeamIds" in sports and "SportsFavoriteTeamToggle" in sports
-assert ".clickable { showDetails = true }" in sports
+assert ".clickable { onOpenDetails(fixture) }" in sports
+assert "SportsMatchDetailsPage(" in sports
+assert "BackHandler(enabled = true)" in sports
 assert "SportsMatchDetailLine" in sports
-assert "opening this view sends no additional API request" in sports
+assert 'venue = fixture.optJSONObject("venue")' in sports
+assert 'venueName = venue.optString("name", "")' in sports
+assert 'venueCity = venue.optString("city", "")' in sports
+assert 'leg = fixture.optString("leg", item.optString("leg", ""))' in sports
+assert 'timeZone = TimeZone.getDefault()' in sports
+assert "private fun localizedCompetitionWeek" in sports
+assert "private fun localizedFixtureLeg" in sports
+assert "Opening this file sends no additional API request." in sports
+assert "The current fixture provider does not supply channel names for this match" in sports
 assert "SportsFavoritesDialog" in sports and "onToggleAlert" in sports
 assert "مباراة فريقك المفضل بعد 30 دقيقة" in alerts
 assert "localizedFootballRound" in sports
