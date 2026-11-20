@@ -68,7 +68,8 @@ assert "TranslationDeviceCapability.slowSpeechRecognition()" in service
 assert "failTranslationForCapability(assessment)" in service
 assert "ACTION_DEVICE_CAPABILITY_FAILED" in service
 assert "translationCapabilityFailed" in service
-assert "TranslationDeviceCapability.checkHardware(this)" in activity
+# The capability gate runs in the capture service before model setup, including after a sticky restart.
+assert "TranslationDeviceCapability.checkHardware(applicationContext)" in service
 assert "showTranslationCapabilityDialog" in activity
 assert "RECEIVER_NOT_EXPORTED" in activity
 assert "evaluateHardware" in capability and "evaluateAvailableMemory" in capability
