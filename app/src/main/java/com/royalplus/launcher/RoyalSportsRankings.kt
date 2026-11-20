@@ -159,7 +159,7 @@ private fun calculateLocalStandingsMovement(
         Context.MODE_PRIVATE
     )
 
-    synchronized(preferences) {
+    return synchronized(preferences) {
         val previousUpdatedAt = preferences.getString(snapshotKey + "_cached_at", null)
         val previousRanks = runCatching {
             JSONObject(preferences.getString(snapshotKey + "_ranks", "{}") ?: "{}")
