@@ -535,12 +535,23 @@ class MainActivity : ComponentActivity() {
         }
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("ربط الهاتف بالتلفاز")
-            .setMessage("اكتب عنوان IP ورمز الاقتران الظاهرين على شاشة التلفاز. يجب أن يكون الجهازان على شبكة Wi-Fi نفسها.")
+            .setMessage(
+                "اكتب عنوان IP ورمز الاقتران الظاهرين على شاشة التلفاز. يجب أن يكون الجهازان على شبكة Wi-Fi نفسها. " +
+                    "بعد بدء الالتقاط يمكنك إطفاء الشاشة. بعض الهواتف تحتاج إلى السماح لـ ROYAL+ بالعمل دون قيود بطارية حتى لا توقف الشركة المصنّعة الخدمة."
+            )
             .setView(form)
             .setPositiveButton("بدء الالتقاط", null)
+            .setNeutralButton("إعدادات البطارية", null)
             .setNegativeButton("إلغاء", null)
             .create()
         dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                try {
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                } catch (_: Exception) {
+                    Toast.makeText(this, "افتح إعدادات البطارية ثم اجعل ROYAL+ دون قيود، إذا كان هذا الخيار متاحاً.", Toast.LENGTH_LONG).show()
+                }
+            }
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val host = addressInput.text.toString().trim()
                 val pin = pinInput.text.toString().trim()
