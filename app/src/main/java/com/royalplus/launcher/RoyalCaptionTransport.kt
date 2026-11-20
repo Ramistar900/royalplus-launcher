@@ -11,7 +11,6 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.Base64
 import java.util.Collections
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
@@ -39,8 +38,16 @@ internal object RoyalCaptionTransport {
 
     fun randomChallengeBytes(): ByteArray = ByteArray(16).also(random::nextBytes)
 
-    fun encodeBytes(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
-    fun decodeBytes(value: String): ByteArray = Base64.getDecoder().decode(value)
+    fun encodeBytes(bytes: ByteArray): String = bytes.joinToString(separator = "") { byte ->
+        "%02x".format(byte.toInt() and 0xff)
+    }
+
+    fun decodeBytes(value: String): ByteArray {
+        require(value.length % 2 == 0 && value.length <= 32 * 1024) { "ترميز بيانات غير صالح" }
+        return ByteArray(value.length / 2) { index ->
+            value.substring(index * 2, index * 2 + 2).toInt(16).toByte()
+        }
+    }
 
     fun deriveSessionKey(pin: String, salt: ByteArray): ByteArray {
         require(pin.matches(Regex("\\d{8}"))) { "رمز الاقتران غير صالح" }
@@ -133,14 +140,15 @@ internal class RoyalCaptionSender(
     private val sequence = AtomicLong(0L)
     private val queue = LinkedBlockingDeque<JSONObject>(24)
     @Volatile private var activeSocket: Socket? = null
-    private val worker = Thread({ runConnectionLoop() }, "RoyalCaptionWifiSender").apply {
-        isDaemon = true
-        start()
-    }
+    private val worker: Thread
 
     init {
         require(RoyalCaptionTransport.isPrivateIpv4Address(host)) { "أدخل عنوان IPv4 محلياً للتلفاز" }
         require(pin.matches(Regex("\\d{8}"))) { "رمز الاقتران يجب أن يتكون من 8 أرقام" }
+        worker = Thread({ runConnectionLoop() }, "RoyalCaptionWifiSender").apply {
+            isDaemon = true
+            start()
+        }
     }
 
     fun sendCaption(text: String, sourceLanguage: String) {
