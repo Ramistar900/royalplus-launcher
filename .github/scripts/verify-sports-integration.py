@@ -163,6 +163,7 @@ for required in (
 ):
     assert required.lower() in rankings.lower(), f"Missing rankings feature: {required}"
 assert "calculateLocalStandingsMovement" in rankings
+assert "return synchronized(preferences)" in rankings
 assert '"royalplus_sports_standings"' in rankings
 assert "oldRank - currentRank" in rankings
 assert '"_movements"' in rankings
