@@ -10,9 +10,10 @@ MANIFEST = ROOT / "app/src/main/AndroidManifest.xml"
 BACKEND = ROOT / "supabase/functions/royalplus-sports/index.ts"
 CACHE_MIGRATION = ROOT / "supabase/migrations/20261112043947_royalplus_sports_response_cache.sql"
 PUBLIC_RPC_MIGRATION = ROOT / "supabase/migrations/20261112045800_royalplus_sports_public_budget_rpc.sql"
+QUOTA_MIGRATION = ROOT / "supabase/migrations/20261120100000_royalplus_sports_daily_budget_100.sql"
 APP_GRADLE = ROOT / "app/build.gradle.kts"
 
-for path in (SPORTS, RANKINGS, ALERTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRATION, APP_GRADLE):
+for path in (SPORTS, RANKINGS, ALERTS, HOME, MANIFEST, BACKEND, CACHE_MIGRATION, PUBLIC_RPC_MIGRATION, QUOTA_MIGRATION, APP_GRADLE):
     assert path.is_file(), f"Required file is missing: {path.relative_to(ROOT)}"
 
 sports = SPORTS.read_text(encoding="utf-8")
@@ -52,6 +53,7 @@ manifest = MANIFEST.read_text(encoding="utf-8")
 backend = BACKEND.read_text(encoding="utf-8")
 migration = CACHE_MIGRATION.read_text(encoding="utf-8")
 public_rpc_migration = PUBLIC_RPC_MIGRATION.read_text(encoding="utf-8")
+quota_migration = QUOTA_MIGRATION.read_text(encoding="utf-8")
 gradle = APP_GRADLE.read_text(encoding="utf-8")
 
 # The mobile app must contain only the public Supabase client key.
@@ -108,6 +110,10 @@ assert "https://api.fifa.com/api/v3/picture/flags-sq-2/" in backend
 assert "countryCode = /^[A-Z]{3}$/.test(code)" in backend
 assert "resource === \"standings\"" in backend
 assert "resource !== \"fifa_rankings\"" in backend
+assert "limit: 100" in backend and "limit: 90" not in backend
+assert "100 - v_rolling_count" in quota_migration
+assert "v_rolling_count < 100 and v_daily_count < 100 and v_minute_count < 8" in quota_migration
+assert "'limit', 100" in quota_migration
 
 # The response cache is private to the service role.
 assert "enable row level security" in migration.lower()
@@ -143,6 +149,9 @@ assert "NotificationChannel" in alerts and "POST_NOTIFICATIONS" in alerts
 assert "RoyalSportsAlertsScheduler.refresh(this)" in (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalPlusApplication.kt").read_text(encoding="utf-8")
 assert 'homeTeamId = home.optInt("id", 0)' in sports and 'awayTeamId = away.optInt("id", 0)' in sports
 assert "favoriteTeamIds" in sports and "SportsFavoriteTeamToggle" in sports
+assert ".clickable { showDetails = true }" in sports
+assert "SportsMatchDetailLine" in sports
+assert "opening this view sends no additional API request" in sports
 assert "SportsFavoritesDialog" in sports and "onToggleAlert" in sports
 assert "مباراة فريقك المفضل بعد 30 دقيقة" in alerts
 assert "localizedFootballRound" in sports
