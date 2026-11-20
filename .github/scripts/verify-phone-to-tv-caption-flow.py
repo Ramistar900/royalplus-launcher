@@ -34,6 +34,9 @@ assert 'put("type", "ping")' in TRANSPORT
 assert "socket.soTimeout = 30_000" in TRANSPORT
 assert "socket.soTimeout = 30_000" in RECEIVER
 assert "payloadType == \"ping\"" in RECEIVER
+assert "sendAndConfirm(reader, writer, key, next)" in TRANSPORT
+assert "acknowledgement.optString(\"type\") != \"ack\"" in TRANSPORT
+assert "line.length >= 16 * 1024" in TRANSPORT
 assert "pendingDisplayRunnables.add(display)" in RECEIVER
 assert "pendingDisplayRunnables.forEach(mainHandler::removeCallbacks)" in RECEIVER
 assert "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in ACTIVITY
