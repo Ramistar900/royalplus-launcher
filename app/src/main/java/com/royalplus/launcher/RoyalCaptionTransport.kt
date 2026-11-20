@@ -104,8 +104,8 @@ internal object RoyalCaptionTransport {
         while (true) {
             val next = reader.read()
             if (next < 0) throw IOException("انقطع اتصال الجهاز")
-            if (next == '\\n'.code) break
-            if (next == '\\r'.code) continue
+            if (next == '\n'.code) break
+            if (next == '\r'.code) continue
             if (line.length >= 16 * 1024) throw IOException("إطار الشبكة كبير جداً")
             line.append(next.toChar())
         }
