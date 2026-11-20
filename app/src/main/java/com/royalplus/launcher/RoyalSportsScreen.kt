@@ -38,6 +38,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -238,7 +239,9 @@ internal data class RoyalSportsFixture(
     val round: String,
     val leagueId: Int,
     val season: Int,
-    val leg: String
+    val leg: String,
+    val venueName: String = "",
+    val venueCity: String = ""
 )
 
 private enum class RoyalSportsMatchBucket {
@@ -367,6 +370,7 @@ internal object RoyalSportsRepository {
             val league = item.optJSONObject("league") ?: JSONObject()
             val goals = item.optJSONObject("goals") ?: JSONObject()
             val status = fixture.optJSONObject("status") ?: JSONObject()
+            val venue = fixture.optJSONObject("venue") ?: JSONObject()
             val id = fixture.optLong("id", 0L)
             if (id <= 0L) continue
             fixtures.add(
@@ -390,7 +394,9 @@ internal object RoyalSportsRepository {
                     round = league.optString("round", ""),
                     leagueId = league.optInt("id", 0),
                     season = league.optInt("season", 0),
-                    leg = ""
+                    leg = fixture.optString("leg", item.optString("leg", "")),
+                    venueName = venue.optString("name", ""),
+                    venueCity = venue.optString("city", "")
                 )
             )
         }
@@ -620,6 +626,7 @@ internal fun RoyalSportsScreen(language: String) {
     var favoriteTeams by remember { mutableStateOf(RoyalSportsFavorites.load(context)) }
     var alertSettings by remember { mutableStateOf(RoyalSportsFavorites.loadAlertSettings(context)) }
     var showFavoritesDialog by remember { mutableStateOf(false) }
+    var selectedFixture by remember { mutableStateOf<RoyalSportsFixture?>(null) }
     var pendingPermissionUpdate by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -757,6 +764,15 @@ internal fun RoyalSportsScreen(language: String) {
                 .border(1.dp, Color(0x667FFFC1), RoundedCornerShape(22.dp))
         ) {
             SportsPitchGlassBackground(Modifier.matchParentSize())
+            if (selectedFixture != null) {
+                BackHandler(enabled = true) { selectedFixture = null }
+                SportsMatchDetailsPage(
+                    fixture = selectedFixture!!,
+                    arabic = arabic,
+                    turkish = turkish,
+                    onBack = { selectedFixture = null }
+                )
+            } else {
             Column(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
@@ -938,7 +954,8 @@ internal fun RoyalSportsScreen(language: String) {
                                             arabic = arabic,
                                             turkish = turkish,
                                             favoriteTeamIds = favoriteTeamIds,
-                                            onToggleFavorite = onToggleFavorite
+                                            onToggleFavorite = onToggleFavorite,
+                                            onOpenDetails = { selectedFixture = it }
                                         )
                                     }
                                 }
@@ -961,7 +978,8 @@ internal fun RoyalSportsScreen(language: String) {
                     }
                 }
             }
-            if (showFavoritesDialog) {
+            }
+            if (showFavoritesDialog && selectedFixture == null) {
                 SportsFavoritesDialog(
                     favorites = favoriteTeams,
                     settings = alertSettings,
@@ -1216,10 +1234,10 @@ private fun SportsFixtureCard(
     arabic: Boolean,
     turkish: Boolean,
     favoriteTeamIds: Set<Int>,
-    onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit
+    onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit,
+    onOpenDetails: (RoyalSportsFixture) -> Unit
 ) {
     val shape = RoundedCornerShape(15.dp)
-    var showDetails by remember(fixture.id) { mutableStateOf(false) }
     val statusText = when (fixture.status) {
         "1H", "2H", "ET", "LIVE", "P" -> when {
             arabic -> "مباشر"
@@ -1282,7 +1300,7 @@ private fun SportsFixtureCard(
         modifier = Modifier.fillMaxWidth().clip(shape)
             .background(Color(0x99102F28))
             .border(1.dp, Color(0x44B8FFD7), shape)
-            .clickable { showDetails = true }
+            .clickable { onOpenDetails(fixture) }
             .focusable()
             .padding(horizontal = 13.dp, vertical = 10.dp)
     ) {
@@ -1364,98 +1382,232 @@ private fun SportsFixtureCard(
             )
         }
     }
-    if (showDetails) {
-        val detailStatus = when (fixture.status) {
-            "1H", "2H", "ET", "LIVE", "P" -> if (arabic) "مباشرة" else if (turkish) "Canlı" else "Live"
-            "HT", "BT" -> if (arabic) "استراحة" else if (turkish) "Devre arası" else "Half-time"
-            "FT", "AET", "PEN" -> if (arabic) "انتهت" else if (turkish) "Bitti" else "Finished"
-            "PST" -> if (arabic) "مؤجلة" else if (turkish) "Ertelendi" else "Postponed"
-            "CANC", "ABD" -> if (arabic) "ألغيت" else if (turkish) "İptal" else "Cancelled"
-            "NS", "TBD" -> if (arabic) "لم تبدأ" else if (turkish) "Başlamadı" else "Not started"
-            "SUSP", "INT" -> if (arabic) "متوقفة" else if (turkish) "Durduruldu" else "Suspended"
-            "AWD", "WO" -> if (arabic) "حُسمت إدارياً" else if (turkish) "Hükmen sonuçlandı" else "Awarded"
-            else -> fixture.status
-        }
-        AlertDialog(
-            onDismissRequest = { showDetails = false },
-            title = {
-                Text(
-                    localizedFootballName(fixture.homeTeam, arabic, turkish) + "  •  " +
-                        localizedFootballName(fixture.awayTeam, arabic, turkish),
-                    color = RoyalColors.Pearl,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
+}
+
+@Composable
+private fun SportsMatchDetailsPage(
+    fixture: RoyalSportsFixture,
+    arabic: Boolean,
+    turkish: Boolean,
+    onBack: () -> Unit
+) {
+    val localZone = TimeZone.getDefault().id
+    val statusLabel = when (fixture.status.uppercase(Locale.ROOT)) {
+        "NS", "TBD" -> if (arabic) "لم تبدأ بعد" else if (turkish) "Henüz başlamadı" else "Not started"
+        "PST" -> if (arabic) "مؤجلة" else if (turkish) "Ertelendi" else "Postponed"
+        "CANC", "ABD" -> if (arabic) "أُلغيت" else if (turkish) "İptal edildi" else "Cancelled"
+        "1H", "2H", "ET", "LIVE", "P" -> if (arabic) "مباشرة" else if (turkish) "Canlı" else "Live"
+        "HT", "BT" -> if (arabic) "استراحة" else if (turkish) "Devre arası" else "Half-time"
+        "FT", "AET", "PEN" -> if (arabic) "انتهت" else if (turkish) "Bitti" else "Finished"
+        "SUSP", "INT" -> if (arabic) "متوقفة" else if (turkish) "Durduruldu" else "Suspended"
+        "AWD", "WO" -> if (arabic) "حُسمت إدارياً" else if (turkish) "Hükmen sonuçlandı" else "Awarded"
+        else -> fixture.status
+    }
+    val homeName = localizedFootballName(fixture.homeTeam, arabic, turkish)
+    val awayName = localizedFootballName(fixture.awayTeam, arabic, turkish)
+    val score = if (fixture.homeGoals == null || fixture.awayGoals == null) "VS"
+        else "${fixture.homeGoals} : ${fixture.awayGoals}"
+    val week = localizedCompetitionWeek(fixture.round, arabic, turkish)
+    val leg = localizedFixtureLeg(fixture, arabic, turkish)
+    val unavailable = when {
+        arabic -> "غير متاح في البيانات الحالية"
+        turkish -> "Mevcut verilerde bulunmuyor"
+        else -> "Not available in the current data"
+    }
+    Box(
+        modifier = Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xD91A7652), Color(0xC40C4937), Color(0xDC082C25))))
+    ) {
+        SportsPitchGlassBackground(Modifier.matchParentSize())
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                TextButton(onClick = onBack) {
+                    Text(
+                        if (arabic) "‹  العودة إلى المباريات" else if (turkish) "‹  Maçlara dön" else "‹  Back to matches",
+                        color = RoyalColors.Gold,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Text("ROYAL SPORTS", color = RoyalColors.Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xAA103B2D))
+                        .border(1.dp, Color(0x668EF0B1), RoundedCornerShape(20.dp))
+                        .padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        score,
-                        color = RoyalColors.Gold,
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.Bold,
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    SportsMatchDetailLine(
-                        if (arabic) "الحالة" else if (turkish) "Durum" else "Status",
-                        detailStatus
-                    )
-                    SportsMatchDetailLine(
-                        if (arabic) "البطولة" else if (turkish) "Lig" else "Competition",
-                        localizedFootballLeagueName(fixture.league, fixture.country, arabic, turkish)
-                    )
-                    if (fixture.country.isNotBlank()) {
-                        SportsMatchDetailLine(
-                            if (arabic) "الدولة" else if (turkish) "Ülke" else "Country",
-                            localizedFootballName(fixture.country, arabic, turkish)
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        RoyalSportsProviderImage(
+                            url = fixture.leagueLogo,
+                            modifier = Modifier.size(32.dp),
+                            fallback = RoyalSportsGlyph.FIXTURES,
+                            description = fixture.league
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            localizedFootballLeagueName(fixture.league, fixture.country, arabic, turkish),
+                            color = RoyalColors.Gold,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            RoyalSportsProviderImage(
+                                url = fixture.homeLogo,
+                                modifier = Modifier.size(58.dp),
+                                fallback = RoyalSportsGlyph.TEAMS,
+                                description = homeName
+                            )
+                            Text(homeName, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                            Text(if (arabic) "صاحب الأرض" else if (turkish) "Ev sahibi" else "Home", color = RoyalColors.Muted, fontSize = 9.sp)
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Text(score, color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(statusLabel, color = Color(0xFF9BF1B8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            RoyalSportsProviderImage(
+                                url = fixture.awayLogo,
+                                modifier = Modifier.size(58.dp),
+                                fallback = RoyalSportsGlyph.TEAMS,
+                                description = awayName
+                            )
+                            Text(awayName, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                            Text(if (arabic) "الفريق الضيف" else if (turkish) "Deplasman" else "Away", color = RoyalColors.Muted, fontSize = 9.sp)
+                        }
+                    }
                     SportsMatchDetailLine(
-                        if (arabic) "التاريخ والوقت" else if (turkish) "Tarih ve saat" else "Date and time",
+                        if (arabic) "موعد المباراة" else if (turkish) "Maç saati" else "Kick-off",
                         formatFixtureTime(fixture.date, arabic, turkish)
                     )
-                    if (fixture.round.isNotBlank()) {
-                        SportsMatchDetailLine(
-                            if (arabic) "الجولة" else if (turkish) "Tur" else "Round",
-                            localizedFootballRound(fixture.round, arabic, turkish)
-                        )
-                    }
+                    SportsMatchDetailLine(
+                        if (arabic) "توقيت الجهاز المحلي" else if (turkish) "Cihazın yerel saati" else "Device local time zone",
+                        localZone
+                    )
+                }
+
+                SportsMatchDetailSection(
+                    title = if (arabic) "البطولة والمرحلة" else if (turkish) "Turnuva ve aşama" else "Competition and stage"
+                ) {
+                    SportsMatchDetailLine(
+                        if (arabic) "البطولة" else if (turkish) "Turnuva" else "Competition",
+                        localizedFootballLeagueName(fixture.league, fixture.country, arabic, turkish)
+                    )
+                    SportsMatchDetailLine(
+                        if (arabic) "الدولة / المنطقة" else if (turkish) "Ülke / bölge" else "Country / region",
+                        fixture.country.takeIf { it.isNotBlank() }?.let { localizedFootballName(it, arabic, turkish) } ?: unavailable
+                    )
+                    SportsMatchDetailLine(
+                        if (arabic) "الأسبوع الحالي من البطولة" else if (turkish) "Turnuvanın mevcut haftası" else "Competition week",
+                        week
+                    )
+                    SportsMatchDetailLine(
+                        if (arabic) "الجولة / المرحلة" else if (turkish) "Tur / aşama" else "Round / stage",
+                        fixture.round.takeIf { it.isNotBlank() }?.let { localizedFootballRound(it, arabic, turkish) } ?: unavailable
+                    )
+                    SportsMatchDetailLine(
+                        if (arabic) "ذهاب أم إياب" else if (turkish) "İlk maç mı rövanş mı" else "First or second leg",
+                        leg
+                    )
                     if (fixture.season > 0) {
                         SportsMatchDetailLine(
                             if (arabic) "الموسم" else if (turkish) "Sezon" else "Season",
                             fixture.season.toString()
                         )
                     }
-                    if (fixture.elapsed != null && fixture.elapsed > 0) {
-                        SportsMatchDetailLine(
-                            if (arabic) "الدقيقة" else if (turkish) "Dakika" else "Minute",
-                            fixture.elapsed.toString() + "'"
-                        )
-                    }
+                }
+
+                SportsMatchDetailSection(
+                    title = if (arabic) "المدينة والملعب المستضيف" else if (turkish) "Ev sahibi şehir ve stadyum" else "Host city and stadium"
+                ) {
                     SportsMatchDetailLine(
-                        if (arabic) "رقم المباراة" else if (turkish) "Maç numarası" else "Match ID",
-                        fixture.id.toString()
+                        if (arabic) "الملعب" else if (turkish) "Stadyum" else "Stadium",
+                        fixture.venueName.takeIf { it.isNotBlank() } ?: unavailable
                     )
-                    Text(
-                        if (arabic) "المعلومات المعروضة من بيانات المباراة المحمّلة؛ فتح التفاصيل لا يرسل طلب API إضافياً."
-                        else if (turkish) "Gösterilen bilgiler önceden yüklenen maç verilerindendir; ayrıntıları açmak ek API isteği göndermez."
-                        else "Details use the already loaded match data; opening this view sends no additional API request.",
-                        color = RoyalColors.Muted,
-                        fontSize = 10.sp
+                    SportsMatchDetailLine(
+                        if (arabic) "المدينة" else if (turkish) "Şehir" else "City",
+                        fixture.venueCity.takeIf { it.isNotBlank() }?.let { localizedFootballName(it, arabic, turkish) } ?: unavailable
                     )
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDetails = false }) {
-                    Text(if (arabic) "إغلاق" else if (turkish) "Kapat" else "Close")
+
+                SportsMatchDetailSection(
+                    title = if (arabic) "القنوات الناقلة" else if (turkish) "Yayıncı kanallar" else "Broadcast channels"
+                ) {
+                    SportsMatchDetailLine(
+                        if (arabic) "معلومات البث" else if (turkish) "Yayın bilgisi" else "Broadcast information",
+                        when {
+                            arabic -> "لم يوفّر مزود بيانات المباريات الحالي أسماء القنوات لهذه المباراة"
+                            turkish -> "Mevcut maç veri sağlayıcısı bu maç için kanal adı sağlamıyor"
+                            else -> "The current fixture provider does not supply channel names for this match"
+                        }
+                    )
                 }
+
+                Text(
+                    when {
+                        arabic -> "تُعرض التفاصيل من بيانات المباراة المحمّلة والمحفوظة. فتح هذا الملف لا يرسل طلب API إضافياً."
+                        turkish -> "Ayrıntılar yüklenen ve önbelleğe alınan maç verilerinden gösterilir. Bu dosyayı açmak ek API isteği göndermez."
+                        else -> "Details use the already loaded and cached fixture data. Opening this file sends no additional API request."
+                    },
+                    color = RoyalColors.Muted,
+                    fontSize = 10.sp,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    textAlign = TextAlign.Center
+                )
             }
-        )
+        }
+    }
+}
+
+@Composable
+private fun SportsMatchDetailSection(
+    title: String,
+    content: @Composable Column.() -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x99102F28))
+            .border(1.dp, Color(0x44B8FFD7), RoundedCornerShape(16.dp))
+            .padding(13.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+        content = content
+    ) {
+        Text(title, color = RoyalColors.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1475,6 +1627,40 @@ private fun SportsMatchDetailLine(label: String, value: String) {
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.End
         )
+    }
+}
+
+private fun localizedCompetitionWeek(round: String, arabic: Boolean, turkish: Boolean): String {
+    val match = Regex(
+        "(?i)(?:regular\\s+season|league\\s+phase|group\\s+stage|matchday|match\\s+day|week|round)\\s*[-:#]?\\s*(\\d+)"
+    ).find(round)
+    val number = match?.groupValues?.getOrNull(1)
+    return when {
+        number == null && arabic -> "لم يحدد مزود البيانات رقم الأسبوع"
+        number == null && turkish -> "Veri sağlayıcısı hafta numarasını belirtmedi"
+        number == null -> "Week number not provided"
+        arabic -> "الأسبوع $number"
+        turkish -> "$number. hafta"
+        else -> "Week $number"
+    }
+}
+
+private fun localizedFixtureLeg(fixture: RoyalSportsFixture, arabic: Boolean, turkish: Boolean): String {
+    val source = "${fixture.leg} ${fixture.round}".lowercase(Locale.ROOT)
+    val firstLeg = source.contains("first leg") || source.contains("1st leg") ||
+        source.contains("leg 1") || source.contains("ilk maç")
+    val secondLeg = source.contains("second leg") || source.contains("2nd leg") ||
+        source.contains("leg 2") || source.contains("rövanş")
+    return when {
+        firstLeg && arabic -> "ذهاب"
+        secondLeg && arabic -> "إياب"
+        firstLeg && turkish -> "İlk maç"
+        secondLeg && turkish -> "Rövanş"
+        firstLeg -> "First leg"
+        secondLeg -> "Second leg"
+        arabic -> "لم تتوفر معلومة مؤكدة"
+        turkish -> "Kesin bilgi bulunmuyor"
+        else -> "No confirmed information"
     }
 }
 
