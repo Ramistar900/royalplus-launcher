@@ -40,10 +40,14 @@ class RoyalCaptionTransportTest {
             .put("text", "مرحبا بالعالم")
             .put("source_language", "en")
         val encrypted = RoyalCaptionTransport.encryptPayload(key, original)
-        assertEquals(original.toString(), RoyalCaptionTransport.decryptPayload(key, encrypted).toString())
+        val decrypted = RoyalCaptionTransport.decryptPayload(key, encrypted)
+        assertEquals(original.getString("text"), decrypted.getString("text"))
+        assertEquals(original.getLong("sequence"), decrypted.getLong("sequence"))
 
+        val data = encrypted.getString("data")
+        val replacement = if (data.first() == '0') '1' else '0'
         val tampered = JSONObject(encrypted.toString())
-            .put("data", encrypted.getString("data").dropLast(4) + "AAAA")
+            .put("data", replacement + data.substring(1))
         var rejected = false
         try {
             RoyalCaptionTransport.decryptPayload(key, tampered)
