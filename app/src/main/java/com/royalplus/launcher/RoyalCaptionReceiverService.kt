@@ -141,13 +141,15 @@ class RoyalCaptionReceiverService : Service() {
                 Thread.sleep(600L)
                 return
             }
-            socket.soTimeout = 0
+            socket.soTimeout = 30_000
             updateNotification("الهاتف متصل؛ يتم عرض الترجمة العائمة فوق التطبيقات")
             var lastSequence = 0L
             while (running.get() && !socket.isClosed) {
                 val frame = RoyalCaptionTransport.readFrame(reader)
                 val payload = RoyalCaptionTransport.decryptPayload(key, frame)
-                if (payload.optString("type") != "caption") continue
+                val payloadType = payload.optString("type")
+                if (payloadType == "ping") continue
+                if (payloadType != "caption") continue
                 val sequence = payload.optLong("sequence", -1L)
                 val text = payload.optString("text").trim()
                 if (sequence <= lastSequence || text.isBlank() ||
