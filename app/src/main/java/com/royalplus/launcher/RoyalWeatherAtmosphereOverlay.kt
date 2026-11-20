@@ -23,6 +23,7 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /** Lightweight, procedural weather particles drawn above the existing local weather video. */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun RoyalWeatherAtmosphereOverlay(
     weatherCode: Int?,
