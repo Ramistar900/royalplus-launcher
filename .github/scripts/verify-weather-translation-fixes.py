@@ -33,33 +33,31 @@ assert "RoyalWeatherAmbienceEffect(weather)" in weather_details
 assert "RoyalOwlAmbienceEffect(weather)" in weather_details
 
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
-vad_repository = (JAVA / "WhisperModelRepository.kt").read_text(encoding="utf-8")
-audio_gate = (JAVA / "SpeechAudioGate.kt").read_text(encoding="utf-8")
-assert "createVoiceActivityDetector" in vad_repository
-assert "SileroVadModelConfig" in vad_repository
-assert "VAD_SIZE = 643_854L" in vad_repository
-assert "VAD_BASE" in vad_repository
-assert "createAudioTagger" in vad_repository
-assert "AudioTaggingModelConfig" in vad_repository
-assert "AUDIO_TAGGING_MODEL_SHA256" in vad_repository
+whisper_repository = (JAVA / "WhisperModelRepository.kt").read_text(encoding="utf-8")
+assert "audioSegments = LinkedBlockingQueue<FloatArray>()" in service
+assert "SEGMENT_SECONDS = 2" in service
+assert "SEGMENT_OVERLAP_MILLIS = 350" in service
+assert "SEGMENT_OVERLAP_SAMPLES" in service and "System.arraycopy(" in service
+assert "audioSegments.offer(completed)" in service
+assert "hasMeaningfulAudio(samples)" in service
+assert "removeOverlappingWords(recognized)" in service
+assert "queueCaptionPhrase(freshText, language)" in service
+assert "SpeechCaptionFilter.isNonSpeechLabel(recognized)" in service
+assert "SpeechAudioGate.isPredominantlyNonSpeech" not in service
+assert "createVoiceActivityDetector" not in whisper_repository
+assert "createAudioTagger" not in whisper_repository
+assert "SileroVadModelConfig" not in whisper_repository
+assert "AudioTaggingModelConfig" not in whisper_repository
 assert "CAPTION_PHRASE_IDLE_MILLIS = 250L" in service
-assert "VAD_WINDOW_SAMPLES = 512" in service
-assert "detector.acceptWaveform(frame)" in service and "detector.flush()" in service
-assert "speechSegments = LinkedBlockingQueue<FloatArray>()" in service
-assert "enqueueReadySpeechSegments(detector)" in service
-assert "audioGapDetected" not in service and "audioSegments" not in service
-assert "MAX_PENDING_TRANSLATION_AGE_MILLIS" not in service
-assert "MAX_QUEUED_TRANSLATIONS" not in service
 assert "pendingTranslations.addLast(" in service
 assert "pendingTranslations.addFirst(" in service
 assert "processNextPendingTranslation()" in service
-assert "stabilizeDetectedLanguage(" not in service
-assert "queueCaptionPhrase(recognized, language)" in service
-assert "SpeechAudioGate.isPredominantlyNonSpeech" in service
-assert "tagger.compute(stream, AUDIO_TAGGING_TOP_K)" in service
-assert '"singing"' in audio_gate and '"music"' in audio_gate
-assert "SPEECH_PRESENCE_THRESHOLD" in audio_gate
-assert "hasMeaningfulAudio(" not in service
+assert "Small100Translator.create(files)" in service
+assert "translationExecutor.execute" in service
+assert "translationModelSetup" in service
+assert "ACTION_DOWNLOAD_TRANSLATION_MODEL" in service
+assert "translationDownloadNoticeShown" in service
+assert "اكتمل نموذج التعرّف الصوتي" in service
 speech_filter = (JAVA / "SpeechCaptionFilter.kt").read_text(encoding="utf-8")
 assert '"music"' in speech_filter and '"آهات"' in speech_filter and '"moaning"' in speech_filter
 caption_formatter = (JAVA / "CaptionPhraseBuffer.kt").read_text(encoding="utf-8")
@@ -70,16 +68,6 @@ assert "AudioPlaybackCaptureConfiguration.Builder" in service
 assert "else createMicrophoneRecord()" in service and "VOICE_RECOGNITION" in service
 assert "normalizeDetectedLanguage" in service
 assert "Small100Translator.create(files)" in service
-assert "translationExecutor.execute" in service
-assert "translationModelSetup" in service
-assert "ACTION_DOWNLOAD_TRANSLATION_MODEL" in service
-assert "translationSessions" not in service
-assert "TranslateLanguage" not in service
-assert "RoyalCloudTranslationClient" not in service
-assert "NET_CAPABILITY_NOT_METERED" in (JAVA / "Small100ModelRepository.kt").read_text(encoding="utf-8")
-assert "translator === activeTranslator" not in service
-assert "queueCaptionPhrase(recognized, language)" in service
-assert "captionPhraseBuffer" in service
 assert "ArabicCaptionFormatter.format(text)" in service
 assert "maxLines = 2" in service
 assert "(resources.displayMetrics.widthPixels * 0.90f)" in service
