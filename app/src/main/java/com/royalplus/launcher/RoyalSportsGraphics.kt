@@ -38,7 +38,7 @@ internal enum class RoyalSportsGlyph(val label: String) {
 }
 
 private val SportsNavy = Color(0xFF102334)
-private val SportsTurquoise = Color(0xFF45D4DF)
+private val SportsGreen = Color(0xFF43C77A)
 private val SportsGold = Color(0xFFFFD36A)
 private val SportsPearl = Color(0xFFF4F1E7)
 private val SportsLive = Color(0xFFFF716B)
@@ -78,12 +78,12 @@ internal fun RoyalSportsIcon(
                     cornerRadius = CornerRadius(17f, 17f)
                 )
                 drawCircle(
-                    color = SportsTurquoise.copy(alpha = 0.075f),
+                    color = SportsGreen.copy(alpha = 0.075f),
                     radius = 24f,
                     center = Offset(32f, 32f)
                 )
                 drawRoundRect(
-                    color = SportsTurquoise.copy(alpha = 0.36f),
+                    color = SportsGreen.copy(alpha = 0.36f),
                     topLeft = Offset(3.5f, 3.5f),
                     size = Size(57f, 57f),
                     cornerRadius = CornerRadius(16.5f, 16.5f),
@@ -174,10 +174,10 @@ private fun DrawScope.drawCalendar() {
         style = Stroke(3f)
     )
     drawLine(SportsGold, Offset(13f, 25f), Offset(51f, 25f), 3f)
-    drawLine(SportsTurquoise, Offset(23f, 11f), Offset(23f, 20f), 3.4f)
-    drawLine(SportsTurquoise, Offset(41f, 11f), Offset(41f, 20f), 3.4f)
+    drawLine(SportsGreen, Offset(23f, 11f), Offset(23f, 20f), 3.4f)
+    drawLine(SportsGreen, Offset(41f, 11f), Offset(41f, 20f), 3.4f)
     drawCircle(SportsGold, 3.2f, Offset(24f, 35f))
-    drawCircle(SportsTurquoise, 3.2f, Offset(39f, 35f))
+    drawCircle(SportsGreen, 3.2f, Offset(39f, 35f))
     drawCircle(SportsPearl, 2f, Offset(24f, 44f))
 }
 
@@ -196,7 +196,7 @@ private fun DrawScope.drawFixtureList() {
         cornerRadius = CornerRadius(3f, 3f)
     )
     listOf(24f, 34f, 44f).forEachIndexed { index, y ->
-        drawCircle(if (index == 1) SportsTurquoise else SportsGold, 2.3f, Offset(25f, y))
+        drawCircle(if (index == 1) SportsGreen else SportsGold, 2.3f, Offset(25f, y))
         drawLine(SportsPearl, Offset(31f, y), Offset(41f, y), 2.3f)
     }
 }
@@ -210,7 +210,7 @@ private fun DrawScope.drawLiveBoard() {
         style = Stroke(2.8f)
     )
     drawCircle(SportsLive, 4f, Offset(20f, 25f))
-    drawLine(SportsTurquoise, Offset(29f, 25f), Offset(45f, 25f), 3f)
+    drawLine(SportsGreen, Offset(29f, 25f), Offset(45f, 25f), 3f)
     drawLine(SportsGold, Offset(17f, 35f), Offset(47f, 35f), 2.6f)
     drawLine(SportsPearl, Offset(23f, 51f), Offset(41f, 51f), 2.8f)
     drawLine(SportsPearl, Offset(32f, 46f), Offset(32f, 51f), 2.8f)
@@ -227,7 +227,7 @@ private fun DrawScope.drawTrophy() {
     }
     drawPath(cup, SportsGold)
     drawArc(
-        SportsTurquoise,
+        SportsGreen,
         startAngle = 80f,
         sweepAngle = 200f,
         useCenter = false,
@@ -236,7 +236,7 @@ private fun DrawScope.drawTrophy() {
         style = Stroke(3f)
     )
     drawArc(
-        SportsTurquoise,
+        SportsGreen,
         startAngle = -100f,
         sweepAngle = 200f,
         useCenter = false,
@@ -246,7 +246,7 @@ private fun DrawScope.drawTrophy() {
     )
     drawLine(SportsPearl, Offset(32f, 39f), Offset(32f, 47f), 3.4f)
     drawRoundRect(
-        SportsTurquoise,
+        SportsGreen,
         topLeft = Offset(21f, 47f),
         size = Size(22f, 5f),
         cornerRadius = CornerRadius(2f, 2f)
@@ -255,7 +255,7 @@ private fun DrawScope.drawTrophy() {
 
 private fun DrawScope.drawTeams() {
     drawCircle(SportsGold, 6.5f, Offset(23f, 23f))
-    drawCircle(SportsTurquoise, 5.7f, Offset(42f, 25f))
+    drawCircle(SportsGreen, 5.7f, Offset(42f, 25f))
     drawArc(
         SportsGold,
         startAngle = 180f,
@@ -266,7 +266,7 @@ private fun DrawScope.drawTeams() {
         style = Stroke(5.5f)
     )
     drawArc(
-        SportsTurquoise,
+        SportsGreen,
         startAngle = 180f,
         sweepAngle = 180f,
         useCenter = false,
@@ -286,10 +286,10 @@ private fun DrawScope.drawGoal() {
         style = Stroke(3f)
     )
     for (x in listOf(21f, 32f, 43f)) {
-        drawLine(SportsTurquoise.copy(alpha = 0.85f), Offset(x, 16f), Offset(x, 44f), 1.4f)
+        drawLine(SportsGreen.copy(alpha = 0.85f), Offset(x, 16f), Offset(x, 44f), 1.4f)
     }
     for (y in listOf(24f, 34f)) {
-        drawLine(SportsTurquoise.copy(alpha = 0.85f), Offset(13f, y), Offset(51f, y), 1.4f)
+        drawLine(SportsGreen.copy(alpha = 0.85f), Offset(13f, y), Offset(51f, y), 1.4f)
     }
     drawCircle(SportsGold, 7f, Offset(32f, 46f))
     drawPath(
@@ -308,7 +308,7 @@ private fun DrawScope.drawGoal() {
 private fun DrawScope.drawRefresh() {
     // One continuous circular arrow; the arrowhead touches the arc endpoint.
     drawArc(
-        color = SportsTurquoise,
+        color = SportsGreen,
         startAngle = -45f,
         sweepAngle = 292f,
         useCenter = false,

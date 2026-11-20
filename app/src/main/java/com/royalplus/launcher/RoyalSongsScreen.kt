@@ -182,7 +182,7 @@ internal fun RoyalSongsScreen() {
             }
             Row(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF10131B)).padding(10.dp),
+                    .background(RoyalColors.Panel).padding(10.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {

@@ -58,6 +58,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Language
@@ -125,6 +126,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -135,6 +137,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -145,7 +148,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SINJAR_TV, SPORTS, GALLERY, SONGS, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SINJAR_TV, SPORTS, GALLERY, SONGS, FILES, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -308,6 +311,12 @@ internal fun RoyalHomeScreen(
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
     var isSinjarPlayerFullscreen by remember { mutableStateOf(false) }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
+    var lightThemeEnabled by remember(wallpaperPreferences) {
+        mutableStateOf(wallpaperPreferences.getString("launcher_theme_mode", "dark") == "light")
+    }
+    var launcherTextScale by remember(wallpaperPreferences) {
+        mutableStateOf(wallpaperPreferences.getFloat("launcher_text_scale", 1.0f).coerceIn(0.9f, 1.15f))
+    }
     val selectedFontFamily = remember(selectedFont) {
         when (selectedFont) {
             "tajawal" -> FontFamily(Font(R.font.tajawal_regular))
@@ -505,7 +514,11 @@ internal fun RoyalHomeScreen(
         filteredApps.filterNot { it.packageName in favoritePackages }
     }
 
-    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)) {
+    val baseDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(baseDensity.density, launcherTextScale),
+        LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)
+    ) {
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize()
@@ -770,6 +783,7 @@ internal fun RoyalHomeScreen(
                                     LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage, onFullscreenChange = { isSinjarPlayerFullscreen = it })
                                     LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
+                                    LauncherDestination.FILES -> RoyalFileManagerScreen(language = selectedLanguage)
                                     LauncherDestination.SONGS -> RoyalSongsScreen()
                                     LauncherDestination.FAVORITES -> AppCatalog(
                                         title = when (selectedLanguage) { "en" -> "Favorite apps"; "tr" -> "Favori uygulamalar"; else -> "التطبيقات المفضلة" }, apps = filteredFavorites, columns = columns,
@@ -840,7 +854,7 @@ internal fun RoyalHomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xF5080A10))
+                        .background(RoyalColors.Overlay)
                         .padding(horizontal = 28.dp, vertical = 22.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -849,7 +863,7 @@ internal fun RoyalHomeScreen(
                             .fillMaxWidth()
                             .fillMaxHeight(0.92f)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color(0xFF10131B))
+                            .background(RoyalColors.Panel)
                             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
                             .padding(18.dp)
                             .focusGroup()
@@ -881,7 +895,10 @@ internal fun RoyalHomeScreen(
                             RoyalSettingsNavigationItem(Icons.Rounded.Schedule, when (selectedLanguage) { "en" -> "Date & time"; "tr" -> "Tarih ve saat"; else -> "التاريخ والساعة" }, selectedSettingsCategory == "clock") { navigateSettingsSection("clock") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Language, when (selectedLanguage) { "en" -> "Language & fonts"; "tr" -> "Dil ve yazı tipleri"; else -> "اللغة والخطوط" }, selectedSettingsCategory == "language") { navigateSettingsSection("language") }
                             RoyalSettingsNavigationItem(Icons.Rounded.Wifi, when (selectedLanguage) { "en" -> "Network & device"; "tr" -> "Ağ ve cihaz"; else -> "الشبكة والجهاز" }, selectedSettingsCategory == "device") { navigateSettingsSection("device") }
-                            RoyalSettingsNavigationItem(Icons.Rounded.Info, when (selectedLanguage) { "en" -> "Share & updates"; "tr" -> "Paylaşım ve güncellemeler"; else -> "مشاركة التطبيق والتحديثات" }, selectedSettingsCategory == "share") { navigateSettingsSection("share") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.WbSunny, "ROYAL RELAX", selectedSettingsCategory == "relax") { navigateSettingsSection("relax") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Mic, when (selectedLanguage) { "en" -> "Privacy & permissions"; "tr" -> "Gizlilik ve izinler"; else -> "الخصوصية والأذونات" }, selectedSettingsCategory == "privacy") { navigateSettingsSection("privacy") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Refresh, when (selectedLanguage) { "en" -> "Share & updates"; "tr" -> "Paylaşım ve güncellemeler"; else -> "مشاركة التطبيق والتحديثات" }, selectedSettingsCategory == "share") { navigateSettingsSection("share") }
+                            RoyalSettingsNavigationItem(Icons.Rounded.Info, when (selectedLanguage) { "en" -> "About & support"; "tr" -> "Hakkında ve destek"; else -> "حول التطبيق والدعم" }, selectedSettingsCategory == "about") { navigateSettingsSection("about") }
                             Spacer(Modifier.height(8.dp))
                             Row(
                                 Modifier.fillMaxWidth()
@@ -916,7 +933,10 @@ internal fun RoyalHomeScreen(
                                 "clock" -> if (selectedLanguage == "en") "Date & time" else if (selectedLanguage == "tr") "Tarih ve saat" else "التاريخ والساعة"
                                 "language" -> if (selectedLanguage == "en") "Language & fonts" else if (selectedLanguage == "tr") "Dil ve yazı tipleri" else "اللغة والخطوط"
                                 "device" -> if (selectedLanguage == "en") "Network & device" else if (selectedLanguage == "tr") "Ağ ve cihaz" else "الشبكة والجهاز"
-                                else -> if (selectedLanguage == "en") "Share & updates" else if (selectedLanguage == "tr") "Paylaşım ve güncellemeler" else "مشاركة التطبيق والتحديثات"
+                                "relax" -> "ROYAL RELAX"
+                                "privacy" -> if (selectedLanguage == "en") "Privacy & permissions" else if (selectedLanguage == "tr") "Gizlilik ve izinler" else "الخصوصية والأذونات"
+                                "share" -> if (selectedLanguage == "en") "Share & updates" else if (selectedLanguage == "tr") "Paylaşım ve güncellemeler" else "مشاركة التطبيق والتحديثات"
+                                else -> if (selectedLanguage == "en") "About & support" else if (selectedLanguage == "tr") "Hakkında ve destek" else "حول التطبيق والدعم"
                             },
                             color = RoyalColors.Gold, fontSize = 25.sp, fontWeight = FontWeight.Bold
                         )
@@ -931,7 +951,10 @@ internal fun RoyalHomeScreen(
                                 "clock" -> if (selectedLanguage == "en") "Choose how date and time appear" else if (selectedLanguage == "tr") "Tarih ve saatin görünümünü seçin" else "اختر طريقة عرض التاريخ والساعة"
                                 "language" -> if (selectedLanguage == "en") "Choose the interface language and font" else if (selectedLanguage == "tr") "Arayüz dilini ve yazı tipini seçin" else "اختر لغة الواجهة ونوع الخط"
                                 "device" -> if (selectedLanguage == "en") "Network, storage and device information" else if (selectedLanguage == "tr") "Ağ, depolama ve cihaz bilgileri" else "الشبكة والتخزين ومعلومات الجهاز"
-                                else -> if (selectedLanguage == "en") "Share the app or check for the latest official release" else if (selectedLanguage == "tr") "Uygulamayı paylaşın veya en yeni resmî sürümü kontrol edin" else "شارك التطبيق أو تحقق من أحدث إصدار رسمي"
+                                "relax" -> if (selectedLanguage == "en") "Nature cameras, cozy fireplace videos and winter ambience" else if (selectedLanguage == "tr") "Doğa kameraları, şömine videoları ve kış atmosferi" else "كاميرات الطبيعة وفيديوهات المدفأة وأجواء الشتاء"
+                                "privacy" -> if (selectedLanguage == "en") "Review app permissions and open Android privacy controls" else if (selectedLanguage == "tr") "Uygulama izinlerini inceleyin ve Android gizlilik ayarlarını açın" else "راجع أذونات التطبيق وافتح إعدادات الخصوصية في أندرويد"
+                                "share" -> if (selectedLanguage == "en") "Share the app or check for the latest official release" else if (selectedLanguage == "tr") "Uygulamayı paylaşın veya en yeni resmî sürümü kontrol edin" else "شارك التطبيق أو تحقق من أحدث إصدار رسمي"
+                                else -> if (selectedLanguage == "en") "App version, developer information and support links" else if (selectedLanguage == "tr") "Uygulama sürümü, geliştirici bilgileri ve destek bağlantıları" else "إصدار التطبيق ومعلومات المطوّر وروابط الدعم"
                             },
                             color = RoyalColors.Pearl, fontSize = 14.sp
                         )
@@ -958,7 +981,7 @@ internal fun RoyalHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else Color(0xFF080A0F))
+                                .background(if (isAdhanEnabled) RoyalColors.Gold.copy(alpha = 0.14f) else RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.48f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -998,7 +1021,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1063,7 +1086,7 @@ internal fun RoyalHomeScreen(
                             Triple("weather", if (selectedLanguage == "en") "Weather background" else if (selectedLanguage == "tr") "Hava durumu" else "خلفية الطقس", weatherMotionEnabled)
                         ).forEach { (key, label, enabled) ->
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F)).border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .background(RoyalColors.Surface).border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
                                     val next = !enabled
@@ -1083,6 +1106,36 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "appearance") {
+                        Text(
+                            when (selectedLanguage) { "en" -> "Interface theme"; "tr" -> "Arayüz teması"; else -> "مظهر الواجهة" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            IconStyleChoice(
+                                Modifier.weight(1f),
+                                when (selectedLanguage) { "en" -> "Night mode"; "tr" -> "Koyu mod"; else -> "الوضع الليلي" },
+                                "dark",
+                                if (lightThemeEnabled) "light" else "dark",
+                                icon = Icons.Rounded.Schedule
+                            ) {
+                                lightThemeEnabled = false
+                                RoyalColors.applyLightTheme(false)
+                                wallpaperPreferences.edit().putString("launcher_theme_mode", "dark").apply()
+                            }
+                            IconStyleChoice(
+                                Modifier.weight(1f),
+                                when (selectedLanguage) { "en" -> "Light mode"; "tr" -> "Açık mod"; else -> "الوضع الفاتح" },
+                                "light",
+                                if (lightThemeEnabled) "light" else "dark",
+                                icon = Icons.Rounded.WbSunny
+                            ) {
+                                lightThemeEnabled = true
+                                RoyalColors.applyLightTheme(true)
+                                wallpaperPreferences.edit().putString("launcher_theme_mode", "light").apply()
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
                         Text(
                             when (selectedLanguage) { "en" -> "Home screen wallpapers"; "tr" -> "Ana ekran duvar kâğıtları"; else -> "خلفيات الشاشة الرئيسية" },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
@@ -1179,7 +1232,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1218,7 +1271,7 @@ internal fun RoyalHomeScreen(
                                 }
                                 Box(
                                     Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
-                                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else Color(0xFF080A0F))
+                                        .background(if (selected) RoyalColors.Gold.copy(alpha = 0.2f) else RoyalColors.Surface)
                                         .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f), RoundedCornerShape(9.dp))
                                         .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                         .clickable {
@@ -1320,7 +1373,7 @@ internal fun RoyalHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1348,7 +1401,7 @@ internal fun RoyalHomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF080A0F))
+                                .background(RoyalColors.Surface)
                                 .border(1.dp, RoyalColors.Gold.copy(alpha = 0.38f), RoundedCornerShape(12.dp))
                                 .then(royalGlassFocus(RoundedCornerShape(12.dp)))
                                 .clickable {
@@ -1419,6 +1472,38 @@ internal fun RoyalHomeScreen(
                             }
                         }
                         Spacer(Modifier.height(14.dp))
+                        Text(
+                            when (selectedLanguage) { "en" -> "Text size"; "tr" -> "Metin boyutu"; else -> "حجم النص" },
+                            color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            when (selectedLanguage) { "en" -> "Adjust text throughout ROYAL+ without changing TV resolution"; "tr" -> "TV çözünürlüğünü değiştirmeden ROYAL+ genelindeki metin boyutunu ayarlayın"; else -> "اضبط حجم النص في التطبيق دون تغيير دقة التلفاز" },
+                            color = RoyalColors.Muted, fontSize = 11.sp
+                        )
+                        val textScaleChoice = when {
+                            launcherTextScale < 0.95f -> "0.9"
+                            launcherTextScale < 1.08f -> "1.0"
+                            else -> "1.15"
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(
+                                Triple("0.9", "90%", "Smaller"),
+                                Triple("1.0", "100%", "Normal"),
+                                Triple("1.15", "115%", "Larger")
+                            ).forEach { (value, label, _) ->
+                                IconStyleChoice(
+                                    Modifier.weight(1f),
+                                    label,
+                                    value,
+                                    textScaleChoice,
+                                    icon = Icons.Rounded.TextFields
+                                ) {
+                                    launcherTextScale = value.toFloat()
+                                    wallpaperPreferences.edit().putFloat("launcher_text_scale", launcherTextScale).apply()
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "device") {
                         Text(
@@ -1470,11 +1555,23 @@ internal fun RoyalHomeScreen(
                         )
                         Spacer(Modifier.height(14.dp))
                         }
+                        if (selectedSettingsCategory == "privacy") {
+                        RoyalPrivacySettingsSection(language = selectedLanguage)
+                        Spacer(Modifier.height(14.dp))
+                        }
                         if (selectedSettingsCategory == "share") {
                         RoyalShareUpdatesSection(
                             language = selectedLanguage,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "relax") {
+                            RoyalRelaxSettingsSection(selectedLanguage)
+                            Spacer(Modifier.height(14.dp))
+                        }
+                        if (selectedSettingsCategory == "about") {
+                        RoyalAboutSettingsSection(language = selectedLanguage)
                         Spacer(Modifier.height(14.dp))
                         }
                     }
@@ -1504,6 +1601,202 @@ internal fun RoyalHomeScreen(
     }
 }
 
+
+@Composable
+private fun RoyalRelaxSettingsSection(selectedLanguage: String) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF18372C), Color(0xFF101916), Color(0xFF080B0A))
+                                )
+                            )
+                            .border(1.dp, Color(0xFFD4AF37).copy(alpha = 0.72f), RoundedCornerShape(22.dp))
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = Color(0xFF20B8B0), modifier = Modifier.size(34.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text("ROYAL RELAX", color = Color(0xFFD4AF37), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    when (selectedLanguage) {
+                                        "en" -> "A peaceful world of nature"
+                                        "tr" -> "Doğanın huzurlu dünyası"
+                                        else -> "عالم من الطبيعة والهدوء"
+                                    },
+                                    color = Color(0xFFE8DDC8), fontSize = 12.sp
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                            RoyalRelaxRibbon()
+                        }
+                        Text(
+                            when (selectedLanguage) {
+                                "en" -> "Watch natural places and relaxing scenes"
+                                "tr" -> "Doğal yerleri ve huzur veren sahneleri izleyin"
+                                else -> "شاهد الطبيعة واستمتع بالمشاهد الهادئة"
+                            },
+                            color = Color(0xFFE8DDC8), fontSize = 18.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.WbSunny,
+                                title = when (selectedLanguage) { "en" -> "Live nature cameras"; "tr" -> "Canlı doğa kameraları"; else -> "كاميرات الطبيعة المباشرة" },
+                                detail = when (selectedLanguage) { "en" -> "Seas, forests, lakes, waterfalls and wildlife only"; "tr" -> "Yalnızca denizler, ormanlar, göller, şelaleler ve yaban hayatı"; else -> "البحار والغابات والبحيرات والشلالات والحياة البرية فقط" },
+                                accent = Color(0xFF20B8B0),
+                                modifier = Modifier.weight(1f)
+                            )
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.Bolt,
+                                title = when (selectedLanguage) { "en" -> "Fireplace & logs"; "tr" -> "Şömine ve odun ateşi"; else -> "النار والحطب" },
+                                detail = when (selectedLanguage) { "en" -> "Warm fire and crackling wood videos"; "tr" -> "Sıcak şömine ve çıtırdayan odun videoları"; else -> "فيديوهات المدفأة والحطب المشتعل" },
+                                accent = Color(0xFFD4AF37),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.AcUnit,
+                                title = when (selectedLanguage) { "en" -> "Winter ambience"; "tr" -> "Kış atmosferi"; else -> "أجواء الشتاء" },
+                                detail = when (selectedLanguage) { "en" -> "Snowfall, snowy cabins and winter forests"; "tr" -> "Kar yağışı, karlı kulübeler ve kış ormanları"; else -> "تساقط الثلوج والأكواخ والغابات الشتوية" },
+                                accent = Color(0xFF20B8B0),
+                                modifier = Modifier.weight(1f)
+                            )
+                            RoyalRelaxFeatureTile(
+                                icon = Icons.Rounded.WaterDrop,
+                                title = when (selectedLanguage) { "en" -> "Rain & water"; "tr" -> "Yağmur ve su"; else -> "المطر والمياه" },
+                                detail = when (selectedLanguage) { "en" -> "Rain, storms, rivers and waterfalls"; "tr" -> "Yağmur, fırtınalar, nehirler ve şelaleler"; else -> "المطر والعواصف والأنهار والشلالات" },
+                                accent = Color(0xFF1677C8),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Text(
+                            when (selectedLanguage) { "en" -> "Choose your audio atmosphere"; "tr" -> "Ses atmosferinizi seçin"; else -> "اختر الأجواء الصوتية" },
+                            color = Color(0xFFD4AF37), fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.Star,
+                                title = when (selectedLanguage) { "en" -> "Quran recitation"; "tr" -> "Kur'an tilaveti"; else -> "القرآن الكريم" },
+                                detail = when (selectedLanguage) { "en" -> "A separate listening mode, never mixed with music or effects"; "tr" -> "Müzik veya efektlerle asla karıştırılmayan ayrı bir dinleme modu"; else -> "وضع مستقل تماماً، لا يُخلط بالموسيقى أو المؤثرات" },
+                                accent = Color(0xFFD4AF37)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.MusicNote,
+                                title = when (selectedLanguage) { "en" -> "Calm instrumental music"; "tr" -> "Sakin enstrümantal müzik"; else -> "موسيقى هادئة وآلات موسيقية" },
+                                detail = when (selectedLanguage) { "en" -> "Optional, with independent volume control"; "tr" -> "İsteğe bağlı, ayrı ses seviyesi kontrolüyle"; else -> "اختيارية مع تحكم مستقل بمستوى الصوت" },
+                                accent = Color(0xFFD4AF37)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.WaterDrop,
+                                title = when (selectedLanguage) { "en" -> "Nature sounds"; "tr" -> "Doğa sesleri"; else -> "أصوات الطبيعة" },
+                                detail = when (selectedLanguage) { "en" -> "Rain, wind, birds, waves and fire crackle"; "tr" -> "Yağmur, rüzgâr, kuşlar, dalgalar ve ateş sesi"; else -> "المطر والرياح والطيور والأمواج وفرقعة الحطب" },
+                                accent = Color(0xFF20B8B0)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.Cloud,
+                                title = when (selectedLanguage) { "en" -> "Nature + music mix"; "tr" -> "Doğa + müzik karışımı"; else -> "مزج الطبيعة مع الموسيقى" },
+                                detail = when (selectedLanguage) { "en" -> "Mix nature ambience and music, with separate volume controls"; "tr" -> "Doğa seslerini ve müziği ayrı ses kontrolleriyle karıştırın"; else -> "امزج أصوات الطبيعة والموسيقى مع تحكم منفصل لكل صوت" },
+                                accent = Color(0xFF20B8B0)
+                            )
+                            RoyalRelaxAudioModeRow(
+                                icon = Icons.Rounded.Close,
+                                title = when (selectedLanguage) { "en" -> "Silent viewing"; "tr" -> "Sessiz izleme"; else -> "المشاهدة الصامتة" },
+                                detail = when (selectedLanguage) { "en" -> "Enjoy the picture without audio"; "tr" -> "Görüntünün keyfini sessizce çıkarın"; else -> "استمتع بالمشهد دون صوت" },
+                                accent = Color(0xFFE8DDC8)
+                            )
+                        }
+                        Text(
+                            when (selectedLanguage) {
+                                "en" -> "Lightweight by design: play only when requested, keep one video player active, do not download automatically, and release playback resources when leaving the section."
+                                "tr" -> "Hafif tasarım: yalnızca istendiğinde oynatın, tek video oynatıcı kullanın, otomatik indirme yapmayın ve bölümden çıkınca oynatma kaynaklarını serbest bırakın."
+                                else -> "مصمم ليكون خفيفاً: التشغيل عند الطلب فقط، ومشغل فيديو واحد، دون تنزيل تلقائي، وتحرير موارد التشغيل عند مغادرة القسم."
+                            },
+                            color = Color(0xFFE8DDC8).copy(alpha = 0.82f), fontSize = 11.sp
+                        )
+                        Text(
+                            when (selectedLanguage) {
+                                "en" -> "Nature-only camera sources and videos will be added after their embedding, playback and usage permissions are verified. All ROYAL RELAX options are free."
+                                "tr" -> "Doğa kameraları ve videoları, yerleştirme, oynatma ve kullanım izinleri doğrulandıktan sonra eklenecektir. ROYAL RELAX seçeneklerinin tümü ücretsizdir."
+                                else -> "ستُضاف كاميرات الطبيعة والفيديوهات بعد التحقق من أذونات التضمين والتشغيل والاستخدام. جميع خيارات ROYAL RELAX مجانية."
+                            },
+                            color = Color(0xFFE8DDC8).copy(alpha = 0.72f), fontSize = 11.sp
+                        )
+                    }
+}
+
+@Composable
+private fun RoyalRelaxRibbon() {
+    val shape = RoundedCornerShape(4.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFFFFE7A0), Color(0xFFD6A63D), Color(0xFFB98525))
+                )
+            )
+            .border(1.dp, Color(0xFF08090B), shape)
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text("♛", color = Color(0xFF111111), fontSize = 13.sp, fontWeight = FontWeight.Black)
+        Text("RELAX", color = Color(0xFF111111), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.1.sp)
+    }
+}
+
+@Composable
+private fun RoyalRelaxFeatureTile(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(15.dp)
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(Color(0xFF0D1713).copy(alpha = 0.9f))
+            .border(1.dp, accent.copy(alpha = 0.42f), shape)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(23.dp))
+        Text(title, color = Color(0xFFE8DDC8), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+        Text(detail, color = Color(0xFFE8DDC8).copy(alpha = 0.76f), fontSize = 10.sp, lineHeight = 14.sp)
+    }
+}
+
+@Composable
+private fun RoyalRelaxAudioModeRow(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    accent: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF0D1713).copy(alpha = 0.85f))
+            .border(1.dp, accent.copy(alpha = 0.26f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(21.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = Color(0xFFE8DDC8), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(detail, color = Color(0xFFE8DDC8).copy(alpha = 0.72f), fontSize = 10.sp, lineHeight = 14.sp)
+        }
+    }
+}
+
 @Composable
 private fun RoyalSettingsNavigationItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -1519,7 +1812,7 @@ private fun RoyalSettingsNavigationItem(
             .clip(shape)
             .background(
                 if (selected) Color(0xFF0B555B).copy(alpha = 0.42f)
-                else Color(0xFF080A0F)
+                else RoyalColors.Surface
             )
             .border(
                 1.dp,
@@ -1563,7 +1856,7 @@ private fun RoyalFeatureToggleRow(
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (checked) RoyalColors.Gold.copy(alpha = 0.12f) else Color(0xFF080A0F))
+            .background(if (checked) RoyalColors.Gold.copy(alpha = 0.12f) else RoyalColors.Surface)
             .border(
                 1.dp,
                 if (checked) RoyalColors.Gold.copy(alpha = 0.55f) else RoyalColors.Gold.copy(alpha = 0.24f),
@@ -1690,7 +1983,7 @@ private fun IconStyleChoice(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF080A0F))
+            .background(RoyalColors.Surface)
             .border(if (selected) 2.dp else 1.dp, if (selected) accent else accent.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
             .then(royalGlassFocus(RoundedCornerShape(12.dp)))
             .clickable(onClick = {
@@ -1742,7 +2035,7 @@ private fun WallpaperChoice(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF080A0F))
+            .background(RoyalColors.Surface)
             .border(
                 width = if (selected) 3.dp else 1.dp,
                 color = if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.25f),
@@ -2396,7 +2689,7 @@ private fun RoyalSidePanel(
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
-    val sidebarFocusRequesters = remember { List(11) { FocusRequester() } }
+    val sidebarFocusRequesters = remember { List(10) { FocusRequester() } }
     val navigationFocusModifiers = remember(sidebarFocusRequesters) {
         sidebarFocusRequesters.mapIndexed { index, requester ->
             Modifier.focusRequester(requester).focusProperties {
@@ -2406,50 +2699,74 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Manage apps", "My shortcuts", "Muslim", "Calendar", "Sinjar TV", "Sports", "Gallery", "Songs", "Settings")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Uygulamaları yönet", "Kısayollarım", "Müslüman", "Takvim", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Ayarlar")
-        else -> listOf("الرئيسية", "التطبيقات", "إدارة التطبيقات", "اختصاراتي", "مسلم", "التقويم الميلادي", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الإعدادات")
+        "en" -> listOf("Home", "Apps", "Calendar", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Settings", "Manage apps")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Ayarlar", "Uygulamaları yönet")
+        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "الإعدادات", "إدارة التطبيقات")
     }
     val shape = RoundedCornerShape(19.dp)
+    val panelBrush = if (RoyalColors.isLightTheme) {
+        Brush.verticalGradient(listOf(Color(0xFFF8F4EA), Color(0xFFECE5D8)))
+    } else {
+        Brush.verticalGradient(listOf(Color(0xFF080A12), Color(0xFF111620)))
+    }
     Column(
-        modifier.focusGroup().clip(shape).background(Brush.verticalGradient(listOf(Color(0xE8080A0F), Color(0xF7080A0F))))
-            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.18f), shape).padding(horizontal = if (compactPhone) 5.dp else 9.dp, vertical = 12.dp),
+        modifier.focusGroup().clip(shape).background(panelBrush)
+            .border(1.dp, RoyalColors.Gold.copy(alpha = 0.28f), shape)
+            .padding(horizontal = if (compactPhone) 5.dp else 9.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(5.dp))
         SidebarNavItem(
             labels[0], Icons.Rounded.Home, selectedDestination == LauncherDestination.HOME,
-            sound = RoyalUiSound.NAV_HOME,
-            modifier = navigationFocusModifiers[0]
+            sound = RoyalUiSound.NAV_HOME, modifier = navigationFocusModifiers[0]
         ) { onNavigate(LauncherDestination.HOME) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS, iconRes = R.drawable.royal_apps_grid, modifier = navigationFocusModifiers[1], onClick = { onNavigate(LauncherDestination.APPS) })
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[2], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS, iconRes = R.drawable.royal_apps_grid, modifier = navigationFocusModifiers[2], onClick = { onNavigate(LauncherDestination.MANAGE_APPS) })
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[3], Icons.Rounded.Star, selectedDestination == LauncherDestination.SHORTCUTS, iconRes = R.drawable.royal_dashboard, modifier = navigationFocusModifiers[3], onClick = { onNavigate(LauncherDestination.SHORTCUTS) })
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[4], Icons.Rounded.Star, selectedDestination == LauncherDestination.MUSLIM, modifier = navigationFocusModifiers[4]) { onNavigate(LauncherDestination.MUSLIM) }
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[5], Icons.Rounded.CalendarToday, selectedDestination == LauncherDestination.CALENDAR, modifier = navigationFocusModifiers[5]) { onNavigate(LauncherDestination.CALENDAR) }
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[6], null, selectedDestination == LauncherDestination.SINJAR_TV, sinjarLogo = true, modifier = navigationFocusModifiers[6], onClick = { onNavigate(LauncherDestination.SINJAR_TV) })
+        SidebarNavItem(
+            labels[1], Icons.Rounded.Apps, selectedDestination == LauncherDestination.APPS,
+            iconRes = R.drawable.royal_apps_luxe, modifier = navigationFocusModifiers[1]
+        ) { onNavigate(LauncherDestination.APPS) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[7],
-            null,
-            selectedDestination == LauncherDestination.SPORTS,
-            sportsBall = true,
-            modifier = navigationFocusModifiers[7],
-            onClick = { onNavigate(LauncherDestination.SPORTS) }
+            labels[2], Icons.Rounded.CalendarToday, selectedDestination == LauncherDestination.CALENDAR,
+            iconRes = R.drawable.royal_calendar_luxe, modifier = navigationFocusModifiers[2]
+        ) { onNavigate(LauncherDestination.CALENDAR) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[3], null, selectedDestination == LauncherDestination.SINJAR_TV,
+            sinjarLogo = true, modifier = navigationFocusModifiers[3]
+        ) { onNavigate(LauncherDestination.SINJAR_TV) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[4], null, selectedDestination == LauncherDestination.SPORTS,
+            sportsBall = true, modifier = navigationFocusModifiers[4]
+        ) { onNavigate(LauncherDestination.SPORTS) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[5], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY,
+            iconRes = R.drawable.royal_gallery_luxe, modifier = navigationFocusModifiers[5]
+        ) { onNavigate(LauncherDestination.GALLERY) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[6], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS,
+            iconRes = R.drawable.royal_songs_luxe, modifier = navigationFocusModifiers[6]
+        ) { onNavigate(LauncherDestination.SONGS) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[7], Icons.Rounded.Folder, selectedDestination == LauncherDestination.FILES,
+            iconRes = R.drawable.royal_files_luxe, modifier = navigationFocusModifiers[7]
+        ) { onNavigate(LauncherDestination.FILES) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[8], Icons.Rounded.Settings, false,
+            iconRes = R.drawable.royal_settings_luxe,
+            modifier = navigationFocusModifiers[8], onClick = onOpenSettings
         )
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[8], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY, iconRes = R.drawable.royal_gallery, modifier = navigationFocusModifiers[8], onClick = { onNavigate(LauncherDestination.GALLERY) })
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[9], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS, modifier = navigationFocusModifiers[9]) { onNavigate(LauncherDestination.SONGS) }
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(labels[10], Icons.Rounded.Settings, false, modifier = navigationFocusModifiers[10], onClick = onOpenSettings)
         Spacer(Modifier.weight(1f))
+        SidebarNavItem(
+            labels[9], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
+            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[9]
+        ) { onNavigate(LauncherDestination.MANAGE_APPS) }
+        Spacer(Modifier.height(12.dp))
         GoldDivider(Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
         CrownMark(Modifier.size(width = 30.dp, height = 22.dp))
@@ -2458,7 +2775,6 @@ private fun RoyalSidePanel(
         Text("SMART TV", color = RoyalColors.Muted, fontSize = 7.sp, letterSpacing = 1.5.sp)
     }
 }
-
 
 @Composable
 private fun StatusIcon(
@@ -2540,21 +2856,19 @@ private fun SidebarNavItem(
             .clip(shape)
             .background(
                 when {
-                    focused -> Brush.horizontalGradient(
-                        listOf(Color(0x8143C9FF), Color(0x57398FD4), Color(0x222A628F), Color.Transparent)
-                    )
+                    focused -> Brush.horizontalGradient(listOf(RoyalColors.Activity.copy(alpha = 0.34f), RoyalColors.Activity.copy(alpha = 0.14f), Color.Transparent))
                     selected -> Brush.horizontalGradient(
                         listOf(Color(0xFFD5A64F).copy(alpha = 0.28f), Color(0xFF6D4C1A).copy(alpha = 0.22f), Color.Transparent)
                     )
-                    else -> Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                    else -> if (RoyalColors.isLightTheme) Brush.horizontalGradient(listOf(Color(0xFFF9F5EC), Color(0xFFEFE8DB))) else Brush.horizontalGradient(listOf(Color(0xFF080A12), Color(0xFF171B29)))
                 }
             )
             .border(
                 if (focused) 2.2.dp else if (selected) 1.2.dp else 0.6.dp,
-                if (focused) Color(0xFFFFD36A) else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
+                if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.10f),
                 shape
             )
-            .then(if (focused) Modifier.border(1.dp, Color(0xFF8DEBFF).copy(alpha = 0.92f), shape) else Modifier)
+            .then(if (focused) Modifier.border(1.dp, RoyalColors.Activity.copy(alpha = 0.92f), shape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = {
                 playLauncherUiSound(context, sound)
@@ -2566,7 +2880,7 @@ private fun SidebarNavItem(
     ) {
         if (!compactPhone && !sinjarLogo) Text(
             text = title,
-            color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFE2A1) else RoyalColors.Pearl,
+            color = if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Pearl,
             fontSize = 12.sp,
             fontWeight = if (focused || selected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
@@ -2599,7 +2913,7 @@ private fun SidebarNavItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = if (focused) Color(0xFFBDEEFF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl.copy(alpha = 0.90f),
+                        tint = if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Pearl.copy(alpha = 0.90f),
                         modifier = Modifier.size(royalAdaptiveIconSize(if (compactPhone) 22.dp else 20.dp))
                     )
                 }
@@ -2608,7 +2922,7 @@ private fun SidebarNavItem(
                 painter = painterResource(iconRes),
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.size(royalAdaptiveIconSize(20.dp))
+                modifier = Modifier.size(royalAdaptiveIconSize(if (adaptiveProfile.isTelevision) 31.dp else if (compactPhone) 22.dp else 27.dp))
             )
         }
     }

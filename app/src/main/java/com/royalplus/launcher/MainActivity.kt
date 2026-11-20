@@ -33,7 +33,6 @@ import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -116,6 +115,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RoyalColors.applyLightTheme(
+            getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+                .getString("launcher_theme_mode", "dark") == "light"
+        )
         RoyalUiSounds.initialize(applicationContext, setOf(
             RoyalUiSound.NAV_BACK,
             RoyalUiSound.ACTION_DOWNLOAD,
@@ -160,7 +163,7 @@ class MainActivity : ComponentActivity() {
         RoyalPlusApplication.markStage(this, "MainActivity.onCreate: attaching Compose home screen")
         setContent {
             RoyalAdaptiveHost {
-                MaterialTheme {
+                RoyalAppTheme {
                     RoyalHomeScreen(
                     apps = installedApps,
                     weather = weatherState,
@@ -394,7 +397,7 @@ class MainActivity : ComponentActivity() {
                 .setMessage(
                     "على Android 10 فأحدث تطلب الميزة إذن النظام لالتقاط صوت التطبيقات مباشرةً. " +
                         "على Android 8/9 تستخدم ميكروفون التلفاز؛ لا يتيح هذان الإصداران التقاط الصوت الداخلي للتطبيقات. " +
-                        "يُعالج الصوت محلياً دون رفعه، ويتطلب أول تشغيل تنزيل نموذج الصوت (~104 ميغابايت) ونموذج ترجمة اللغة عند الحاجة."
+                        "يُعالج الصوت محلياً دون رفعه. يلزم تنزيل نموذج التعرّف الصوتي (~104 ميغابايت)، ثم نموذج الترجمة العربية المحلي (~621 ميغابايت) كتنزيل منفصل عبر Wi-Fi من إشعار ROYAL+."
                 )
                 .setPositiveButton("متابعة") { _, _ ->
                     preferences.edit().putBoolean(KEY_TRANSLATION_CONSENT, true).apply()
