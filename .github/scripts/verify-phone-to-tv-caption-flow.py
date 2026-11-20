@@ -33,7 +33,7 @@ assert "Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && phoneCompanionMode" in
 assert 'put("type", "ping")' in TRANSPORT
 assert "socket.soTimeout = 30_000" in TRANSPORT
 assert "socket.soTimeout = 30_000" in RECEIVER
-assert "payloadType == \"ping\"" in RECEIVER
+assert 'payloadType != "ping" && payloadType != "caption"' in RECEIVER
 assert "sendAndConfirm(reader, writer, key, next)" in TRANSPORT
 assert "acknowledgement.optString(\"type\") != \"ack\"" in TRANSPORT
 assert "line.length >= 16 * 1024" in TRANSPORT
