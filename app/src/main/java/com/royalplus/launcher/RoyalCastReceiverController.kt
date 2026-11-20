@@ -183,6 +183,7 @@ internal class RoyalCastReceiverController(
             }, org.webrtc.MediaConstraints())
             check(RoyalCastRtc.await(answerLatch)) { "انتهت مهلة إنشاء اتصال التلفاز." }
             check(answerError == null && answer != null) { answerError ?: "تعذر إنشاء اتصال التلفاز." }
+            val generatedAnswer = checkNotNull(answer)
 
             val iceComplete = CountDownLatch(1)
             iceGatheringLatch = iceComplete
@@ -193,7 +194,7 @@ internal class RoyalCastReceiverController(
                 override fun onSetSuccess() { localSet.countDown() }
                 override fun onCreateFailure(error: String?) { localError = error; localSet.countDown() }
                 override fun onSetFailure(error: String?) { localError = error; localSet.countDown() }
-            }, answer)
+            }, generatedAnswer)
             check(RoyalCastRtc.await(localSet)) { "انتهت مهلة تجهيز استقبال الشاشة." }
             check(localError == null) { localError ?: "تعذر تجهيز استقبال الشاشة." }
 
