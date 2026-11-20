@@ -37,10 +37,13 @@ internal fun weatherVideoAsset(weather: WeatherUiState, hour: Int?): String? {
         code == 3 -> "weather_cloudy.mp4"
         code == 45 || code == 48 -> "weather_fog.mp4"
         code in 51..57 -> "weather_light_rain.mp4"
-        code in 61..67 || code in 80..82 -> "weather_rain.mp4"
+        code in 61..65 || code in 80..82 -> "weather_rain.mp4"
+        code in 66..67 -> "weather_rain.mp4"
         code in 71..77 -> if (night) "weather_snow_night.mp4" else "weather_snow_day.mp4"
         code == 85 || code == 86 -> "weather_light_snow.mp4"
-        code in 95..99 -> "weather_thunderstorm.mp4"
+        // Hail-bearing thunderstorms use the rain scene; the atmosphere overlay draws the hail.
+        code == 96 || code == 99 -> "weather_rain.mp4"
+        code in 95..98 -> "weather_thunderstorm.mp4"
         else -> null
     }
     if (mappedCode != null) return mappedCode
