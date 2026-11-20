@@ -162,8 +162,11 @@ for required in (
     "FIFA World Ranking", "relegation", "RoyalSportsProviderImage",
 ):
     assert required.lower() in rankings.lower(), f"Missing rankings feature: {required}"
-assert "royalplus_sports_standings_movement" not in rankings
-assert "API-Football standings do not provide a previous-rank movement field" in rankings
+assert "calculateLocalStandingsMovement" in rankings
+assert '"royalplus_sports_standings"' in rankings
+assert "previousRank - currentRank" in rankings
+assert "reminderSentForKickoff" in alerts and "markReminderSent" in alerts
+assert "calculateStandingMovement" in rankings
 # Keep the requested Saudi league and verify the Syrian league's API-Football v3 ID.
 assert 'RoyalSportsRankingCompetition(307, "Saudi Pro League", SEASON, "Saudi Arabia")' in rankings
 assert 'RoyalSportsRankingCompetition(425, "Premier League", SEASON, "Syria")' in rankings
