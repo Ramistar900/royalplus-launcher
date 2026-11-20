@@ -1150,15 +1150,26 @@ class FloatingTranslationOverlayService : Service() {
             else -> "تهيئة ميكروفون الجهاز"
         }
         val notification = buildNotification(message)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val foregroundType = if (usePlaybackCapture) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && usePlaybackCapture -> {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                )
             }
-            startForeground(NOTIFICATION_ID, notification, foregroundType)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && phoneCompanionMode -> {
+                // The microphone foreground-service type was added in Android 11 (API 30).
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            }
+            else -> {
+                // Android 7–10 use the compatible two-argument foreground-service API.
+                startForeground(NOTIFICATION_ID, notification)
+            }
         }
     }
 
