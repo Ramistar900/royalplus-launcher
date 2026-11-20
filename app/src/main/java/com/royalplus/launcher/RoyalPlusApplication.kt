@@ -14,6 +14,7 @@ class RoyalPlusApplication : Application() {
         RoyalInterfaceQualitySettings.load(this)
         RoyalWeatherForecastScheduler.schedule(this)
         RoyalSportsAlertsScheduler.refresh(this)
+        GregorianCalendarReminderScheduler.rescheduleAll(this)
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching {
