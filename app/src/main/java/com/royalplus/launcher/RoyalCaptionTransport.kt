@@ -192,11 +192,27 @@ internal class RoyalCaptionSender(
                 )
                 val response = RoyalCaptionTransport.readFrame(reader)
                 if (response.optBoolean("accepted").not()) throw SecurityException("رمز الاقتران غير صحيح")
-                socket.soTimeout = 0
+                socket.soTimeout = 30_000
                 retryDelay = 1_000L
+                var lastHeartbeatElapsed = System.nanoTime() / 1_000_000L
                 onConnectionChanged(true, "اتصل الهاتف بالتلفاز؛ يتم إرسال الترجمة محلياً")
                 while (!closed.get() && !socket.isClosed) {
-                    val next = queue.pollFirst(1, TimeUnit.SECONDS) ?: continue
+                    val next = queue.pollFirst(1, TimeUnit.SECONDS)
+                    if (next == null) {
+                        val nowElapsed = System.nanoTime() / 1_000_000L
+                        if (nowElapsed - lastHeartbeatElapsed >= 10_000L) {
+                            val heartbeat = JSONObject()
+                                .put("type", "ping")
+                                .put("sequence", sequence.incrementAndGet())
+                                .put("sent_at_utc_ms", System.currentTimeMillis())
+                            RoyalCaptionTransport.writeFrame(
+                                writer,
+                                RoyalCaptionTransport.encryptPayload(key, heartbeat)
+                            )
+                            lastHeartbeatElapsed = nowElapsed
+                        }
+                        continue
+                    }
                     // Do not flood the TV with stale captions after a long Wi-Fi outage.
                     val age = System.currentTimeMillis() - next.optLong("sent_at_utc_ms", 0L)
                     if (age > 12_000L) continue
@@ -204,6 +220,7 @@ internal class RoyalCaptionSender(
                         writer,
                         RoyalCaptionTransport.encryptPayload(key, next)
                     )
+                    lastHeartbeatElapsed = System.nanoTime() / 1_000_000L
                 }
             } catch (error: InterruptedException) {
                 Thread.currentThread().interrupt()
