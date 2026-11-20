@@ -148,15 +148,27 @@ class RoyalCaptionReceiverService : Service() {
                 val frame = RoyalCaptionTransport.readFrame(reader)
                 val payload = RoyalCaptionTransport.decryptPayload(key, frame)
                 val payloadType = payload.optString("type")
-                if (payloadType == "ping") continue
-                if (payloadType != "caption") continue
+                if (payloadType != "ping" && payloadType != "caption") continue
                 val sequence = payload.optLong("sequence", -1L)
-                val text = payload.optString("text").trim()
-                if (sequence <= lastSequence || text.isBlank() ||
-                    text.length > RoyalCaptionTransport.MAX_CAPTION_CHARS
-                ) continue
-                lastSequence = sequence
-                showCaption(text)
+                if (sequence < 0L) continue
+                if (payloadType == "caption") {
+                    val text = payload.optString("text").trim()
+                    if (text.isNotBlank() && text.length <= RoyalCaptionTransport.MAX_CAPTION_CHARS &&
+                        sequence > lastSequence
+                    ) {
+                        lastSequence = sequence
+                        showCaption(text)
+                    }
+                } else if (sequence > lastSequence) {
+                    lastSequence = sequence
+                }
+                RoyalCaptionTransport.writeFrame(
+                    writer,
+                    RoyalCaptionTransport.encryptPayload(
+                        key,
+                        JSONObject().put("type", "ack").put("sequence", sequence)
+                    )
+                )
             }
         } catch (_: IOException) {
             updateNotification("انقطع الهاتف؛ بانتظار إعادة الاتصال تلقائياً")
