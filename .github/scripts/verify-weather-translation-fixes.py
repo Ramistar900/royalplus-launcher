@@ -30,7 +30,12 @@ assert "cubicTo(" in gust_renderer and "trailingCurl" in gust_renderer and "draw
 assert "drawLine(" not in gust_renderer and "drawArc(" not in gust_renderer
 for renderer_name in ("drawRoyalDrizzle", "drawRoyalFreezingRain", "drawRoyalHail"):
     renderer = weather.split(f"private fun DrawScope.{renderer_name}(", 1)[1].split("\n}", 1)[0]
-    assert "drawLine(" in renderer and "drawCircle(" in renderer
+    assert "drawCircle(" in renderer
+for renderer_name in ("drawRoyalDrizzle", "drawRoyalFreezingRain"):
+    renderer = weather.split(f"private fun DrawScope.{renderer_name}(", 1)[1].split("\n}", 1)[0]
+    assert "drawLine(" in renderer
+hail_renderer = weather.split("private fun DrawScope.drawRoyalHail(", 1)[1].split("\n}", 1)[0]
+assert "drawArc(" in hail_renderer, "Hail stones should retain their shaded ice-rim detail"
 
 videos = list((ROOT / "app/src/main/assets/weather_videos").glob("*.mp4"))
 assert len(videos) == 13, "Keep the existing 13 local weather videos; do not add storage-heavy clips"
