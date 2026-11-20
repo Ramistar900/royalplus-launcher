@@ -36,7 +36,7 @@ collect_diagnostics() {
   MAPPING="$GITHUB_WORKSPACE/app/build/outputs/mapping/release/mapping.txt"
   if [[ -s "$MAPPING" ]]; then
     echo "R8 mapping for the failing obfuscated class (if present):"
-    grep -n -B 2 -A 14 -E ' -> v3\\.l4:' "$MAPPING" || true
+    grep -n -B 2 -A 14 -E ' -> v3\.l4:' "$MAPPING" || true
   else
     echo "R8 mapping file is unavailable at $MAPPING"
   fi
