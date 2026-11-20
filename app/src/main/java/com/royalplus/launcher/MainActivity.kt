@@ -475,7 +475,7 @@ class MainActivity : ComponentActivity() {
         val preferences = getSharedPreferences(RoyalCaptionReceiverService.PREFERENCES, MODE_PRIVATE)
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
-            singleLine = true
+            setSingleLine(true)
             hint = "من 0 إلى 5000 مللي ثانية"
             setText(preferences.getInt(RoyalCaptionReceiverService.KEY_DISPLAY_DELAY_MS, 0).toString())
         }
@@ -515,13 +515,13 @@ class MainActivity : ComponentActivity() {
         val addressInput = EditText(this).apply {
             hint = "مثال: 192.168.1.20"
             inputType = InputType.TYPE_CLASS_TEXT
-            singleLine = true
+            setSingleLine(true)
             setText(preferences.getString(FloatingTranslationOverlayService.KEY_PHONE_TV_HOST, ""))
         }
         val pinInput = EditText(this).apply {
             hint = "رمز الاقتران المكون من 8 أرقام"
             inputType = InputType.TYPE_CLASS_NUMBER
-            singleLine = true
+            setSingleLine(true)
         }
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
