@@ -209,7 +209,16 @@ internal class RoyalCaptionSender(
                 Thread.currentThread().interrupt()
                 break
             } catch (error: SocketTimeoutException) {
-                onConnectionChanged(false, "انتهت مهلة الاتصال؛ ستتم إعادة المحاولة")
+                if (!closed.get()) {
+                    onConnectionChanged(false, "انتهت مهلة الاقتران؛ ستتم إعادة المحاولة")
+                    try {
+                        Thread.sleep(retryDelay)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        break
+                    }
+                    retryDelay = (retryDelay * 2).coerceAtMost(8_000L)
+                }
             } catch (error: Exception) {
                 if (!closed.get()) {
                     onConnectionChanged(false, "بانتظار التلفاز على الشبكة المحلية…")
