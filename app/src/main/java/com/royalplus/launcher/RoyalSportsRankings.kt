@@ -132,8 +132,11 @@ private object RoyalSportsRankingCatalog {
 }
 
 
-internal fun calculateStandingMovement(currentRank: Int, previousRank: Int?): Int? =
-    previousRank?.takeIf { it > 0 && currentRank > 0 }?.let { it - currentRank }
+internal fun calculateStandingMovement(currentRank: Int, previousRank: Int?): Int? {
+    val oldRank = previousRank?.takeIf { it > 0 } ?: return null
+    if (currentRank <= 0) return null
+    return oldRank - currentRank
+}
 
 private fun calculateLocalStandingsMovement(
     context: Context,
@@ -161,24 +164,29 @@ private fun calculateLocalStandingsMovement(
         val previousRanks = runCatching {
             JSONObject(preferences.getString(snapshotKey + "_ranks", "{}") ?: "{}")
         }.getOrDefault(JSONObject())
+        val savedMovements = runCatching {
+            JSONObject(preferences.getString(snapshotKey + "_movements", "{}") ?: "{}")
+        }.getOrDefault(JSONObject())
         val hasNewProviderSnapshot = previousUpdatedAt != null &&
             previousUpdatedAt.isNotBlank() &&
             previousUpdatedAt != updatedAt &&
             previousRanks.length() > 0
+        val isSameProviderSnapshot = previousUpdatedAt == updatedAt
 
+        val currentMovements = JSONObject()
         val currentEntries = entries.map { entry ->
-            val oldRank = previousRanks.optInt(entry.teamId.toString(), 0)
-                .takeIf { it > 0 }
-            entry.copy(
-                movement = if (hasNewProviderSnapshot) {
-                    calculateStandingMovement(entry.rank, oldRank)
-                } else {
-                    null
-                }
-            )
+            val teamKey = entry.teamId.toString()
+            val oldRank = previousRanks.optInt(teamKey, 0).takeIf { it > 0 }
+            val movement = when {
+                hasNewProviderSnapshot -> calculateStandingMovement(entry.rank, oldRank)
+                isSameProviderSnapshot && savedMovements.has(teamKey) -> savedMovements.optInt(teamKey)
+                else -> null
+            }
+            if (movement != null) currentMovements.put(teamKey, movement)
+            entry.copy(movement = movement)
         }
 
-        if (previousUpdatedAt != updatedAt || previousRanks.length() == 0) {
+        if (!isSameProviderSnapshot || previousRanks.length() == 0) {
             val currentRanks = JSONObject()
             entries.forEach { entry ->
                 if (entry.teamId > 0 && entry.rank > 0) {
@@ -188,6 +196,7 @@ private fun calculateLocalStandingsMovement(
             preferences.edit()
                 .putString(snapshotKey + "_cached_at", updatedAt)
                 .putString(snapshotKey + "_ranks", currentRanks.toString())
+                .putString(snapshotKey + "_movements", currentMovements.toString())
                 .apply()
         }
         currentEntries
