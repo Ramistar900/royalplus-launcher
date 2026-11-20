@@ -104,8 +104,10 @@ assert ".border(1.5.dp, Color.White, searchShape)" in city_screen
 assert "Brush.linearGradient(" in city_screen and "Color(0xFF078F91)" in city_screen and "Color(0xFF126DB2)" in city_screen
 
 activity = (JAVA / "MainActivity.kt").read_text(encoding="utf-8")
-assert "نموذج الترجمة العربية المحلي (~621 ميغابايت)" in activity
-assert "كتنزيل منفصل عبر Wi-Fi" in activity
+# Model setup/download guidance belongs to the phone foreground service after role separation.
+assert "نموذج الترجمة العربي المحلي (~621MB)" in service
+assert "افتح إشعار ROYAL+" in service
+assert "عبر Wi-Fi" in service
 assert "weather_manual_latitude" in activity and "weather_manual_longitude" in activity
 assert "fetchForLocation(this, normalized, city.latitude, city.longitude)" in activity
 
