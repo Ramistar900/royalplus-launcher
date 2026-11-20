@@ -172,6 +172,7 @@ internal fun RoyalHomeScreen(
     voiceSearchAvailable: Boolean,
     voiceSearchResult: String,
     translationOverlayEnabled: Boolean,
+    translationIsTelevision: Boolean,
     onToggleTranslationOverlay: () -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
@@ -679,6 +680,7 @@ internal fun RoyalHomeScreen(
                         onVoiceSearch = onVoiceSearch,
                         voiceSearchAvailable = voiceSearchAvailable,
                         translationOverlayEnabled = translationOverlayEnabled,
+                        translationIsTelevision = translationIsTelevision,
                         onToggleTranslationOverlay = onToggleTranslationOverlay,
                         selectedLanguage = selectedLanguage
                     )
@@ -2076,6 +2078,7 @@ private fun RoyalBrandHeader(
     onVoiceSearch: () -> Unit,
     voiceSearchAvailable: Boolean,
     translationOverlayEnabled: Boolean,
+    translationIsTelevision: Boolean,
     onToggleTranslationOverlay: () -> Unit,
     selectedLanguage: String
 ) {
@@ -2116,10 +2119,17 @@ private fun RoyalBrandHeader(
         }
         StatusIcon(
             Icons.Rounded.ClosedCaption,
-            when (selectedLanguage) {
-                "en" -> if (translationOverlayEnabled) "Stop Arabic captions" else "Floating Arabic captions"
-                "tr" -> if (translationOverlayEnabled) "Arapça altyazıyı durdur" else "Yüzen Arapça altyazı"
-                else -> if (translationOverlayEnabled) "إيقاف الترجمة العائمة" else "الترجمة العربية العائمة"
+            when {
+                translationIsTelevision -> when (selectedLanguage) {
+                    "en" -> if (translationOverlayEnabled) "Stop phone caption receiver" else "Receive captions from phone"
+                    "tr" -> if (translationOverlayEnabled) "Telefon altyazı alımını durdur" else "Telefondan altyazı al"
+                    else -> if (translationOverlayEnabled) "إيقاف استقبال الترجمة" else "استقبال الترجمة من الهاتف"
+                }
+                else -> when (selectedLanguage) {
+                    "en" -> if (translationOverlayEnabled) "Stop phone audio capture" else "Capture TV audio on phone"
+                    "tr" -> if (translationOverlayEnabled) "Telefon ses yakalamayı durdur" else "Telefondan TV sesini yakala"
+                    else -> if (translationOverlayEnabled) "إيقاف التقاط صوت التلفاز" else "التقاط صوت التلفاز وإرسال الترجمة"
+                }
             },
             onToggleTranslationOverlay
         )
