@@ -54,6 +54,37 @@ internal fun RoyalWeatherAmbienceEffect(weather: WeatherUiState) {
     }
 }
 
+internal data class WeatherAmbienceMix(
+    val rain: Boolean,
+    val wind: Boolean,
+    val windForSnow: Boolean,
+    val rainWithWind: Boolean
+)
+
+/** Pure routing rules so combined weather audio can be regression-tested without Android media APIs. */
+internal fun resolveWeatherAmbienceMix(
+    weatherCode: Int?,
+    windSpeedKmh: Int?,
+    precipitationMm: Double?,
+    rainEnabled: Boolean,
+    windEnabled: Boolean
+): WeatherAmbienceMix {
+    val code = weatherCode ?: return WeatherAmbienceMix(false, false, false, false)
+    val isSnow = code in 71..77 || code in 85..86
+    val isRain = code in 51..67 || code in 80..82 ||
+        code == 96 || code == 99 ||
+        (code in 95..99 && (precipitationMm ?: 0.0) > 0.0)
+    val windThreshold = if (isSnow) 15 else 25
+    val wind = windEnabled && (windSpeedKmh ?: 0) >= windThreshold
+    val rain = rainEnabled && isRain
+    return WeatherAmbienceMix(
+        rain = rain,
+        wind = wind,
+        windForSnow = isSnow && wind,
+        rainWithWind = rain && isRain && wind
+    )
+}
+
 internal object RoyalWeatherAmbienceController {
     const val PREFERENCES_NAME = "royalplus_launcher_preferences"
     const val MASTER_ENABLED_KEY = "royal_weather_audio_master_enabled"
@@ -71,6 +102,8 @@ internal object RoyalWeatherAmbienceController {
     private const val MAX_THUNDER_INTERVAL_MS = 15L * 60L * 1000L
     private const val MAX_AMBIENCE_VOLUME = 0.48f
     private const val WIND_AUDIO_VOLUME_MULTIPLIER = 0.52f
+    private const val RAIN_WITH_WIND_VOLUME_MULTIPLIER = 0.68f
+    private const val WIND_WITH_RAIN_VOLUME_MULTIPLIER = 0.32f
     private const val HEAVY_SNOW_WIND_VOLUME_MULTIPLIER = 0.46f
 
     private data class AmbienceScene(
@@ -94,7 +127,10 @@ internal object RoyalWeatherAmbienceController {
     private var foregroundOwner: Any? = null
     private var activeSceneKey: String? = null
     private var activeSceneVolumeMultiplier = 1f
+    private var activeWindSceneKey: String? = null
+    private var activeWindVolumeMultiplier = 1f
     private var loopPlayer: MediaPlayer? = null
+    private var windPlayer: MediaPlayer? = null
     private var thunderPlayer: MediaPlayer? = null
     private var thunderTask: Runnable? = null
     private var reevaluationTask: Runnable? = null
@@ -106,15 +142,19 @@ internal object RoyalWeatherAmbienceController {
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 releasePlayer(loopPlayer)
+                releasePlayer(windPlayer)
                 releasePlayer(thunderPlayer)
                 loopPlayer = null
+                windPlayer = null
                 thunderPlayer = null
                 activeSceneKey = null
+                activeWindSceneKey = null
                 hasAudioFocus = false
                 pausedForAudioFocus = false
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 pausePlayer(loopPlayer)
+                pausePlayer(windPlayer)
                 pausePlayer(thunderPlayer)
                 pausedForAudioFocus = true
             }
@@ -122,6 +162,7 @@ internal object RoyalWeatherAmbienceController {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 if (pausedForAudioFocus) {
                     resumePlayer(loopPlayer)
+                    resumePlayer(windPlayer)
                     resumePlayer(thunderPlayer)
                     pausedForAudioFocus = false
                 }
@@ -230,6 +271,16 @@ internal object RoyalWeatherAmbienceController {
             startLoopPlayer(context, nextScene)
         }
 
+        val nextWindScene = selectWindCompanionScene(context, weather)
+        if (nextWindScene?.key != activeWindSceneKey) {
+            stopWindPlayer()
+            activeWindSceneKey = nextWindScene?.key
+            activeWindVolumeMultiplier = nextWindScene?.volumeMultiplier ?: 1f
+            if (nextWindScene != null) startWindPlayer(context, nextWindScene)
+        } else if (nextWindScene != null && windPlayer == null && !pausedForAudioFocus) {
+            startWindPlayer(context, nextWindScene)
+        }
+
         updateThunderSchedule(context, weather)
         scheduleReevaluation()
     }
@@ -258,23 +309,26 @@ internal object RoyalWeatherAmbienceController {
 
     private fun selectScene(context: Context, weather: WeatherUiState): AmbienceScene? {
         val code = weather.weatherCode ?: return null
+        val mix = resolveWeatherAmbienceMix(
+            weatherCode = code,
+            windSpeedKmh = weather.windSpeedKmh,
+            precipitationMm = weather.precipitationMm,
+            rainEnabled = isEnabled(context, RAIN_ENABLED_KEY),
+            windEnabled = isEnabled(context, WIND_ENABLED_KEY)
+        )
         return when {
-            // Thunderstorms use the existing natural rain loop only when precipitation
-            // is actually being reported. Dry thunderstorms keep the ambience silent.
-            (isRainCode(code) ||
-                (isThunderCode(code) && (weather.precipitationMm ?: 0.0) > 0.0)) &&
-                isEnabled(context, RAIN_ENABLED_KEY) ->
-                AmbienceScene("rain", R.raw.weather_rain_natural)
-            (weather.weatherCode in setOf(75, 86)) &&
-                (weather.windSpeedKmh ?: 0) >= 15 &&
-                isEnabled(context, WIND_ENABLED_KEY) ->
+            mix.rain -> AmbienceScene(
+                key = if (mix.rainWithWind) "rain-with-wind" else "rain",
+                resourceId = R.raw.weather_rain_natural,
+                volumeMultiplier = if (mix.rainWithWind) RAIN_WITH_WIND_VOLUME_MULTIPLIER else 1f
+            )
+            mix.windForSnow ->
                 AmbienceScene(
-                    key = "heavy-snow-wind",
+                    key = "snow-with-wind",
                     volumeMultiplier = HEAVY_SNOW_WIND_VOLUME_MULTIPLIER,
                     streamUrl = HEAVY_SNOW_WIND_URL
                 )
-            (weather.windSpeedKmh ?: 0) >= WIND_THRESHOLD_KMH &&
-                isEnabled(context, WIND_ENABLED_KEY) ->
+            mix.wind ->
                 AmbienceScene(
                     key = "wind",
                     resourceId = R.raw.nature_wind_gentle,
@@ -284,6 +338,28 @@ internal object RoyalWeatherAmbienceController {
                 isEnabled(context, BIRDS_ENABLED_KEY) ->
                 AmbienceScene("morning-birds", R.raw.nature_birds_morning)
             else -> null
+        }
+    }
+
+    private fun selectWindCompanionScene(
+        context: Context,
+        weather: WeatherUiState
+    ): AmbienceScene? {
+        val mix = resolveWeatherAmbienceMix(
+            weatherCode = weather.weatherCode,
+            windSpeedKmh = weather.windSpeedKmh,
+            precipitationMm = weather.precipitationMm,
+            rainEnabled = isEnabled(context, RAIN_ENABLED_KEY),
+            windEnabled = isEnabled(context, WIND_ENABLED_KEY)
+        )
+        return if (mix.rainWithWind) {
+            AmbienceScene(
+                key = "wind-with-rain",
+                resourceId = R.raw.nature_wind_gentle,
+                volumeMultiplier = WIND_WITH_RAIN_VOLUME_MULTIPLIER
+            )
+        } else {
+            null
         }
     }
 
@@ -366,6 +442,26 @@ internal object RoyalWeatherAmbienceController {
                 releasePlayer(player)
                 maybeAbandonAudioFocus()
             }
+        }
+    }
+
+    private fun startWindPlayer(context: Context, scene: AmbienceScene) {
+        if (currentMediaVolumeIsMuted(context) || !requestAudioFocus(context)) return
+        val player = runCatching { MediaPlayer.create(context, scene.resourceId) }.getOrNull() ?: return
+        windPlayer = player
+        player.isLooping = true
+        val level = (effectiveVolume(context) * scene.volumeMultiplier).coerceIn(0f, 1f)
+        player.setVolume(level, level)
+        player.setOnErrorListener { failed, _, _ ->
+            if (windPlayer === failed) windPlayer = null
+            releasePlayer(failed)
+            maybeAbandonAudioFocus()
+            true
+        }
+        runCatching { player.start() }.onFailure {
+            if (windPlayer === player) windPlayer = null
+            releasePlayer(player)
+            maybeAbandonAudioFocus()
         }
     }
 
@@ -465,7 +561,10 @@ internal object RoyalWeatherAmbienceController {
         val context = appContext ?: return
         val level = effectiveVolume(context) *
             activeSceneVolumeMultiplier * multiplier.coerceIn(0f, 1f)
+        val windLevel = effectiveVolume(context) *
+            activeWindVolumeMultiplier * multiplier.coerceIn(0f, 1f)
         runCatching { loopPlayer?.setVolume(level, level) }
+        runCatching { windPlayer?.setVolume(windLevel, windLevel) }
         runCatching { thunderPlayer?.setVolume(level, level) }
     }
 
@@ -474,6 +573,15 @@ internal object RoyalWeatherAmbienceController {
         loopPlayer = null
         active?.let(::releasePlayer)
         activeSceneKey = null
+        maybeAbandonAudioFocus()
+    }
+
+    private fun stopWindPlayer() {
+        val active = windPlayer
+        windPlayer = null
+        active?.let(::releasePlayer)
+        activeWindSceneKey = null
+        activeWindVolumeMultiplier = 1f
         maybeAbandonAudioFocus()
     }
 
@@ -488,12 +596,17 @@ internal object RoyalWeatherAmbienceController {
         cancelReevaluation()
         cancelThunderTask()
         val loop = loopPlayer
+        val wind = windPlayer
         val thunder = thunderPlayer
         loopPlayer = null
+        windPlayer = null
         thunderPlayer = null
         activeSceneKey = null
         activeSceneVolumeMultiplier = 1f
+        activeWindSceneKey = null
+        activeWindVolumeMultiplier = 1f
         releasePlayer(loop)
+        releasePlayer(wind)
         releasePlayer(thunder)
         abandonAudioFocus()
     }
@@ -504,7 +617,7 @@ internal object RoyalWeatherAmbienceController {
     }
 
     private fun maybeAbandonAudioFocus() {
-        if (loopPlayer == null && thunderPlayer == null) abandonAudioFocus()
+        if (loopPlayer == null && windPlayer == null && thunderPlayer == null) abandonAudioFocus()
     }
 
     private fun abandonAudioFocus() {
