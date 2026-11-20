@@ -57,6 +57,7 @@ class RoyalCastSenderService : Service() {
         const val EXTRA_PROJECTION_DATA = "projection_result_data"
         private const val CHANNEL_ID = "royal_cast_screen_mirroring"
         private const val NOTIFICATION_ID = 7402
+        private const val RESULT_OK_VALUE = -1
     }
 
     private val worker = Executors.newSingleThreadExecutor { runnable ->
@@ -339,7 +340,4 @@ class RoyalCastSenderService : Service() {
         super.onDestroy()
     }
 
-    private companion object {
-        const val RESULT_OK_VALUE = -1
-    }
 }
