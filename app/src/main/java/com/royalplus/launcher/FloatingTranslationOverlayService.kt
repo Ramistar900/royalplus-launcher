@@ -57,6 +57,7 @@ class FloatingTranslationOverlayService : Service() {
     private var projectionResultCode: Int = Activity.RESULT_CANCELED
     private var projectionResultData: Intent? = null
     @Volatile private var phoneCompanionMode = false
+    @Volatile private var captionConnectionMessage = "بانتظار اتصال الهاتف بالتلفاز عبر Wi-Fi…"
     @Volatile private var captionSender: RoyalCaptionSender? = null
     private var phoneTargetHost: String? = null
     private var phonePairingPin: String? = null
@@ -159,6 +160,7 @@ class FloatingTranslationOverlayService : Service() {
                 .apply()
             captionSender = runCatching {
                 RoyalCaptionSender(host, pin) { connected, message ->
+                    captionConnectionMessage = message
                     if (running.get()) updateNotification(message)
                 }
             }.getOrElse {
@@ -222,6 +224,7 @@ class FloatingTranslationOverlayService : Service() {
             }
         }
         if (running.compareAndSet(false, true)) {
+            if (phoneCompanionMode) updateNotification(captionConnectionMessage)
             updateStatus("يتم تجهيز الترجمة لأول استخدام…")
             modelThread = Thread({ prepareRecognizer() }, "RoyalWhisperSetup").apply { start() }
         }
