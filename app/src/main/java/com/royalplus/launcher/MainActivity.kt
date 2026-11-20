@@ -401,6 +401,15 @@ class MainActivity : ComponentActivity() {
             .getRunningServices(Int.MAX_VALUE)
             .any { it.service.className == serviceClass.name }
 
+    private fun showTranslationCapabilityDialog(title: String, message: String) {
+        if (isFinishing || isDestroyed) return
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("حسناً", null)
+            .show()
+    }
+
     private fun toggleTvCaptionReceiver() {
         val preferences = getSharedPreferences(RoyalCaptionReceiverService.PREFERENCES, MODE_PRIVATE)
         if (translationOverlayEnabled) {
@@ -451,6 +460,7 @@ class MainActivity : ComponentActivity() {
                     "التلفاز يستقبل النص ويعرضه فقط؛ لا يستخدم الميكروفون."
             )
             .setPositiveButton("تم", null)
+            .setNeutralButton("ضبط تأخير العرض") { _, _ -> showCaptionDelayDialog() }
             .setNegativeButton("إيقاف الاستقبال") { _, _ ->
                 stopService(Intent(this, RoyalCaptionReceiverService::class.java))
                 getSharedPreferences(RoyalCaptionReceiverService.PREFERENCES, MODE_PRIVATE).edit()
@@ -458,6 +468,31 @@ class MainActivity : ComponentActivity() {
                     .remove(RoyalCaptionReceiverService.KEY_RECEIVER_PIN).apply()
                 translationOverlayEnabled = false
             }
+            .show()
+    }
+
+    private fun showCaptionDelayDialog() {
+        val preferences = getSharedPreferences(RoyalCaptionReceiverService.PREFERENCES, MODE_PRIVATE)
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            singleLine = true
+            hint = "من 0 إلى 5000 مللي ثانية"
+            setText(preferences.getInt(RoyalCaptionReceiverService.KEY_DISPLAY_DELAY_MS, 0).toString())
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("ضبط تأخير ظهور الترجمة")
+            .setMessage("أضف مهلة عرض يدوية عند الحاجة. هذا الضبط يؤخر ظهور النص ولا يستطيع تقديمه قبل وصوله من الهاتف.")
+            .setView(input)
+            .setPositiveButton("حفظ") { _, _ ->
+                val delay = input.text.toString().toIntOrNull()
+                if (delay == null || delay !in 0..5_000) {
+                    Toast.makeText(this, "أدخل قيمة بين 0 و5000 مللي ثانية.", Toast.LENGTH_LONG).show()
+                } else {
+                    preferences.edit().putInt(RoyalCaptionReceiverService.KEY_DISPLAY_DELAY_MS, delay).apply()
+                    Toast.makeText(this, "تم حفظ تأخير عرض الترجمة: $delay ms", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("إلغاء", null)
             .show()
     }
 
