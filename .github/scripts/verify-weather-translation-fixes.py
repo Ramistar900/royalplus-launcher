@@ -34,7 +34,7 @@ assert "RoyalOwlAmbienceEffect(weather)" in weather_details
 
 service = (JAVA / "FloatingTranslationOverlayService.kt").read_text(encoding="utf-8")
 whisper_repository = (JAVA / "WhisperModelRepository.kt").read_text(encoding="utf-8")
-assert "audioSegments = LinkedBlockingQueue<FloatArray>()" in service
+assert "audioSegments = ArrayBlockingQueue<FloatArray>(4)" in service
 assert "SEGMENT_SECONDS = 2" in service
 assert "SEGMENT_OVERLAP_MILLIS = 350" in service
 assert "SEGMENT_OVERLAP_SAMPLES" in service and "System.arraycopy(" in service
