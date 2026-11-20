@@ -116,7 +116,13 @@ class FloatingTranslationOverlayService : Service() {
         }
         if (intent?.action == ACTION_SHOW && running.get()) {
             revealControl()
-            updateNotification("الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة")
+            updateNotification(
+                if (phoneCompanionMode) {
+                    "الهاتف يلتقط صوت التلفاز ويرسل الترجمة؛ يمكنك إطفاء الشاشة."
+                } else {
+                    "الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة"
+                }
+            )
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) START_NOT_STICKY else START_STICKY
         }
         if (intent?.action == ACTION_DOWNLOAD_TRANSLATION_MODEL && running.get()) {
@@ -293,13 +299,15 @@ class FloatingTranslationOverlayService : Service() {
             else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) createPlaybackCaptureRecord()
             else createMicrophoneRecord()
         } catch (error: Exception) {
-            updateStatus(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val captureError = when {
+                phoneCompanionMode ->
+                    "تعذر تشغيل ميكروفون الهاتف: ${error.localizedMessage ?: "تحقق من الإذن وأعد المحاولة"}"
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                     "تعذر التقاط صوت التطبيق: ${error.localizedMessage ?: "لم يمنح النظام إذن مشاركة الصوت"}"
-                } else {
-                    "تعذر تشغيل ميكروفون التلفاز: ${error.localizedMessage ?: "تحقق من وجود ميكروفون ومنح الإذن"}"
-                }
-            )
+                else ->
+                    "تعذر تشغيل ميكروفون الجهاز: ${error.localizedMessage ?: "تحقق من وجود ميكروفون ومنح الإذن"}"
+            }
+            updateStatus(captureError)
             mainHandler.postDelayed({ stopSelf() }, 8_000L)
             return false
         }
@@ -310,13 +318,15 @@ class FloatingTranslationOverlayService : Service() {
             return false
         }
         audioRecord = recorder
-        updateStatus(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val captureReadyMessage = when {
+            phoneCompanionMode ->
+                "الهاتف يلتقط صوت التلفاز عبر ميكروفونه ويرسل الترجمة؛ يمكنك إطفاء الشاشة."
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                 "تم ربط التقاط صوت التطبيقات. جارٍ تجهيز محرك الترجمة…"
-            } else {
-                "Android 8/9: الترجمة تستمع عبر ميكروفون التلفاز؛ ارفع صوت الفيديو وتأكد من وجود ميكروفون فعلي."
-            }
-        )
+            else ->
+                "Android 8/9: الترجمة تستمع عبر ميكروفون الجهاز؛ ارفع صوت الفيديو وتأكد من وجود ميكروفون فعلي."
+        }
+        updateStatus(captureReadyMessage)
         captureThread = Thread({ captureAudio(recorder) }, "RoyalAudioCapture").apply { start() }
         return true
     }
@@ -526,13 +536,15 @@ class FloatingTranslationOverlayService : Service() {
                     if (consecutiveSilentSegments == 2) {
                         lastRecognizedTail = emptyList()
                         lastRecognizedLanguage = null
-                        updateStatus(
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val silentAudioMessage = when {
+                            phoneCompanionMode ->
+                                "ميكروفون الهاتف لا يلتقط صوت التلفاز بوضوح؛ قرّب الهاتف من سماعات التلفاز وارفع الصوت."
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                                 "لا يصل صوت واضح من التطبيق إلى ROYAL+. تحقق من إذن مشاركة صوت الشاشة."
-                            } else {
-                                "لم يلتقط الميكروفون صوتاً واضحاً؛ قرّب الهاتف أو التلفاز من مصدر الصوت."
-                            }
-                        )
+                            else ->
+                                "لم يلتقط الميكروفون صوتاً واضحاً؛ قرّب الجهاز من مصدر الصوت."
+                        }
+                        updateStatus(silentAudioMessage)
                     }
                     continue
                 }
