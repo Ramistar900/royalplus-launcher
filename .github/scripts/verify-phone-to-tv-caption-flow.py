@@ -27,6 +27,16 @@ assert "WifiManager.WIFI_MODE_FULL" in CAPTURE
 assert "KEY_PHONE_CAPTURE_ENABLED" in CAPTURE
 assert "if (phoneCompanionMode) createMicrophoneRecord()" in CAPTURE
 assert "captionSender?.sendCaption(safeArabicCaption, language)" in CAPTURE
+assert "Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && phoneCompanionMode" in CAPTURE
+
+# Reconnect safely when the link drops, including when no captions are currently spoken.
+assert 'put("type", "ping")' in TRANSPORT
+assert "socket.soTimeout = 30_000" in TRANSPORT
+assert "socket.soTimeout = 30_000" in RECEIVER
+assert "payloadType == \"ping\"" in RECEIVER
+assert "pendingDisplayRunnables.add(display)" in RECEIVER
+assert "pendingDisplayRunnables.forEach(mainHandler::removeCallbacks)" in RECEIVER
+assert "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in ACTIVITY
 
 # TV receiver has no audio-recording code and uses an overlay-only receive service.
 assert "android:name=\".RoyalCaptionReceiverService\"" in MANIFEST
