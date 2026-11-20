@@ -42,7 +42,7 @@ class RoyalCaptionReceiverService : Service() {
     private var captionView: TextView? = null
     private var windowManager: WindowManager? = null
     private val hideCaption = Runnable { captionView?.visibility = View.GONE }
-    private var pendingDisplayRunnable: Runnable? = null
+    private val pendingDisplayRunnables = mutableListOf<Runnable>()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -99,6 +99,7 @@ class RoyalCaptionReceiverService : Service() {
                     activeClient = client
                     client.tcpNoDelay = true
                     client.keepAlive = true
+                    client.soTimeout = 10_000
                     try {
                         receiveClient(client, pin)
                     } finally {
@@ -140,14 +141,19 @@ class RoyalCaptionReceiverService : Service() {
                 Thread.sleep(600L)
                 return
             }
+            socket.soTimeout = 0
             updateNotification("الهاتف متصل؛ يتم عرض الترجمة العائمة فوق التطبيقات")
+            var lastSequence = 0L
             while (running.get() && !socket.isClosed) {
                 val frame = RoyalCaptionTransport.readFrame(reader)
                 val payload = RoyalCaptionTransport.decryptPayload(key, frame)
                 if (payload.optString("type") != "caption") continue
                 val sequence = payload.optLong("sequence", -1L)
                 val text = payload.optString("text").trim()
-                if (sequence < 0L || text.isBlank() || text.length > RoyalCaptionTransport.MAX_CAPTION_CHARS) continue
+                if (sequence <= lastSequence || text.isBlank() ||
+                    text.length > RoyalCaptionTransport.MAX_CAPTION_CHARS
+                ) continue
+                lastSequence = sequence
                 showCaption(text)
             }
         } catch (_: IOException) {
@@ -161,10 +167,11 @@ class RoyalCaptionReceiverService : Service() {
         mainHandler.post {
             val manager = windowManager ?: getSystemService(WINDOW_SERVICE) as WindowManager
             windowManager = manager
-            pendingDisplayRunnable?.let(mainHandler::removeCallbacks)
             val delay = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
                 .getInt(KEY_DISPLAY_DELAY_MS, 0).coerceIn(0, 5_000)
-            val display = Runnable {
+            lateinit var display: Runnable
+            display = Runnable {
+                pendingDisplayRunnables.remove(display)
                 if (!running.get()) return@Runnable
                 val caption = captionView ?: createCaptionView().also { view ->
                     val params = WindowManager.LayoutParams(
@@ -193,7 +200,7 @@ class RoyalCaptionReceiverService : Service() {
                 mainHandler.removeCallbacks(hideCaption)
                 mainHandler.postDelayed(hideCaption, 4_500L)
             }
-            pendingDisplayRunnable = display
+            pendingDisplayRunnables.add(display)
             mainHandler.postDelayed(display, delay.toLong())
         }
     }
@@ -281,8 +288,8 @@ class RoyalCaptionReceiverService : Service() {
         runCatching { serverSocket?.close() }
         serverSocket = null
         mainHandler.removeCallbacks(hideCaption)
-        pendingDisplayRunnable?.let(mainHandler::removeCallbacks)
-        pendingDisplayRunnable = null
+        pendingDisplayRunnables.forEach(mainHandler::removeCallbacks)
+        pendingDisplayRunnables.clear()
         captionView?.let { view -> runCatching { windowManager?.removeView(view) } }
         captionView = null
         windowManager = null
