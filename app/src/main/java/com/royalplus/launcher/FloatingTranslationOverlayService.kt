@@ -28,9 +28,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
-import com.k2fsa.sherpa.onnx.AudioTagging
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
-import com.k2fsa.sherpa.onnx.Vad
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
@@ -48,18 +46,19 @@ class FloatingTranslationOverlayService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     // VAD emits whole speech turns; this FIFO never discards recognized audio.
-    private val speechSegments = LinkedBlockingQueue<FloatArray>()
-    private val queuedSpeechSamples = AtomicLong(0L)
+    private val audioSegments = LinkedBlockingQueue<FloatArray>()
+    private val queuedAudioSamples = AtomicLong(0L)
 
     @Volatile private var recognizer: OfflineRecognizer? = null
-    @Volatile private var voiceActivityDetector: Vad? = null
-    @Volatile private var audioTagger: AudioTagging? = null
     @Volatile private var audioRecord: AudioRecord? = null
     @Volatile private var mediaProjection: MediaProjection? = null
     private var mediaProjectionCallback: MediaProjection.Callback? = null
     private var projectionResultCode: Int = Activity.RESULT_CANCELED
     private var projectionResultData: Intent? = null
+    private var consecutiveSilentSegments = 0
     private var consecutiveUnrecognizedSegments = 0
+    private var lastRecognizedTail: List<String> = emptyList()
+    private var lastRecognizedLanguage: String? = null
     private var consecutiveSlowRecognitionSegments = 0
     private var lastBacklogNoticeElapsedRealtime = 0L
     private var modelThread: Thread? = null
@@ -99,6 +98,7 @@ class FloatingTranslationOverlayService : Service() {
     private var translationModelThread: Thread? = null
     private var translationInFlight = false
     private var lastUnsupportedLanguageNotice: String? = null
+    private var translationDownloadNoticeShown = false
     private val captionPhraseBuffer = CaptionPhraseBuffer(maxCharacters = MAX_CAPTION_BUFFER_CHARACTERS)
     private val captionPhraseFlushRunnable = Runnable { flushPendingCaptionPhrase() }
 
@@ -176,22 +176,9 @@ class FloatingTranslationOverlayService : Service() {
 
     private fun prepareRecognizer() {
         try {
-            // Load the small on-device speech detector; Whisper remains the multilingual ASR.
-            val detector = WhisperModelRepository.createVoiceActivityDetector(applicationContext) { message ->
-                updateStatus(message)
-            }
-            if (!running.get()) {
-                detector.release()
-                return
-            }
-            voiceActivityDetector = detector
-
-            // Keep the existing MediaProjection startup path, then load Whisper off the UI thread.
-            if (!startAudioCapture()) {
-                voiceActivityDetector = null
-                detector.release()
-                return
-            }
+            // Start playback capture immediately: Android's MediaProjection grant must be
+            // consumed before any model download or other potentially slow setup.
+            if (!startAudioCapture()) return
 
             val engine = WhisperModelRepository.createRecognizer(applicationContext) { message ->
                 updateStatus(message)
@@ -200,35 +187,25 @@ class FloatingTranslationOverlayService : Service() {
                 engine.release()
                 return
             }
-            val tagger = try {
-                WhisperModelRepository.createAudioTagger(applicationContext) { message ->
-                    updateStatus(message)
-                }
-            } catch (error: Exception) {
-                val detail = error.localizedMessage ?: "تعذر تحميل نموذج التصنيف"
-                updateNotification("تعذر تجهيز مصنف الموسيقى؛ سيستمر كشف الكلام الأساسي: " + detail)
-                null
-            }
-            if (!running.get()) {
-                runCatching { tagger?.release() }
-                engine.release()
-                return
-            }
+
             recognizer = engine
-            audioTagger = tagger
+            updateStatus("اكتمل تجهيز التعرّف على الكلام؛ يجري التحقق من نموذج الترجمة المحلي…")
             prepareInstalledTranslationEngine()
-            decodeThread = Thread({ decodeSpeechSegments() }, "RoyalWhisperDecode").apply { start() }
+            decodeThread = Thread({ decodeAudioSegments() }, "RoyalWhisperDecode").apply { start() }
         } catch (error: OutOfMemoryError) {
             System.gc()
             failTranslationForCapability(
                 TranslationDeviceCapability.insufficientMemory(
-                    "ذاكرة الجهاز لا تكفي لتجهيز محرك التعرف على الكلام والترجمة معاً."
+                    "ذاكرة الجهاز لا تكفي لتجهيز محرك التعرّف على الكلام والترجمة معاً."
                 )
             )
         } catch (error: Exception) {
             if (running.get()) {
                 val detail = error.localizedMessage ?: "تحقق من الإنترنت والمساحة"
-                updateStatus(if (error is InterruptedException) "تم إيقاف تجهيز الترجمة" else "تعذر تجهيز محرك الكلام: " + detail)
+                updateStatus(
+                    if (error is InterruptedException) "تم إيقاف تجهيز الترجمة"
+                    else "تعذر تجهيز محرك التعرّف على الكلام: $detail"
+                )
                 mainHandler.postDelayed({ stopSelf() }, 4_000L)
             }
         }
@@ -344,117 +321,134 @@ class FloatingTranslationOverlayService : Service() {
         )
     }
 
+    /**
+     * Use fixed two-second windows with overlap. This is the capture path that
+     * previously worked on the phone and does not depend on a second speech detector.
+     */
     private fun captureAudio(recorder: AudioRecord) {
         Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-        val detector = voiceActivityDetector
-        if (detector == null) {
-            updateStatus("تعذر بدء كاشف الكلام")
-            mainHandler.postDelayed({ stopSelf() }, 2_000L)
-            return
-        }
-
         val input = ShortArray(CAPTURE_READ_SAMPLES)
-        val frame = FloatArray(VAD_WINDOW_SAMPLES)
-        var frameFilled = 0
+        val segment = FloatArray(SEGMENT_SAMPLES)
+        var filled = 0
         try {
             recorder.startRecording()
-            updateNotification("الترجمة تستمع باستمرار؛ ستظهر الجمل بعد اكتمال الكلام")
+            updateNotification("يلتقط ROYAL+ صوت الفيديو الآن؛ يجري تحليل المقاطع محلياً")
             while (running.get() && !Thread.currentThread().isInterrupted) {
                 val count = recorder.read(input, 0, input.size)
                 if (count > 0) {
                     for (index in 0 until count) {
-                        frame[frameFilled++] = input[index] / 32768.0f
-                        if (frameFilled == VAD_WINDOW_SAMPLES) {
-                            detector.acceptWaveform(frame)
-                            enqueueReadySpeechSegments(detector)
-                            frameFilled = 0
+                        segment[filled++] = input[index] / 32768.0f
+                        if (filled == SEGMENT_SAMPLES) {
+                            val completed = segment.copyOf()
+                            audioSegments.offer(completed)
+                            val queuedMillis = queuedAudioSamples
+                                .addAndGet(completed.size.toLong()) * 1_000L / SAMPLE_RATE
+                            val now = SystemClock.elapsedRealtime()
+                            if (
+                                queuedMillis >= SPEECH_BACKLOG_WARNING_MILLIS &&
+                                now - lastBacklogNoticeElapsedRealtime >= BACKLOG_NOTICE_INTERVAL_MILLIS
+                            ) {
+                                lastBacklogNoticeElapsedRealtime = now
+                                updateNotification("تأخرت معالجة بعض المقاطع؛ احتُفظ بها في قائمة الانتظار")
+                            }
+
+                            // Preserve the last 350 ms so words crossing a window boundary are not clipped.
+                            System.arraycopy(
+                                segment,
+                                SEGMENT_SAMPLES - SEGMENT_OVERLAP_SAMPLES,
+                                segment,
+                                0,
+                                SEGMENT_OVERLAP_SAMPLES
+                            )
+                            filled = SEGMENT_OVERLAP_SAMPLES
                         }
                     }
                 } else if (count < 0) {
-                    updateStatus("انقطع اتصال الميكروفون؛ أعد تشغيل الترجمة")
+                    updateStatus("انقطع اتصال الصوت؛ أعد تشغيل الترجمة")
                     mainHandler.postDelayed({ stopSelf() }, 3_000L)
                     break
                 }
             }
         } catch (error: Exception) {
             if (running.get()) {
-                val detail = error.localizedMessage ?: "خطأ في الميكروفون"
-                updateStatus("توقف التقاط الصوت: " + detail)
+                val detail = error.localizedMessage ?: "خطأ في التقاط الصوت"
+                updateStatus("توقف التقاط الصوت: $detail")
                 mainHandler.postDelayed({ stopSelf() }, 3_000L)
             }
         } finally {
             try {
-                // Preserve the final partial VAD frame and flush the final speech turn.
-                if (frameFilled > 0) {
-                    while (frameFilled < frame.size) {
-                        frame[frameFilled++] = 0f
-                    }
-                    detector.acceptWaveform(frame)
-                }
-                detector.flush()
-                enqueueReadySpeechSegments(detector)
-            } catch (_: Exception) {
-                // Shutdown must still release the recorder and detector.
-            }
-            try {
                 if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) recorder.stop()
             } catch (_: Exception) {
-                // The platform may have stopped recording during service shutdown.
+                // The platform may already have stopped recording during service shutdown.
             }
-            if (voiceActivityDetector === detector) {
-                voiceActivityDetector = null
-            }
-            runCatching { detector.release() }
         }
     }
 
-    private fun enqueueReadySpeechSegments(detector: Vad) {
-        while (!detector.empty()) {
-            val samples = detector.front().samples
-            if (samples.size >= MIN_SPEECH_SEGMENT_SAMPLES) {
-                speechSegments.offer(samples)
-                val queuedMillis = queuedSpeechSamples.addAndGet(samples.size.toLong()) * 1_000L / SAMPLE_RATE
-                val now = SystemClock.elapsedRealtime()
-                if (
-                    queuedMillis >= SPEECH_BACKLOG_WARNING_MILLIS &&
-                    now - lastBacklogNoticeElapsedRealtime >= BACKLOG_NOTICE_INTERVAL_MILLIS
-                ) {
-                    lastBacklogNoticeElapsedRealtime = now
-                    updateNotification("المعالجة الصوتية متأخرة؛ تم الاحتفاظ بالجمل في قائمة الانتظار ولن تُحذف")
-                }
+    private fun hasMeaningfulAudio(samples: FloatArray): Boolean {
+        if (samples.isEmpty()) return false
+        var squaredEnergy = 0.0
+        var peak = 0f
+        for (sample in samples) {
+            val magnitude = kotlin.math.abs(sample)
+            if (magnitude > peak) peak = magnitude
+            squaredEnergy += sample * sample
+        }
+        val rms = kotlin.math.sqrt(squaredEnergy / samples.size).toFloat()
+        return peak >= 0.0035f && rms >= 0.00075f
+    }
+
+    /** Remove repeated leading words introduced by the 350 ms overlapping audio windows. */
+    private fun removeOverlappingWords(text: String): String {
+        val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (words.isEmpty()) return ""
+        fun normalized(word: String): String =
+            word.lowercase(Locale.ROOT).trim { !it.isLetterOrDigit() }
+
+        val previous = lastRecognizedTail
+        var overlap = 0
+        val maximum = minOf(MAX_OVERLAP_WORDS, previous.size, words.size)
+        for (candidate in maximum downTo 1) {
+            if (
+                previous.takeLast(candidate).map(::normalized) ==
+                words.take(candidate).map(::normalized)
+            ) {
+                overlap = candidate
+                break
             }
-            detector.pop()
         }
+        val freshWords = words.drop(overlap)
+        if (freshWords.isNotEmpty()) {
+            lastRecognizedTail = (previous + freshWords).takeLast(MAX_OVERLAP_WORDS)
+        }
+        return freshWords.joinToString(" ")
     }
 
-    private fun isPredominantlyNonSpeechAudio(
-        tagger: AudioTagging,
-        samples: FloatArray
-    ): Boolean {
-        val stream = tagger.createStream()
-        return try {
-            stream.acceptWaveform(samples, SAMPLE_RATE)
-            val events = tagger.compute(stream, AUDIO_TAGGING_TOP_K)
-            SpeechAudioGate.isPredominantlyNonSpeech(
-                events.map { event -> event.name to event.prob }
-            )
-        } finally {
-            stream.release()
-        }
-    }
-
-    private fun decodeSpeechSegments() {
+    private fun decodeAudioSegments() {
         Process.setThreadPriority(Process.THREAD_PRIORITY_MORE_FAVORABLE)
         while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
-                val samples = speechSegments.take()
-                queuedSpeechSamples.addAndGet(-samples.size.toLong())
+                val samples = audioSegments.take()
+                queuedAudioSamples.addAndGet(-samples.size.toLong())
 
-                val tagger = audioTagger
-                if (tagger != null && isPredominantlyNonSpeechAudio(tagger, samples)) {
-                    // Suppress music, singing and non-verbal sounds before ASR can caption them.
+                if (!hasMeaningfulAudio(samples)) {
+                    if (consecutiveSilentSegments == 0) {
+                        mainHandler.post { flushPendingCaptionPhrase() }
+                    }
+                    consecutiveSilentSegments++
+                    if (consecutiveSilentSegments == 2) {
+                        lastRecognizedTail = emptyList()
+                        lastRecognizedLanguage = null
+                        updateStatus(
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                "لا يصل صوت واضح من التطبيق إلى ROYAL+. تحقق من إذن مشاركة صوت الشاشة."
+                            } else {
+                                "لم يلتقط الميكروفون صوتاً واضحاً؛ قرّب الهاتف أو التلفاز من مصدر الصوت."
+                            }
+                        )
+                    }
                     continue
                 }
+                consecutiveSilentSegments = 0
 
                 val engine = recognizer ?: continue
                 val stream = engine.createStream()
@@ -491,24 +485,29 @@ class FloatingTranslationOverlayService : Service() {
                     recognized.isBlank() -> {
                         consecutiveUnrecognizedSegments++
                         if (consecutiveUnrecognizedSegments == 3) {
-                            updateStatus("وصل صوت إلى المحرك، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار وخفّض الموسيقى.")
+                            updateStatus("وصل صوت إلى محرك التعرّف، لكنه لم يتعرف على كلام واضح. تأكد من وضوح الحوار.")
                         }
                     }
                     SpeechCaptionFilter.isNonSpeechLabel(recognized) -> {
-                        // VAD rejects most non-speech audio; this second guard filters
-                        // Whisper's explicit music and non-verbal sound descriptions.
+                        lastRecognizedTail = emptyList()
+                        lastRecognizedLanguage = null
+                        mainHandler.post { flushPendingCaptionPhrase() }
                         consecutiveUnrecognizedSegments++
                     }
                     else -> {
-                        // Whisper has the full natural speech turn, so use its language
-                        // result immediately; waiting for multiple votes would discard
-                        // the first one or more spoken phrases.
                         val language = normalizeDetectedLanguage(result.lang)
                         if (language.isBlank()) {
-                            updateNotification("تعذر تحديد لغة الكلام؛ لم تُحذف الجملة من التسجيل")
+                            updateStatus("وصل كلام، لكن تعذّر تحديد لغته.")
                         } else {
-                            consecutiveUnrecognizedSegments = 0
-                            queueCaptionPhrase(recognized, language)
+                            if (lastRecognizedLanguage != null && lastRecognizedLanguage != language) {
+                                lastRecognizedTail = emptyList()
+                            }
+                            lastRecognizedLanguage = language
+                            val freshText = removeOverlappingWords(recognized)
+                            if (freshText.isNotBlank()) {
+                                consecutiveUnrecognizedSegments = 0
+                                queueCaptionPhrase(freshText, language)
+                            }
                         }
                     }
                 }
@@ -519,13 +518,13 @@ class FloatingTranslationOverlayService : Service() {
                 System.gc()
                 failTranslationForCapability(
                     TranslationDeviceCapability.insufficientMemory(
-                        "نفدت ذاكرة الجهاز أثناء التعرف على الكلام؛ تم إيقاف الترجمة لحماية استقرار ROYAL+."
+                        "نفدت ذاكرة الجهاز أثناء التعرّف على الكلام؛ أوقفت الترجمة لحماية استقرار ROYAL+."
                     )
                 )
                 break
             } catch (error: Exception) {
                 val detail = error.localizedMessage ?: "خطأ في محرك التعرّف"
-                updateStatus("تعذر تحليل الصوت: " + detail)
+                updateStatus("تعذّر تحليل الصوت: $detail")
             }
         }
     }
@@ -606,7 +605,12 @@ class FloatingTranslationOverlayService : Service() {
             if (translationModelInstalled) {
                 prepareInstalledTranslationEngine()
             } else {
-                updateNotification("محرك الترجمة المحلي يحتاج تنزيل نموذج 609 ميغابايت. اضغط «تنزيل الترجمة» في الإشعار؛ لا يوجد تنزيل تلقائي.")
+                if (!translationDownloadNoticeShown) {
+                    translationDownloadNoticeShown = true
+                    updateStatus("اكتمل نموذج التعرّف الصوتي. بقي نموذج الترجمة العربي المحلي (~621MB): افتح إشعار ROYAL+ واضغط «تنزيل الترجمة». الحزمتان منفصلتان.")
+                } else {
+                    updateNotification("نموذج الترجمة المحلي (~621MB) غير مثبت بعد؛ اضغط «تنزيل الترجمة» في إشعار ROYAL+.")
+                }
             }
             return
         }
@@ -615,8 +619,8 @@ class FloatingTranslationOverlayService : Service() {
             pendingTranslations.removeFirst()
             if (lastUnsupportedLanguageNotice != pending.sourceLanguage) {
                 lastUnsupportedLanguageNotice = pending.sourceLanguage
-                updateNotification(
-                    "لغة المصدر ${pending.sourceLanguage} غير موجودة ضمن لغات النموذج الـ100؛ لم يُرسل النص إلى أي خدمة خارجية."
+                updateStatus(
+                    "لغة المصدر ${pending.sourceLanguage} غير مدعومة في النموذج المحلي؛ لم يُرسل النص إلى أي خدمة خارجية."
                 )
             }
             processNextPendingTranslation()
@@ -637,7 +641,7 @@ class FloatingTranslationOverlayService : Service() {
                     if (caption.isNotBlank()) {
                         showCaption(caption, pending.language)
                     } else {
-                        updateNotification("لم يُنتج نموذج الترجمة نصاً لهذه العبارة؛ ستتم متابعة الجملة التالية.")
+                        updateStatus("وصلت العبارة إلى محرك الترجمة، لكنه لم يُنتج نصاً عربياً لهذه الجملة.")
                     }
                     processNextPendingTranslation()
                 }.onFailure { error ->
@@ -651,7 +655,7 @@ class FloatingTranslationOverlayService : Service() {
                         )
                     } else {
                         val detail = error.localizedMessage ?: "خطأ محلي في محرك ONNX"
-                        updateNotification("تعذرت الترجمة المحلية؛ حُفظت الجملة لإعادة المحاولة: $detail")
+                        updateStatus("تعذرت الترجمة المحلية؛ حُفظت الجملة لإعادة المحاولة: $detail")
                         mainHandler.postDelayed(
                             { processNextPendingTranslation() },
                             TRANSLATION_RETRY_DELAY_MILLIS
@@ -671,7 +675,8 @@ class FloatingTranslationOverlayService : Service() {
                 if (files == null) {
                     translationModelInstalled = false
                     translationModelSetup.set(false)
-                    updateNotification("محرك الترجمة المحلي غير مثبت بعد. اضغط «تنزيل الترجمة» لتنزيل النموذج مرة واحدة عبر اتصال غير محدود.")
+                    translationDownloadNoticeShown = true
+                updateStatus("اكتمل نموذج التعرّف الصوتي. بقي تنزيل نموذج الترجمة العربي المحلي (~621MB) من إشعار ROYAL+ عبر Wi-Fi.")
                     return@Thread
                 }
                 val engine = createVerifiedTranslationEngine(files) ?: return@Thread
@@ -689,7 +694,8 @@ class FloatingTranslationOverlayService : Service() {
                     small100Translator = engine
                     translationModelInstalled = true
                     translationModelSetup.set(false)
-                    updateNotification("اجتاز جهازك اختبار الترجمة المحلية وأصبح المحرك جاهزاً.")
+                    translationDownloadNoticeShown = false
+                    updateStatus("محرك الترجمة المحلية جاهز. شغّل الفيديو لعرض الترجمة العربية.")
                     processNextPendingTranslation()
                 }
             } catch (error: OutOfMemoryError) {
@@ -702,7 +708,7 @@ class FloatingTranslationOverlayService : Service() {
             } catch (error: Exception) {
                 translationModelSetup.set(false)
                 val detail = error.localizedMessage ?: "تعذر التحقق من ملفات نموذج الترجمة"
-                updateNotification("تعذر تجهيز نموذج الترجمة المحلي: $detail")
+                updateStatus("تعذر تجهيز نموذج الترجمة المحلي: $detail")
             }
         }, "RoyalSmall100Setup").apply { isDaemon = true; start() }
     }
@@ -738,7 +744,8 @@ class FloatingTranslationOverlayService : Service() {
                     small100Translator = engine
                     translationModelInstalled = true
                     translationModelSetup.set(false)
-                    updateNotification("اكتمل التنزيل واجتاز جهازك اختبار سرعة الترجمة المحلية.")
+                    translationDownloadNoticeShown = false
+                    updateStatus("اكتمل تنزيل نموذج الترجمة واجتاز اختبار السرعة. الترجمة العربية جاهزة.")
                     processNextPendingTranslation()
                 }
             } catch (error: OutOfMemoryError) {
@@ -823,7 +830,10 @@ class FloatingTranslationOverlayService : Service() {
         mainHandler.post {
             val caption = captionView ?: return@post
             val safeArabicCaption = ArabicCaptionFormatter.format(text)
-            if (safeArabicCaption.isBlank()) return@post
+            if (safeArabicCaption.isBlank()) {
+                updateStatus("تم التعرف على الكلام، لكن محرك الترجمة لم يُرجع نصاً عربياً صالحاً.")
+                return@post
+            }
             caption.text = safeArabicCaption
             caption.visibility = View.VISIBLE
             mainHandler.removeCallbacks(captionHideRunnable)
@@ -1114,8 +1124,8 @@ class FloatingTranslationOverlayService : Service() {
         captureThread?.interrupt()
         decodeThread?.interrupt()
         modelThread?.interrupt()
-        speechSegments.clear()
-        queuedSpeechSamples.set(0L)
+        audioSegments.clear()
+        queuedAudioSamples.set(0L)
 
         try {
             audioRecord?.let { record ->
@@ -1138,8 +1148,6 @@ class FloatingTranslationOverlayService : Service() {
 
         val engineToRelease = recognizer
         recognizer = null
-        val taggerToRelease = audioTagger
-        audioTagger = null
         if (engineToRelease != null) {
             val decoder = decodeThread
             if (decoder == null || !decoder.isAlive) {
@@ -1169,30 +1177,7 @@ class FloatingTranslationOverlayService : Service() {
                 }, "RoyalWhisperRelease").start()
             }
         }
-        if (taggerToRelease != null) {
-            val decoder = decodeThread
-            if (decoder == null || !decoder.isAlive) {
-                runCatching { taggerToRelease.release() }
-            } else {
-                Thread({
-                    var interrupted = false
-                    while (decoder.isAlive) {
-                        try {
-                            decoder.join()
-                        } catch (_: InterruptedException) {
-                            interrupted = true
-                        }
-                    }
-                    try {
-                        taggerToRelease.release()
-                    } catch (_: Exception) {
-                        // Native audio-tagging cleanup must not prevent service shutdown.
-                    } finally {
-                        if (interrupted) Thread.currentThread().interrupt()
-                    }
-                }, "RoyalAudioTaggerRelease").start()
-            }
-        }
+
 
         mainHandler.removeCallbacks(captionPhraseFlushRunnable)
         captionPhraseBuffer.clear()
@@ -1268,10 +1253,12 @@ class FloatingTranslationOverlayService : Service() {
         private const val STATUS_DISPLAY_MILLIS = 7_000L
         private const val CONTROL_IDLE_HIDE_MILLIS = 10_000L
         private const val SAMPLE_RATE = 16_000
-        private const val AUDIO_TAGGING_TOP_K = 5
         private const val CAPTURE_READ_SAMPLES = 1_600
-        private const val VAD_WINDOW_SAMPLES = 512
-        private const val MIN_SPEECH_SEGMENT_SAMPLES = SAMPLE_RATE / 5
+        private const val SEGMENT_SECONDS = 2
+        private const val SEGMENT_OVERLAP_MILLIS = 350
+        private const val SEGMENT_OVERLAP_SAMPLES = SAMPLE_RATE * SEGMENT_OVERLAP_MILLIS / 1_000
+        private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
+        private const val MAX_OVERLAP_WORDS = 4
         private const val SPEECH_BACKLOG_WARNING_MILLIS = 30_000L
         private const val BACKLOG_NOTICE_INTERVAL_MILLIS = 10_000L
         private const val TRANSLATION_RETRY_DELAY_MILLIS = 2_500L
