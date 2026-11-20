@@ -164,7 +164,8 @@ for required in (
     assert required.lower() in rankings.lower(), f"Missing rankings feature: {required}"
 assert "calculateLocalStandingsMovement" in rankings
 assert '"royalplus_sports_standings"' in rankings
-assert "previousRank - currentRank" in rankings
+assert "oldRank - currentRank" in rankings
+assert '"_movements"' in rankings
 assert "reminderSentForKickoff" in alerts and "markReminderSent" in alerts
 assert "calculateStandingMovement" in rankings
 # Keep the requested Saudi league and verify the Syrian league's API-Football v3 ID.
