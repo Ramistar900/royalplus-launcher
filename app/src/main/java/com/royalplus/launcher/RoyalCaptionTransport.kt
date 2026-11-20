@@ -100,9 +100,16 @@ internal object RoyalCaptionTransport {
     }
 
     fun readFrame(reader: BufferedReader): JSONObject {
-        val line = reader.readLine() ?: throw IOException("انقطع اتصال الهاتف")
-        if (line.length > 16 * 1024) throw IOException("إطار الشبكة كبير جداً")
-        return JSONObject(line)
+        val line = StringBuilder()
+        while (true) {
+            val next = reader.read()
+            if (next < 0) throw IOException("انقطع اتصال الجهاز")
+            if (next == '\\n'.code) break
+            if (next == '\\r'.code) continue
+            if (line.length >= 16 * 1024) throw IOException("إطار الشبكة كبير جداً")
+            line.append(next.toChar())
+        }
+        return JSONObject(line.toString())
     }
 
     fun localIpv4Address(): String? = try {
@@ -166,6 +173,28 @@ internal class RoyalCaptionSender(
         }
     }
 
+    private fun sendAndConfirm(
+        reader: BufferedReader,
+        writer: BufferedWriter,
+        key: ByteArray,
+        payload: JSONObject
+    ) {
+        val sequence = payload.getLong("sequence")
+        RoyalCaptionTransport.writeFrame(
+            writer,
+            RoyalCaptionTransport.encryptPayload(key, payload)
+        )
+        val acknowledgement = RoyalCaptionTransport.decryptPayload(
+            key,
+            RoyalCaptionTransport.readFrame(reader)
+        )
+        if (acknowledgement.optString("type") != "ack" ||
+            acknowledgement.optLong("sequence", -1L) != sequence
+        ) {
+            throw IOException("لم يصل تأكيد استلام الترجمة من التلفاز")
+        }
+    }
+
     private fun runConnectionLoop() {
         var retryDelay = 1_000L
         while (!closed.get()) {
@@ -205,10 +234,7 @@ internal class RoyalCaptionSender(
                                 .put("type", "ping")
                                 .put("sequence", sequence.incrementAndGet())
                                 .put("sent_at_utc_ms", System.currentTimeMillis())
-                            RoyalCaptionTransport.writeFrame(
-                                writer,
-                                RoyalCaptionTransport.encryptPayload(key, heartbeat)
-                            )
+                            sendAndConfirm(reader, writer, key, heartbeat)
                             lastHeartbeatElapsed = nowElapsed
                         }
                         continue
@@ -216,10 +242,7 @@ internal class RoyalCaptionSender(
                     // Do not flood the TV with stale captions after a long Wi-Fi outage.
                     val age = System.currentTimeMillis() - next.optLong("sent_at_utc_ms", 0L)
                     if (age > 12_000L) continue
-                    RoyalCaptionTransport.writeFrame(
-                        writer,
-                        RoyalCaptionTransport.encryptPayload(key, next)
-                    )
+                    sendAndConfirm(reader, writer, key, next)
                     lastHeartbeatElapsed = System.nanoTime() / 1_000_000L
                 }
             } catch (error: InterruptedException) {
