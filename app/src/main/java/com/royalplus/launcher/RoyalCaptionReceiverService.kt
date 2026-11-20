@@ -37,10 +37,12 @@ class RoyalCaptionReceiverService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     @Volatile private var serverSocket: ServerSocket? = null
+    @Volatile private var activeClient: Socket? = null
     private var serverThread: Thread? = null
     private var captionView: TextView? = null
     private var windowManager: WindowManager? = null
     private val hideCaption = Runnable { captionView?.visibility = View.GONE }
+    private var captionGeneration = 0L
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -94,9 +96,14 @@ class RoyalCaptionReceiverService : Service() {
                     break
                 }
                 socket.use { client ->
+                    activeClient = client
                     client.tcpNoDelay = true
                     client.keepAlive = true
-                    receiveClient(client, pin)
+                    try {
+                        receiveClient(client, pin)
+                    } finally {
+                        if (activeClient === client) activeClient = null
+                    }
                 }
             }
         } catch (error: Exception) {
@@ -154,8 +161,13 @@ class RoyalCaptionReceiverService : Service() {
         mainHandler.post {
             val manager = windowManager ?: getSystemService(WINDOW_SERVICE) as WindowManager
             windowManager = manager
-            val caption = captionView ?: createCaptionView().also { view ->
-                val params = WindowManager.LayoutParams(
+            val generation = ++captionGeneration
+            val delay = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
+                .getInt(KEY_DISPLAY_DELAY_MS, 0).coerceIn(0, 5_000)
+            mainHandler.postDelayed({
+                if (!running.get() || generation != captionGeneration) return@postDelayed
+                val caption = captionView ?: createCaptionView().also { view ->
+                    val params = WindowManager.LayoutParams(
                     (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtLeast(dp(240)),
                     WindowManager.LayoutParams.WRAP_CONTENT,
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -172,13 +184,15 @@ class RoyalCaptionReceiverService : Service() {
                     gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
                     y = dp(62)
                 }
-                manager.addView(view, params)
-            }
-            caption.text = ArabicCaptionFormatter.format(text)
-            caption.visibility = View.VISIBLE
-            caption.bringToFront()
-            mainHandler.removeCallbacks(hideCaption)
-            mainHandler.postDelayed(hideCaption, 4_500L)
+                    manager.addView(view, params)
+                    captionView = view
+                }
+                caption.text = ArabicCaptionFormatter.format(text)
+                caption.visibility = View.VISIBLE
+                caption.bringToFront()
+                mainHandler.removeCallbacks(hideCaption)
+                mainHandler.postDelayed(hideCaption, 4_500L)
+            }, delay.toLong())
         }
     }
 
@@ -260,6 +274,8 @@ class RoyalCaptionReceiverService : Service() {
 
     override fun onDestroy() {
         running.set(false)
+        runCatching { activeClient?.close() }
+        activeClient = null
         runCatching { serverSocket?.close() }
         serverSocket = null
         mainHandler.removeCallbacks(hideCaption)
@@ -285,6 +301,7 @@ class RoyalCaptionReceiverService : Service() {
         const val PREFERENCES = "royalplus_launcher_preferences"
         const val KEY_RECEIVER_ENABLED = "royal_caption_receiver_enabled"
         const val KEY_RECEIVER_PIN = "royal_caption_receiver_pin_saved"
+        const val KEY_DISPLAY_DELAY_MS = "royal_caption_display_delay_ms"
         private const val CHANNEL_ID = "royal_caption_receiver"
         private const val NOTIFICATION_ID = 45873
     }
