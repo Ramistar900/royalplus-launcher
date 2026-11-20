@@ -20,6 +20,7 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,8 +48,8 @@ internal data class RoyalCastReceiverState(
 }
 
 /**
- * The TV opens a short-lived TCP signaling socket on its Wi-Fi interface.
- * Media itself is then carried by a direct WebRTC peer connection (DTLS-SRTP).
+ * The TV opens a TCP signaling socket on its active private LAN address.
+ * Screen media is then carried by a direct WebRTC peer connection (DTLS-SRTP).
  */
 internal class RoyalCastReceiverController(
     private val context: Context
@@ -56,26 +57,31 @@ internal class RoyalCastReceiverController(
     private val mutableState = MutableStateFlow(RoyalCastReceiverState())
     val state: StateFlow<RoyalCastReceiverState> = mutableState.asStateFlow()
     private val stopped = AtomicBoolean(false)
+    private val generation = AtomicInteger(0)
 
     @Volatile private var serverSocket: ServerSocket? = null
     @Volatile private var peerConnection: PeerConnection? = null
     @Volatile private var remoteVideoTrack: VideoTrack? = null
     @Volatile private var renderer: SurfaceViewRenderer? = null
+    @Volatile private var iceGatheringLatch: CountDownLatch? = null
 
     fun start() {
         if (serverSocket != null) return
         stopped.set(false)
+        val attempt = generation.incrementAndGet()
         mutableState.value = RoyalCastReceiverState(
             phase = RoyalCastReceiverPhase.STARTING,
             message = "يجري تشغيل مستقبل ROYAL CAST"
         )
-        Thread({ openReceiver() }, "RoyalCast-Receiver").apply {
+        Thread({ openReceiver(attempt) }, "RoyalCast-Receiver").apply {
             isDaemon = true
             start()
         }
     }
 
     fun attachRenderer(surface: SurfaceViewRenderer) {
+        if (renderer === surface) return
+        renderer?.let { old -> remoteVideoTrack?.removeSink(old) }
         renderer = surface
         remoteVideoTrack?.addSink(surface)
     }
@@ -89,29 +95,38 @@ internal class RoyalCastReceiverController(
 
     fun stop() {
         if (!stopped.compareAndSet(false, true)) return
-        detachRenderer()
-        runCatching { serverSocket?.close() }
+        generation.incrementAndGet()
+        val oldServer = serverSocket
         serverSocket = null
+        runCatching { oldServer?.close() }
+        detachRenderer()
         runCatching { peerConnection?.close() }
         runCatching { peerConnection?.dispose() }
         peerConnection = null
         remoteVideoTrack = null
+        iceGatheringLatch = null
         mutableState.value = RoyalCastReceiverState(
             phase = RoyalCastReceiverPhase.STARTING,
             message = "تم إيقاف استقبال الشاشة"
         )
     }
 
-    private fun openReceiver() {
+    private fun isCurrent(attempt: Int): Boolean =
+        !stopped.get() && generation.get() == attempt
+
+    private fun openReceiver(attempt: Int) {
+        var openedSocket: ServerSocket? = null
         try {
             val host = RoyalCastPairing.localIpv4Address(context)
-                ?: error("لم نعثر على عنوان Wi-Fi محلي. تأكد من اتصال التلفاز بالشبكة.")
+                ?: error("لم نعثر على عنوان Wi-Fi أو Ethernet محلي. تأكد من اتصال التلفاز بالشبكة.")
             val token = RoyalCastPairing.newToken()
             val pin = RoyalCastPairing.newPin()
             val socket = ServerSocket()
+            openedSocket = socket
             socket.reuseAddress = true
             socket.bind(InetSocketAddress(InetAddress.getByName(host), 0), 2)
             socket.soTimeout = 0
+            if (!isCurrent(attempt)) return
             serverSocket = socket
             mutableState.value = RoyalCastReceiverState(
                 phase = RoyalCastReceiverPhase.WAITING,
@@ -121,24 +136,33 @@ internal class RoyalCastReceiverController(
                 token = token,
                 pin = pin
             )
-            while (!stopped.get()) {
+            while (isCurrent(attempt)) {
                 val client = socket.accept()
                 client.tcpNoDelay = true
                 client.soTimeout = 30_000
-                if (handleClient(client, token, pin)) return
+                if (!isCurrent(attempt)) {
+                    runCatching { client.close() }
+                    break
+                }
+                if (handleClient(client, token, pin, attempt)) return
                 runCatching { client.close() }
             }
-        } catch (_: java.net.SocketTimeoutException) {
-            if (!stopped.get()) setError("انتهت مهلة الاقتران. افتح القسم مجدداً لإنشاء رمز جديد.")
         } catch (error: Exception) {
-            if (!stopped.get()) setError(error.message ?: "تعذر تشغيل مستقبل ROYAL CAST.")
+            if (isCurrent(attempt)) {
+                setError(error.message ?: "تعذر تشغيل مستقبل ROYAL CAST.")
+            }
         } finally {
-            runCatching { serverSocket?.close() }
-            serverSocket = null
+            if (serverSocket === openedSocket) serverSocket = null
+            runCatching { openedSocket?.close() }
         }
     }
 
-    private fun handleClient(client: Socket, expectedToken: String, expectedPin: String): Boolean {
+    private fun handleClient(
+        client: Socket,
+        expectedToken: String,
+        expectedPin: String,
+        attempt: Int
+    ): Boolean {
         val reader = BufferedReader(InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8))
         val writer = PrintWriter(OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8), true)
         return try {
@@ -151,11 +175,12 @@ internal class RoyalCastReceiverController(
             val offerSdp = request.optString("sdp")
             require(offerSdp.isNotBlank() && offerSdp.length <= 1_400_000) { "بيانات العرض غير صالحة." }
 
+            if (!isCurrent(attempt)) return false
             mutableState.value = mutableState.value.copy(
                 phase = RoyalCastReceiverPhase.CONNECTING,
                 message = "تم الاقتران، يجري إنشاء اتصال الشاشة"
             )
-            val connection = RoyalCastRtc.createPeerConnection(context, receiverObserver())
+            val connection = RoyalCastRtc.createPeerConnection(context, receiverObserver(attempt))
             peerConnection = connection
 
             val remoteSet = CountDownLatch(1)
@@ -202,26 +227,39 @@ internal class RoyalCastReceiverController(
                 iceComplete.countDown()
             }
             check(RoyalCastRtc.await(iceComplete, 25)) { "تعذر تجهيز مسار Wi-Fi المحلي." }
+            if (!isCurrent(attempt)) return false
             val finalSdp = connection.localDescription?.description.orEmpty()
             check(finalSdp.isNotBlank()) { "لم يتم إنشاء وصف الاتصال." }
             writer.println(JSONObject().put("type", "answer").put("sdp", finalSdp).toString())
             check(!writer.checkError()) { "انقطع اتصال الاقتران قبل اكتماله." }
-            runCatching { client.close() }
             true
         } catch (error: Exception) {
-            setError(error.message ?: "فشل اتصال الهاتف.")
+            if (isCurrent(attempt)) {
+                val message = error.message ?: "فشل اتصال الهاتف."
+                if (message.contains("رمز الاقتران") || message.contains("رقم التأكيد")) {
+                    mutableState.value = mutableState.value.copy(
+                        phase = RoyalCastReceiverPhase.WAITING,
+                        message = "رمز التأكيد غير صحيح. امسح رمز التلفاز الظاهر وحاول مجدداً."
+                    )
+                } else {
+                    setError(message)
+                }
+            }
             false
+        } finally {
+            runCatching { client.close() }
         }
     }
 
-    @Volatile private var iceGatheringLatch: CountDownLatch? = null
-
-    private fun receiverObserver() = object : RoyalCastPeerObserver() {
+    private fun receiverObserver(attempt: Int) = object : RoyalCastPeerObserver() {
         override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
-            if (state == PeerConnection.IceGatheringState.COMPLETE) iceGatheringLatch?.countDown()
+            if (isCurrent(attempt) && state == PeerConnection.IceGatheringState.COMPLETE) {
+                iceGatheringLatch?.countDown()
+            }
         }
 
         override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+            if (!isCurrent(attempt)) return
             when (state) {
                 PeerConnection.IceConnectionState.CONNECTED,
                 PeerConnection.IceConnectionState.COMPLETED -> mutableState.value =
@@ -229,7 +267,9 @@ internal class RoyalCastReceiverController(
                         phase = RoyalCastReceiverPhase.CONNECTED,
                         message = "البث يعمل الآن من الهاتف"
                     )
-                PeerConnection.IceConnectionState.FAILED -> setError("تعذر إنشاء اتصال مباشر. تحقق من أن الجهازين على شبكة Wi-Fi نفسها.")
+                PeerConnection.IceConnectionState.FAILED -> setError(
+                    "تعذر إنشاء اتصال مباشر. تحقق من أن الجهازين على شبكة Wi-Fi نفسها."
+                )
                 PeerConnection.IceConnectionState.DISCONNECTED -> mutableState.value =
                     mutableState.value.copy(
                         phase = RoyalCastReceiverPhase.CONNECTING,
@@ -241,15 +281,20 @@ internal class RoyalCastReceiverController(
 
         override fun onAddTrack(receiver: RtpReceiver?, mediaStreams: Array<out MediaStream>?) {
             val track = receiver?.track() as? VideoTrack ?: return
-            remoteVideoTrack = track
-            renderer?.let(track::addSink)
+            attachRemoteTrack(track, attempt)
         }
 
         override fun onTrack(transceiver: RtpTransceiver?) {
             val track = transceiver?.receiver?.track() as? VideoTrack ?: return
-            remoteVideoTrack = track
-            renderer?.let(track::addSink)
+            attachRemoteTrack(track, attempt)
         }
+    }
+
+    private fun attachRemoteTrack(track: VideoTrack, attempt: Int) {
+        if (!isCurrent(attempt) || remoteVideoTrack === track) return
+        remoteVideoTrack?.let { old -> renderer?.let(old::removeSink) }
+        remoteVideoTrack = track
+        renderer?.let(track::addSink)
     }
 
     private fun setError(message: String) {
