@@ -52,6 +52,15 @@ assert "CAPTION_PHRASE_IDLE_MILLIS = 250L" in service
 assert "pendingTranslations.addLast(" in service
 assert "pendingTranslations.addFirst(" in service
 assert "processNextPendingTranslation()" in service
+assert "stabilizeDetectedLanguage(" not in service
+assert "MAX_PENDING_TRANSLATION_AGE_MILLIS" not in service
+assert "MAX_QUEUED_TRANSLATIONS" not in service
+assert "translationSessions" not in service
+assert "TranslateLanguage" not in service
+assert "RoyalCloudTranslationClient" not in service
+assert "translator === activeTranslator" not in service
+assert "captionPhraseBuffer" in service
+assert "NET_CAPABILITY_NOT_METERED" in (JAVA / "Small100ModelRepository.kt").read_text(encoding="utf-8")
 assert "Small100Translator.create(files)" in service
 assert "translationExecutor.execute" in service
 assert "translationModelSetup" in service
