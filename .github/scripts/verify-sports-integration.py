@@ -68,7 +68,8 @@ assert "sportsBall = true" in home and "RoyalRotatingFootballIcon" in home
 assert "Icons.Rounded.SportsSoccer" not in home
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert 'android.permission.POST_NOTIFICATIONS' in manifest
-assert "minSdk = 23" in gradle
+assert "minSdk = 24" in gradle
+assert "minSdk = 23" not in gradle
 assert 'androidx.work:work-runtime-ktx:2.9.1' in gradle
 
 # Server-side authentication, global budget, query bounds and cache must remain enforced.
