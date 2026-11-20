@@ -1,0 +1,19 @@
+name: ROYAL+ Owl Ambience Regression
+
+on:
+  push:
+    branches: ["main", "fix/clear-night-owl-audio"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-owl-ambience:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Verify clear-night owl ambience scheduling
+        run: python3 .github/scripts/verify-owl-ambience.py

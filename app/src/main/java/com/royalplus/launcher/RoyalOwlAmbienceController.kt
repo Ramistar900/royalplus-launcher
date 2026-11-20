@@ -55,6 +55,7 @@ internal object RoyalOwlAmbienceController {
     const val PREFERENCES_NAME = "royalplus_launcher_preferences"
     const val ENABLED_KEY = "royal_owl_night_sound_enabled"
 
+    private const val FIRST_CALL_DELAY_MS = 5_000L
     private const val MIN_INTERVAL_MS = 30L * 60L * 1000L
     private const val MAX_INTERVAL_MS = 60L * 60L * 1000L
     private const val MAX_WEATHER_AGE_MS = 90L * 60L * 1000L
@@ -68,6 +69,7 @@ internal object RoyalOwlAmbienceController {
     private var foreground = false
     private var scheduledTask: Runnable? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var hasPlayedInCurrentNight = false
 
     fun setEnabled(context: Context, enabled: Boolean) {
         val applicationContext = context.applicationContext
@@ -78,10 +80,12 @@ internal object RoyalOwlAmbienceController {
             .apply()
 
         if (enabled) {
+            hasPlayedInCurrentNight = false
             scheduleNext()
         } else {
             cancelScheduledTask()
             stopPlayer()
+            hasPlayedInCurrentNight = false
         }
     }
 
@@ -91,6 +95,7 @@ internal object RoyalOwlAmbienceController {
         } else {
             cancelScheduledTask()
             stopPlayer()
+            hasPlayedInCurrentNight = false
         }
     }
 
@@ -103,7 +108,10 @@ internal object RoyalOwlAmbienceController {
     fun onForeground(context: Context, weather: WeatherUiState) {
         appContext = context.applicationContext
         foreground = true
+        // Refresh the weather-age window when the weather screen resumes.
+        latestWeatherIdentity = null
         updateWeatherIdentity(weather)
+        hasPlayedInCurrentNight = false
         scheduleNext()
     }
 
@@ -117,6 +125,7 @@ internal object RoyalOwlAmbienceController {
         foreground = false
         cancelScheduledTask()
         stopPlayer()
+        hasPlayedInCurrentNight = false
     }
 
     private fun updateWeatherIdentity(weather: WeatherUiState): Boolean {
@@ -138,6 +147,7 @@ internal object RoyalOwlAmbienceController {
         cancelScheduledTask()
         if (!foreground || !isCurrentlyEligibleForScheduling()) {
             stopPlayer()
+            hasPlayedInCurrentNight = false
             return
         }
 
@@ -145,8 +155,13 @@ internal object RoyalOwlAmbienceController {
         val calendar = Calendar.getInstance(zone)
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val delayMs = if (isOwlNightWindow(hour)) {
-            Random.nextLong(MIN_INTERVAL_MS, MAX_INTERVAL_MS + 1L)
+            if (hasPlayedInCurrentNight) {
+                Random.nextLong(MIN_INTERVAL_MS, MAX_INTERVAL_MS + 1L)
+            } else {
+                FIRST_CALL_DELAY_MS
+            }
         } else {
+            hasPlayedInCurrentNight = false
             delayUntilNextNightWindow(calendar)
         }
 
@@ -156,6 +171,7 @@ internal object RoyalOwlAmbienceController {
                 scheduleNext()
                 return@Runnable
             }
+            hasPlayedInCurrentNight = true
             playOneShot()
             scheduleNext()
         }
