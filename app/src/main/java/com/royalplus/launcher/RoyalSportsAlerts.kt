@@ -52,6 +52,7 @@ internal object RoyalSportsFavorites {
     private const val KEY_RESULTS = "result_alerts"
     private const val KEY_LANGUAGE = "language"
     private const val KEY_STATE_PREFIX = "fixture_state_"
+    private const val KEY_REMINDER_SENT_PREFIX = "fixture_reminder_sent_"
     private val lock = Any()
 
     private fun preferences(context: Context) =
@@ -136,6 +137,15 @@ internal object RoyalSportsFavorites {
 
     fun language(context: Context): String =
         preferences(context).getString(KEY_LANGUAGE, Locale.getDefault().language) ?: "ar"
+
+    fun reminderSentForKickoff(context: Context, fixtureId: Long, kickoffAt: Long): Boolean =
+        preferences(context).getLong(KEY_REMINDER_SENT_PREFIX + fixtureId, -1L) == kickoffAt
+
+    fun markReminderSent(context: Context, fixtureId: Long, kickoffAt: Long) {
+        preferences(context).edit()
+            .putLong(KEY_REMINDER_SENT_PREFIX + fixtureId, kickoffAt)
+            .apply()
+    }
 
     fun previousFixtureState(context: Context, fixtureId: Long): String? =
         preferences(context).getString(KEY_STATE_PREFIX + fixtureId, null)
@@ -346,6 +356,7 @@ internal class RoyalSportsAlertsWorker(
             if (fixture.homeTeamId !in favoriteIds && fixture.awayTeamId !in favoriteIds) return@forEach
             val kickoff = parseFixtureDate(fixture.date) ?: return@forEach
             if (kickoff <= now + 60_000L || kickoff > now + TimeUnit.DAYS.toMillis(8)) return@forEach
+            if (RoyalSportsFavorites.reminderSentForKickoff(context, fixture.id, kickoff)) return@forEach
             val reminderAt = kickoff - TimeUnit.MINUTES.toMillis(30)
             val delayMillis = (reminderAt - now).coerceAtLeast(0L)
             val request = OneTimeWorkRequestBuilder<RoyalSportsMatchReminderWorker>()
@@ -416,6 +427,7 @@ internal class RoyalSportsMatchReminderWorker(
         val away = inputData.getString("away_team").orEmpty()
         val kickoff = inputData.getLong("kickoff_at", 0L)
         if (kickoff <= 0L) return Result.success()
+        if (RoyalSportsFavorites.reminderSentForKickoff(context, fixtureId, kickoff)) return Result.success()
 
         val language = RoyalSportsFavorites.language(context)
         val minutesUntilKickoff = TimeUnit.MILLISECONDS.toMinutes(kickoff - System.currentTimeMillis())
@@ -439,6 +451,7 @@ internal class RoyalSportsMatchReminderWorker(
         } else {
             "$home × $away • " + formatKickoffTime(kickoff)
         }
+        RoyalSportsFavorites.markReminderSent(context, fixtureId, kickoff)
         RoyalSportsNotificationCenter.show(
             context,
             (fixtureId xor 0x3C3C3C3CL).toInt() and Int.MAX_VALUE,
