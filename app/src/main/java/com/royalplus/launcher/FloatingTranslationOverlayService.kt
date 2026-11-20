@@ -44,7 +44,7 @@ class FloatingTranslationOverlayService : Service() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
-    // VAD emits whole speech turns; this FIFO never discards recognized audio.
+    // Four-window FIFO bounds memory while retaining the newest live audio.
     private val audioSegments = ArrayBlockingQueue<FloatArray>(4)
 
     @Volatile private var recognizer: OfflineRecognizer? = null
@@ -677,7 +677,7 @@ class FloatingTranslationOverlayService : Service() {
                     translationModelInstalled = false
                     translationModelSetup.set(false)
                     translationDownloadNoticeShown = true
-                    updateStatus("اكتمل نموذج التعرّف الصوتي. بقي تنزيل نموذج الترجمة العربي المحلي (~621MB) من إشعار ROYAL+ عبر Wi-Fi.")
+                    updateStatus("اكتمل نموذج التعرّف الصوتي. لتنزيل نموذج الترجمة العربي المحلي (~621MB)، افتح إشعار ROYAL+ واضغط «تنزيل الترجمة» عبر Wi-Fi.")
                     return@Thread
                 }
                 val engine = createVerifiedTranslationEngine(files) ?: return@Thread
@@ -759,7 +759,7 @@ class FloatingTranslationOverlayService : Service() {
             } catch (error: Exception) {
                 translationModelSetup.set(false)
                 val detail = error.localizedMessage ?: "تحقق من الاتصال والمساحة الحرة"
-                updateNotification("تعذر تنزيل نموذج الترجمة: $detail")
+                updateStatus("تعذر تنزيل نموذج الترجمة: $detail")
             }
         }, "RoyalSmall100Download").apply { isDaemon = true; start() }
     }
