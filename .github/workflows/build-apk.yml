@@ -221,6 +221,18 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Identify minified class failing Android 7 startup
+        if: always()
+        shell: bash
+        run: |
+          MAP="app/build/outputs/mapping/release/mapping.txt"
+          if [[ -f "$MAP" ]]; then
+            echo "R8 mapping for the failing Android 7 class (if present):"
+            grep -n -B 2 -A 30 ' -> v3.l4:' "$MAP" || true
+          else
+            echo "R8 mapping file was not generated at $MAP"
+          fi
+
       - name: Smoke test on Android 7 (API 24)
         timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
