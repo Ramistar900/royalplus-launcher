@@ -33,6 +33,13 @@ collect_diagnostics() {
   adb_limited 20 shell getprop ro.build.version.sdk
   echo "Recent AndroidRuntime and system errors:"
   adb_limited 30 logcat -d -t 250 -v brief AndroidRuntime:E ActivityManager:E System.err:W
+  MAPPING="$GITHUB_WORKSPACE/app/build/outputs/mapping/release/mapping.txt"
+  if [[ -s "$MAPPING" ]]; then
+    echo "R8 mapping for the failing obfuscated class (if present):"
+    grep -n -B 2 -A 14 -E ' -> v3\\.l4:' "$MAPPING" || true
+  else
+    echo "R8 mapping file is unavailable at $MAPPING"
+  fi
   echo "Foreground activity:"
   adb_limited 20 shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | tail -n 10
   echo "::endgroup::"
