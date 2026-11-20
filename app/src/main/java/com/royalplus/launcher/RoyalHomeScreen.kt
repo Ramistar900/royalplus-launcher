@@ -2711,7 +2711,7 @@ private fun RoyalSidePanel(
         Brush.verticalGradient(listOf(Color(0xFF080A12), Color(0xFF111620)))
     }
     Column(
-        modifier.focusGroup().clip(shape).background(panelBrush)
+        modifier.focusGroup().verticalScroll(rememberScrollState()).clip(shape).background(panelBrush)
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.28f), shape)
             .padding(horizontal = if (compactPhone) 5.dp else 9.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -2767,7 +2767,7 @@ private fun RoyalSidePanel(
             iconRes = R.drawable.royal_settings_luxe,
             modifier = navigationFocusModifiers[9], onClick = onOpenSettings
         )
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(if (compactPhone) 8.dp else 14.dp))
         SidebarNavItem(
             labels[10], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
             iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[10]
