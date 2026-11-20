@@ -46,6 +46,7 @@ class FloatingTranslationOverlayService : Service() {
     private val running = AtomicBoolean(false)
     // Four-window FIFO bounds memory while retaining the newest live audio.
     private val audioSegments = ArrayBlockingQueue<FloatArray>(4)
+    private val audioGapDetected = AtomicBoolean(false)
 
     @Volatile private var recognizer: OfflineRecognizer? = null
     @Volatile private var audioRecord: AudioRecord? = null
@@ -96,7 +97,7 @@ class FloatingTranslationOverlayService : Service() {
     private var translationModelThread: Thread? = null
     private var translationInFlight = false
     private var lastUnsupportedLanguageNotice: String? = null
-    private var translationDownloadNoticeShown = false
+    @Volatile private var translationDownloadNoticeShown = false
     private val captionPhraseBuffer = CaptionPhraseBuffer(maxCharacters = MAX_CAPTION_BUFFER_CHARACTERS)
     private val captionPhraseFlushRunnable = Runnable { flushPendingCaptionPhrase() }
 
@@ -343,6 +344,7 @@ class FloatingTranslationOverlayService : Service() {
                                 // Bound memory while keeping the newest audio when the
                                 // recognizer is slower than live playback.
                                 audioSegments.poll()
+                                audioGapDetected.set(true)
                                 accepted = audioSegments.offer(completed)
                                 val now = SystemClock.elapsedRealtime()
                                 if (
@@ -430,6 +432,10 @@ class FloatingTranslationOverlayService : Service() {
         while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
                 val samples = audioSegments.take()
+                if (audioGapDetected.getAndSet(false)) {
+                    lastRecognizedTail = emptyList()
+                    lastRecognizedLanguage = null
+                }
 
                 if (!hasMeaningfulAudio(samples)) {
                     if (consecutiveSilentSegments == 0) {
@@ -1126,6 +1132,7 @@ class FloatingTranslationOverlayService : Service() {
         decodeThread?.interrupt()
         modelThread?.interrupt()
         audioSegments.clear()
+        audioGapDetected.set(false)
 
         try {
             audioRecord?.let { record ->
