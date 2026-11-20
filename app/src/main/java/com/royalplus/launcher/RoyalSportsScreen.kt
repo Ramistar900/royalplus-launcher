@@ -1218,6 +1218,7 @@ private fun SportsFixtureCard(
     onToggleFavorite: (RoyalSportsFavoriteTeam) -> Unit
 ) {
     val shape = RoundedCornerShape(15.dp)
+    var showDetails by remember(fixture.id) { mutableStateOf(false) }
     val statusText = when (fixture.status) {
         "1H", "2H", "ET", "LIVE", "P" -> when {
             arabic -> "مباشر"
@@ -1280,6 +1281,7 @@ private fun SportsFixtureCard(
         modifier = Modifier.fillMaxWidth().clip(shape)
             .background(Color(0x99102F28))
             .border(1.dp, Color(0x44B8FFD7), shape)
+            .clickable { showDetails = true }
             .focusable()
             .padding(horizontal = 13.dp, vertical = 10.dp)
     ) {
@@ -1360,6 +1362,118 @@ private fun SportsFixtureCard(
                 description = localizedFootballName(fixture.awayTeam, arabic, turkish)
             )
         }
+    }
+    if (showDetails) {
+        val detailStatus = when (fixture.status) {
+            "1H", "2H", "ET", "LIVE", "P" -> if (arabic) "مباشرة" else if (turkish) "Canlı" else "Live"
+            "HT", "BT" -> if (arabic) "استراحة" else if (turkish) "Devre arası" else "Half-time"
+            "FT", "AET", "PEN" -> if (arabic) "انتهت" else if (turkish) "Bitti" else "Finished"
+            "PST" -> if (arabic) "مؤجلة" else if (turkish) "Ertelendi" else "Postponed"
+            "CANC", "ABD" -> if (arabic) "ألغيت" else if (turkish) "İptal" else "Cancelled"
+            "NS", "TBD" -> if (arabic) "لم تبدأ" else if (turkish) "Başlamadı" else "Not started"
+            "SUSP", "INT" -> if (arabic) "متوقفة" else if (turkish) "Durduruldu" else "Suspended"
+            "AWD", "WO" -> if (arabic) "حُسمت إدارياً" else if (turkish) "Hükmen sonuçlandı" else "Awarded"
+            else -> fixture.status
+        }
+        AlertDialog(
+            onDismissRequest = { showDetails = false },
+            title = {
+                Text(
+                    localizedFootballName(fixture.homeTeam, arabic, turkish) + "  •  " +
+                        localizedFootballName(fixture.awayTeam, arabic, turkish),
+                    color = RoyalColors.Pearl,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        score,
+                        color = RoyalColors.Gold,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                    SportsMatchDetailLine(
+                        if (arabic) "الحالة" else if (turkish) "Durum" else "Status",
+                        detailStatus
+                    )
+                    SportsMatchDetailLine(
+                        if (arabic) "البطولة" else if (turkish) "Lig" else "Competition",
+                        localizedFootballLeagueName(fixture.league, fixture.country, arabic, turkish)
+                    )
+                    if (fixture.country.isNotBlank()) {
+                        SportsMatchDetailLine(
+                            if (arabic) "الدولة" else if (turkish) "Ülke" else "Country",
+                            localizedFootballName(fixture.country, arabic, turkish)
+                        )
+                    }
+                    SportsMatchDetailLine(
+                        if (arabic) "التاريخ والوقت" else if (turkish) "Tarih ve saat" else "Date and time",
+                        formatFixtureTime(fixture.date, arabic, turkish)
+                    )
+                    if (fixture.round.isNotBlank()) {
+                        SportsMatchDetailLine(
+                            if (arabic) "الجولة" else if (turkish) "Tur" else "Round",
+                            localizedFootballRound(fixture.round, arabic, turkish)
+                        )
+                    }
+                    if (fixture.season > 0) {
+                        SportsMatchDetailLine(
+                            if (arabic) "الموسم" else if (turkish) "Sezon" else "Season",
+                            fixture.season.toString()
+                        )
+                    }
+                    if (fixture.elapsed != null && fixture.elapsed > 0) {
+                        SportsMatchDetailLine(
+                            if (arabic) "الدقيقة" else if (turkish) "Dakika" else "Minute",
+                            fixture.elapsed.toString() + "'"
+                        )
+                    }
+                    SportsMatchDetailLine(
+                        if (arabic) "رقم المباراة" else if (turkish) "Maç numarası" else "Match ID",
+                        fixture.id.toString()
+                    )
+                    Text(
+                        if (arabic) "المعلومات المعروضة من بيانات المباراة المحمّلة؛ فتح التفاصيل لا يرسل طلب API إضافياً."
+                        else if (turkish) "Gösterilen bilgiler önceden yüklenen maç verilerindendir; ayrıntıları açmak ek API isteği göndermez."
+                        else "Details use the already loaded match data; opening this view sends no additional API request.",
+                        color = RoyalColors.Muted,
+                        fontSize = 10.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetails = false }) {
+                    Text(if (arabic) "إغلاق" else if (turkish) "Kapat" else "Close")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SportsMatchDetailLine(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = RoyalColors.Muted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            value,
+            color = RoyalColors.Pearl,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End
+        )
     }
 }
 
