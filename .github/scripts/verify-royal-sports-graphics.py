@@ -5,11 +5,12 @@ ROOT = Path(__file__).resolve().parents[2]
 JAVA = ROOT / "app/src/main/java/com/royalplus/launcher"
 GRAPHICS = JAVA / "RoyalSportsGraphics.kt"
 SCREEN = JAVA / "RoyalSportsScreen.kt"
+RANKINGS = JAVA / "RoyalSportsRankings.kt"
 HOME = JAVA / "RoyalHomeScreen.kt"
 WORKFLOW = ROOT / ".github/workflows/build-apk.yml"
 GRADLE = ROOT / "app/build.gradle.kts"
 
-for path in (GRAPHICS, SCREEN, HOME, WORKFLOW, GRADLE):
+for path in (GRAPHICS, SCREEN, RANKINGS, HOME, WORKFLOW, GRADLE):
     assert path.is_file(), f"Required sports graphics file is missing: {path.relative_to(ROOT)}"
 
 graphics = GRAPHICS.read_text(encoding="utf-8")
@@ -44,7 +45,22 @@ assert "sportsBall = true" in home
 assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
-assert "groupBy { it.country.trim() to it.league.trim() }" in screen
+assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in screen
+assert 'round = league.optString("round", "")' in screen
+assert 'leg = ""' in screen
+assert "localizedFootballRound" in screen
+for tab in ("LIVE", "UPCOMING", "FINISHED", "RANKINGS"):
+    assert "RoyalSportsTab." + tab in screen
+rankings = (JAVA / "RoyalSportsRankings.kt").read_text(encoding="utf-8")
+assert "NATIONAL_TEAMS" in rankings
+assert "DOMESTIC_LEAGUES" in rankings
+assert "INTERNATIONAL_GROUPS" in rankings
+assert "RoyalSportsRankingRepository.loadFifaTop100" in rankings
+assert "RoyalSportsRankingRepository.loadStandings" in rankings
+assert "isRelegationZone" in rankings
+assert "val isArchived: Boolean = false" in rankings
+assert rankings.count("isArchived = true") == 5
+assert " • Archive" in rankings
 assert "RoyalSportsMatchBucket.LIVE" in screen
 assert "RoyalSportsMatchBucket.NOT_STARTED" in screen
 assert "RoyalSportsMatchBucket.PLAYED" in screen
@@ -54,6 +70,10 @@ assert "homeLogo = home.optString(\"logo\", \"\")" in screen
 assert "awayLogo = away.optString(\"logo\", \"\")" in screen
 assert "RoyalSportsProviderImage(" in screen
 assert "media.api-sports.io" in screen
+assert "api.fifa.com" in screen
+assert "connection.contentType" in screen
+assert '"image/svg+xml"' in screen
+assert "bounds.outWidth <= 0 || bounds.outHeight <= 0" in screen
 assert "SVG.getFromString" in screen
 assert "SportsPitchGlassBackground" in graphics
 assert "drawCircle(line" in graphics and "drawRect(line" in graphics
