@@ -104,7 +104,7 @@ internal class RoyalCastReceiverController(
 
     private fun openReceiver() {
         try {
-            val host = RoyalCastPairing.localIpv4Address()
+            val host = RoyalCastPairing.localIpv4Address(context)
                 ?: error("لم نعثر على عنوان Wi-Fi محلي. تأكد من اتصال التلفاز بالشبكة.")
             val token = RoyalCastPairing.newToken()
             val pin = RoyalCastPairing.newPin()
