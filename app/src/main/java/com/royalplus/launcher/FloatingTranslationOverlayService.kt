@@ -35,7 +35,6 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Explicitly started local-caption service. Android 10+ captures eligible app playback;
@@ -47,7 +46,6 @@ class FloatingTranslationOverlayService : Service() {
     private val running = AtomicBoolean(false)
     // VAD emits whole speech turns; this FIFO never discards recognized audio.
     private val audioSegments = ArrayBlockingQueue<FloatArray>(4)
-    private val queuedAudioSamples = AtomicLong(0L)
 
     @Volatile private var recognizer: OfflineRecognizer? = null
     @Volatile private var audioRecord: AudioRecord? = null
@@ -60,7 +58,7 @@ class FloatingTranslationOverlayService : Service() {
     private var lastRecognizedTail: List<String> = emptyList()
     private var lastRecognizedLanguage: String? = null
     private var consecutiveSlowRecognitionSegments = 0
-    private var lastBacklogNoticeElapsedRealtime = 0L
+    private var lastQueueOverflowNoticeElapsedRealtime = 0L
     private var modelThread: Thread? = null
     private var captureThread: Thread? = null
     private var decodeThread: Thread? = null
@@ -344,20 +342,15 @@ class FloatingTranslationOverlayService : Service() {
                             if (!accepted) {
                                 // Bound memory while keeping the newest audio when the
                                 // recognizer is slower than live playback.
-                                val oldest = audioSegments.poll()
-                                if (oldest != null) queuedAudioSamples.addAndGet(-oldest.size.toLong())
+                                audioSegments.poll()
                                 accepted = audioSegments.offer(completed)
-                            }
-                            if (accepted) {
-                                val queuedMillis = queuedAudioSamples
-                                    .addAndGet(completed.size.toLong()) * 1_000L / SAMPLE_RATE
                                 val now = SystemClock.elapsedRealtime()
                                 if (
-                                    queuedMillis >= SPEECH_BACKLOG_WARNING_MILLIS &&
-                                    now - lastBacklogNoticeElapsedRealtime >= BACKLOG_NOTICE_INTERVAL_MILLIS
+                                    accepted &&
+                                    now - lastQueueOverflowNoticeElapsedRealtime >= BACKLOG_NOTICE_INTERVAL_MILLIS
                                 ) {
-                                    lastBacklogNoticeElapsedRealtime = now
-                                    updateNotification("تأخرت معالجة المقاطع؛ تُحفظ أحدث نوافذ الصوت لتقليل استهلاك الذاكرة")
+                                    lastQueueOverflowNoticeElapsedRealtime = now
+                                    updateNotification("سرعة التعرّف أقل من سرعة الفيديو؛ تتم متابعة أحدث مقاطع الصوت.")
                                 }
                             }
 
@@ -437,7 +430,6 @@ class FloatingTranslationOverlayService : Service() {
         while (running.get() && !Thread.currentThread().isInterrupted) {
             try {
                 val samples = audioSegments.take()
-                queuedAudioSamples.addAndGet(-samples.size.toLong())
 
                 if (!hasMeaningfulAudio(samples)) {
                     if (consecutiveSilentSegments == 0) {
@@ -1134,7 +1126,6 @@ class FloatingTranslationOverlayService : Service() {
         decodeThread?.interrupt()
         modelThread?.interrupt()
         audioSegments.clear()
-        queuedAudioSamples.set(0L)
 
         try {
             audioRecord?.let { record ->
@@ -1268,7 +1259,6 @@ class FloatingTranslationOverlayService : Service() {
         private const val SEGMENT_OVERLAP_SAMPLES = SAMPLE_RATE * SEGMENT_OVERLAP_MILLIS / 1_000
         private const val SEGMENT_SAMPLES = SAMPLE_RATE * SEGMENT_SECONDS
         private const val MAX_OVERLAP_WORDS = 4
-        private const val SPEECH_BACKLOG_WARNING_MILLIS = 30_000L
         private const val BACKLOG_NOTICE_INTERVAL_MILLIS = 10_000L
         private const val TRANSLATION_RETRY_DELAY_MILLIS = 2_500L
     }
