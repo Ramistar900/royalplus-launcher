@@ -1,5 +1,8 @@
 package com.royalplus.launcher
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.URI
@@ -56,7 +59,20 @@ internal object RoyalCastPairing {
         RoyalCastEndpoint(host, port, token, pin)
     }.getOrNull()
 
-    fun localIpv4Address(): String? = runCatching {
+    fun localIpv4Address(context: Context): String? = runCatching {
+        val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val activeNetwork = connectivity?.activeNetwork
+        val capabilities = activeNetwork?.let(connectivity::getNetworkCapabilities)
+        val isLocalTransport = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true ||
+            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true
+        if (isLocalTransport && connectivity != null && activeNetwork != null) {
+            val activeAddress = connectivity.getLinkProperties(activeNetwork)?.linkAddresses
+                ?.asSequence()
+                ?.map { it.address }
+                ?.filterIsInstance<Inet4Address>()
+                ?.firstOrNull { it.isSiteLocalAddress && isIpv4(it.hostAddress.orEmpty()) }
+            activeAddress?.hostAddress?.let { return it }
+        }
         val interfaces = NetworkInterface.getNetworkInterfaces() ?: return null
         val addresses = mutableListOf<Pair<Int, String>>()
         while (interfaces.hasMoreElements()) {
@@ -67,9 +83,9 @@ internal object RoyalCastPairing {
             val values = network.inetAddresses
             while (values.hasMoreElements()) {
                 val address = values.nextElement()
-                if (address !is Inet4Address || address.isLoopbackAddress || address.isLinkLocalAddress) continue
-                val score = if (address.isSiteLocalAddress) 0 else 1
-                addresses += score to address.hostAddress.orEmpty()
+                if (address !is Inet4Address || address.isLoopbackAddress || address.isLinkLocalAddress || !address.isSiteLocalAddress) continue
+                val host = address.hostAddress.orEmpty()
+                if (isIpv4(host)) addresses += 0 to host
             }
         }
         addresses.sortedBy { it.first }.firstOrNull()?.second
