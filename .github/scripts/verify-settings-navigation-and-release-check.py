@@ -52,6 +52,8 @@ assert "launcher_theme_mode" in HOME and "RoyalColors.Surface" in HOME
 assert "versionCode = royalPlusVersionCode" in GRADLE
 assert 'minSdk = 24' in GRADLE
 assert 'minSdk = 23' not in GRADLE
+PROGUARD = (ROOT / "app/proguard-rules.pro").read_text(encoding="utf-8")
+assert "-keep class com.royalplus.launcher.RoyalHomeScreenKt$RoyalHomeScreen$17$1$3 { *; }" in PROGUARD, "Keep the Android 7 verifier-failing Compose lambda out of R8 optimization"
 assert WORKFLOW.count('-ProyalplusVersionCode="$ROYALPLUS_VERSION_CODE"') >= 2
 assert "ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'" in WORKFLOW
 assert 'gh release create "$TAG"' in WORKFLOW and '--latest' in WORKFLOW
