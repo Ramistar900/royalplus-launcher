@@ -52,6 +52,12 @@ internal fun weatherVideoAsset(weather: WeatherUiState, hour: Int?): String? {
     // Match those descriptions too, so a visible "غائم" state does not silently fall back to a still image.
     val description = weather.description.lowercase(Locale.ROOT)
     return when {
+        description.contains("hail") || description.contains("تساقط البرد") ||
+            description.contains("البَرَد") -> "weather_rain.mp4"
+        description.contains("freezing rain") || description.contains("مطر متجمد") ->
+            "weather_rain.mp4"
+        description.contains("freezing drizzle") || description.contains("رذاذ متجمد") ->
+            "weather_light_rain.mp4"
         description.contains("thunder") || description.contains("storm") ||
             description.contains("عاصفة") -> "weather_thunderstorm.mp4"
         description.contains("fog") || description.contains("mist") ||
