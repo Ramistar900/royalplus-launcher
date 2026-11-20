@@ -6,3 +6,7 @@
 # ONNX Runtime exposes native methods through JNI.
 -keep class ai.onnxruntime.** { *; }
 -keep interface ai.onnxruntime.** { *; }
+
+# Android 7 ART rejects an R8-optimized Compose lambda with a float/int register type merge.
+# Keep optimization disabled for this exact generated home-screen lambda only.
+-keep class com.royalplus.launcher.RoyalHomeScreenKt$RoyalHomeScreen$17$1$3 { *; }

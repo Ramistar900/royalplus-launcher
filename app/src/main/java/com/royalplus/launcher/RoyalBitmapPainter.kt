@@ -68,7 +68,7 @@ internal fun rememberRoyalBitmapPainter(
 ): Painter {
     val image = rememberRoyalBitmapImage(resourceId, maxEdgePx, maxPixels)
     return remember(image) {
-        image?.let { BitmapPainter(it) } ?: ColorPainter(Color(0xFF080A0F))
+        image?.let { BitmapPainter(it) } ?: ColorPainter(RoyalColors.Black)
     }
 }
 

@@ -33,7 +33,6 @@ import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -116,6 +115,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RoyalColors.applyLightTheme(
+            getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+                .getString("launcher_theme_mode", "dark") == "light"
+        )
         RoyalUiSounds.initialize(applicationContext, setOf(
             RoyalUiSound.NAV_BACK,
             RoyalUiSound.ACTION_DOWNLOAD,
@@ -160,7 +163,7 @@ class MainActivity : ComponentActivity() {
         RoyalPlusApplication.markStage(this, "MainActivity.onCreate: attaching Compose home screen")
         setContent {
             RoyalAdaptiveHost {
-                MaterialTheme {
+                RoyalAppTheme {
                     RoyalHomeScreen(
                     apps = installedApps,
                     weather = weatherState,

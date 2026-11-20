@@ -112,7 +112,7 @@ internal fun RoyalShareUpdatesSection(
     Column(
         modifier = modifier.fillMaxWidth()
             .clip(cardShape)
-            .background(Color(0xFF0B1119))
+            .background(RoyalColors.Panel)
             .border(1.dp, Color(0x99D9B65B), cardShape)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -123,7 +123,7 @@ internal fun RoyalShareUpdatesSection(
                 isTurkish -> "ROYAL+ paylaşımı ve resmî güncellemeler"
                 else -> "مشاركة ROYAL+ والتحديثات الرسمية"
             },
-            color = Color(0xFFE5C36A),
+            color = RoyalColors.Gold,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -133,7 +133,7 @@ internal fun RoyalShareUpdatesSection(
                 isTurkish -> "En son yayımlanan resmî sürüm sayfasını açmak için kodu tarayın. Bağlantı her zaman en yeni resmî sürüme yönelir."
                 else -> "امسح الرمز لفتح صفحة أحدث إصدار منشور. الرابط ثابت ويقود دائماً إلى أحدث إصدار رسمي."
             },
-            color = Color(0xFFCFD5DE),
+            color = RoyalColors.Pearl,
             fontSize = 12.sp
         )
         Row(
@@ -155,11 +155,11 @@ internal fun RoyalShareUpdatesSection(
                             .padding(7.dp)
                     )
                 } else {
-                    Text("QR", color = Color(0xFF0B1119), modifier = Modifier.background(Color.White).padding(34.dp))
+                    Text("QR", color = RoyalColors.Panel, modifier = Modifier.background(Color.White).padding(34.dp))
                 }
                 Text(
                     statusText,
-                    color = if (updateAvailable) Color(0xFFFFD166) else Color(0xFFB9DCD8),
+                    color = if (updateAvailable) RoyalColors.Gold else RoyalColors.Turquoise,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center
@@ -234,7 +234,7 @@ internal fun RoyalShareUpdatesSection(
                 isTurkish -> "QR kodu resmî Releases sayfasını açar; test taslakları güncelleme kontrolüne dâhil edilmez."
                 else -> "رمز QR يفتح صفحة الإصدارات الرسمية؛ ولا تُحتسب النسخ التجريبية المسودة كتحديث."
             },
-            color = Color(0xFF8F9BAA),
+            color = RoyalColors.Muted,
             fontSize = 10.sp
         )
     }
@@ -245,13 +245,13 @@ private fun RoyalShareUpdateAction(title: String, onClick: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     Row(
         modifier = Modifier.clip(shape)
-            .background(Color(0xFF15232B))
+            .background(RoyalColors.Surface)
             .border(1.dp, Color(0x77D9B65B), shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, color = Color(0xFFE5C36A), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(title, color = RoyalColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
