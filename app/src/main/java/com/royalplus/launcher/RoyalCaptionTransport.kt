@@ -195,6 +195,9 @@ internal class RoyalCaptionSender(
                 onConnectionChanged(true, "اتصل الهاتف بالتلفاز؛ يتم إرسال الترجمة محلياً")
                 while (!closed.get() && !socket.isClosed) {
                     val next = queue.pollFirst(1, TimeUnit.SECONDS) ?: continue
+                    // Do not flood the TV with stale captions after a long Wi-Fi outage.
+                    val age = System.currentTimeMillis() - next.optLong("sent_at_utc_ms", 0L)
+                    if (age > 12_000L) continue
                     RoyalCaptionTransport.writeFrame(
                         writer,
                         RoyalCaptionTransport.encryptPayload(key, next)
