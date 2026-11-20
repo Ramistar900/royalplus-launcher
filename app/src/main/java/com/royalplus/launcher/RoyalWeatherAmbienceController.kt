@@ -95,7 +95,6 @@ internal object RoyalWeatherAmbienceController {
     const val VOLUME_KEY = "royal_weather_audio_volume"
 
     private const val MAX_WEATHER_AGE_MS = 90L * 60L * 1000L
-    private const val WIND_THRESHOLD_KMH = 25
     private const val MORNING_START_HOUR = 6
     private const val MORNING_END_HOUR = 10
     private const val MIN_THUNDER_INTERVAL_MS = 7L * 60L * 1000L
@@ -114,7 +113,7 @@ internal object RoyalWeatherAmbienceController {
     )
 
     // CC0 recording by Tvabutzku1234 on Wikimedia Commons.
-    // Used only for heavy snowfall, where the existing gentle breeze is insufficient.
+    // Used when measurable wind accompanies snowfall; falls back to the bundled nature wind loop.
     private const val HEAVY_SNOW_WIND_URL =
         "https://upload.wikimedia.org/wikipedia/commons/2/2d/Howling_wind.ogg"
 
@@ -363,11 +362,6 @@ internal object RoyalWeatherAmbienceController {
         }
     }
 
-    private fun isRainCode(code: Int): Boolean =
-        code in 51..67 || code in 80..82
-
-    private fun isThunderCode(code: Int): Boolean = code in 95..99
-
     private fun isMorning(weather: WeatherUiState): Boolean {
         val zone = weather.timeZoneId?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()
         val hour = Calendar.getInstance(zone).get(Calendar.HOUR_OF_DAY)
@@ -396,6 +390,7 @@ internal object RoyalWeatherAmbienceController {
             releasePlayer(failed)
             maybeAbandonAudioFocus()
             if (scene.streamUrl != null && foreground) {
+                activeSceneVolumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER
                 startLoopPlayer(
                     context,
                     scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER)
@@ -428,6 +423,7 @@ internal object RoyalWeatherAmbienceController {
                 if (loopPlayer === player) loopPlayer = null
                 releasePlayer(player)
                 if (foreground) {
+                    activeSceneVolumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER
                     startLoopPlayer(
                         context,
                         scene.copy(resourceId = R.raw.nature_wind_gentle, streamUrl = null, volumeMultiplier = WIND_AUDIO_VOLUME_MULTIPLIER)
