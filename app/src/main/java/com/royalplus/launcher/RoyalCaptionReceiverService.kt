@@ -183,11 +183,11 @@ class RoyalCaptionReceiverService : Service() {
             windowManager = manager
             val delay = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
                 .getInt(KEY_DISPLAY_DELAY_MS, 0).coerceIn(0, 5_000)
-            lateinit var display: Runnable
-            display = Runnable {
-                pendingDisplayRunnables.remove(display)
-                if (!running.get()) return@Runnable
-                val caption = captionView ?: createCaptionView().also { view ->
+            val display = object : Runnable {
+                override fun run() {
+                    pendingDisplayRunnables.remove(this)
+                    if (!running.get()) return
+                    val caption = captionView ?: createCaptionView().also { view ->
                     val params = WindowManager.LayoutParams(
                     (resources.displayMetrics.widthPixels * 0.90f).toInt().coerceAtLeast(dp(240)),
                     WindowManager.LayoutParams.WRAP_CONTENT,
@@ -211,8 +211,9 @@ class RoyalCaptionReceiverService : Service() {
                 caption.text = ArabicCaptionFormatter.format(text)
                 caption.visibility = View.VISIBLE
                 caption.bringToFront()
-                mainHandler.removeCallbacks(hideCaption)
-                mainHandler.postDelayed(hideCaption, 4_500L)
+                    mainHandler.removeCallbacks(hideCaption)
+                    mainHandler.postDelayed(hideCaption, 4_500L)
+                }
             }
             pendingDisplayRunnables.add(display)
             mainHandler.postDelayed(display, delay.toLong())
