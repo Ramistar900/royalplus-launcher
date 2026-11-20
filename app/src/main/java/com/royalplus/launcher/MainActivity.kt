@@ -15,9 +15,9 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
-import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -27,6 +27,7 @@ import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.View
+import android.text.InputType
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import androidx.core.content.ContextCompat
@@ -38,9 +39,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
-    private companion object { const val KEY_TRANSLATION_CONSENT = "floating_translation_consent" }
     private var translationOverlayEnabled by mutableStateOf(false)
-    private var pendingTranslationOverlayStart = false
+    private var isTelevisionDevice = false
+    private var pendingPhoneTvHost: String? = null
+    private var pendingPhoneTvPin: String? = null
     private var weatherState by mutableStateOf(WeatherUiState())
     private var lastWeatherRefreshAt = 0L
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
@@ -96,25 +98,18 @@ class MainActivity : ComponentActivity() {
 
     private val translationMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) continueTranslationPermissionFlow()
-            else Toast.makeText(this, "يلزم إذن الميكروفون لتشغيل الترجمة", Toast.LENGTH_LONG).show()
-        }
-
-    private val translationProjectionPermission =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val projectionData = result.data
-            if (result.resultCode == RESULT_OK && projectionData != null) {
-                startTranslationOverlayService(result.resultCode, projectionData)
-            } else {
-                translationOverlayEnabled = false
-                getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-                    .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
-                Toast.makeText(this, "لم تمنح إذن التقاط صوت التطبيقات؛ لم يتم تشغيل الترجمة.", Toast.LENGTH_LONG).show()
+            if (granted) startPhoneCaptionCapture()
+            else {
+                pendingPhoneTvHost = null
+                pendingPhoneTvPin = null
+                Toast.makeText(this, "يلزم إذن الميكروفون على الهاتف لالتقاط صوت التلفاز.", Toast.LENGTH_LONG).show()
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        isTelevisionDevice = TranslationDeviceRoleDetector.detect(this) ==
+            TranslationDeviceRole.TELEVISION_RECEIVER
         RoyalColors.applyLightTheme(
             getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
                 .getString("launcher_theme_mode", "dark") == "light"
@@ -203,6 +198,7 @@ class MainActivity : ComponentActivity() {
                     voiceSearchAvailable = voiceSearchAvailable,
                     voiceSearchResult = voiceSearchResult,
                     translationOverlayEnabled = translationOverlayEnabled,
+                    translationIsTelevision = isTelevisionDevice,
                     onToggleTranslationOverlay = { toggleTranslationOverlay() }
                     )
                 }
@@ -299,35 +295,53 @@ class MainActivity : ComponentActivity() {
         if (System.currentTimeMillis() - lastWeatherRefreshAt >= 24 * 60 * 60 * 1000L) {
             refreshWeather()
         }
-        RoyalPlusApplication.markStage(this, "MainActivity.onResume: restoring translation overlay state")
-        if (pendingTranslationOverlayStart) {
-            pendingTranslationOverlayStart = false
-            if (Settings.canDrawOverlays(this) &&
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-            ) continueTranslationPermissionFlow()
-            else Toast.makeText(this, "لم تكتمل أذونات الترجمة العائمة", Toast.LENGTH_LONG).show()
-        } else {
-            val translationPreferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-            val savedOverlayEnabled = translationPreferences.getBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false)
-            translationOverlayEnabled = savedOverlayEnabled
-            if (savedOverlayEnabled &&
-                Settings.canDrawOverlays(this) &&
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        RoyalPlusApplication.markStage(this, "MainActivity.onResume: restoring phone/TV caption role")
+        val translationPreferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+        if (isTelevisionDevice) {
+            val receiverEnabled = translationPreferences.getBoolean(
+                RoyalCaptionReceiverService.KEY_RECEIVER_ENABLED, false
+            )
+            translationOverlayEnabled = receiverEnabled && Settings.canDrawOverlays(this)
+            if (receiverEnabled && Settings.canDrawOverlays(this) &&
+                !isServiceRunning(RoyalCaptionReceiverService::class.java)
             ) {
-                val serviceIsRunning = (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
-                    .getRunningServices(Int.MAX_VALUE)
-                    .any { it.service.className == FloatingTranslationOverlayService::class.java.name }
-                if (serviceIsRunning || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                    // Android 8/9 can restart its microphone session; API 29+ requires a fresh system grant.
-                    val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
-                        action = FloatingTranslationOverlayService.ACTION_SHOW
+                val pin = translationPreferences.getString(RoyalCaptionReceiverService.KEY_RECEIVER_PIN, null)
+                if (!pin.isNullOrBlank()) {
+                    val serviceIntent = Intent(this, RoyalCaptionReceiverService::class.java).apply {
+                        action = RoyalCaptionReceiverService.ACTION_START
+                        putExtra(RoyalCaptionReceiverService.EXTRA_PIN, pin)
                     }
                     runCatching {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
                         else startService(serviceIntent)
                     }
+                }
+            }
+        } else {
+            val captureEnabled = translationPreferences.getBoolean(
+                FloatingTranslationOverlayService.KEY_PHONE_CAPTURE_ENABLED, false
+            )
+            translationOverlayEnabled = captureEnabled
+            if (captureEnabled &&
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                !isServiceRunning(FloatingTranslationOverlayService::class.java)
+            ) {
+                val host = translationPreferences.getString(FloatingTranslationOverlayService.KEY_PHONE_TV_HOST, null)
+                val pin = translationPreferences.getString(FloatingTranslationOverlayService.KEY_PHONE_TV_PIN, null)
+                if (!host.isNullOrBlank() && !pin.isNullOrBlank()) {
+                    val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+                        action = FloatingTranslationOverlayService.ACTION_START_PHONE_CAPTURE
+                        putExtra(FloatingTranslationOverlayService.EXTRA_TV_HOST, host)
+                        putExtra(FloatingTranslationOverlayService.EXTRA_TV_PIN, pin)
+                    }
+                    runCatching {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
+                        else startService(serviceIntent)
+                    }.onFailure { translationOverlayEnabled = false }
                 } else {
-                    translationPreferences.edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
+                    translationPreferences.edit().putBoolean(
+                        FloatingTranslationOverlayService.KEY_PHONE_CAPTURE_ENABLED, false
+                    ).apply()
                     translationOverlayEnabled = false
                 }
             }
@@ -375,87 +389,193 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun toggleTranslationOverlay() {
-        if (translationOverlayEnabled) {
-            stopService(Intent(this, FloatingTranslationOverlayService::class.java))
-            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-                .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, false).apply()
-            translationOverlayEnabled = false
-            Toast.makeText(this, "تم إيقاف الترجمة وإيقاف التقاط الميكروفون", Toast.LENGTH_SHORT).show()
-            return
+        if (isTelevisionDevice) {
+            toggleTvCaptionReceiver()
+        } else {
+            togglePhoneCaptionCapture()
         }
-
-        val hardwareAssessment = TranslationDeviceCapability.checkHardware(this)
-        if (!hardwareAssessment.supported) {
-            showTranslationCapabilityDialog(hardwareAssessment.title, hardwareAssessment.message)
-            return
-        }
-
-        val preferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-        if (!preferences.getBoolean(KEY_TRANSLATION_CONSENT, false)) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("تشغيل الترجمة العربية العائمة")
-                .setMessage(
-                    "على Android 10 فأحدث تطلب الميزة إذن النظام لالتقاط صوت التطبيقات مباشرةً. " +
-                        "على Android 8/9 تستخدم ميكروفون التلفاز؛ لا يتيح هذان الإصداران التقاط الصوت الداخلي للتطبيقات. " +
-                        "يُعالج الصوت محلياً دون رفعه. يلزم تنزيل نموذج التعرّف الصوتي (~104 ميغابايت)، ثم نموذج الترجمة العربية المحلي (~621 ميغابايت) كتنزيل منفصل عبر Wi-Fi من إشعار ROYAL+."
-                )
-                .setPositiveButton("متابعة") { _, _ ->
-                    preferences.edit().putBoolean(KEY_TRANSLATION_CONSENT, true).apply()
-                    continueTranslationPermissionFlow()
-                }
-                .setNegativeButton("إلغاء", null)
-                .show()
-            return
-        }
-        continueTranslationPermissionFlow()
     }
 
-    private fun showTranslationCapabilityDialog(title: String, message: String) {
-        if (isFinishing || isDestroyed) return
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean =
+        (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
+            .getRunningServices(Int.MAX_VALUE)
+            .any { it.service.className == serviceClass.name }
+
+    private fun toggleTvCaptionReceiver() {
+        val preferences = getSharedPreferences(RoyalCaptionReceiverService.PREFERENCES, MODE_PRIVATE)
+        if (translationOverlayEnabled) {
+            stopService(Intent(this, RoyalCaptionReceiverService::class.java))
+            preferences.edit().putBoolean(RoyalCaptionReceiverService.KEY_RECEIVER_ENABLED, false)
+                .remove(RoyalCaptionReceiverService.KEY_RECEIVER_PIN).apply()
+            translationOverlayEnabled = false
+            Toast.makeText(this, "تم إيقاف استقبال الترجمة على التلفاز", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            if (!openOverlayPermissionSettings()) {
+                Toast.makeText(this, "اسمح لـ ROYAL+ بالظهور فوق التطبيقات لعرض الترجمة العائمة.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        val localAddress = RoyalCaptionTransport.localIpv4Address()
+        if (localAddress.isNullOrBlank()) {
+            Toast.makeText(this, "اتصل التلفاز بشبكة Wi-Fi نفسها التي سيتصل بها الهاتف، ثم أعد المحاولة.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val pin = RoyalCaptionTransport.createPairingCode()
+        val serviceIntent = Intent(this, RoyalCaptionReceiverService::class.java).apply {
+            action = RoyalCaptionReceiverService.ACTION_START
+            putExtra(RoyalCaptionReceiverService.EXTRA_PIN, pin)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
+            else startService(serviceIntent)
+            preferences.edit()
+                .putBoolean(RoyalCaptionReceiverService.KEY_RECEIVER_ENABLED, true)
+                .putString(RoyalCaptionReceiverService.KEY_RECEIVER_PIN, pin)
+                .apply()
+            translationOverlayEnabled = true
+            showTvPairingDetails(localAddress, pin)
+        } catch (error: Exception) {
+            translationOverlayEnabled = false
+            Toast.makeText(this, error.localizedMessage ?: "تعذر تشغيل مستقبل الترجمة على التلفاز.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showTvPairingDetails(address: String, pin: String) {
         android.app.AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton("حسناً", null)
+            .setTitle("ROYAL+ — استقبال الترجمة من الهاتف")
+            .setMessage(
+                "اتصل الهاتف والتلفاز بشبكة Wi-Fi نفسها. أدخل هذه البيانات في الهاتف:\n\n" +
+                    "عنوان التلفاز: $address\nالمنفذ: ${RoyalCaptionTransport.PORT}\nرمز الاقتران: $pin\n\n" +
+                    "التلفاز يستقبل النص ويعرضه فقط؛ لا يستخدم الميكروفون."
+            )
+            .setPositiveButton("تم", null)
+            .setNegativeButton("إيقاف الاستقبال") { _, _ ->
+                stopService(Intent(this, RoyalCaptionReceiverService::class.java))
+                getSharedPreferences(RoyalCaptionReceiverService.PREFERENCES, MODE_PRIVATE).edit()
+                    .putBoolean(RoyalCaptionReceiverService.KEY_RECEIVER_ENABLED, false)
+                    .remove(RoyalCaptionReceiverService.KEY_RECEIVER_PIN).apply()
+                translationOverlayEnabled = false
+            }
             .show()
     }
 
-    private fun continueTranslationPermissionFlow() {
+    private fun togglePhoneCaptionCapture() {
+        if (translationOverlayEnabled) {
+            stopService(Intent(this, FloatingTranslationOverlayService::class.java))
+            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE).edit()
+                .putBoolean(FloatingTranslationOverlayService.KEY_PHONE_CAPTURE_ENABLED, false).apply()
+            translationOverlayEnabled = false
+            pendingPhoneTvHost = null
+            pendingPhoneTvPin = null
+            Toast.makeText(this, "توقف الهاتف عن التقاط صوت التلفاز وإرسال الترجمة", Toast.LENGTH_SHORT).show()
+            return
+        }
+        showPhonePairingDialog()
+    }
+
+    private fun showPhonePairingDialog() {
+        val preferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
+        val addressInput = EditText(this).apply {
+            hint = "مثال: 192.168.1.20"
+            inputType = InputType.TYPE_CLASS_TEXT
+            singleLine = true
+            setText(preferences.getString(FloatingTranslationOverlayService.KEY_PHONE_TV_HOST, ""))
+        }
+        val pinInput = EditText(this).apply {
+            hint = "رمز الاقتران المكون من 8 أرقام"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            singleLine = true
+        }
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 8, 24, 4)
+            addView(addressInput, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+            addView(pinInput, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("ربط الهاتف بالتلفاز")
+            .setMessage("اكتب عنوان IP ورمز الاقتران الظاهرين على شاشة التلفاز. يجب أن يكون الجهازان على شبكة Wi-Fi نفسها.")
+            .setView(form)
+            .setPositiveButton("بدء الالتقاط", null)
+            .setNegativeButton("إلغاء", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val host = addressInput.text.toString().trim()
+                val pin = pinInput.text.toString().trim()
+                if (!RoyalCaptionTransport.isPrivateIpv4Address(host)) {
+                    addressInput.error = "أدخل عنوان IP محلياً صحيحاً للتلفاز"
+                    return@setOnClickListener
+                }
+                if (!pin.matches(Regex("\\d{8}"))) {
+                    pinInput.error = "أدخل رمز الاقتران المؤلف من 8 أرقام"
+                    return@setOnClickListener
+                }
+                pendingPhoneTvHost = host
+                pendingPhoneTvPin = pin
+                dialog.dismiss()
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    translationMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                } else {
+                    startPhoneCaptionCapture()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun startPhoneCaptionCapture() {
+        val host = pendingPhoneTvHost
+        val pin = pendingPhoneTvPin
+        if (host.isNullOrBlank() || pin.isNullOrBlank()) {
+            Toast.makeText(this, "أدخل عنوان التلفاز ورمز الاقتران أولاً.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (TranslationDeviceRoleDetector.detect(this) != TranslationDeviceRole.PHONE_CAPTURE) {
+            Toast.makeText(this, "التقاط الصوت مخصص للهاتف؛ التلفاز يعمل كمستقبل فقط.", Toast.LENGTH_LONG).show()
+            return
+        }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             translationMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-        if (!Settings.canDrawOverlays(this)) {
-            pendingTranslationOverlayStart = true
-            if (!openOverlayPermissionSettings()) {
-                pendingTranslationOverlayStart = false
-                Toast.makeText(
-                    this,
-                    "تعذر فتح إعداد الإذن تلقائياً. افتح إعدادات التلفاز ثم التطبيقات > وصول خاص للتطبيقات > الظهور فوق التطبيقات، واسمح لـ ROYAL+ Launcher.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-            return
+        val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
+            action = FloatingTranslationOverlayService.ACTION_START_PHONE_CAPTURE
+            putExtra(FloatingTranslationOverlayService.EXTRA_TV_HOST, host)
+            putExtra(FloatingTranslationOverlayService.EXTRA_TV_PIN, pin)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val projectionManager = getSystemService(MediaProjectionManager::class.java)
-            if (projectionManager == null) {
-                Toast.makeText(this, "التقاط صوت التطبيقات غير مدعوم من نظام هذا الجهاز", Toast.LENGTH_LONG).show()
-                return
-            }
-            translationProjectionPermission.launch(projectionManager.createScreenCaptureIntent())
-        } else startTranslationOverlayService()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
+            else startService(serviceIntent)
+            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE).edit()
+                .putBoolean(FloatingTranslationOverlayService.KEY_PHONE_CAPTURE_ENABLED, true)
+                .putString(FloatingTranslationOverlayService.KEY_PHONE_TV_HOST, host)
+                .putString(FloatingTranslationOverlayService.KEY_PHONE_TV_PIN, pin)
+                .apply()
+            translationOverlayEnabled = true
+            pendingPhoneTvHost = null
+            pendingPhoneTvPin = null
+            Toast.makeText(
+                this,
+                "بدأ الهاتف الالتقاط. يمكنك إطفاء الشاشة؛ سيواصل الإرسال ما دامت الخدمة والشبكة تعملان.",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (error: Exception) {
+            translationOverlayEnabled = false
+            Toast.makeText(this, error.localizedMessage ?: "تعذر تشغيل خدمة التقاط الهاتف.", Toast.LENGTH_LONG).show()
+        }
     }
 
-    /**
-     * Some Android TV firmware does not expose the package-scoped overlay settings page.
-     * Try the app-specific page, the generic special-access page, and finally Settings.
-     */
+    /** Opens the special-access page on TV firmware that exposes a package-scoped overlay setting. */
     private fun openOverlayPermissionSettings(): Boolean {
         val settingsIntents = listOf(
-            Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            ),
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
             Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION),
             Intent(Settings.ACTION_SETTINGS)
         )
@@ -470,42 +590,11 @@ class MainActivity : ComponentActivity() {
                     ).show()
                 }
                 return true
-            } catch (_: android.content.ActivityNotFoundException) {
-                // Try the next settings entry point supported by this TV.
-            } catch (_: SecurityException) {
-                // Some TV firmware blocks the scoped settings activity.
             } catch (_: Exception) {
-                // Continue with the generic settings fallback.
+                // Try the next settings entry point exposed by this TV firmware.
             }
         }
         return false
-    }
-
-    private fun startTranslationOverlayService(projectionResultCode: Int? = null, projectionData: Intent? = null) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            (projectionResultCode != RESULT_OK || projectionData == null)
-        ) {
-            translationOverlayEnabled = false
-            Toast.makeText(this, "يلزم إذن النظام لالتقاط صوت التطبيقات.", Toast.LENGTH_LONG).show()
-            return
-        }
-        try {
-            val serviceIntent = Intent(this, FloatingTranslationOverlayService::class.java).apply {
-                action = FloatingTranslationOverlayService.ACTION_SHOW
-                if (projectionResultCode != null && projectionData != null) {
-                    putExtra(FloatingTranslationOverlayService.EXTRA_PROJECTION_RESULT_CODE, projectionResultCode)
-                    putExtra(FloatingTranslationOverlayService.EXTRA_PROJECTION_DATA, projectionData)
-                }
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent)
-            else startService(serviceIntent)
-            getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-                .edit().putBoolean(FloatingTranslationOverlayService.KEY_ENABLED, true).apply()
-            translationOverlayEnabled = true
-        } catch (_: Exception) {
-            translationOverlayEnabled = false
-            Toast.makeText(this, "تعذر تشغيل الترجمة العائمة على هذا الجهاز", Toast.LENGTH_LONG).show()
-        }
     }
 
     private fun startVoiceSearch() {
