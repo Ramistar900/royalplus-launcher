@@ -270,7 +270,7 @@ Deno.serve(async (req: Request) => {
     return json({
       data: cached.payload,
       cache: { hit: true, stale: false, cached_at: cached.cached_at },
-      quota: { limit: 90, cache_hit: true },
+      quota: { limit: 100, cache_hit: true },
     });
   }
 
@@ -290,7 +290,7 @@ Deno.serve(async (req: Request) => {
           data: cached.payload,
           cache: { hit: true, stale: true, cached_at: cached.cached_at },
           quota: {
-            limit: 90,
+            limit: 100,
             rolling_24h_remaining: budget.rolling_24h_remaining,
             utc_day_remaining: budget.utc_day_remaining,
             minute_remaining: budget.minute_remaining,
@@ -355,7 +355,7 @@ Deno.serve(async (req: Request) => {
       quota: resource === "fifa_rankings"
         ? { source: "FIFA", cache_ttl_seconds: ttlSeconds }
         : {
-          limit: 90,
+          limit: 100,
           rolling_24h_remaining: budget?.rolling_24h_remaining,
           utc_day_remaining: budget?.utc_day_remaining,
           minute_remaining: budget?.minute_remaining,
