@@ -99,7 +99,7 @@ internal fun RoyalRelaxScreen(language: String) {
     }
     var selectedScene by remember { mutableStateOf(royalRelaxScenes.first()) }
     var selectedSound by remember { mutableStateOf<RoyalRelaxSound?>(sounds.first()) }
-    var soundEnabled by remember { mutableStateOf(true) }
+    var soundEnabled by remember { mutableStateOf(false) }
     var soundVolume by remember { mutableFloatStateOf(0.65f) }
     var videoPlaying by remember { mutableStateOf(true) }
     var activeAudioPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
