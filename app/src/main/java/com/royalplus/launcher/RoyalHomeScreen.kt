@@ -2774,7 +2774,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(if (compactPhone) 8.dp else 14.dp))
         SidebarNavItem(
             labels[9], Icons.Rounded.Settings, selectedDestination == LauncherDestination.MANAGE_APPS,
-            manageAppsGear = true, modifier = navigationFocusModifiers[9]
+            manageAppsGear = true, language = language, modifier = navigationFocusModifiers[9]
         ) { onNavigate(LauncherDestination.MANAGE_APPS) }
         Spacer(Modifier.height(12.dp))
         GoldDivider(Modifier.fillMaxWidth())
@@ -2836,6 +2836,7 @@ private fun SidebarNavItem(
     sportsBall: Boolean = false,
     sportsTv: Boolean = false,
     manageAppsGear: Boolean = false,
+    language: String = "ar",
     sinjarLogo: Boolean = false,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     modifier: Modifier = Modifier,
