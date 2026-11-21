@@ -23,7 +23,7 @@ assert "Icons.Rounded.Tv" in HOME
 assert "mutableStateOf(RoyalSportsTab.UPCOMING)" in SPORTS
 
 # Sinjar TV supports touch swipes between channels and keeps the remote key path.
-assert "detectDragGestures" in SINJAR
+assert "awaitEachGesture" in SINJAR
 assert "pointerInput(selectedChannel?.streamUrl, visibleChannels, channelMenuVisible)" in SINJAR
 assert "horizontalSwipe" in SINJAR and "verticalSwipe" in SINJAR
 assert "onPreviewKeyEvent" in SINJAR
