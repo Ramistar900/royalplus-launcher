@@ -8,6 +8,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +56,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -91,6 +94,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
 
@@ -509,6 +513,48 @@ private fun SinjarPlayerPane(
         modifier = modifier
             .clip(RoundedCornerShape(if (isFullscreen) 0.dp else 12.dp))
             .background(Color.Black)
+            .pointerInput(selectedChannel?.streamUrl, visibleChannels, channelMenuVisible) {
+                if (!channelMenuVisible && selectedChannel != null && visibleChannels.size > 1) {
+                    val swipeThreshold = 64.dp.toPx()
+                    var dragX = 0f
+                    var dragY = 0f
+                    detectDragGestures(
+                        onDragEnd = {
+                            val horizontalSwipe = abs(dragX) >= swipeThreshold && abs(dragX) >= abs(dragY)
+                            val verticalSwipe = abs(dragY) >= swipeThreshold && abs(dragY) > abs(dragX)
+                            if (horizontalSwipe || verticalSwipe) {
+                                val currentIndex = visibleChannels.indexOfFirst {
+                                    it.streamUrl == selectedChannel.streamUrl
+                                }
+                                if (currentIndex >= 0) {
+                                    // Swipe left/up advances to the next channel; right/down goes back.
+                                    val nextIndex = if (dragX < 0f || dragY < 0f) {
+                                        currentIndex + 1
+                                    } else {
+                                        currentIndex - 1
+                                    }
+                                    visibleChannels.getOrNull(nextIndex)?.let { channel ->
+                                        onPlayChannel(channel)
+                                        infoChannel = channel
+                                        controlsTimerKey++
+                                    }
+                                }
+                            }
+                            dragX = 0f
+                            dragY = 0f
+                        },
+                        onDragCancel = {
+                            dragX = 0f
+                            dragY = 0f
+                        },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            dragX += amount.x
+                            dragY += amount.y
+                        }
+                    )
+                }
+            }
             .focusRequester(focusRequester)
             .onPreviewKeyEvent { event ->
                 val key = event.key
