@@ -26,6 +26,36 @@ class RoyalCastPairingTest {
     }
 
     @Test
+    fun wifiDirectQrPreservesPeerAddressAndTransport() {
+        val endpoint = RoyalCastEndpoint(
+            host = "192.168.49.1",
+            port = 38471,
+            token = "0123456789abcdef0123456789abcdef",
+            pin = "042681",
+            transport = RoyalCastTransport.WIFI_DIRECT,
+            deviceAddress = "02:11:22:33:44:55"
+        )
+        val payload = RoyalCastPairing.createPayload(
+            host = endpoint.host,
+            port = endpoint.port,
+            token = endpoint.token,
+            pin = endpoint.pin,
+            transport = endpoint.transport,
+            deviceAddress = endpoint.deviceAddress
+        )
+        assertEquals(endpoint, RoyalCastPairing.parsePayload(payload))
+    }
+
+    @Test
+    fun wifiDirectPayloadWithoutPeerAddressIsRejected() {
+        assertNull(
+            RoyalCastPairing.parsePayload(
+                "royalcast://connect?host=192.168.49.1&port=38471&token=0123456789abcdef0123456789abcdef&pin=042681&transport=wifi_direct"
+            )
+        )
+    }
+
+    @Test
     fun malformedOrPublicPayloadIsRejected() {
         assertNull(RoyalCastPairing.parsePayload("https://example.com"))
         assertNull(
