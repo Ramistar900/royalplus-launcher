@@ -11,11 +11,15 @@ import java.net.URLDecoder
 import java.security.SecureRandom
 import java.util.UUID
 
+internal enum class RoyalCastTransport { WIFI, WIFI_DIRECT }
+
 internal data class RoyalCastEndpoint(
     val host: String,
     val port: Int,
     val token: String,
-    val pin: String
+    val pin: String,
+    val transport: RoyalCastTransport = RoyalCastTransport.WIFI,
+    val deviceAddress: String? = null
 )
 
 /**
@@ -29,12 +33,27 @@ internal object RoyalCastPairing {
 
     fun newPin(): String = secureRandom.nextInt(1_000_000).toString().padStart(6, '0')
 
-    fun createPayload(host: String, port: Int, token: String, pin: String): String {
+    fun createPayload(
+        host: String,
+        port: Int,
+        token: String,
+        pin: String,
+        transport: RoyalCastTransport = RoyalCastTransport.WIFI,
+        deviceAddress: String? = null
+    ): String {
         require(isIpv4(host)) { "A local IPv4 address is required." }
         require(port in 1..65535) { "Invalid receiver port." }
         require(token.matches(Regex("[a-fA-F0-9]{32}"))) { "Invalid pairing token." }
         require(pin.matches(Regex("[0-9]{6}"))) { "Invalid pairing PIN." }
-        return "royalcast://connect?host=${encode(host)}&port=$port&token=$token&pin=$pin"
+        if (transport == RoyalCastTransport.WIFI_DIRECT) {
+            require(isValidDeviceAddress(deviceAddress)) { "A Wi-Fi Direct device address is required." }
+        }
+        val mode = if (transport == RoyalCastTransport.WIFI_DIRECT) "wifi_direct" else "wifi"
+        val directAddress = deviceAddress?.takeIf { transport == RoyalCastTransport.WIFI_DIRECT }
+        return buildString {
+            append("royalcast://connect?host=${encode(host)}&port=$port&token=$token&pin=$pin&transport=$mode")
+            if (directAddress != null) append("&deviceAddress=${encode(directAddress)}")
+        }
     }
 
     fun parsePayload(raw: String): RoyalCastEndpoint? = runCatching {
@@ -52,11 +71,20 @@ internal object RoyalCastPairing {
         val port = values["port"]?.toIntOrNull() ?: error("Missing port.")
         val token = values["token"].orEmpty()
         val pin = values["pin"].orEmpty()
+        val transport = when (values["transport"]?.lowercase()) {
+            null, "", "wifi", "lan" -> RoyalCastTransport.WIFI
+            "wifi_direct", "direct" -> RoyalCastTransport.WIFI_DIRECT
+            else -> error("Unsupported ROYAL CAST transport.")
+        }
+        val deviceAddress = values["deviceAddress"]
         require(isIpv4(host))
         require(port in 1..65535)
         require(token.matches(Regex("[a-fA-F0-9]{32}")))
         require(pin.matches(Regex("[0-9]{6}")))
-        RoyalCastEndpoint(host, port, token, pin)
+        if (transport == RoyalCastTransport.WIFI_DIRECT) {
+            require(isValidDeviceAddress(deviceAddress))
+        }
+        RoyalCastEndpoint(host, port, token, pin, transport, deviceAddress)
     }.getOrNull()
 
     fun localIpv4Address(context: Context): String? {
@@ -102,6 +130,9 @@ internal object RoyalCastPairing {
             addresses.firstOrNull()
         }.getOrNull()
     }
+    private fun isValidDeviceAddress(value: String?): Boolean =
+        !value.isNullOrBlank() && value.matches(Regex("(?i)([0-9a-f]{2}:){5}[0-9a-f]{2}"))
+
     private fun isIpv4(value: String): Boolean {
         val parts = value.split('.')
         if (parts.size != 4 || !parts.all { part ->
