@@ -26,8 +26,9 @@ function normalizeCoordinate(value, min, max) {
   return Number(number.toFixed(4));
 }
 
-function cacheKeyFor(latitude, longitude) {
-  const url = new URL("https://royalplus-weather-cache.invalid/v1/forecast");
+function cacheKeyFor(latitude, longitude, origin = "https://weather.example") {
+  // Cloudflare Cache API keys must stay on the Worker zone's own hostname.
+  const url = new URL("/__royalplus_weather_cache/v1/forecast", origin);
   url.searchParams.set("lat", latitude.toFixed(4));
   url.searchParams.set("lon", longitude.toFixed(4));
   return new Request(url.toString(), { method: "GET" });
@@ -35,7 +36,7 @@ function cacheKeyFor(latitude, longitude) {
 
 function upstreamExpiry(headers, now) {
   const cacheControl = headers.get("Cache-Control") || "";
-  const maxAge = cacheControl.match(/(?:^|,)\\s*max-age=(\\d+)/i);
+  const maxAge = cacheControl.match(/(?:^|,)\s*max-age=(\d+)/i);
   if (maxAge) return now + Number(maxAge[1]) * 1000;
 
   const expires = Date.parse(headers.get("Expires") || "");
@@ -95,7 +96,7 @@ async function handleForecast(request) {
   }
 
   const cache = caches.default;
-  const key = cacheKeyFor(latitude, longitude);
+  const key = cacheKeyFor(latitude, longitude, url.origin);
   const cached = await cache.match(key);
   const now = Date.now();
   const cachedExpiry = Number(cached?.headers.get("X-Royal-Weather-Expires-At") || 0);
@@ -114,7 +115,14 @@ async function handleForecast(request) {
   try {
     const upstream = await fetch(upstreamUrl, { method: "GET", headers });
     if (upstream.status === 304 && cached) {
-      const refreshed = await storeCache(cache, key, await cached.json(), upstream.headers, now);
+      const refreshedHeaders = new Headers(upstream.headers);
+      if (!refreshedHeaders.has("ETag") && cached.headers.has("ETag")) {
+        refreshedHeaders.set("ETag", cached.headers.get("ETag"));
+      }
+      if (!refreshedHeaders.has("Last-Modified") && cached.headers.has("Last-Modified")) {
+        refreshedHeaders.set("Last-Modified", cached.headers.get("Last-Modified"));
+      }
+      const refreshed = await storeCache(cache, key, await cached.json(), refreshedHeaders, now);
       return clientResponse(refreshed, "REVALIDATED");
     }
     if (!upstream.ok) throw new Error(`MET Norway returned HTTP ${upstream.status}`);
