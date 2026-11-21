@@ -3,6 +3,7 @@ const USER_AGENT = "ROYALPlusLauncherWeather/1.0 (https://github.com/Ramistar900
 const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
 const STALE_RETENTION_MS = 48 * 60 * 60 * 1000;
 const CLIENT_MAX_AGE_SECONDS = 15 * 60;
+const inFlightRefreshes = new Map();
 
 function jsonResponse(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -139,23 +140,38 @@ async function handleForecast(request, env) {
   if (cached?.metadata.etag) headers.set("If-None-Match", cached.metadata.etag);
   if (cached?.metadata.lastModified) headers.set("If-Modified-Since", cached.metadata.lastModified);
 
+  let refreshPromise = inFlightRefreshes.get(key);
+  const isRefreshLeader = !refreshPromise;
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const upstream = await fetch(upstreamUrl, { method: "GET", headers });
+      if (upstream.status === 304 && cached) {
+        const refreshed = await storeForecast(
+          env.WEATHER_CACHE, key, cached.payload, upstream.headers, now, cached.metadata,
+        );
+        return { ...refreshed, cacheStatus: "REVALIDATED", warning: null };
+      }
+      if (!upstream.ok) throw new Error(`MET Norway returned HTTP ${upstream.status}`);
+
+      const payload = await upstream.json();
+      if (!hasUsableForecast(payload)) throw new Error("MET Norway returned an incomplete forecast.");
+
+      const stored = await storeForecast(env.WEATHER_CACHE, key, payload, upstream.headers, now);
+      return {
+        ...stored,
+        cacheStatus: "MISS",
+        warning: upstream.status === 203 ? "Upstream API version is deprecated." : null,
+      };
+    })();
+    inFlightRefreshes.set(key, refreshPromise);
+  }
+
   try {
-    const upstream = await fetch(upstreamUrl, { method: "GET", headers });
-    if (upstream.status === 304 && cached) {
-      const refreshed = await storeForecast(
-        env.WEATHER_CACHE, key, cached.payload, upstream.headers, now, cached.metadata,
-      );
-      return responseFor(refreshed.payload, refreshed.metadata, "REVALIDATED");
-    }
-    if (!upstream.ok) throw new Error(`MET Norway returned HTTP ${upstream.status}`);
-
-    const payload = await upstream.json();
-    if (!hasUsableForecast(payload)) throw new Error("MET Norway returned an incomplete forecast.");
-
-    const stored = await storeForecast(env.WEATHER_CACHE, key, payload, upstream.headers, now);
-    const result = responseFor(stored.payload, stored.metadata, "MISS");
-    if (upstream.status === 203) {
-      result.headers.set("X-Weather-Upstream-Warning", "Upstream API version is deprecated.");
+    const refreshed = await refreshPromise;
+    const cacheStatus = isRefreshLeader ? refreshed.cacheStatus : "COALESCED";
+    const result = responseFor(refreshed.payload, refreshed.metadata, cacheStatus);
+    if (refreshed.warning) {
+      result.headers.set("X-Weather-Upstream-Warning", refreshed.warning);
     }
     return result;
   } catch (_error) {
@@ -172,6 +188,10 @@ async function handleForecast(request, env) {
       502,
       { "X-Weather-Source": "MET Norway" },
     );
+  } finally {
+    if (isRefreshLeader && inFlightRefreshes.get(key) === refreshPromise) {
+      inFlightRefreshes.delete(key);
+    }
   }
 }
 
