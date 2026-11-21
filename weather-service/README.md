@@ -10,7 +10,9 @@ A dedicated, globally shared weather gateway for ROYAL+ Launcher only. It is not
 - **Android cache:** the existing ROYAL+ seven-day local forecast cache remains in place.
 - **No paid API key or subscription.**
 
-All launcher devices request the same service endpoint. Forecasts for the same rounded coordinates are stored once in the shared R2 bucket, then reused by devices in every region. The Worker only refreshes a location after the upstream cache expiry, uses conditional requests where available, and serves the last valid forecast for up to 48 hours if the upstream service is temporarily unavailable.
+All launcher devices request the same service endpoint. Forecasts for the same normalized coordinate cell are stored once in the shared R2 bucket and reused by devices in every region. The Worker refreshes a location only after the upstream cache expiry, uses conditional requests where available, and serves the last valid forecast for up to 48 hours if the upstream service is temporarily unavailable.
+
+The server normalizes coordinates to three decimal places to align with the launcher's existing city-cache precision and to improve sharing between nearby devices. MET Norway permits up to four decimal places, so three decimals remains within its requirement.
 
 ## Why MET Norway
 
@@ -29,14 +31,17 @@ These are free-tier allowances, not unlimited capacity. If usage approaches a li
 
 ## One-time Cloudflare setup
 
-1. Create or sign in to a Cloudflare account and stay on the Free plan.
-2. Create an R2 Standard bucket named `royalplus-weather-cache`.
-3. From this directory run `npx wrangler login`.
-4. Run `npx wrangler deploy`.
-5. Record the resulting `https://royalplus-weather-api.<account-subdomain>.workers.dev` URL.
-6. Only after deployment is verified, connect the Android app to that URL in a separate tested change.
+1. Create or sign in to a Cloudflare account and remain on the Free plan.
+2. In R2, create a Standard bucket named `royalplus-weather-cache`.
+3. Create a Cloudflare API token scoped to the account with **Workers Scripts: Edit** and **R2 Storage: Edit** permissions.
+4. In GitHub, open repository **Settings → Secrets and variables → Actions** and add:
+   - `CLOUDFLARE_API_TOKEN` — the Cloudflare API token.
+   - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID.
+5. Merge the tested service PR to `main`.
+6. In GitHub Actions, run **Deploy ROYAL+ Weather Service** manually.
+7. Record the resulting `https://royalplus-weather-api.<account-subdomain>.workers.dev` URL.
 
-No Cloudflare token, account identifier, or other secret is committed to this repository.
+The deploy workflow is manual and runs only from `main`. No Cloudflare token, account identifier, or other secret is committed to the repository.
 
 ## Local tests
 
