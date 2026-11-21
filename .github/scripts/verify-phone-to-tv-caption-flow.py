@@ -63,6 +63,17 @@ assert "12_000L" in TRANSPORT  # stale caption backlog is discarded after Wi-Fi 
 assert "KEY_DISPLAY_DELAY_MS" in RECEIVER
 assert "ضبط تأخير العرض" in ACTIVITY
 
+# Pairing discovers the TV automatically on the same Wi-Fi LAN; no manual IP entry remains.
+NSD = (JAVA / "RoyalCaptionNsd.kt").read_text(encoding="utf-8")
+assert "RoyalCaptionNsdDiscovery" in ACTIVITY
+assert "RoyalCaptionNsdRegistration" in RECEIVER
+assert "_royal-caption._tcp." in NSD
+assert "manager.discoverServices" in NSD
+assert "manager.resolveService" in NSD
+assert "أدخل عنوان IP" not in ACTIVITY
+assert "اكتب عنوان IP" not in ACTIVITY
+assert "لا حاجة إلى إدخال عنوان IP" in ACTIVITY
+
 # Preserve the existing local Whisper + SMaLL-100 translation pipeline and expose distinct roles in UI.
 assert "WhisperModelRepository.createRecognizer" in CAPTURE
 assert "Small100Translator.create" in CAPTURE
