@@ -101,6 +101,7 @@ internal object RoyalCastPairing {
         if (transport == RoyalCastTransport.WIFI_DIRECT) {
             require(!wifiDirectSsid.isNullOrBlank() && wifiDirectSsid.length <= 32)
             require(!wifiDirectPassphrase.isNullOrBlank() && wifiDirectPassphrase.length in 8..63)
+            if (!deviceAddress.isNullOrBlank()) require(isValidDeviceAddress(deviceAddress))
         }
         RoyalCastEndpoint(
             host, port, token, pin, transport, deviceAddress, wifiDirectSsid, wifiDirectPassphrase
