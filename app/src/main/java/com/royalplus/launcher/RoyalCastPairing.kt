@@ -19,7 +19,9 @@ internal data class RoyalCastEndpoint(
     val token: String,
     val pin: String,
     val transport: RoyalCastTransport = RoyalCastTransport.WIFI,
-    val deviceAddress: String? = null
+    val deviceAddress: String? = null,
+    val wifiDirectSsid: String? = null,
+    val wifiDirectPassphrase: String? = null
 )
 
 /**
@@ -39,20 +41,33 @@ internal object RoyalCastPairing {
         token: String,
         pin: String,
         transport: RoyalCastTransport = RoyalCastTransport.WIFI,
-        deviceAddress: String? = null
+        deviceAddress: String? = null,
+        wifiDirectSsid: String? = null,
+        wifiDirectPassphrase: String? = null
     ): String {
         require(isIpv4(host)) { "A local IPv4 address is required." }
         require(port in 1..65535) { "Invalid receiver port." }
         require(token.matches(Regex("[a-fA-F0-9]{32}"))) { "Invalid pairing token." }
         require(pin.matches(Regex("[0-9]{6}"))) { "Invalid pairing PIN." }
         if (transport == RoyalCastTransport.WIFI_DIRECT) {
-            require(isValidDeviceAddress(deviceAddress)) { "A Wi-Fi Direct device address is required." }
+            require(!wifiDirectSsid.isNullOrBlank() && wifiDirectSsid.length <= 32) {
+                "A Wi-Fi Direct network name is required."
+            }
+            require(!wifiDirectPassphrase.isNullOrBlank() && wifiDirectPassphrase.length in 8..63) {
+                "A valid Wi-Fi Direct passphrase is required."
+            }
         }
         val mode = if (transport == RoyalCastTransport.WIFI_DIRECT) "wifi_direct" else "wifi"
         val directAddress = deviceAddress?.takeIf { transport == RoyalCastTransport.WIFI_DIRECT }
         return buildString {
             append("royalcast://connect?host=${encode(host)}&port=$port&token=$token&pin=$pin&transport=$mode")
-            if (directAddress != null) append("&deviceAddress=${encode(directAddress)}")
+            if (directAddress != null && isValidDeviceAddress(directAddress)) {
+                append("&deviceAddress=${encode(directAddress)}")
+            }
+            if (transport == RoyalCastTransport.WIFI_DIRECT) {
+                append("&wifiDirectSsid=${encode(wifiDirectSsid.orEmpty())}")
+                append("&wifiDirectPassphrase=${encode(wifiDirectPassphrase.orEmpty())}")
+            }
         }
     }
 
@@ -77,14 +92,19 @@ internal object RoyalCastPairing {
             else -> error("Unsupported ROYAL CAST transport.")
         }
         val deviceAddress = values["deviceAddress"]
+        val wifiDirectSsid = values["wifiDirectSsid"]
+        val wifiDirectPassphrase = values["wifiDirectPassphrase"]
         require(isIpv4(host))
         require(port in 1..65535)
         require(token.matches(Regex("[a-fA-F0-9]{32}")))
         require(pin.matches(Regex("[0-9]{6}")))
         if (transport == RoyalCastTransport.WIFI_DIRECT) {
-            require(isValidDeviceAddress(deviceAddress))
+            require(!wifiDirectSsid.isNullOrBlank() && wifiDirectSsid.length <= 32)
+            require(!wifiDirectPassphrase.isNullOrBlank() && wifiDirectPassphrase.length in 8..63)
         }
-        RoyalCastEndpoint(host, port, token, pin, transport, deviceAddress)
+        RoyalCastEndpoint(
+            host, port, token, pin, transport, deviceAddress, wifiDirectSsid, wifiDirectPassphrase
+        )
     }.getOrNull()
 
     fun localIpv4Address(context: Context): String? {
