@@ -159,6 +159,37 @@ test("conditional revalidation preserves cached data after upstream 304", async 
   }
 });
 
+test("simultaneous requests for one location share a single upstream refresh", async () => {
+  const originalFetch = globalThis.fetch;
+  const bucket = new MemoryR2();
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return new Response(JSON.stringify(makeForecast()), {
+      status: 200,
+      headers: { "Cache-Control": "public, max-age=21600" },
+    });
+  };
+
+  try {
+    const request = new Request("https://weather.example/v1/forecast?lat=41.008612&lon=28.980175");
+    const [first, second] = await Promise.all([
+      worker.fetch(request, { WEATHER_CACHE: bucket }),
+      worker.fetch(request, { WEATHER_CACHE: bucket }),
+    ]);
+    const statuses = [
+      first.headers.get("X-Royal-Weather-Cache"),
+      second.headers.get("X-Royal-Weather-Cache"),
+    ].sort();
+    assert.deepEqual(statuses, ["COALESCED", "MISS"]);
+    assert.equal(calls, 1);
+    assert.equal(bucket.items.size, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("stale forecast is returned when the upstream is temporarily unavailable", async () => {
   const originalFetch = globalThis.fetch;
   const bucket = new MemoryR2();
