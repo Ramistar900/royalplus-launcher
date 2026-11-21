@@ -26,12 +26,8 @@ function normalizeCoordinate(value, min, max) {
   return Number(number.toFixed(4));
 }
 
-function cacheKeyFor(latitude, longitude, origin = "https://weather.example") {
-  // Cloudflare Cache API keys must stay on the Worker zone's own hostname.
-  const url = new URL("/__royalplus_weather_cache/v1/forecast", origin);
-  url.searchParams.set("lat", latitude.toFixed(4));
-  url.searchParams.set("lon", longitude.toFixed(4));
-  return new Request(url.toString(), { method: "GET" });
+function cacheKeyFor(latitude, longitude) {
+  return `forecast/v1/${latitude.toFixed(4)}_${longitude.toFixed(4)}.json`;
 }
 
 function upstreamExpiry(headers, now) {
@@ -56,38 +52,60 @@ function hasUsableForecast(payload) {
   return days.size >= 7;
 }
 
-function clientResponse(cached, cacheStatus, stale = false) {
-  const headers = new Headers(cached.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type");
-  headers.set("Cache-Control", `public, max-age=${stale ? 300 : CLIENT_MAX_AGE_SECONDS}`);
-  headers.set("X-Royal-Weather-Cache", cacheStatus);
-  if (stale) headers.set("Warning", '110 - "Response is stale; upstream refresh failed"');
-  return new Response(cached.body, { status: 200, headers });
-}
-
-async function storeCache(cache, key, payload, upstreamHeaders, now) {
-  const expiresAt = upstreamExpiry(upstreamHeaders, now);
-  const headers = new Headers({
+function responseFor(payload, metadata, cacheStatus, stale = false) {
+  const headers = {
     "Content-Type": "application/json; charset=utf-8",
-    "X-Royal-Weather-Expires-At": String(expiresAt),
-    "X-Royal-Weather-Fetched-At": String(now),
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cache-Control": `public, max-age=${stale ? 300 : CLIENT_MAX_AGE_SECONDS}`,
+    "X-Royal-Weather-Cache": cacheStatus,
+    "X-Royal-Weather-Expires-At": String(metadata.expiresAt),
+    "X-Royal-Weather-Fetched-At": String(metadata.fetchedAt),
     "X-Weather-Attribution": "Weather data: MET Norway, CC BY 4.0",
-    // Retain a stale copy for outage fallback; freshness is checked separately.
-    "Cache-Control": `public, max-age=${Math.ceil(STALE_RETENTION_MS / 1000)}`,
-  });
-  const etag = upstreamHeaders.get("ETag");
-  const lastModified = upstreamHeaders.get("Last-Modified");
-  if (etag) headers.set("ETag", etag);
-  if (lastModified) headers.set("Last-Modified", lastModified);
-
-  const response = new Response(JSON.stringify(payload), { status: 200, headers });
-  await cache.put(key, response.clone());
-  return response;
+  };
+  if (metadata.etag) headers.ETag = metadata.etag;
+  if (metadata.lastModified) headers["Last-Modified"] = metadata.lastModified;
+  if (stale) headers.Warning = '110 - "Response is stale; upstream refresh failed"';
+  return jsonResponse(payload, 200, headers);
 }
 
-async function handleForecast(request) {
+async function readStoredForecast(bucket, key) {
+  const object = await bucket.get(key);
+  if (!object) return null;
+  return {
+    payload: await object.json(),
+    metadata: object.customMetadata || {},
+  };
+}
+
+async function storeForecast(bucket, key, payload, upstreamHeaders, now, previousMetadata = {}) {
+  const metadata = {
+    expiresAt: String(upstreamExpiry(upstreamHeaders, now)),
+    fetchedAt: String(now),
+    etag: upstreamHeaders.get("ETag") || previousMetadata.etag || "",
+    lastModified: upstreamHeaders.get("Last-Modified") || previousMetadata.lastModified || "",
+  };
+  await bucket.put(key, JSON.stringify(payload), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+    customMetadata: metadata,
+  });
+  return {
+    payload,
+    metadata: {
+      expiresAt: Number(metadata.expiresAt),
+      fetchedAt: Number(metadata.fetchedAt),
+      etag: metadata.etag,
+      lastModified: metadata.lastModified,
+    },
+  };
+}
+
+async function handleForecast(request, env) {
+  if (!env.WEATHER_CACHE) {
+    return jsonResponse({ error: "Weather cache storage is not configured." }, 503);
+  }
+
   const url = new URL(request.url);
   const latitude = normalizeCoordinate(url.searchParams.get("lat"), -90, 90);
   const longitude = normalizeCoordinate(url.searchParams.get("lon"), -180, 180);
@@ -95,48 +113,59 @@ async function handleForecast(request) {
     return jsonResponse({ error: "Provide valid latitude and longitude coordinates." }, 400);
   }
 
-  const cache = caches.default;
-  const key = cacheKeyFor(latitude, longitude, url.origin);
-  const cached = await cache.match(key);
-  const now = Date.now();
-  const cachedExpiry = Number(cached?.headers.get("X-Royal-Weather-Expires-At") || 0);
+  const key = cacheKeyFor(latitude, longitude);
+  let cached;
+  try {
+    cached = await readStoredForecast(env.WEATHER_CACHE, key);
+  } catch (_error) {
+    return jsonResponse({ error: "Weather cache storage is temporarily unavailable." }, 503);
+  }
 
+  const now = Date.now();
+  const cachedExpiry = Number(cached?.metadata.expiresAt || 0);
   if (cached && cachedExpiry > now) {
-    return clientResponse(cached, "HIT");
+    return responseFor(cached.payload, {
+      expiresAt: cachedExpiry,
+      fetchedAt: Number(cached.metadata.fetchedAt || 0),
+      etag: cached.metadata.etag || "",
+      lastModified: cached.metadata.lastModified || "",
+    }, "HIT");
   }
 
   const upstreamUrl = new URL(UPSTREAM_URL);
   upstreamUrl.searchParams.set("lat", latitude.toFixed(4));
   upstreamUrl.searchParams.set("lon", longitude.toFixed(4));
   const headers = new Headers({ Accept: "application/json", "User-Agent": USER_AGENT });
-  if (cached?.headers.get("ETag")) headers.set("If-None-Match", cached.headers.get("ETag"));
-  if (cached?.headers.get("Last-Modified")) headers.set("If-Modified-Since", cached.headers.get("Last-Modified"));
+  if (cached?.metadata.etag) headers.set("If-None-Match", cached.metadata.etag);
+  if (cached?.metadata.lastModified) headers.set("If-Modified-Since", cached.metadata.lastModified);
 
   try {
     const upstream = await fetch(upstreamUrl, { method: "GET", headers });
     if (upstream.status === 304 && cached) {
-      const refreshedHeaders = new Headers(upstream.headers);
-      if (!refreshedHeaders.has("ETag") && cached.headers.has("ETag")) {
-        refreshedHeaders.set("ETag", cached.headers.get("ETag"));
-      }
-      if (!refreshedHeaders.has("Last-Modified") && cached.headers.has("Last-Modified")) {
-        refreshedHeaders.set("Last-Modified", cached.headers.get("Last-Modified"));
-      }
-      const refreshed = await storeCache(cache, key, await cached.json(), refreshedHeaders, now);
-      return clientResponse(refreshed, "REVALIDATED");
+      const refreshed = await storeForecast(
+        env.WEATHER_CACHE, key, cached.payload, upstream.headers, now, cached.metadata,
+      );
+      return responseFor(refreshed.payload, refreshed.metadata, "REVALIDATED");
     }
     if (!upstream.ok) throw new Error(`MET Norway returned HTTP ${upstream.status}`);
 
     const payload = await upstream.json();
     if (!hasUsableForecast(payload)) throw new Error("MET Norway returned an incomplete forecast.");
 
-    const stored = await storeCache(cache, key, payload, upstream.headers, now);
-    const result = clientResponse(stored, "MISS");
-    if (upstream.status === 203) result.headers.set("X-Weather-Upstream-Warning", "Upstream API version is deprecated.");
+    const stored = await storeForecast(env.WEATHER_CACHE, key, payload, upstream.headers, now);
+    const result = responseFor(stored.payload, stored.metadata, "MISS");
+    if (upstream.status === 203) {
+      result.headers.set("X-Weather-Upstream-Warning", "Upstream API version is deprecated.");
+    }
     return result;
-  } catch (error) {
+  } catch (_error) {
     if (cached && cachedExpiry > 0 && now - cachedExpiry <= STALE_RETENTION_MS) {
-      return clientResponse(cached, "STALE", true);
+      return responseFor(cached.payload, {
+        expiresAt: cachedExpiry,
+        fetchedAt: Number(cached.metadata.fetchedAt || 0),
+        etag: cached.metadata.etag || "",
+        lastModified: cached.metadata.lastModified || "",
+      }, "STALE", true);
     }
     return jsonResponse(
       { error: "Weather data is temporarily unavailable. Please retry later." },
@@ -147,7 +176,7 @@ async function handleForecast(request) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -169,7 +198,7 @@ export default {
     if (url.pathname !== "/v1/forecast") {
       return jsonResponse({ error: "Not found." }, 404);
     }
-    return handleForecast(request);
+    return handleForecast(request, env || {});
   },
 };
 
