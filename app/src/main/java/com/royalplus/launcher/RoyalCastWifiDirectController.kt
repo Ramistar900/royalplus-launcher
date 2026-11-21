@@ -222,7 +222,7 @@ internal class RoyalCastWifiDirectController(context: Context) {
                     return@requestPeers
                 }
                 val config = WifiP2pConfig().apply {
-                    deviceAddress = peer.deviceAddress
+                    this.deviceAddress = peer.deviceAddress
                     groupOwnerIntent = 0
                 }
                 legacyClientConnected = onConnected
