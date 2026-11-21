@@ -148,7 +148,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 private enum class LauncherDestination {
-    HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SINJAR_TV, SPORTS, GALLERY, SONGS, FILES, FAVORITES, SHORTCUTS, MORE
+    HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SCREEN_CAST, SINJAR_TV, SPORTS, GALLERY, SONGS, FILES, FAVORITES, SHORTCUTS, MORE
 }
 
 @Composable
@@ -782,6 +782,7 @@ internal fun RoyalHomeScreen(
                                     )
                                     LauncherDestination.MUSLIM -> MuslimScreen(weather = weather, onRequestLocation = onRequestLocation, language = selectedLanguage)
                                     LauncherDestination.CALENDAR -> GregorianCalendarScreen(language = selectedLanguage)
+                                    LauncherDestination.SCREEN_CAST -> RoyalCastScreen(language = selectedLanguage)
                                     LauncherDestination.SINJAR_TV -> SinjarTvScreen(language = selectedLanguage, onFullscreenChange = { isSinjarPlayerFullscreen = it })
                                     LauncherDestination.SPORTS -> RoyalSportsScreen(language = selectedLanguage)
                                     LauncherDestination.GALLERY -> RoyalGalleryScreen()
@@ -2699,7 +2700,7 @@ private fun RoyalSidePanel(
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
-    val sidebarFocusRequesters = remember { List(10) { FocusRequester() } }
+    val sidebarFocusRequesters = remember { List(11) { FocusRequester() } }
     val navigationFocusModifiers = remember(sidebarFocusRequesters) {
         sidebarFocusRequesters.mapIndexed { index, requester ->
             Modifier.focusRequester(requester).focusProperties {
@@ -2709,9 +2710,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Calendar", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Settings", "Manage apps")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Ayarlar", "Uygulamaları yönet")
-        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "الإعدادات", "إدارة التطبيقات")
+        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Settings", "Manage apps")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Ayarlar", "Uygulamaları yönet")
+        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "الإعدادات", "إدارة التطبيقات")
     }
     val shape = RoundedCornerShape(19.dp)
     val panelBrush = if (RoyalColors.isLightTheme) {
@@ -2720,7 +2721,7 @@ private fun RoyalSidePanel(
         Brush.verticalGradient(listOf(Color(0xFF080A12), Color(0xFF111620)))
     }
     Column(
-        modifier.focusGroup().clip(shape).background(panelBrush)
+        modifier.focusGroup().verticalScroll(rememberScrollState()).clip(shape).background(panelBrush)
             .border(1.dp, RoyalColors.Gold.copy(alpha = 0.28f), shape)
             .padding(horizontal = if (compactPhone) 5.dp else 9.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -2742,39 +2743,44 @@ private fun RoyalSidePanel(
         ) { onNavigate(LauncherDestination.CALENDAR) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[3], null, selectedDestination == LauncherDestination.SINJAR_TV,
-            sinjarLogo = true, modifier = navigationFocusModifiers[3]
+            labels[3], null, selectedDestination == LauncherDestination.SCREEN_CAST,
+            iconRes = R.drawable.royal_screen_cast, modifier = navigationFocusModifiers[3]
+        ) { onNavigate(LauncherDestination.SCREEN_CAST) }
+        Spacer(Modifier.height(itemGap))
+        SidebarNavItem(
+            labels[4], null, selectedDestination == LauncherDestination.SINJAR_TV,
+            sinjarLogo = true, modifier = navigationFocusModifiers[4]
         ) { onNavigate(LauncherDestination.SINJAR_TV) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[4], null, selectedDestination == LauncherDestination.SPORTS,
-            sportsBall = true, modifier = navigationFocusModifiers[4]
+            labels[5], null, selectedDestination == LauncherDestination.SPORTS,
+            sportsBall = true, modifier = navigationFocusModifiers[5]
         ) { onNavigate(LauncherDestination.SPORTS) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[5], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY,
-            iconRes = R.drawable.royal_gallery_luxe, modifier = navigationFocusModifiers[5]
+            labels[6], Icons.Rounded.Collections, selectedDestination == LauncherDestination.GALLERY,
+            iconRes = R.drawable.royal_gallery_luxe, modifier = navigationFocusModifiers[6]
         ) { onNavigate(LauncherDestination.GALLERY) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[6], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS,
-            iconRes = R.drawable.royal_songs_luxe, modifier = navigationFocusModifiers[6]
+            labels[7], Icons.Rounded.MusicNote, selectedDestination == LauncherDestination.SONGS,
+            iconRes = R.drawable.royal_songs_luxe, modifier = navigationFocusModifiers[7]
         ) { onNavigate(LauncherDestination.SONGS) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[7], Icons.Rounded.Folder, selectedDestination == LauncherDestination.FILES,
-            iconRes = R.drawable.royal_files_luxe, modifier = navigationFocusModifiers[7]
+            labels[8], Icons.Rounded.Folder, selectedDestination == LauncherDestination.FILES,
+            iconRes = R.drawable.royal_files_luxe, modifier = navigationFocusModifiers[8]
         ) { onNavigate(LauncherDestination.FILES) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
-            labels[8], Icons.Rounded.Settings, false,
+            labels[9], Icons.Rounded.Settings, false,
             iconRes = R.drawable.royal_settings_luxe,
-            modifier = navigationFocusModifiers[8], onClick = onOpenSettings
+            modifier = navigationFocusModifiers[9], onClick = onOpenSettings
         )
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(if (compactPhone) 8.dp else 14.dp))
         SidebarNavItem(
-            labels[9], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
-            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[9]
+            labels[10], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
+            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[10]
         ) { onNavigate(LauncherDestination.MANAGE_APPS) }
         Spacer(Modifier.height(12.dp))
         GoldDivider(Modifier.fillMaxWidth())
