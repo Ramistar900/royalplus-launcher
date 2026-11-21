@@ -133,21 +133,22 @@ test("forecast endpoint fetches, normalizes, and caches a valid response in KV",
 test("conditional revalidation preserves cached data after upstream 304", async () => {
   const originalFetch = globalThis.fetch;
   const kv = new MemoryKV();
+  const key = __test.cacheKeyFor(41.009, 28.98);
+  const now = Date.now();
+  kv.items.set(key, JSON.stringify({
+    payload: makeForecast(),
+    metadata: {
+      expiresAt: now - 60_000,
+      fetchedAt: now - 7 * 60 * 60 * 1000,
+      etag: '"weather-v2"',
+      lastModified: "",
+    },
+  }));
   let calls = 0;
   let conditionalTag;
   globalThis.fetch = async (_url, options) => {
     calls += 1;
     conditionalTag = new Headers(options.headers).get("If-None-Match");
-    if (calls === 1) {
-      return new Response(JSON.stringify(makeForecast()), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "public, max-age=0",
-          ETag: '"weather-v2"',
-        },
-      });
-    }
     return new Response(null, {
       status: 304,
       headers: { "Cache-Control": "public, max-age=21600" },
@@ -155,13 +156,12 @@ test("conditional revalidation preserves cached data after upstream 304", async 
   };
 
   try {
-    await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
     const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
     assert.equal(conditionalTag, '"weather-v2"');
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get("X-Royal-Weather-Cache"), "MISS");
+    assert.equal(response.headers.get("X-Royal-Weather-Cache"), "REVALIDATED");
     assert.ok((await response.json()).properties.timeseries.length > 0);
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
