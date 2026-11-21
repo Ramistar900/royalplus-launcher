@@ -37,7 +37,9 @@ internal data class RoyalCastReceiverState(
     val token: String? = null,
     val pin: String? = null,
     val transport: RoyalCastTransport = RoyalCastTransport.WIFI,
-    val deviceAddress: String? = null
+    val deviceAddress: String? = null,
+    val wifiDirectSsid: String? = null,
+    val wifiDirectPassphrase: String? = null
 ) {
     val pairingPayload: String?
         get() {
@@ -46,7 +48,8 @@ internal data class RoyalCastReceiverState(
             val currentToken = token ?: return null
             val currentPin = pin ?: return null
             return RoyalCastPairing.createPayload(
-                currentHost, currentPort, currentToken, currentPin, transport, deviceAddress
+                currentHost, currentPort, currentToken, currentPin,
+                transport, deviceAddress, wifiDirectSsid, wifiDirectPassphrase
             )
         }
 }
@@ -72,7 +75,9 @@ internal class RoyalCastReceiverController(
     fun start(
         hostOverride: String? = null,
         transport: RoyalCastTransport = RoyalCastTransport.WIFI,
-        deviceAddress: String? = null
+        deviceAddress: String? = null,
+        wifiDirectSsid: String? = null,
+        wifiDirectPassphrase: String? = null
     ) {
         if (serverSocket != null) return
         stopped.set(false)
@@ -81,7 +86,9 @@ internal class RoyalCastReceiverController(
             phase = RoyalCastReceiverPhase.STARTING,
             message = "يجري تشغيل مستقبل ROYAL CAST"
         )
-        Thread({ openReceiver(attempt, hostOverride, transport, deviceAddress) }, "RoyalCast-Receiver").apply {
+        Thread({
+            openReceiver(attempt, hostOverride, transport, deviceAddress, wifiDirectSsid, wifiDirectPassphrase)
+        }, "RoyalCast-Receiver").apply {
             isDaemon = true
             start()
         }
@@ -126,7 +133,9 @@ internal class RoyalCastReceiverController(
         attempt: Int,
         hostOverride: String?,
         transport: RoyalCastTransport,
-        deviceAddress: String?
+        deviceAddress: String?,
+        wifiDirectSsid: String?,
+        wifiDirectPassphrase: String?
     ) {
         var openedSocket: ServerSocket? = null
         try {
@@ -149,7 +158,9 @@ internal class RoyalCastReceiverController(
                 token = token,
                 pin = pin,
                 transport = transport,
-                deviceAddress = deviceAddress
+                deviceAddress = deviceAddress,
+                wifiDirectSsid = wifiDirectSsid,
+                wifiDirectPassphrase = wifiDirectPassphrase
             )
             while (isCurrent(attempt)) {
                 val client = socket.accept()
