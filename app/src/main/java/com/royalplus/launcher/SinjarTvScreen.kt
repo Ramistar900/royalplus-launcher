@@ -8,8 +8,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -531,56 +530,61 @@ private fun SinjarPlayerPane(
         modifier = modifier
             .clip(RoundedCornerShape(if (isFullscreen) 0.dp else 12.dp))
             .background(Color.Black)
-            .pointerInput(channelMenuVisible) {
-                detectTapGestures(
-                    onTap = {
+            .pointerInput(selectedChannel?.streamUrl, visibleChannels, channelMenuVisible) {
+                val swipeThreshold = 64.dp.toPx()
+                val touchSlop = viewConfiguration.touchSlop
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var previousPosition = down.position
+                    var totalX = 0f
+                    var totalY = 0f
+                    var moved = false
+                    var pointerActive = true
+                    while (pointerActive) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null) {
+                            pointerActive = false
+                        } else {
+                            val delta = change.position - previousPosition
+                            previousPosition = change.position
+                            totalX += delta.x
+                            totalY += delta.y
+                            if (abs(totalX) > touchSlop || abs(totalY) > touchSlop) {
+                                moved = true
+                                change.consume()
+                            }
+                            pointerActive = change.pressed
+                        }
+                    }
+                    if (!moved) {
                         if (!channelMenuVisible) {
                             controlsVisible = true
                             controlsTimerKey++
                         }
-                    }
-                )
-            }
-            .pointerInput(selectedChannel?.streamUrl, visibleChannels, channelMenuVisible) {
-                if (!channelMenuVisible && selectedChannel != null && visibleChannels.size > 1) {
-                    val swipeThreshold = 64.dp.toPx()
-                    var dragX = 0f
-                    var dragY = 0f
-                    detectDragGestures(
-                        onDragEnd = {
-                            val horizontalSwipe = abs(dragX) >= swipeThreshold && abs(dragX) >= abs(dragY)
-                            val verticalSwipe = abs(dragY) >= swipeThreshold && abs(dragY) > abs(dragX)
-                            if (horizontalSwipe || verticalSwipe) {
-                                val currentIndex = visibleChannels.indexOfFirst {
-                                    it.streamUrl == selectedChannel.streamUrl
+                    } else if (!channelMenuVisible && selectedChannel != null && visibleChannels.size > 1) {
+                        val horizontalSwipe = abs(totalX) >= swipeThreshold && abs(totalX) >= abs(totalY)
+                        val verticalSwipe = abs(totalY) >= swipeThreshold && abs(totalY) > abs(totalX)
+                        if (horizontalSwipe || verticalSwipe) {
+                            val currentIndex = visibleChannels.indexOfFirst {
+                                it.streamUrl == selectedChannel.streamUrl
+                            }
+                            if (currentIndex >= 0) {
+                                // Swipe left/up advances to the next channel; right/down goes back.
+                                val nextIndex = if (totalX < 0f || totalY < 0f) {
+                                    currentIndex + 1
+                                } else {
+                                    currentIndex - 1
                                 }
-                                if (currentIndex >= 0) {
-                                    // Swipe left/up advances to the next channel; right/down goes back.
-                                    val nextIndex = if (dragX < 0f || dragY < 0f) {
-                                        currentIndex + 1
-                                    } else {
-                                        currentIndex - 1
-                                    }
-                                    visibleChannels.getOrNull(nextIndex)?.let { channel ->
-                                        onPlayChannel(channel)
-                                        infoChannel = channel
-                                        controlsTimerKey++
-                                    }
+                                visibleChannels.getOrNull(nextIndex)?.let { channel ->
+                                    onPlayChannel(channel)
+                                    infoChannel = channel
+                                    controlsVisible = true
+                                    controlsTimerKey++
                                 }
                             }
-                            dragX = 0f
-                            dragY = 0f
-                        },
-                        onDragCancel = {
-                            dragX = 0f
-                            dragY = 0f
-                        },
-                        onDrag = { change, amount ->
-                            change.consume()
-                            dragX += amount.x
-                            dragY += amount.y
                         }
-                    )
+                    }
                 }
             }
             .focusRequester(focusRequester)
