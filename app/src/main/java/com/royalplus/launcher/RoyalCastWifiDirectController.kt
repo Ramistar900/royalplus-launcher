@@ -6,53 +6,47 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDevice
+import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Build
+import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 
 /**
- * Optional Wi-Fi Direct transport for ROYAL CAST.
+ * The TV creates a Wi-Fi Direct group as group owner.
  *
- * The TV creates the group and remains its owner. The phone discovers that
- * exact peer (identified by the address embedded in the TV's one-session QR)
- * and joins it before opening the normal ROYAL CAST signaling socket.
+ * Android 10+ phones join the temporary DIRECT- network through
+ * WifiNetworkSpecifier. This intentionally avoids relying on P2P MAC addresses,
+ * which Android 10+ anonymizes for ordinary applications.
  */
 internal class RoyalCastWifiDirectController(context: Context) {
     private val appContext = context.applicationContext
     private val manager = appContext.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
     private var channel: WifiP2pManager.Channel? = null
     private var receiverRegistered = false
-    private var localDeviceAddress: String? = null
-    private var targetDeviceAddress: String? = null
     private var createGroupPending = false
-    private var connectPending = false
-    private var connectionReported = false
-    private var receiverReadyReported = false
     private var groupPollCount = 0
     private var onState: (String) -> Unit = {}
-    private var onReceiverReady: ((String, String) -> Unit)? = null
-    private var onClientConnected: ((String) -> Unit)? = null
+    private var onReceiverReady: ((String, String, String, String?) -> Unit)? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
-                    val device = wifiP2pDevice(intent)
-                    val address = device?.deviceAddress
-                    if (isValidDeviceAddress(address)) {
-                        localDeviceAddress = address
-                        if (createGroupPending) requestGroupInfo()
-                    }
+                WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
+                    if (createGroupPending) requestGroupDetails()
                 }
-                WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> requestTargetPeer()
-                WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> requestConnectionInfo()
                 WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
                     val state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1)
                     if (state == WifiP2pManager.WIFI_P2P_STATE_DISABLED) {
-                        onState("ميزة Wi-Fi Direct متوقفة في إعدادات الجهاز.")
+                        onState("ميزة Wi-Fi Direct متوقفة في إعدادات التلفاز.")
                     }
                 }
             }
@@ -75,7 +69,7 @@ internal class RoyalCastWifiDirectController(context: Context) {
     private fun initialize(onStatus: (String) -> Unit): Boolean {
         onState = onStatus
         if (!isSupported()) {
-            onState("هذا الجهاز لا يدعم Wi-Fi Direct.")
+            onState("هذا التلفاز لا يدعم Wi-Fi Direct.")
             return false
         }
         if (!hasRequiredPermissions()) {
@@ -100,9 +94,7 @@ internal class RoyalCastWifiDirectController(context: Context) {
         if (receiverRegistered) return
         val filter = IntentFilter().apply {
             addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
-            addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
             addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
-            addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION)
         }
         if (Build.VERSION.SDK_INT >= 33) {
             appContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
@@ -112,68 +104,45 @@ internal class RoyalCastWifiDirectController(context: Context) {
         receiverRegistered = true
     }
 
-    @Suppress("DEPRECATION")
-    private fun wifiP2pDevice(intent: Intent): WifiP2pDevice? =
-        if (Build.VERSION.SDK_INT >= 33) {
-            intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE, WifiP2pDevice::class.java)
-        } else {
-            intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE)
-        }
-
     fun startGroupOwner(
         onStatus: (String) -> Unit,
-        onReady: (host: String, deviceAddress: String) -> Unit
+        onReady: (host: String, ssid: String, passphrase: String, deviceAddress: String?) -> Unit
     ) {
         if (!initialize(onStatus)) return
         onReceiverReady = onReady
-        onClientConnected = null
         createGroupPending = true
-        receiverReadyReported = false
         groupPollCount = 0
-        onState("يجري إنشاء اتصال Wi-Fi Direct على التلفاز...")
+        onState("يجري إنشاء مجموعة Wi-Fi Direct على التلفاز...")
         manager?.createGroup(channel, actionListener(
             success = {
-                onState("تم إنشاء شبكة Wi-Fi Direct. يجري تجهيز رمز الاقتران...")
-                requestGroupInfo()
+                onState("تم إنشاء الشبكة المباشرة. يجري تجهيز بيانات الاقتران...")
+                requestGroupDetails()
             },
             failure = { reason ->
                 createGroupPending = false
                 onState("تعذر إنشاء Wi-Fi Direct: $reason")
             }
         ))
-        requestDeviceInfoWhenAvailable()
     }
 
-    private fun requestDeviceInfoWhenAvailable() {
-        // Android 9 reports the local P2P address with THIS_DEVICE_CHANGED.
-        // Newer Android versions may also provide it directly through requestDeviceInfo.
-        if (Build.VERSION.SDK_INT >= 29) {
-            runCatching {
-                manager?.requestDeviceInfo(channel) { device ->
-                    val address = device?.deviceAddress
-                    if (isValidDeviceAddress(address)) {
-                        localDeviceAddress = address
-                        if (createGroupPending) requestGroupInfo()
-                    }
+    private fun requestGroupDetails() {
+        if (!createGroupPending) return
+        manager?.requestGroupInfo(channel) { group ->
+            manager?.requestConnectionInfo(channel) { info ->
+                val host = info?.groupOwnerAddress?.hostAddress
+                val ssid = group?.networkName
+                val passphrase = group?.passphrase
+                val deviceAddress = group?.owner?.deviceAddress
+                if (group?.isGroupOwner == true && info?.groupFormed == true &&
+                    info.isGroupOwner && !host.isNullOrBlank() &&
+                    !ssid.isNullOrBlank() && !passphrase.isNullOrBlank()
+                ) {
+                    createGroupPending = false
+                    onState("Wi-Fi Direct جاهز. امسح رمز QR من الهاتف للانضمام إلى الشبكة.")
+                    onReceiverReady?.invoke(host, ssid, passphrase, deviceAddress)
+                } else {
+                    scheduleGroupInfoRetry()
                 }
-            }
-        }
-    }
-
-    private fun requestGroupInfo() {
-        if (!createGroupPending || receiverReadyReported) return
-        manager?.requestConnectionInfo(channel) { info ->
-            val host = info?.groupOwnerAddress?.hostAddress
-            val address = localDeviceAddress
-            if (info?.groupFormed == true && info.isGroupOwner &&
-                !host.isNullOrBlank() && isValidDeviceAddress(address)
-            ) {
-                receiverReadyReported = true
-                createGroupPending = false
-                onState("Wi-Fi Direct جاهز. امسح الرمز الظاهر على التلفاز من الهاتف.")
-                onReceiverReady?.invoke(host, address!!)
-            } else {
-                scheduleGroupInfoRetry()
             }
         }
     }
@@ -182,84 +151,89 @@ internal class RoyalCastWifiDirectController(context: Context) {
         if (!createGroupPending || groupPollCount >= 30) {
             if (createGroupPending) {
                 createGroupPending = false
-                onState("لم يتمكن الجهاز من تجهيز عنوان Wi-Fi Direct. تحقق من دعم التلفاز.")
+                onState("لم يتم تجهيز شبكة Wi-Fi Direct. تحقق من دعم التلفاز وحاول مجدداً.")
             }
             return
         }
         groupPollCount += 1
-        android.os.Handler(Looper.getMainLooper()).postDelayed({ requestGroupInfo() }, 500)
+        Handler(Looper.getMainLooper()).postDelayed({ requestGroupDetails() }, 500)
     }
 
+    /**
+     * Android 10+ joins the TV's P2P group as a legacy Wi-Fi client using the
+     * one-session SSID and passphrase in the QR. The system shows its consent UI.
+     */
     fun connectToReceiver(
-        deviceAddress: String,
+        endpoint: RoyalCastEndpoint,
         onStatus: (String) -> Unit,
-        onConnected: (host: String) -> Unit
+        onConnected: () -> Unit
     ) {
-        if (!isValidDeviceAddress(deviceAddress)) {
-            onStatus("عنوان جهاز Wi-Fi Direct الموجود في الرمز غير صالح.")
+        onState = onStatus
+        val ssid = endpoint.wifiDirectSsid
+        val passphrase = endpoint.wifiDirectPassphrase
+        if (ssid.isNullOrBlank() || passphrase.isNullOrBlank()) {
+            onStatus("رمز Wi-Fi Direct لا يحتوي على بيانات الشبكة المطلوبة.")
             return
         }
-        if (!initialize(onStatus)) return
-        targetDeviceAddress = deviceAddress
-        onClientConnected = onConnected
-        onReceiverReady = null
-        connectPending = true
-        connectionReported = false
-        onState("يجري البحث عن تلفاز ROYAL+ عبر Wi-Fi Direct...")
-        manager?.discoverPeers(channel, actionListener(
-            success = {
-                onState("تم بدء البحث. يجري العثور على التلفاز...")
-                requestTargetPeer()
-            },
-            failure = { reason ->
-                connectPending = false
-                onState("تعذر البحث عن أجهزة Wi-Fi Direct: $reason")
-            }
-        ))
+        if (!hasRequiredPermissions()) {
+            onStatus("امنح إذن الأجهزة القريبة أو الموقع للانضمام إلى Wi-Fi Direct.")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            RoyalCastWifiDirectSession.connect(
+                appContext, ssid, passphrase, onStatus, onConnected
+            )
+        } else {
+            connectLegacyPeer(endpoint.deviceAddress, onStatus, onConnected)
+        }
     }
 
-    private fun requestTargetPeer() {
-        if (!connectPending || connectStarted) return
-        val expected = targetDeviceAddress ?: return
-        manager?.requestPeers(channel) { peers ->
-            val peer = peers.deviceList.firstOrNull {
-                it.deviceAddress.equals(expected, ignoreCase = true)
+    private fun connectLegacyPeer(
+        deviceAddress: String?,
+        onStatus: (String) -> Unit,
+        onConnected: () -> Unit
+    ) {
+        if (deviceAddress.isNullOrBlank() || !deviceAddress.matches(Regex("(?i)([0-9a-f]{2}:){5}[0-9a-f]{2}"))) {
+            onStatus("هذا الإصدار من Android يحتاج عنوان جهاز Wi-Fi Direct صالحاً.")
+            return
+        }
+        if (channel == null) {
+            channel = manager?.initialize(appContext, Looper.getMainLooper()) {
+                onStatus("انقطع ارتباط Wi-Fi Direct بالنظام. أعد المحاولة.")
             }
-            if (peer == null) {
-                onState("يجري البحث عن التلفاز. تأكد أن شاشة Wi-Fi Direct ظاهرة على التلفاز.")
-                return@requestPeers
-            }
-            connectStarted = true
-            val config = WifiP2pConfig().apply {
-                deviceAddress = peer.deviceAddress
-                groupOwnerIntent = 0
-            }
-            manager?.connect(channel, config, actionListener(
-                success = {
-                    onState("تم طلب الاتصال بالتلفاز. يجري تجهيز الشبكة المباشرة...")
-                },
-                failure = { reason ->
-                    connectPending = false
-                    connectStarted = false
-                    onState("فشل الاتصال المباشر بالتلفاز: $reason")
+        }
+        if (channel == null || manager == null) {
+            onStatus("ميزة Wi-Fi Direct غير متاحة على هذا الهاتف.")
+            return
+        }
+        registerReceiver()
+        val targetAddress = deviceAddress
+        onStatus("يجري البحث عن التلفاز عبر Wi-Fi Direct...")
+        manager.discoverPeers(channel, actionListener(
+            success = { manager.requestPeers(channel) { peers ->
+                val peer = peers.deviceList.firstOrNull {
+                    it.deviceAddress.equals(targetAddress, ignoreCase = true)
                 }
-            ))
-        }
-    }
-
-    private var connectStarted = false
-
-    private fun requestConnectionInfo() {
-        if (!connectPending || connectionReported) return
-        manager?.requestConnectionInfo(channel) { info ->
-            val host = info?.groupOwnerAddress?.hostAddress
-            if (info?.groupFormed == true && !info.isGroupOwner && !host.isNullOrBlank()) {
-                connectionReported = true
-                connectPending = false
-                onState("اتصل الهاتف بالتلفاز عبر Wi-Fi Direct.")
-                onClientConnected?.invoke(host)
-            }
-        }
+                if (peer == null) {
+                    onStatus("لم يظهر التلفاز في البحث المباشر. أعد إظهار رمز الاقتران.")
+                    return@requestPeers
+                }
+                val config = WifiP2pConfig().apply {
+                    deviceAddress = peer.deviceAddress
+                    groupOwnerIntent = 0
+                }
+                manager.connect(channel, config, actionListener(
+                    success = {
+                        manager.requestConnectionInfo(channel) { info ->
+                            if (info?.groupFormed == true && !info.isGroupOwner) onConnected()
+                            else onStatus("يجري انتظار اكتمال اتصال Wi-Fi Direct...")
+                        }
+                    },
+                    failure = { reason -> onStatus("فشل الاتصال المباشر: $reason") }
+                ))
+            } },
+            failure = { reason -> onStatus("تعذر البحث عن أجهزة Wi-Fi Direct: $reason") }
+        ))
     }
 
     private fun actionListener(success: () -> Unit, failure: (String) -> Unit) =
@@ -279,21 +253,106 @@ internal class RoyalCastWifiDirectController(context: Context) {
 
     fun stopGroup() {
         createGroupPending = false
-        connectPending = false
-        receiverReadyReported = false
-        connectStarted = false
-        targetDeviceAddress = null
-        manager?.removeGroup(channel, actionListener({}, { }))
+        manager?.removeGroup(channel, actionListener({}, {}))
     }
 
-    /** Unregisters the temporary receiver without breaking an established P2P link. */
+    /** Unregisters the temporary TV broadcast receiver. */
     fun release() {
         if (receiverRegistered) {
             runCatching { appContext.unregisterReceiver(receiver) }
             receiverRegistered = false
         }
     }
+}
 
-    private fun isValidDeviceAddress(value: String?): Boolean =
-        !value.isNullOrBlank() && value.matches(Regex("(?i)([0-9a-f]{2}:){5}[0-9a-f]{2}"))
+/**
+ * Keeps the local-only Wi-Fi request alive for the duration of the screen cast.
+ * The service releases the process binding when casting stops.
+ */
+internal object RoyalCastWifiDirectSession {
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var connectivity: ConnectivityManager? = null
+    @Volatile private var callback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var connectedNetwork: Network? = null
+
+    @Synchronized
+    fun connect(
+        context: Context,
+        ssid: String,
+        passphrase: String,
+        onStatus: (String) -> Unit,
+        onConnected: () -> Unit
+    ) {
+        release()
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        if (manager == null) {
+            onStatus("خدمة اتصال Wi-Fi غير متاحة على الهاتف.")
+            return
+        }
+        val specifier = runCatching {
+            WifiNetworkSpecifier.Builder()
+                .setSsid(ssid)
+                .setWpa2Passphrase(passphrase)
+                .build()
+        }.getOrElse {
+            onStatus("بيانات شبكة Wi-Fi Direct غير صالحة.")
+            return
+        }
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .setNetworkSpecifier(specifier)
+            .build()
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                mainHandler.post {
+                    val bound = runCatching { manager.bindProcessToNetwork(network) }.getOrDefault(false)
+                    if (!bound) {
+                        onStatus("اتصل الهاتف بالشبكة المباشرة لكن تعذر توجيه البث إليها.")
+                        return@post
+                    }
+                    connectedNetwork = network
+                    onStatus("اتصل الهاتف بشبكة Wi-Fi Direct. يمكنك الآن بدء مشاركة الشاشة.")
+                    onConnected()
+                }
+            }
+
+            override fun onUnavailable() {
+                mainHandler.post {
+                    onStatus("لم يكتمل الانضمام إلى شبكة Wi-Fi Direct. وافق على طلب Android وتأكد من قرب التلفاز.")
+                }
+            }
+
+            override fun onLost(network: Network) {
+                mainHandler.post {
+                    if (connectedNetwork == network) {
+                        runCatching { manager.bindProcessToNetwork(null) }
+                        connectedNetwork = null
+                        onStatus("انقطع اتصال Wi-Fi Direct. أعد الاتصال من رمز التلفاز.")
+                    }
+                }
+            }
+        }
+        connectivity = manager
+        callback = networkCallback
+        onStatus("سيظهر طلب Android للانضمام إلى شبكة Wi-Fi Direct المؤقتة.")
+        runCatching { manager.requestNetwork(request, networkCallback) }
+            .onFailure {
+                release()
+                onStatus(it.message ?: "تعذر طلب اتصال Wi-Fi Direct.")
+            }
+    }
+
+    @Synchronized
+    fun release() {
+        val manager = connectivity
+        runCatching { manager?.bindProcessToNetwork(null) }
+        val networkCallback = callback
+        if (manager != null && networkCallback != null) {
+            runCatching { manager.unregisterNetworkCallback(networkCallback) }
+        }
+        callback = null
+        connectivity = null
+        connectedNetwork = null
+    }
 }
