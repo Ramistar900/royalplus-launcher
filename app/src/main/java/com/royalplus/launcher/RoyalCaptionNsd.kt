@@ -117,7 +117,6 @@ internal object RoyalCaptionNsdRegistration {
             serviceName = "ROYAL+ Caption"
             serviceType = RoyalCaptionNsdDiscovery.SERVICE_TYPE
             port = RoyalCaptionTransport.PORT
-            setAttribute("version", "1")
         }
         val registration = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(serviceInfo: NsdServiceInfo) = Unit
