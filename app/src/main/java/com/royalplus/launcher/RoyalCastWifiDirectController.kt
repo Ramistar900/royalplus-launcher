@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -18,6 +19,7 @@ import android.net.wifi.p2p.WifiP2pManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 
 /**
@@ -59,7 +61,8 @@ internal class RoyalCastWifiDirectController(context: Context) {
     fun requiredPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 33) {
         arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
     } else {
-        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        // Wi-Fi Direct discovery/group management is location-gated through Android 12L.
+        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
     fun hasRequiredPermissions(): Boolean = requiredPermissions().all { permission ->
@@ -107,46 +110,68 @@ internal class RoyalCastWifiDirectController(context: Context) {
         receiverRegistered = true
     }
 
+    @SuppressLint("MissingPermission")
     fun startGroupOwner(
         onStatus: (String) -> Unit,
         onReady: (host: String, ssid: String, passphrase: String, deviceAddress: String?) -> Unit
     ) {
-        if (!initialize(onStatus)) return
+        if (!initialize(onStatus) || !hasRequiredPermissions()) return
         onReceiverReady = onReady
         createGroupPending = true
         groupPollCount = 0
         onState("يجري إنشاء مجموعة Wi-Fi Direct على التلفاز...")
-        manager?.createGroup(channel, actionListener(
-            success = {
-                onState("تم إنشاء الشبكة المباشرة. يجري تجهيز بيانات الاقتران...")
-                requestGroupDetails()
-            },
-            failure = { reason ->
-                createGroupPending = false
-                onState("تعذر إنشاء Wi-Fi Direct: $reason")
-            }
-        ))
+        try {
+            manager?.createGroup(channel, actionListener(
+                success = {
+                    onState("تم إنشاء الشبكة المباشرة. يجري تجهيز بيانات الاقتران...")
+                    requestGroupDetails()
+                },
+                failure = { reason ->
+                    createGroupPending = false
+                    onState("تعذر إنشاء Wi-Fi Direct: $reason")
+                }
+            ))
+        } catch (_: SecurityException) {
+            createGroupPending = false
+            onState("لم يسمح Android بإدارة Wi-Fi Direct. امنح الإذن المطلوب ثم أعد المحاولة.")
+        }
     }
 
+    @SuppressLint("MissingPermission")
     private fun requestGroupDetails() {
         if (!createGroupPending) return
-        manager?.requestGroupInfo(channel) { group ->
-            manager?.requestConnectionInfo(channel) { info ->
-                val host = info?.groupOwnerAddress?.hostAddress
-                val ssid = group?.networkName
-                val passphrase = group?.passphrase
-                val deviceAddress = group?.owner?.deviceAddress
-                if (group?.isGroupOwner == true && info?.groupFormed == true &&
-                    info.isGroupOwner && !host.isNullOrBlank() &&
-                    !ssid.isNullOrBlank() && !passphrase.isNullOrBlank()
-                ) {
+        if (!hasRequiredPermissions()) {
+            createGroupPending = false
+            onState("انتهى إذن Wi-Fi Direct. امنح الإذن مجدداً ثم أعد المحاولة.")
+            return
+        }
+        try {
+            manager?.requestGroupInfo(channel) { group ->
+                try {
+                    manager?.requestConnectionInfo(channel) { info ->
+                        val host = info?.groupOwnerAddress?.hostAddress
+                        val ssid = group?.networkName
+                        val passphrase = group?.passphrase
+                        val deviceAddress = group?.owner?.deviceAddress
+                        if (group?.isGroupOwner == true && info?.groupFormed == true &&
+                            info.isGroupOwner && !host.isNullOrBlank() &&
+                            !ssid.isNullOrBlank() && !passphrase.isNullOrBlank()
+                        ) {
+                            createGroupPending = false
+                            onState("Wi-Fi Direct جاهز. امسح رمز QR من الهاتف للانضمام إلى الشبكة.")
+                            onReceiverReady?.invoke(host, ssid, passphrase, deviceAddress)
+                        } else {
+                            scheduleGroupInfoRetry()
+                        }
+                    }
+                } catch (_: SecurityException) {
                     createGroupPending = false
-                    onState("Wi-Fi Direct جاهز. امسح رمز QR من الهاتف للانضمام إلى الشبكة.")
-                    onReceiverReady?.invoke(host, ssid, passphrase, deviceAddress)
-                } else {
-                    scheduleGroupInfoRetry()
+                    onState("رفض Android قراءة معلومات مجموعة Wi-Fi Direct. تحقق من الأذونات.")
                 }
             }
+        } catch (_: SecurityException) {
+            createGroupPending = false
+            onState("رفض Android قراءة معلومات مجموعة Wi-Fi Direct. تحقق من الأذونات.")
         }
     }
 
@@ -191,11 +216,16 @@ internal class RoyalCastWifiDirectController(context: Context) {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun connectLegacyPeer(
         deviceAddress: String?,
         onStatus: (String) -> Unit,
         onConnected: () -> Unit
     ) {
+        if (!hasRequiredPermissions()) {
+            onStatus("امنح إذن الموقع لتشغيل Wi-Fi Direct على هذا الإصدار من Android.")
+            return
+        }
         if (deviceAddress.isNullOrBlank() || !deviceAddress.matches(Regex("(?i)([0-9a-f]{2}:){5}[0-9a-f]{2}"))) {
             onStatus("هذا الإصدار من Android يحتاج عنوان جهاز Wi-Fi Direct صالحاً.")
             return
@@ -212,47 +242,76 @@ internal class RoyalCastWifiDirectController(context: Context) {
         registerReceiver()
         val targetAddress = deviceAddress
         onStatus("يجري البحث عن التلفاز عبر Wi-Fi Direct...")
-        manager.discoverPeers(channel, actionListener(
-            success = { manager.requestPeers(channel) { peers ->
-                val peer = peers.deviceList.firstOrNull {
-                    it.deviceAddress.equals(targetAddress, ignoreCase = true)
-                }
-                if (peer == null) {
-                    onStatus("لم يظهر التلفاز في البحث المباشر. أعد إظهار رمز الاقتران.")
-                    return@requestPeers
-                }
-                val config = WifiP2pConfig().apply {
-                    this.deviceAddress = peer.deviceAddress
-                    groupOwnerIntent = 0
-                }
-                legacyClientConnected = onConnected
-                legacyClientConnectPending = true
-                manager.connect(channel, config, actionListener(
-                    success = {
-                        onStatus("تم طلب الاتصال المباشر. يجري انتظار اكتمال الانضمام...")
-                        requestLegacyClientInfo()
-                    },
-                    failure = { reason ->
-                        legacyClientConnectPending = false
-                        legacyClientConnected = null
-                        onStatus("فشل الاتصال المباشر: $reason")
+        try {
+            manager.discoverPeers(channel, actionListener(
+                success = {
+                    try {
+                        manager.requestPeers(channel) { peers ->
+                            val peer = peers.deviceList.firstOrNull {
+                                it.deviceAddress.equals(targetAddress, ignoreCase = true)
+                            }
+                            if (peer == null) {
+                                onStatus("لم يظهر التلفاز في البحث المباشر. أعد إظهار رمز الاقتران.")
+                                return@requestPeers
+                            }
+                            val config = WifiP2pConfig().apply {
+                                this.deviceAddress = peer.deviceAddress
+                                groupOwnerIntent = 0
+                            }
+                            legacyClientConnected = onConnected
+                            legacyClientConnectPending = true
+                            try {
+                                manager.connect(channel, config, actionListener(
+                                    success = {
+                                        onStatus("تم طلب الاتصال المباشر. يجري انتظار اكتمال الانضمام...")
+                                        requestLegacyClientInfo()
+                                    },
+                                    failure = { reason ->
+                                        legacyClientConnectPending = false
+                                        legacyClientConnected = null
+                                        onStatus("فشل الاتصال المباشر: $reason")
+                                    }
+                                ))
+                            } catch (_: SecurityException) {
+                                legacyClientConnectPending = false
+                                legacyClientConnected = null
+                                onStatus("رفض Android الاتصال بجهاز Wi-Fi Direct. تحقق من الأذونات.")
+                            }
+                        }
+                    } catch (_: SecurityException) {
+                        onStatus("رفض Android البحث عن أجهزة Wi-Fi Direct. تحقق من الأذونات.")
                     }
-                ))
-            } },
-            failure = { reason -> onStatus("تعذر البحث عن أجهزة Wi-Fi Direct: $reason") }
-        ))
+                },
+                failure = { reason -> onStatus("تعذر البحث عن أجهزة Wi-Fi Direct: $reason") }
+            ))
+        } catch (_: SecurityException) {
+            onStatus("رفض Android البحث عن أجهزة Wi-Fi Direct. تحقق من الأذونات.")
+        }
     }
 
+    @SuppressLint("MissingPermission")
     private fun requestLegacyClientInfo() {
         if (!legacyClientConnectPending) return
-        manager?.requestConnectionInfo(channel) { info ->
-            if (info?.groupFormed == true && !info.isGroupOwner) {
-                legacyClientConnectPending = false
-                legacyClientConnected?.invoke()
-                legacyClientConnected = null
-            } else {
-                onState("يجري انتظار اكتمال اتصال Wi-Fi Direct...")
+        if (!hasRequiredPermissions()) {
+            legacyClientConnectPending = false
+            legacyClientConnected = null
+            onState("انتهى إذن Wi-Fi Direct. امنح الإذن مجدداً ثم أعد الاتصال.")
+            return
+        }
+        try {
+            manager?.requestConnectionInfo(channel) { info ->
+                if (info?.groupFormed == true && !info.isGroupOwner) {
+                    legacyClientConnectPending = false
+                    legacyClientConnected?.invoke()
+                    legacyClientConnected = null
+                } else {
+                    onState("يجري انتظار اكتمال اتصال Wi-Fi Direct...")
+                }
             }
+        } catch (_: SecurityException) {
+            legacyClientConnectPending = false
+            legacyClientConnected = null
+            onState("رفض Android قراءة حالة اتصال Wi-Fi Direct. تحقق من الأذونات.")
         }
     }
 
@@ -271,11 +330,17 @@ internal class RoyalCastWifiDirectController(context: Context) {
             }
         }
 
+    @SuppressLint("MissingPermission")
     fun stopGroup() {
         createGroupPending = false
         legacyClientConnectPending = false
         legacyClientConnected = null
-        manager?.removeGroup(channel, actionListener({}, {}))
+        if (!hasRequiredPermissions()) return
+        try {
+            manager?.removeGroup(channel, actionListener({}, {}))
+        } catch (_: SecurityException) {
+            onState("تعذر إنهاء مجموعة Wi-Fi Direct بسبب الأذونات.")
+        }
     }
 
     /** Unregisters the temporary TV broadcast receiver. */
@@ -311,6 +376,21 @@ internal object RoyalCastWifiDirectSession {
             onStatus("خدمة اتصال Wi-Fi غير متاحة على الهاتف.")
             return
         }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            onStatus("اتصال Wi-Fi عبر الطلب المباشر يتطلب Android 10 أو أحدث.")
+            return
+        }
+        connectWithSpecifier(manager, ssid, passphrase, onStatus, onConnected)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun connectWithSpecifier(
+        manager: ConnectivityManager,
+        ssid: String,
+        passphrase: String,
+        onStatus: (String) -> Unit,
+        onConnected: () -> Unit
+    ) {
         val specifier = runCatching {
             WifiNetworkSpecifier.Builder()
                 .setSsid(ssid)
