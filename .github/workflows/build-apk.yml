@@ -181,6 +181,9 @@ jobs:
 
       - name: Verify ROYAL+ internal file manager and approved theme palette
         run: python3 .github/scripts/verify-royal-file-manager.py
+      
+      - name: Verify ROYAL RELAX sidebar and local media playback
+        run: python3 .github/scripts/verify-royal-relax.py
 
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
