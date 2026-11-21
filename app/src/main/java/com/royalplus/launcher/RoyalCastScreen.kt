@@ -95,7 +95,7 @@ private fun RoyalCastPhoneScreen(language: String) {
     val wifiDirect = remember(context) { RoyalCastWifiDirectController(context) }
     val connectDirect: (RoyalCastEndpoint) -> Unit = { endpoint ->
         wifiDirect.connectToReceiver(
-            deviceAddress = endpoint.deviceAddress.orEmpty(),
+            endpoint = endpoint,
             onStatus = { directStatus = it; RoyalCastSenderStatus.update(it) },
             onConnected = {
                 directReady = true
@@ -327,10 +327,16 @@ private fun RoyalCastTelevisionScreen(language: String) {
         directStatus = "يجري تهيئة Wi-Fi Direct..."
         wifiDirect.startGroupOwner(
             onStatus = { directStatus = it },
-            onReady = { host, deviceAddress ->
+            onReady = { host, ssid, passphrase, deviceAddress ->
                 controller.stop()
                 directMode = true
-                controller.start(host, RoyalCastTransport.WIFI_DIRECT, deviceAddress)
+                controller.start(
+                    hostOverride = host,
+                    transport = RoyalCastTransport.WIFI_DIRECT,
+                    deviceAddress = deviceAddress,
+                    wifiDirectSsid = ssid,
+                    wifiDirectPassphrase = passphrase
+                )
             }
         )
     }
@@ -468,6 +474,12 @@ private fun RoyalCastTelevisionScreen(language: String) {
                         color = CastMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp
                     )
                     Text(receiverState.pin.orEmpty().chunked(3).joinToString(" "), color = CastGold, fontSize = 29.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
+                    if (receiverState.transport == RoyalCastTransport.WIFI_DIRECT) {
+                        Text(
+                            receiverState.wifiDirectSsid.orEmpty(),
+                            color = CastPearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     Text(
                         "${receiverState.host}  •  ${receiverState.port}",
                         color = CastMuted, fontSize = 11.sp
@@ -496,11 +508,11 @@ private fun RoyalCastTelevisionScreen(language: String) {
         }
         Text(
             when (language) {
-                "en" -> if (directMode) "Wi-Fi Direct connects phone and TV without a router or internet. Scan the QR code from your phone."
+                "en" -> if (directMode) "Wi-Fi Direct connects phone and TV without a router or internet. Scan the QR code, then approve Android's network request."
                     else "For Wi-Fi mode, keep both devices on the same local Wi-Fi network and scan the TV QR code."
-                "tr" -> if (directMode) "Wi-Fi Direct telefonu ve TV'yi yönlendirici veya internet olmadan bağlar. QR kodunu telefonla tarayın."
+                "tr" -> if (directMode) "Wi-Fi Direct telefonu ve TV'yi yönlendirici veya internet olmadan bağlar. QR kodunu tarayın ve Android bağlantı isteğini onaylayın."
                     else "Wi-Fi modunda iki cihaz aynı yerel Wi-Fi ağında olmalı ve TV QR kodu taranmalıdır."
-                else -> if (directMode) "يربط Wi-Fi Direct الهاتف والتلفاز مباشرة دون راوتر أو إنترنت. امسح رمز QR من الهاتف."
+                else -> if (directMode) "يربط Wi-Fi Direct الهاتف والتلفاز مباشرة دون راوتر أو إنترنت. امسح رمز QR ثم وافق على طلب الاتصال الذي يعرضه Android."
                     else "في وضع Wi-Fi يجب أن يكون الهاتف والتلفاز على الشبكة المحلية نفسها، ثم امسح رمز التلفاز."
             },
             color = CastMuted, fontSize = 11.sp, lineHeight = 17.sp, textAlign = TextAlign.Center
