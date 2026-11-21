@@ -139,9 +139,15 @@ private fun RoyalCastPhoneScreen(language: String) {
                 ContextCompat.startForegroundService(context, serviceIntent)
                 RoyalCastSenderStatus.update("تم منح الإذن. يجري الاتصال بالتلفاز...")
             }.onFailure {
+                if (endpoint.transport == RoyalCastTransport.WIFI_DIRECT) {
+                    RoyalCastWifiDirectSession.release()
+                }
                 RoyalCastSenderStatus.update(it.message ?: "تعذر تشغيل خدمة البث.")
             }
         } else {
+            if (endpoint?.transport == RoyalCastTransport.WIFI_DIRECT) {
+                RoyalCastWifiDirectSession.release()
+            }
             RoyalCastSenderStatus.update("تم إلغاء إذن مشاركة الشاشة. لم يبدأ البث.")
         }
     }
@@ -156,6 +162,9 @@ private fun RoyalCastPhoneScreen(language: String) {
                 selectedTv = null
                 scannerMessage = "هذا الرمز غير صالح أو ليس رمز ROYAL CAST."
             } else {
+                if (endpoint.transport != RoyalCastTransport.WIFI_DIRECT) {
+                    RoyalCastWifiDirectSession.release()
+                }
                 selectedTv = endpoint
                 directReady = false
                 directStatus = null
@@ -250,7 +259,8 @@ private fun RoyalCastPhoneScreen(language: String) {
                             if (wifiDirect.hasRequiredPermissions()) connectDirect(tv)
                             else directPermissionLauncher.launch(wifiDirect.requiredPermissions())
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !directReady
                     ) {
                         Text(
                             when (language) {
@@ -403,6 +413,7 @@ private fun RoyalCastTelevisionScreen(language: String) {
                     else directPermissionLauncher.launch(wifiDirect.requiredPermissions())
                 },
                 modifier = Modifier.weight(1f),
+                enabled = !directMode,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (directMode) CastGold else CastPanel,
                     contentColor = if (directMode) Color(0xFF17130B) else CastPearl
@@ -499,7 +510,20 @@ private fun RoyalCastTelevisionScreen(language: String) {
             OutlinedButton(
                 onClick = {
                     controller.stop()
-                    controller.start()
+                    if (receiverState.transport == RoyalCastTransport.WIFI_DIRECT &&
+                        !receiverState.wifiDirectSsid.isNullOrBlank() &&
+                        !receiverState.wifiDirectPassphrase.isNullOrBlank()
+                    ) {
+                        controller.start(
+                            hostOverride = receiverState.host,
+                            transport = RoyalCastTransport.WIFI_DIRECT,
+                            deviceAddress = receiverState.deviceAddress,
+                            wifiDirectSsid = receiverState.wifiDirectSsid,
+                            wifiDirectPassphrase = receiverState.wifiDirectPassphrase
+                        )
+                    } else {
+                        controller.start()
+                    }
                 },
                 shape = RoundedCornerShape(12.dp)
             ) {
