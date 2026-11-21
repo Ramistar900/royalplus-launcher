@@ -9,6 +9,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -530,6 +531,16 @@ private fun SinjarPlayerPane(
         modifier = modifier
             .clip(RoundedCornerShape(if (isFullscreen) 0.dp else 12.dp))
             .background(Color.Black)
+            .pointerInput(channelMenuVisible) {
+                detectTapGestures(
+                    onTap = {
+                        if (!channelMenuVisible) {
+                            controlsVisible = true
+                            controlsTimerKey++
+                        }
+                    }
+                )
+            }
             .pointerInput(selectedChannel?.streamUrl, visibleChannels, channelMenuVisible) {
                 if (!channelMenuVisible && selectedChannel != null && visibleChannels.size > 1) {
                     val swipeThreshold = 64.dp.toPx()
