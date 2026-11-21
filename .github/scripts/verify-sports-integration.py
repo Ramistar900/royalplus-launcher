@@ -66,7 +66,7 @@ assert "/functions/v1/royalplus-sports" in sports
 
 # Sports must be a first-party launcher destination; weather, audio and wallpapers are not replaced.
 assert "SPORTS" in home and "RoyalSportsScreen(language = selectedLanguage)" in home
-assert "sportsBall = true" in home and "RoyalRotatingFootballIcon" in home
+assert "sportsTv = true" in home and '"ROYAL SPORTS"' in home and "Icons.Rounded.Tv" in home
 assert "Icons.Rounded.SportsSoccer" not in home
 assert "ACCESS_NETWORK_STATE" in manifest and "android.permission.INTERNET" in manifest
 assert 'android.permission.POST_NOTIFICATIONS' in manifest

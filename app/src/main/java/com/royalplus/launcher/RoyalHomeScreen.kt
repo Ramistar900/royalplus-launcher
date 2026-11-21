@@ -65,6 +65,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Circle
@@ -717,8 +718,7 @@ internal fun RoyalHomeScreen(
                             onNavigate = { destination ->
                                 selectedDestination = destination
                                 if (destination == LauncherDestination.HOME) { searchActive = false; searchQuery = "" }
-                            },
-                            onOpenSettings = { showWallpaperSettings = true }
+                            }
                         )
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -2695,12 +2695,12 @@ private fun fallbackAppIcon(label: String): ImageVector {
 @Composable
 private fun RoyalSidePanel(
     modifier: Modifier, selectedDestination: LauncherDestination, language: String,
-    onNavigate: (LauncherDestination) -> Unit, onOpenSettings: () -> Unit
+    onNavigate: (LauncherDestination) -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
-    val sidebarFocusRequesters = remember { List(11) { FocusRequester() } }
+    val sidebarFocusRequesters = remember { List(10) { FocusRequester() } }
     val navigationFocusModifiers = remember(sidebarFocusRequesters) {
         sidebarFocusRequesters.mapIndexed { index, requester ->
             Modifier.focusRequester(requester).focusProperties {
@@ -2710,9 +2710,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Settings", "Manage apps")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Ayarlar", "Uygulamaları yönet")
-        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "الإعدادات", "إدارة التطبيقات")
+        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Manage apps")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Uygulamaları yönet")
+        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "إدارة التطبيقات")
     }
     val shape = RoundedCornerShape(19.dp)
     val panelBrush = if (RoyalColors.isLightTheme) {
@@ -2754,7 +2754,7 @@ private fun RoyalSidePanel(
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
             labels[5], null, selectedDestination == LauncherDestination.SPORTS,
-            sportsBall = true, modifier = navigationFocusModifiers[5]
+            sportsTv = true, modifier = navigationFocusModifiers[5]
         ) { onNavigate(LauncherDestination.SPORTS) }
         Spacer(Modifier.height(itemGap))
         SidebarNavItem(
@@ -2771,16 +2771,10 @@ private fun RoyalSidePanel(
             labels[8], Icons.Rounded.Folder, selectedDestination == LauncherDestination.FILES,
             iconRes = R.drawable.royal_files_luxe, modifier = navigationFocusModifiers[8]
         ) { onNavigate(LauncherDestination.FILES) }
-        Spacer(Modifier.height(itemGap))
-        SidebarNavItem(
-            labels[9], Icons.Rounded.Settings, false,
-            iconRes = R.drawable.royal_settings_luxe,
-            modifier = navigationFocusModifiers[9], onClick = onOpenSettings
-        )
         Spacer(Modifier.height(if (compactPhone) 8.dp else 14.dp))
         SidebarNavItem(
-            labels[10], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
-            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[10]
+            labels[9], null, selectedDestination == LauncherDestination.MANAGE_APPS,
+            manageAppsGear = true, language = language, modifier = navigationFocusModifiers[9]
         ) { onNavigate(LauncherDestination.MANAGE_APPS) }
         Spacer(Modifier.height(12.dp))
         GoldDivider(Modifier.fillMaxWidth())
@@ -2840,6 +2834,9 @@ private fun SidebarNavItem(
     selected: Boolean,
     iconRes: Int? = null,
     sportsBall: Boolean = false,
+    sportsTv: Boolean = false,
+    manageAppsGear: Boolean = false,
+    language: String = "ar",
     sinjarLogo: Boolean = false,
     sound: RoyalUiSound = RoyalUiSound.NAV_SELECT,
     modifier: Modifier = Modifier,
@@ -2894,7 +2891,7 @@ private fun SidebarNavItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (compactPhone) Arrangement.Center else Arrangement.SpaceBetween
     ) {
-        if (!compactPhone && !sinjarLogo) Text(
+        if (!compactPhone && !sinjarLogo && !sportsTv && !manageAppsGear) Text(
             text = title,
             color = if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Pearl,
             fontSize = 12.sp,
@@ -2919,6 +2916,20 @@ private fun SidebarNavItem(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
                 )
+            }
+            sportsTv -> Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Rounded.Tv, contentDescription = "ROYAL SPORTS", tint = if (selected) Color(0xFF54C878) else RoyalColors.Pearl, modifier = Modifier.size(royalAdaptiveIconSize(27.dp)))
+                Text("ROYAL SPORTS", color = if (selected) Color(0xFF54C878) else RoyalColors.Pearl, fontSize = 6.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.35.sp, maxLines = 1)
+            }
+            manageAppsGear -> Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Rounded.Settings, contentDescription = title, tint = if (selected) RoyalColors.Gold else RoyalColors.Pearl, modifier = Modifier.size(royalAdaptiveIconSize(25.dp)))
+                Text(if (language == "en") "APPS" else if (language == "tr") "UYGULAMALAR" else "التطبيقات", color = if (selected) RoyalColors.Gold else RoyalColors.Pearl, fontSize = 7.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             }
             sportsBall -> RoyalRotatingFootballIcon(
                 modifier = Modifier.size(royalSportsIconSize(28.dp, max = (navItemHeight - 8.dp))),

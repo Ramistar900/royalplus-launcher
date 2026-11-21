@@ -11,6 +11,7 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
+import android.net.nsd.NsdManager
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
@@ -38,6 +39,7 @@ class RoyalCaptionReceiverService : Service() {
     private val running = AtomicBoolean(false)
     @Volatile private var serverSocket: ServerSocket? = null
     @Volatile private var activeClient: Socket? = null
+    @Volatile private var nsdRegistrationListener: NsdManager.RegistrationListener? = null
     private var serverThread: Thread? = null
     private var captionView: TextView? = null
     private var windowManager: WindowManager? = null
@@ -88,7 +90,12 @@ class RoyalCaptionReceiverService : Service() {
             server.reuseAddress = true
             server.bind(InetSocketAddress(RoyalCaptionTransport.PORT), 2)
             serverSocket = server
-            updateNotification("جاهز لاستقبال الترجمة من الهاتف عبر Wi-Fi")
+            nsdRegistrationListener = runCatching {
+                RoyalCaptionNsdRegistration.register(this) { message -> updateNotification(message) }
+            }.onFailure {
+                updateNotification("خادم الترجمة يعمل، لكن تعذر تفعيله في البحث التلقائي: ${it.localizedMessage ?: "خطأ شبكة"}")
+            }.getOrNull()
+            updateNotification("جاهز؛ سيظهر التلفاز تلقائياً في بحث الهاتف على شبكة Wi-Fi نفسها")
             while (running.get()) {
                 val socket = try {
                     server.accept()
@@ -298,6 +305,8 @@ class RoyalCaptionReceiverService : Service() {
 
     override fun onDestroy() {
         running.set(false)
+        RoyalCaptionNsdRegistration.unregister(this, nsdRegistrationListener)
+        nsdRegistrationListener = null
         runCatching { activeClient?.close() }
         activeClient = null
         runCatching { serverSocket?.close() }

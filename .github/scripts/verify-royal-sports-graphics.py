@@ -34,15 +34,17 @@ for required in (
 ):
     assert required in graphics, f"Missing native sports artwork: {required}"
 
-# The launcher-side football emblem rotates smoothly and independently.
+# The launcher uses the requested branded television icon for ROYAL SPORTS.
+assert "sportsTv = true" in home
+assert '"ROYAL SPORTS"' in home
+assert "Icons.Rounded.Tv" in home
+# The native sports artwork still supports its animated in-section graphics.
 assert "rememberInfiniteTransition" in graphics
 assert "infiniteRepeatable" in graphics
 assert "LinearEasing" in graphics
 assert "rotate(degrees = rotationDegrees, pivot = Offset(32f, 32f))" in graphics
 assert "rotationDegrees = rotation" in graphics
 assert "durationMillis = 2800" in graphics
-assert "sportsBall = true" in home
-assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in screen

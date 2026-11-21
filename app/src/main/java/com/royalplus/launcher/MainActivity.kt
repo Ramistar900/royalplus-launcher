@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private var isTelevisionDevice = false
     private var pendingPhoneTvHost: String? = null
     private var pendingPhoneTvPin: String? = null
+    private var captionDiscovery: RoyalCaptionNsdDiscovery? = null
     private var weatherState by mutableStateOf(WeatherUiState())
     private var lastWeatherRefreshAt = 0L
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
@@ -283,6 +284,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        captionDiscovery?.stop()
+        captionDiscovery = null
         installedAppsLoadGeneration++
         installedAppsExecutor.shutdownNow()
         RoyalUiSounds.release()
@@ -426,11 +429,6 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        val localAddress = RoyalCaptionTransport.localIpv4Address()
-        if (localAddress.isNullOrBlank()) {
-            Toast.makeText(this, "اتصل التلفاز بشبكة Wi-Fi نفسها التي سيتصل بها الهاتف، ثم أعد المحاولة.", Toast.LENGTH_LONG).show()
-            return
-        }
         val pin = RoyalCaptionTransport.createPairingCode()
         val serviceIntent = Intent(this, RoyalCaptionReceiverService::class.java).apply {
             action = RoyalCaptionReceiverService.ACTION_START
@@ -444,20 +442,20 @@ class MainActivity : ComponentActivity() {
                 .putString(RoyalCaptionReceiverService.KEY_RECEIVER_PIN, pin)
                 .apply()
             translationOverlayEnabled = true
-            showTvPairingDetails(localAddress, pin)
+            showTvPairingDetails(pin)
         } catch (error: Exception) {
             translationOverlayEnabled = false
             Toast.makeText(this, error.localizedMessage ?: "تعذر تشغيل مستقبل الترجمة على التلفاز.", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun showTvPairingDetails(address: String, pin: String) {
+    private fun showTvPairingDetails(pin: String) {
         android.app.AlertDialog.Builder(this)
-            .setTitle("ROYAL+ — استقبال الترجمة من الهاتف")
+            .setTitle("ROYAL+ — رمز اقتران الترجمة")
             .setMessage(
-                "اتصل الهاتف والتلفاز بشبكة Wi-Fi نفسها. أدخل هذه البيانات في الهاتف:\n\n" +
-                    "عنوان التلفاز: $address\nالمنفذ: ${RoyalCaptionTransport.PORT}\nرمز الاقتران: $pin\n\n" +
-                    "التلفاز يستقبل النص ويعرضه فقط؛ لا يستخدم الميكروفون."
+                "اتصل الهاتف والتلفاز بشبكة Wi-Fi المحلية نفسها. افتح الترجمة العائمة في الهاتف وسيعثر على هذا التلفاز تلقائياً.\n\n" +
+                    "رمز الاقتران: $pin\n\n" +
+                    "لا حاجة إلى إدخال عنوان IP أو المنفذ. التلفاز يستقبل النص ويعرضه فقط؛ لا يستخدم الميكروفون."
             )
             .setPositiveButton("تم", null)
             .setNeutralButton("ضبط تأخير العرض") { _, _ -> showCaptionDelayDialog() }
@@ -511,22 +509,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showPhonePairingDialog() {
-        val preferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-        val addressInput = EditText(this).apply {
-            hint = "مثال: 192.168.1.20"
-            inputType = InputType.TYPE_CLASS_TEXT
-            setSingleLine(true)
-            setText(preferences.getString(FloatingTranslationOverlayService.KEY_PHONE_TV_HOST, ""))
+        var selectedHost: String? = null
+        val statusView = TextView(this).apply {
+            text = "يجري البحث عن تلفاز ROYAL+ على شبكة Wi-Fi نفسها..."
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            setPadding(0, 10, 0, 12)
+        }
+        val tvList = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 4, 0, 12)
         }
         val pinInput = EditText(this).apply {
-            hint = "رمز الاقتران المكون من 8 أرقام"
+            hint = "رمز الاقتران الظاهر على التلفاز (8 أرقام)"
             inputType = InputType.TYPE_CLASS_NUMBER
             setSingleLine(true)
         }
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 8, 24, 4)
-            addView(addressInput, LinearLayout.LayoutParams(
+            addView(statusView, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+            addView(tvList, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ))
             addView(pinInput, LinearLayout.LayoutParams(
@@ -534,13 +539,12 @@ class MainActivity : ComponentActivity() {
             ))
         }
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("ربط الهاتف بالتلفاز")
+            .setTitle("ربط الهاتف بالتلفاز تلقائياً")
             .setMessage(
-                "اكتب عنوان IP ورمز الاقتران الظاهرين على شاشة التلفاز. يجب أن يكون الجهازان على شبكة Wi-Fi نفسها. " +
-                    "بعد بدء الالتقاط يمكنك إطفاء الشاشة. بعض الهواتف تحتاج إلى السماح لـ ROYAL+ بالعمل دون قيود بطارية حتى لا توقف الشركة المصنّعة الخدمة."
+                "تأكد من اتصال الهاتف والتلفاز بشبكة Wi-Fi المحلية نفسها. اختر التلفاز الذي يظهر تلقائياً، ثم أدخل رمز الاقتران المعروض على شاشة التلفاز. لا حاجة إلى عنوان IP. بعد بدء الالتقاط يمكنك إطفاء شاشة الهاتف."
             )
             .setView(form)
-            .setPositiveButton("بدء الالتقاط", null)
+            .setPositiveButton("بدء الاقتران", null)
             .setNeutralButton("إعدادات البطارية", null)
             .setNegativeButton("إلغاء", null)
             .create()
@@ -553,10 +557,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val host = addressInput.text.toString().trim()
+                val host = selectedHost
                 val pin = pinInput.text.toString().trim()
-                if (!RoyalCaptionTransport.isPrivateIpv4Address(host)) {
-                    addressInput.error = "أدخل عنوان IP محلياً صحيحاً للتلفاز"
+                if (host.isNullOrBlank()) {
+                    statusView.error = null
+                    statusView.text = "لم يتم اختيار تلفاز بعد. تأكد من الشبكة وانتظر ظهوره."
                     return@setOnClickListener
                 }
                 if (!pin.matches(Regex("\\d{8}"))) {
@@ -573,7 +578,45 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        dialog.setOnDismissListener {
+            captionDiscovery?.stop()
+            captionDiscovery = null
+        }
         dialog.show()
+        captionDiscovery = RoyalCaptionNsdDiscovery(this).also { discovery ->
+            discovery.start(
+                onFound = { device ->
+                    runOnUiThread {
+                        val key = "${device.host}:${device.port}"
+                        if ((0 until tvList.childCount).any { tvList.getChildAt(it).tag == key }) return@runOnUiThread
+                        statusView.text = "تم العثور على تلفاز. اختره ثم أدخل الرمز الظاهر عليه:"
+                        val item = TextView(this).apply {
+                            tag = key
+                            text = "▣  ${device.name}"
+                            textSize = 15f
+                            setTextColor(Color.WHITE)
+                            setPadding(14, 12, 14, 12)
+                            setBackgroundColor(0x3324A77A)
+                            isClickable = true
+                            setOnClickListener {
+                                selectedHost = device.host
+                                for (index in 0 until tvList.childCount) {
+                                    tvList.getChildAt(index).setBackgroundColor(0x22000000)
+                                }
+                                setBackgroundColor(0x6654C878)
+                                statusView.text = "تم اختيار ${device.name}. أدخل رمز الاقتران الظاهر على التلفاز."
+                            }
+                        }
+                        tvList.addView(item, LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                        ))
+                    }
+                },
+                onFailure = { message ->
+                    runOnUiThread { statusView.text = message }
+                }
+            )
+        }
     }
 
     private fun startPhoneCaptionCapture() {

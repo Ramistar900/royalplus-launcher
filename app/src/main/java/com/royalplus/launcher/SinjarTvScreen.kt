@@ -8,6 +8,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +37,7 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -55,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -91,8 +95,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
+
+private enum class SinjarVideoQuality(val label: String, val maxWidth: Int, val maxHeight: Int) {
+    AUTO("تلقائي", Int.MAX_VALUE, Int.MAX_VALUE),
+    SD("SD", 854, 480),
+    HD("HD", 1280, 720),
+    FULL_HD("Full HD", 1920, 1080),
+    UHD_4K("4K", 3840, 2160)
+}
+
+private fun applySinjarVideoQuality(player: ExoPlayer, quality: SinjarVideoQuality) {
+    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+        .setMaxVideoSize(quality.maxWidth, quality.maxHeight)
+        .build()
+}
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
@@ -415,6 +434,8 @@ private fun SinjarPlayerPane(
     var lastConfirmedAt by remember { mutableStateOf(0L) }
     var controlsVisible by remember { mutableStateOf(true) }
     var controlsTimerKey by remember { mutableStateOf(0) }
+    var selectedVideoQuality by remember { mutableStateOf(SinjarVideoQuality.AUTO) }
+    var showQualityDialog by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val channelListState = rememberLazyListState()
 
@@ -509,6 +530,65 @@ private fun SinjarPlayerPane(
         modifier = modifier
             .clip(RoundedCornerShape(if (isFullscreen) 0.dp else 12.dp))
             .background(Color.Black)
+            .pointerInput(selectedChannel?.streamUrl, visibleChannels, channelMenuVisible) {
+                val swipeThreshold = 64.dp.toPx()
+                val touchSlop = viewConfiguration.touchSlop
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var previousPosition = down.position
+                    var totalX = 0f
+                    var totalY = 0f
+                    var moved = false
+                    var pointerActive = true
+                    while (pointerActive) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null) {
+                            pointerActive = false
+                        } else {
+                            val delta = change.position - previousPosition
+                            previousPosition = change.position
+                            totalX += delta.x
+                            totalY += delta.y
+                            if (!channelMenuVisible && selectedChannel != null &&
+                                (abs(totalX) > touchSlop || abs(totalY) > touchSlop)
+                            ) {
+                                moved = true
+                                change.consume()
+                            }
+                            pointerActive = change.pressed
+                        }
+                    }
+                    if (!moved) {
+                        if (!channelMenuVisible) {
+                            controlsVisible = true
+                            controlsTimerKey++
+                        }
+                    } else if (!channelMenuVisible && selectedChannel != null && visibleChannels.size > 1) {
+                        val horizontalSwipe = abs(totalX) >= swipeThreshold && abs(totalX) >= abs(totalY)
+                        val verticalSwipe = abs(totalY) >= swipeThreshold && abs(totalY) > abs(totalX)
+                        if (horizontalSwipe || verticalSwipe) {
+                            val currentIndex = visibleChannels.indexOfFirst {
+                                it.streamUrl == selectedChannel.streamUrl
+                            }
+                            if (currentIndex >= 0) {
+                                // Swipe left/up advances to the next channel; right/down goes back.
+                                val nextIndex = if (totalX < 0f || totalY < 0f) {
+                                    currentIndex + 1
+                                } else {
+                                    currentIndex - 1
+                                }
+                                visibleChannels.getOrNull(nextIndex)?.let { channel ->
+                                    onPlayChannel(channel)
+                                    infoChannel = channel
+                                    controlsVisible = true
+                                    controlsTimerKey++
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             .focusRequester(focusRequester)
             .onPreviewKeyEvent { event ->
                 val key = event.key
@@ -609,6 +689,18 @@ private fun SinjarPlayerPane(
 
         // Transparent controls are layered over the video; they never reserve a top strip.
         if (controlsVisible) {
+            TextButton(
+                onClick = { showQualityDialog = true },
+                modifier = Modifier.align(Alignment.TopStart).padding(6.dp)
+                    .background(Color(0xAA10151D), RoundedCornerShape(9.dp))
+            ) {
+                Text(
+                    if (selectedVideoQuality == SinjarVideoQuality.AUTO) "AUTO • $qualityLabel" else selectedVideoQuality.label,
+                    color = if (selectedVideoQuality == SinjarVideoQuality.AUTO) Color(0xFF65D6A6) else gold,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             IconButton(
                 onClick = onToggleFullscreen,
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(42.dp)
@@ -620,6 +712,42 @@ private fun SinjarPlayerPane(
                     modifier = Modifier.size(24.dp)
                 )
             }
+        }
+
+        if (showQualityDialog) {
+            AlertDialog(
+                onDismissRequest = { showQualityDialog = false },
+                title = {
+                    Text(if (arabic) "جودة البث" else "Stream quality", color = gold, fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        SinjarVideoQuality.values().forEach { quality ->
+                            TextButton(
+                                onClick = {
+                                    selectedVideoQuality = quality
+                                    applySinjarVideoQuality(player, quality)
+                                    showQualityDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    if (quality == SinjarVideoQuality.AUTO) {
+                                        if (arabic) "تلقائي — الأنسب للجهاز والإنترنت" else "Auto — best for device and network"
+                                    } else quality.label,
+                                    color = if (selectedVideoQuality == quality) gold else Color.White,
+                                    fontWeight = if (selectedVideoQuality == quality) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showQualityDialog = false }) {
+                        Text(if (arabic) "إغلاق" else "Close", color = gold)
+                    }
+                }
+            )
         }
 
         Text(
