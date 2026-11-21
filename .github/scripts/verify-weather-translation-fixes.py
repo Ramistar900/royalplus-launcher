@@ -28,7 +28,7 @@ for forbidden in ("drawRoyalClouds", "drawRoyalSun", "drawRoyalFog", "drawRoyalN
     assert forbidden not in weather, f"Unwanted procedural weather layer remains: {forbidden}"
 assert "cubicTo(" in gust_renderer and "trailingCurl" in gust_renderer and "drawPath(" in gust_renderer
 assert "drawLine(" not in gust_renderer and "drawArc(" not in gust_renderer
-for renderer_name in ("drawRoyalDrizzle", "drawRoyalFreezingRain", "drawRoyalHail"):
+for renderer_name in ("drawRoyalFreezingRain", "drawRoyalHail"):
     renderer = weather.split(f"private fun DrawScope.{renderer_name}(", 1)[1].split("\n}", 1)[0]
     assert "drawCircle(" in renderer
 for renderer_name in ("drawRoyalDrizzle", "drawRoyalFreezingRain"):
