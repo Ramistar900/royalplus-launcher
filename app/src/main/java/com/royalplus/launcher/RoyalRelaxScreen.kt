@@ -288,8 +288,7 @@ private fun RoyalRelaxVideoView(assetName: String, playing: Boolean) {
         },
         update = {}
     )
-    DisposableEffect(assetName, lifecycleOwner, player) {
-        player.setAsset(assetName)
+    DisposableEffect(lifecycleOwner, player) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> player.setLifecycleActive(true)
@@ -304,7 +303,10 @@ private fun RoyalRelaxVideoView(assetName: String, playing: Boolean) {
             player.release()
         }
     }
-    SideEffect { player.setPlaying(playing) }
+    SideEffect {
+        player.setAsset(assetName)
+        player.setPlaying(playing)
+    }
 }
 
 private class RoyalRelaxVideoPlayer(private val context: Context) {
