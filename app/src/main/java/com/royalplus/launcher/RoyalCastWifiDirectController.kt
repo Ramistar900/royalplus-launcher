@@ -308,6 +308,7 @@ internal object RoyalCastWifiDirectSession {
                 mainHandler.post {
                     val bound = runCatching { manager.bindProcessToNetwork(network) }.getOrDefault(false)
                     if (!bound) {
+                        release()
                         onStatus("اتصل الهاتف بالشبكة المباشرة لكن تعذر توجيه البث إليها.")
                         return@post
                     }
@@ -319,6 +320,7 @@ internal object RoyalCastWifiDirectSession {
 
             override fun onUnavailable() {
                 mainHandler.post {
+                    release()
                     onStatus("لم يكتمل الانضمام إلى شبكة Wi-Fi Direct. وافق على طلب Android وتأكد من قرب التلفاز.")
                 }
             }
