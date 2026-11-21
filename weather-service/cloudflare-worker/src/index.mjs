@@ -81,16 +81,19 @@ function responseFor(payload, metadata, cacheStatus, stale = false) {
 }
 
 async function readStoredForecast(kv, key) {
-  const local = isolateFallbackCache.get(key);
-  if (local) return { ...local, source: "ISOLATE" };
-
-  const stored = await kv.get(key, "json");
-  if (!stored) return null;
-  if (!stored.payload || !stored.metadata) return null;
-  return { ...stored, source: "KV" };
+  try {
+    const stored = await kv.get(key, "json");
+    if (stored?.payload && stored?.metadata) return { ...stored, source: "KV" };
+    const local = isolateFallbackCache.get(key);
+    return local ? { ...local, source: "ISOLATE" } : null;
+  } catch (error) {
+    const local = isolateFallbackCache.get(key);
+    if (local) return { ...local, source: "ISOLATE" };
+    throw error;
+  }
 }
 
-async function storeForecast(kv, key, payload, upstreamHeaders, now, previousMetadata = {}) {
+async function storeForecast(kv, key, payload, upstreamHeaders, now, previousMetadata = {}, cacheStatus = "MISS") {
   const metadata = {
     expiresAt: upstreamExpiry(upstreamHeaders, now),
     fetchedAt: now,
@@ -106,11 +109,11 @@ async function storeForecast(kv, key, payload, upstreamHeaders, now, previousMet
   );
   try {
     await kv.put(key, JSON.stringify(entry), { expirationTtl: ttlSeconds });
-    return { ...entry, cacheStatus: "MISS" };
+    return { ...entry, cacheStatus };
   } catch (_error) {
     // KV Free limits fail closed. Keep this isolate's copy and serve the
     // forecast to this caller; never upgrade the account or incur overage.
-    return { ...entry, cacheStatus: "UNCACHED" };
+    return { ...entry, cacheStatus: cacheStatus === "REVALIDATED" ? "REVALIDATED_UNCACHED" : "UNCACHED" };
   }
 }
 
@@ -164,7 +167,7 @@ async function handleForecast(request, env) {
     refreshPromise = (async () => {
       const upstream = await fetch(upstreamUrl, { method: "GET", headers });
       if (upstream.status === 304 && cached) {
-        return storeForecast(kv, key, cached.payload, upstream.headers, now, cached.metadata);
+        return storeForecast(kv, key, cached.payload, upstream.headers, now, cached.metadata, "REVALIDATED");
       }
       if (!upstream.ok) throw new Error(`MET Norway returned HTTP ${upstream.status}`);
 
