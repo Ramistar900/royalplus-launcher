@@ -23,11 +23,11 @@ function normalizeCoordinate(value, min, max) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < min || number > max) return null;
   // MET Norway explicitly requires no more than four decimal places.
-  return Number(number.toFixed(4));
+  return Number(number.toFixed(3));
 }
 
 function cacheKeyFor(latitude, longitude) {
-  return `forecast/v1/${latitude.toFixed(4)}_${longitude.toFixed(4)}.json`;
+  return `forecast/v1/${latitude.toFixed(3)}_${longitude.toFixed(3)}.json`;
 }
 
 function upstreamExpiry(headers, now) {
@@ -133,8 +133,8 @@ async function handleForecast(request, env) {
   }
 
   const upstreamUrl = new URL(UPSTREAM_URL);
-  upstreamUrl.searchParams.set("lat", latitude.toFixed(4));
-  upstreamUrl.searchParams.set("lon", longitude.toFixed(4));
+  upstreamUrl.searchParams.set("lat", latitude.toFixed(3));
+  upstreamUrl.searchParams.set("lon", longitude.toFixed(3));
   const headers = new Headers({ Accept: "application/json", "User-Agent": USER_AGENT });
   if (cached?.metadata.etag) headers.set("If-None-Match", cached.metadata.etag);
   if (cached?.metadata.lastModified) headers.set("If-Modified-Since", cached.metadata.lastModified);
