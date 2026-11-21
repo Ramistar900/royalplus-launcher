@@ -10,7 +10,7 @@ GRADLE = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 WORKFLOW = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 assert "LauncherDestination.FILES -> RoyalFileManagerScreen" in HOME
-assert "List(10) { FocusRequester() }" in HOME
+assert "List(11) { FocusRequester() }" in HOME
 sidebar = HOME[HOME.index("private fun RoyalSidePanel("):HOME.index("private fun StatusIcon(")]
 for forbidden in ('"مسلم"', '"اختصاراتي"', "LauncherDestination.MUSLIM", "LauncherDestination.SHORTCUTS"):
     assert forbidden not in sidebar, f"Hidden sidebar item returned: {forbidden}"
@@ -42,4 +42,4 @@ for icon in ("royal_apps_luxe", "royal_calendar_luxe", "royal_manage_apps_luxe",
     path = ROOT / ("app/src/main/res/drawable/" + icon + ".xml")
     assert path.exists(), f"Missing premium sidebar icon: {icon}"
     ET.parse(path)
-print("Verified the 10-item ROYAL+ sidebar, top-bar settings access, approved theme accents, internal previews, storage access and delete-confirmation paths.")
+print("Verified the 11-item ROYAL+ sidebar, top-bar settings access, approved theme accents, internal previews, storage access and delete-confirmation paths.")
