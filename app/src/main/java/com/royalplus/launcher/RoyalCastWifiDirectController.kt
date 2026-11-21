@@ -33,6 +33,8 @@ internal class RoyalCastWifiDirectController(context: Context) {
     private var channel: WifiP2pManager.Channel? = null
     private var receiverRegistered = false
     private var createGroupPending = false
+    private var legacyClientConnectPending = false
+    private var legacyClientConnected: (() -> Unit)? = null
     private var groupPollCount = 0
     private var onState: (String) -> Unit = {}
     private var onReceiverReady: ((String, String, String, String?) -> Unit)? = null
@@ -42,6 +44,7 @@ internal class RoyalCastWifiDirectController(context: Context) {
             when (intent?.action) {
                 WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
                     if (createGroupPending) requestGroupDetails()
+                    if (legacyClientConnectPending) requestLegacyClientInfo()
                 }
                 WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
                     val state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1)
@@ -222,18 +225,35 @@ internal class RoyalCastWifiDirectController(context: Context) {
                     deviceAddress = peer.deviceAddress
                     groupOwnerIntent = 0
                 }
+                legacyClientConnected = onConnected
+                legacyClientConnectPending = true
                 manager.connect(channel, config, actionListener(
                     success = {
-                        manager.requestConnectionInfo(channel) { info ->
-                            if (info?.groupFormed == true && !info.isGroupOwner) onConnected()
-                            else onStatus("يجري انتظار اكتمال اتصال Wi-Fi Direct...")
-                        }
+                        onStatus("تم طلب الاتصال المباشر. يجري انتظار اكتمال الانضمام...")
+                        requestLegacyClientInfo()
                     },
-                    failure = { reason -> onStatus("فشل الاتصال المباشر: $reason") }
+                    failure = { reason ->
+                        legacyClientConnectPending = false
+                        legacyClientConnected = null
+                        onStatus("فشل الاتصال المباشر: $reason")
+                    }
                 ))
             } },
             failure = { reason -> onStatus("تعذر البحث عن أجهزة Wi-Fi Direct: $reason") }
         ))
+    }
+
+    private fun requestLegacyClientInfo() {
+        if (!legacyClientConnectPending) return
+        manager?.requestConnectionInfo(channel) { info ->
+            if (info?.groupFormed == true && !info.isGroupOwner) {
+                legacyClientConnectPending = false
+                legacyClientConnected?.invoke()
+                legacyClientConnected = null
+            } else {
+                onState("يجري انتظار اكتمال اتصال Wi-Fi Direct...")
+            }
+        }
     }
 
     private fun actionListener(success: () -> Unit, failure: (String) -> Unit) =
@@ -253,6 +273,8 @@ internal class RoyalCastWifiDirectController(context: Context) {
 
     fun stopGroup() {
         createGroupPending = false
+        legacyClientConnectPending = false
+        legacyClientConnected = null
         manager?.removeGroup(channel, actionListener({}, {}))
     }
 
