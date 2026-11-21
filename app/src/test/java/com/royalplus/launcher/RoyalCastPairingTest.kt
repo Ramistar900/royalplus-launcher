@@ -51,10 +51,10 @@ class RoyalCastPairingTest {
     }
 
     @Test
-    fun wifiDirectPayloadWithoutPeerAddressIsRejected() {
+    fun wifiDirectPayloadWithoutPassphraseIsRejected() {
         assertNull(
             RoyalCastPairing.parsePayload(
-                "royalcast://connect?host=192.168.49.1&port=38471&token=0123456789abcdef0123456789abcdef&pin=042681&transport=wifi_direct&wifiDirectSsid=DIRECT-RY-ROYAL&wifiDirectPassphrase=RoyalCast4821"
+                "royalcast://connect?host=192.168.49.1&port=38471&token=0123456789abcdef0123456789abcdef&pin=042681&transport=wifi_direct&wifiDirectSsid=DIRECT-RY-ROYAL"
             )
         )
     }
