@@ -1,9 +1,11 @@
 const UPSTREAM_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
 const USER_AGENT = "ROYALPlusLauncherWeather/1.0 (https://github.com/Ramistar900/royalplus-launcher/issues)";
 const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
+const MIN_UPSTREAM_INTERVAL_MS = 3 * 60 * 60 * 1000;
 const STALE_RETENTION_MS = 48 * 60 * 60 * 1000;
-const CLIENT_MAX_AGE_SECONDS = 15 * 60;
+const CLIENT_MAX_AGE_SECONDS = 60 * 60;
 const inFlightRefreshes = new Map();
+const isolateFallbackCache = new Map();
 
 function jsonResponse(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -23,24 +25,27 @@ function normalizeCoordinate(value, min, max) {
   if (value === null || value.trim() === "") return null;
   const number = Number(value);
   if (!Number.isFinite(number) || number < min || number > max) return null;
-  // MET Norway explicitly requires no more than four decimal places.
   return Number(number.toFixed(3));
 }
 
 function cacheKeyFor(latitude, longitude) {
-  return `forecast/v1/${latitude.toFixed(3)}_${longitude.toFixed(3)}.json`;
+  return `forecast/v1/${latitude.toFixed(3)}_${longitude.toFixed(3)}`;
 }
 
 function upstreamExpiry(headers, now) {
   const cacheControl = headers.get("Cache-Control") || "";
   const maxAge = cacheControl.match(/(?:^|,)\s*max-age=(\d+)/i);
-  if (maxAge) return now + Number(maxAge[1]) * 1000;
+  if (maxAge) {
+    return now + Math.max(Number(maxAge[1]) * 1000, MIN_UPSTREAM_INTERVAL_MS);
+  }
 
   const expires = Date.parse(headers.get("Expires") || "");
-  if (Number.isFinite(expires) && expires > now) return expires;
+  if (Number.isFinite(expires) && expires > now) {
+    return Math.max(expires, now + MIN_UPSTREAM_INTERVAL_MS);
+  }
 
-  // Locationforecast is updated every six hours outside the Nordic region.
-  // The product FAQ says to wait at least half that interval before repeating.
+  // Global Locationforecast is updated every six hours. Never poll a
+  // location more frequently than MET Norway's documented minimum interval.
   return now + DEFAULT_TTL_MS;
 }
 
@@ -54,12 +59,16 @@ function hasUsableForecast(payload) {
 }
 
 function responseFor(payload, metadata, cacheStatus, stale = false) {
+  const remainingMs = Math.max(0, Number(metadata.expiresAt) - Date.now());
+  const maxAge = stale
+    ? 300
+    : Math.min(CLIENT_MAX_AGE_SECONDS, Math.floor(remainingMs / 1000));
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Cache-Control": `public, max-age=${stale ? 300 : CLIENT_MAX_AGE_SECONDS}`,
+    "Cache-Control": `public, max-age=${maxAge}`,
     "X-Royal-Weather-Cache": cacheStatus,
     "X-Royal-Weather-Expires-At": String(metadata.expiresAt),
     "X-Royal-Weather-Fetched-At": String(metadata.fetchedAt),
@@ -71,40 +80,48 @@ function responseFor(payload, metadata, cacheStatus, stale = false) {
   return jsonResponse(payload, 200, headers);
 }
 
-async function readStoredForecast(bucket, key) {
-  const object = await bucket.get(key);
-  if (!object) return null;
-  return {
-    payload: await object.json(),
-    metadata: object.customMetadata || {},
-  };
+async function readStoredForecast(kv, key) {
+  const local = isolateFallbackCache.get(key);
+  if (local) return { ...local, source: "ISOLATE" };
+
+  const stored = await kv.get(key, "json");
+  if (!stored) return null;
+  if (!stored.payload || !stored.metadata) return null;
+  return { ...stored, source: "KV" };
 }
 
-async function storeForecast(bucket, key, payload, upstreamHeaders, now, previousMetadata = {}) {
+async function storeForecast(kv, key, payload, upstreamHeaders, now, previousMetadata = {}) {
   const metadata = {
-    expiresAt: String(upstreamExpiry(upstreamHeaders, now)),
-    fetchedAt: String(now),
+    expiresAt: upstreamExpiry(upstreamHeaders, now),
+    fetchedAt: now,
     etag: upstreamHeaders.get("ETag") || previousMetadata.etag || "",
     lastModified: upstreamHeaders.get("Last-Modified") || previousMetadata.lastModified || "",
   };
-  await bucket.put(key, JSON.stringify(payload), {
-    httpMetadata: { contentType: "application/json; charset=utf-8" },
-    customMetadata: metadata,
-  });
-  return {
-    payload,
-    metadata: {
-      expiresAt: Number(metadata.expiresAt),
-      fetchedAt: Number(metadata.fetchedAt),
-      etag: metadata.etag,
-      lastModified: metadata.lastModified,
-    },
-  };
+  const entry = { payload, metadata };
+  isolateFallbackCache.set(key, entry);
+
+  const ttlSeconds = Math.max(
+    60,
+    Math.ceil((metadata.expiresAt - now + STALE_RETENTION_MS) / 1000),
+  );
+  try {
+    await kv.put(key, JSON.stringify(entry), { expirationTtl: ttlSeconds });
+    return { ...entry, cacheStatus: "MISS" };
+  } catch (_error) {
+    // KV Free limits fail closed. Keep this isolate's copy and serve the
+    // forecast to this caller; never upgrade the account or incur overage.
+    return { ...entry, cacheStatus: "UNCACHED" };
+  }
 }
 
 async function handleForecast(request, env) {
-  if (!env.WEATHER_CACHE) {
-    return jsonResponse({ error: "Weather cache storage is not configured." }, 503);
+  const kv = env.WEATHER_CACHE;
+  if (!kv || typeof kv.get !== "function" || typeof kv.put !== "function") {
+    return jsonResponse(
+      { error: "Free weather cache is not configured. No upstream request was made." },
+      503,
+      { "Retry-After": "3600" },
+    );
   }
 
   const url = new URL(request.url);
@@ -117,20 +134,21 @@ async function handleForecast(request, env) {
   const key = cacheKeyFor(latitude, longitude);
   let cached;
   try {
-    cached = await readStoredForecast(env.WEATHER_CACHE, key);
+    cached = await readStoredForecast(kv, key);
   } catch (_error) {
-    return jsonResponse({ error: "Weather cache storage is temporarily unavailable." }, 503);
+    // KV daily read quota or service errors must stop this request rather
+    // than repeatedly hitting MET Norway without a shared cache.
+    return jsonResponse(
+      { error: "Free weather cache limit reached or temporarily unavailable. Use the saved device forecast and retry later." },
+      503,
+      { "Retry-After": "3600", "X-Royal-Weather-Cache": "LIMIT" },
+    );
   }
 
   const now = Date.now();
   const cachedExpiry = Number(cached?.metadata.expiresAt || 0);
   if (cached && cachedExpiry > now) {
-    return responseFor(cached.payload, {
-      expiresAt: cachedExpiry,
-      fetchedAt: Number(cached.metadata.fetchedAt || 0),
-      etag: cached.metadata.etag || "",
-      lastModified: cached.metadata.lastModified || "",
-    }, "HIT");
+    return responseFor(cached.payload, cached.metadata, cached.source === "ISOLATE" ? "LOCAL" : "HIT");
   }
 
   const upstreamUrl = new URL(UPSTREAM_URL);
@@ -146,47 +164,31 @@ async function handleForecast(request, env) {
     refreshPromise = (async () => {
       const upstream = await fetch(upstreamUrl, { method: "GET", headers });
       if (upstream.status === 304 && cached) {
-        const refreshed = await storeForecast(
-          env.WEATHER_CACHE, key, cached.payload, upstream.headers, now, cached.metadata,
-        );
-        return { ...refreshed, cacheStatus: "REVALIDATED", warning: null };
+        return storeForecast(kv, key, cached.payload, upstream.headers, now, cached.metadata);
       }
       if (!upstream.ok) throw new Error(`MET Norway returned HTTP ${upstream.status}`);
 
       const payload = await upstream.json();
       if (!hasUsableForecast(payload)) throw new Error("MET Norway returned an incomplete forecast.");
-
-      const stored = await storeForecast(env.WEATHER_CACHE, key, payload, upstream.headers, now);
-      return {
-        ...stored,
-        cacheStatus: "MISS",
-        warning: upstream.status === 203 ? "Upstream API version is deprecated." : null,
-      };
+      return storeForecast(kv, key, payload, upstream.headers, now);
     })();
     inFlightRefreshes.set(key, refreshPromise);
   }
 
   try {
     const refreshed = await refreshPromise;
-    const cacheStatus = isRefreshLeader ? refreshed.cacheStatus : "COALESCED";
-    const result = responseFor(refreshed.payload, refreshed.metadata, cacheStatus);
-    if (refreshed.warning) {
-      result.headers.set("X-Weather-Upstream-Warning", refreshed.warning);
-    }
-    return result;
+    const cacheStatus = isRefreshLeader
+      ? (refreshed.cacheStatus === "MISS" ? "MISS" : refreshed.cacheStatus)
+      : "COALESCED";
+    return responseFor(refreshed.payload, refreshed.metadata, cacheStatus);
   } catch (_error) {
     if (cached && cachedExpiry > 0 && now - cachedExpiry <= STALE_RETENTION_MS) {
-      return responseFor(cached.payload, {
-        expiresAt: cachedExpiry,
-        fetchedAt: Number(cached.metadata.fetchedAt || 0),
-        etag: cached.metadata.etag || "",
-        lastModified: cached.metadata.lastModified || "",
-      }, "STALE", true);
+      return responseFor(cached.payload, cached.metadata, "STALE", true);
     }
     return jsonResponse(
       { error: "Weather data is temporarily unavailable. Please retry later." },
       502,
-      { "X-Weather-Source": "MET Norway" },
+      { "Retry-After": "3600", "X-Weather-Source": "MET Norway" },
     );
   } finally {
     if (isRefreshLeader && inFlightRefreshes.get(key) === refreshPromise) {
@@ -213,7 +215,7 @@ export default {
       return jsonResponse({ error: "Method not allowed." }, 405, { Allow: "GET, OPTIONS" });
     }
     if (url.pathname === "/health") {
-      return jsonResponse({ status: "ok", service: "ROYAL+ Weather API" });
+      return jsonResponse({ status: "ok", service: "ROYAL+ Weather API", cache: "Cloudflare KV Free" });
     }
     if (url.pathname !== "/v1/forecast") {
       return jsonResponse({ error: "Not found." }, 404);
@@ -227,4 +229,5 @@ export const __test = {
   upstreamExpiry,
   hasUsableForecast,
   cacheKeyFor,
+  clearLocalCache: () => isolateFallbackCache.clear(),
 };
