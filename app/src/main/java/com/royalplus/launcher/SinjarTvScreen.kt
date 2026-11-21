@@ -584,13 +584,22 @@ private fun SinjarPlayerPane(
             Column(
                 modifier = Modifier.align(Alignment.Center)
                     .background(Color(0xA6121822), RoundedCornerShape(14.dp))
+                    .clickable {
+                        if (visibleChannels.isNotEmpty()) {
+                            channelMenuVisible = true
+                            highlightedIndex = visibleChannels.indexOfFirst {
+                                it.streamUrl == selectedChannel?.streamUrl
+                            }.let { if (it >= 0) it else 0 }
+                            controlsTimerKey++
+                        }
+                    }
                     .padding(18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(Icons.Rounded.Tv, contentDescription = null, tint = gold, modifier = Modifier.size(42.dp))
                 Text(
-                    if (arabic) "اضغط OK لعرض قائمة القنوات" else "Press OK to open channels",
+                    if (arabic) "المس هنا أو اضغط OK لعرض القنوات" else "Tap here or press OK to open channels",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
