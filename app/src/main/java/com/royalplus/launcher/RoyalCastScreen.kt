@@ -90,6 +90,32 @@ private fun RoyalCastPhoneScreen(language: String) {
     val context = LocalContext.current
     var selectedTv by remember { mutableStateOf<RoyalCastEndpoint?>(null) }
     var scannerMessage by remember { mutableStateOf<String?>(null) }
+    var directReady by remember { mutableStateOf(false) }
+    var directStatus by remember { mutableStateOf<String?>(null) }
+    val wifiDirect = remember(context) { RoyalCastWifiDirectController(context) }
+    val connectDirect: (RoyalCastEndpoint) -> Unit = { endpoint ->
+        wifiDirect.connectToReceiver(
+            deviceAddress = endpoint.deviceAddress.orEmpty(),
+            onStatus = { directStatus = it; RoyalCastSenderStatus.update(it) },
+            onConnected = {
+                directReady = true
+                directStatus = "اتصل الهاتف بالتلفاز مباشرة. يمكنك الآن بدء مشاركة الشاشة."
+                RoyalCastSenderStatus.update(directStatus!!)
+            }
+        )
+    }
+    val directPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            selectedTv?.takeIf { it.transport == RoyalCastTransport.WIFI_DIRECT }?.let(connectDirect)
+        } else {
+            directStatus = "لم يتم منح أذونات Wi-Fi Direct."
+        }
+    }
+    DisposableEffect(wifiDirect) {
+        onDispose { wifiDirect.release() }
+    }
     val projectionManager = remember(context) {
         context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
@@ -131,8 +157,16 @@ private fun RoyalCastPhoneScreen(language: String) {
                 scannerMessage = "هذا الرمز غير صالح أو ليس رمز ROYAL CAST."
             } else {
                 selectedTv = endpoint
+                directReady = false
+                directStatus = null
                 scannerMessage = null
-                RoyalCastSenderStatus.update("تم العثور على التلفاز. راجع رمز التأكيد ثم ابدأ البث.")
+                RoyalCastSenderStatus.update(
+                    if (endpoint.transport == RoyalCastTransport.WIFI_DIRECT) {
+                        "تم العثور على رمز Wi-Fi Direct. اتصل بالتلفاز أولاً ثم ابدأ مشاركة الشاشة."
+                    } else {
+                        "تم العثور على التلفاز. راجع رمز التأكيد ثم ابدأ البث."
+                    }
+                )
             }
         }
     }
@@ -156,9 +190,9 @@ private fun RoyalCastPhoneScreen(language: String) {
         CastInfoCard {
             Text(
                 when (language) {
-                    "en" -> "Connect both devices to the same Wi-Fi network. On the TV, open the Phone Cast section and keep its pairing QR code visible."
-                    "tr" -> "İki cihazı da aynı Wi-Fi ağına bağlayın. TV'de Telefon Yansıtma bölümünü açıp QR kodunu ekranda tutun."
-                    else -> "صل الهاتف والتلفاز بشبكة Wi-Fi نفسها. افتح قسم بث شاشة الهاتف على التلفاز واترك رمز الاقتران ظاهراً."
+                    "en" -> "Choose the Wi-Fi or Wi-Fi Direct mode on the TV, then scan its QR code here to pair securely."
+                    "tr" -> "TV'de Wi-Fi veya Wi-Fi Direct modunu seçin, ardından güvenli eşleştirme için QR kodunu burada tarayın."
+                    else -> "اختر Wi-Fi أو Wi-Fi Direct على التلفاز، ثم امسح رمز QR هنا لإتمام الاقتران الآمن."
                 },
                 color = CastPearl, fontSize = 14.sp, lineHeight = 22.sp, textAlign = TextAlign.Center
             )
@@ -204,9 +238,38 @@ private fun RoyalCastPhoneScreen(language: String) {
                     color = CastPearl, fontSize = 13.sp
                 )
                 Text(tv.pin.chunked(3).joinToString(" "), color = CastGold, fontSize = 27.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+                if (tv.transport == RoyalCastTransport.WIFI_DIRECT) {
+                    Text(
+                        directStatus ?: "يلزم توصيل الهاتف بالتلفاز عبر Wi-Fi Direct قبل بدء البث.",
+                        color = if (directReady) Color(0xFF65D6A6) else CastMuted,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            if (wifiDirect.hasRequiredPermissions()) connectDirect(tv)
+                            else directPermissionLauncher.launch(wifiDirect.requiredPermissions())
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            when (language) {
+                                "en" -> if (directReady) "Wi-Fi Direct connected" else "Connect with Wi-Fi Direct"
+                                "tr" -> if (directReady) "Wi-Fi Direct bağlı" else "Wi-Fi Direct ile bağlan"
+                                else -> if (directReady) "تم الاتصال عبر Wi-Fi Direct" else "الاتصال عبر Wi-Fi Direct"
+                            },
+                            color = CastPearl
+                        )
+                    }
+                }
                 Button(
                     onClick = {
-                        projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
+                        if (tv.transport == RoyalCastTransport.WIFI_DIRECT && !directReady) {
+                            directStatus = "اتصل بالتلفاز عبر Wi-Fi Direct أولاً."
+                            RoyalCastSenderStatus.update(directStatus!!)
+                        } else {
+                            projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
+                        }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CastGold, contentColor = Color(0xFF17130B)),
@@ -254,16 +317,39 @@ private fun RoyalCastPhoneScreen(language: String) {
 private fun RoyalCastTelevisionScreen(language: String) {
     val context = LocalContext.current
     val controller = remember(context) { RoyalCastReceiverController(context.applicationContext) }
+    val wifiDirect = remember(context) { RoyalCastWifiDirectController(context) }
     val receiverState by controller.state.collectAsState()
     var renderer by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+    var directMode by remember { mutableStateOf(false) }
+    var directStatus by remember { mutableStateOf<String?>(null) }
 
-    DisposableEffect(controller) {
+    val startDirect: () -> Unit = {
+        directStatus = "يجري تهيئة Wi-Fi Direct..."
+        wifiDirect.startGroupOwner(
+            onStatus = { directStatus = it },
+            onReady = { host, deviceAddress ->
+                controller.stop()
+                directMode = true
+                controller.start(host, RoyalCastTransport.WIFI_DIRECT, deviceAddress)
+            }
+        )
+    }
+    val directPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) startDirect()
+        else directStatus = "لم يتم منح أذونات Wi-Fi Direct."
+    }
+
+    DisposableEffect(controller, wifiDirect) {
         controller.start()
         onDispose {
             controller.detachRenderer(renderer)
             runCatching { renderer?.release() }
             renderer = null
             controller.stop()
+            wifiDirect.stopGroup()
+            wifiDirect.release()
         }
     }
 
@@ -281,6 +367,47 @@ private fun RoyalCastTelevisionScreen(language: String) {
             },
             icon = Icons.Rounded.Cast
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Button(
+                onClick = {
+                    if (directMode) {
+                        wifiDirect.stopGroup()
+                        controller.stop()
+                        controller.start()
+                        directMode = false
+                        directStatus = null
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = directMode,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (!directMode) CastGold else CastPanel,
+                    contentColor = if (!directMode) Color(0xFF17130B) else CastPearl
+                )
+            ) {
+                Text(when (language) { "en" -> "Wi-Fi"; "tr" -> "Wi-Fi"; else -> "واي فاي" })
+            }
+            Button(
+                onClick = {
+                    if (wifiDirect.hasRequiredPermissions()) startDirect()
+                    else directPermissionLauncher.launch(wifiDirect.requiredPermissions())
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (directMode) CastGold else CastPanel,
+                    contentColor = if (directMode) Color(0xFF17130B) else CastPearl
+                )
+            ) {
+                Text(when (language) { "en" -> "Wi-Fi Direct"; "tr" -> "Wi-Fi Direct"; else -> "واي فاي مباشر" })
+            }
+        }
+        directStatus?.let {
+            Text(it, color = CastMuted, fontSize = 11.sp, textAlign = TextAlign.Center)
+        }
 
         if (receiverState.phase == RoyalCastReceiverPhase.CONNECTED) {
             Box(
@@ -369,9 +496,12 @@ private fun RoyalCastTelevisionScreen(language: String) {
         }
         Text(
             when (language) {
-                "en" -> "Keep your phone and TV on the same Wi-Fi network. The TV waits for one paired phone at a time."
-                "tr" -> "Telefon ve TV aynı Wi-Fi ağında olmalıdır. TV aynı anda bir eşleştirilmiş telefonu bekler."
-                else -> "يجب أن يكون الهاتف والتلفاز على شبكة Wi-Fi نفسها. يستقبل التلفاز هاتفاً واحداً في كل مرة."
+                "en" -> if (directMode) "Wi-Fi Direct connects phone and TV without a router or internet. Scan the QR code from your phone."
+                    else "For Wi-Fi mode, keep both devices on the same local Wi-Fi network and scan the TV QR code."
+                "tr" -> if (directMode) "Wi-Fi Direct telefonu ve TV'yi yönlendirici veya internet olmadan bağlar. QR kodunu telefonla tarayın."
+                    else "Wi-Fi modunda iki cihaz aynı yerel Wi-Fi ağında olmalı ve TV QR kodu taranmalıdır."
+                else -> if (directMode) "يربط Wi-Fi Direct الهاتف والتلفاز مباشرة دون راوتر أو إنترنت. امسح رمز QR من الهاتف."
+                    else "في وضع Wi-Fi يجب أن يكون الهاتف والتلفاز على الشبكة المحلية نفسها، ثم امسح رمز التلفاز."
             },
             color = CastMuted, fontSize = 11.sp, lineHeight = 17.sp, textAlign = TextAlign.Center
         )
