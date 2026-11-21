@@ -105,7 +105,7 @@ internal class RoyalCastWifiDirectController(context: Context) {
             addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION)
         }
         if (Build.VERSION.SDK_INT >= 33) {
-            appContext.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            appContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             appContext.registerReceiver(receiver, filter)
         }
@@ -130,7 +130,6 @@ internal class RoyalCastWifiDirectController(context: Context) {
         createGroupPending = true
         receiverReadyReported = false
         groupPollCount = 0
-        localDeviceAddress = null
         onState("يجري إنشاء اتصال Wi-Fi Direct على التلفاز...")
         manager?.createGroup(channel, actionListener(
             success = {
