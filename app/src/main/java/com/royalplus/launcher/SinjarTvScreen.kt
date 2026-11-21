@@ -550,7 +550,9 @@ private fun SinjarPlayerPane(
                             previousPosition = change.position
                             totalX += delta.x
                             totalY += delta.y
-                            if (abs(totalX) > touchSlop || abs(totalY) > touchSlop) {
+                            if (!channelMenuVisible && selectedChannel != null &&
+                                (abs(totalX) > touchSlop || abs(totalY) > touchSlop)
+                            ) {
                                 moved = true
                                 change.consume()
                             }
