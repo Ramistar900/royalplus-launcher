@@ -36,7 +36,7 @@ assert 'HD("HD", 1280, 720)' in SINJAR
 assert 'FULL_HD("Full HD", 1920, 1080)' in SINJAR
 assert 'UHD_4K("4K", 3840, 2160)' in SINJAR
 assert ".setMaxVideoSize(quality.maxWidth, quality.maxHeight)" in SINJAR
-assert "selectedVideoQuality = SinjarVideoQuality.AUTO" in SINJAR
+assert "mutableStateOf(SinjarVideoQuality.AUTO)" in SINJAR
 
 # The TV advertises its receiver; the phone discovers it and enters only the TV PIN.
 assert "RoyalCaptionNsdDiscovery" in ACTIVITY
