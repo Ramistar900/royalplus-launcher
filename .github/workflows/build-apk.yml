@@ -194,6 +194,9 @@ jobs:
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
 
+      - name: Verify ROYAL+ 1116 user-reported repairs
+        run: python3 .github/scripts/verify-royalplus-1116-repairs.py
+
       - name: Download pinned SMaLL-100 tokenizer test fixture
         run: |
           set -euo pipefail
@@ -431,6 +434,9 @@ jobs:
 
       - name: Verify sports integration security and navigation
         run: python3 .github/scripts/verify-sports-integration.py
+
+      - name: Verify ROYAL+ 1116 user-reported repairs
+        run: python3 .github/scripts/verify-royalplus-1116-repairs.py
 
       - name: Download and verify offline Quran text
         run: |
