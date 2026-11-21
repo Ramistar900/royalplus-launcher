@@ -336,6 +336,7 @@ class RoyalCastSenderService : Service() {
         runCatching { peerConnection?.close() }
         runCatching { peerConnection?.dispose() }
         peerConnection = null
+        RoyalCastWifiDirectSession.release()
         worker.shutdownNow()
         super.onDestroy()
     }
