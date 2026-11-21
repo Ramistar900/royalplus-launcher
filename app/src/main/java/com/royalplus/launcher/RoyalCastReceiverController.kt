@@ -35,7 +35,9 @@ internal data class RoyalCastReceiverState(
     val host: String? = null,
     val port: Int? = null,
     val token: String? = null,
-    val pin: String? = null
+    val pin: String? = null,
+    val transport: RoyalCastTransport = RoyalCastTransport.WIFI,
+    val deviceAddress: String? = null
 ) {
     val pairingPayload: String?
         get() {
@@ -43,7 +45,9 @@ internal data class RoyalCastReceiverState(
             val currentPort = port ?: return null
             val currentToken = token ?: return null
             val currentPin = pin ?: return null
-            return RoyalCastPairing.createPayload(currentHost, currentPort, currentToken, currentPin)
+            return RoyalCastPairing.createPayload(
+                currentHost, currentPort, currentToken, currentPin, transport, deviceAddress
+            )
         }
 }
 
@@ -65,7 +69,11 @@ internal class RoyalCastReceiverController(
     @Volatile private var renderer: SurfaceViewRenderer? = null
     @Volatile private var iceGatheringLatch: CountDownLatch? = null
 
-    fun start() {
+    fun start(
+        hostOverride: String? = null,
+        transport: RoyalCastTransport = RoyalCastTransport.WIFI,
+        deviceAddress: String? = null
+    ) {
         if (serverSocket != null) return
         stopped.set(false)
         val attempt = generation.incrementAndGet()
@@ -73,7 +81,7 @@ internal class RoyalCastReceiverController(
             phase = RoyalCastReceiverPhase.STARTING,
             message = "يجري تشغيل مستقبل ROYAL CAST"
         )
-        Thread({ openReceiver(attempt) }, "RoyalCast-Receiver").apply {
+        Thread({ openReceiver(attempt, hostOverride, transport, deviceAddress) }, "RoyalCast-Receiver").apply {
             isDaemon = true
             start()
         }
@@ -114,10 +122,15 @@ internal class RoyalCastReceiverController(
     private fun isCurrent(attempt: Int): Boolean =
         !stopped.get() && generation.get() == attempt
 
-    private fun openReceiver(attempt: Int) {
+    private fun openReceiver(
+        attempt: Int,
+        hostOverride: String?,
+        transport: RoyalCastTransport,
+        deviceAddress: String?
+    ) {
         var openedSocket: ServerSocket? = null
         try {
-            val host = RoyalCastPairing.localIpv4Address(context)
+            val host = hostOverride ?: RoyalCastPairing.localIpv4Address(context)
                 ?: error("لم نعثر على عنوان Wi-Fi أو Ethernet محلي. تأكد من اتصال التلفاز بالشبكة.")
             val token = RoyalCastPairing.newToken()
             val pin = RoyalCastPairing.newPin()
@@ -134,7 +147,9 @@ internal class RoyalCastReceiverController(
                 host = host,
                 port = socket.localPort,
                 token = token,
-                pin = pin
+                pin = pin,
+                transport = transport,
+                deviceAddress = deviceAddress
             )
             while (isCurrent(attempt)) {
                 val client = socket.accept()
