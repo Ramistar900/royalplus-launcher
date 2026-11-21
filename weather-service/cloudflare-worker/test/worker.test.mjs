@@ -35,8 +35,8 @@ function makeForecast(days = 9) {
   return { properties: { timeseries } };
 }
 
-test("coordinates are validated and rounded to four decimals", () => {
-  assert.equal(__test.normalizeCoordinate("41.008612", -90, 90), 41.0086);
+test("coordinates are validated and rounded to three decimals", () => {
+  assert.equal(__test.normalizeCoordinate("41.00912", -90, 90), 41.0086);
   assert.equal(__test.normalizeCoordinate("91", -90, 90), null);
   assert.equal(__test.normalizeCoordinate("", -90, 90), null);
   assert.equal(__test.normalizeCoordinate("not-a-number", -90, 90), null);
@@ -108,8 +108,8 @@ test("forecast endpoint fetches, normalizes, and globally caches a valid respons
     assert.equal(first.status, 200);
     assert.equal(first.headers.get("X-Royal-Weather-Cache"), "MISS");
     assert.equal((await first.json()).properties.timeseries.length, 36);
-    assert.equal(requestedUrl.searchParams.get("lat"), "41.0086");
-    assert.equal(requestedUrl.searchParams.get("lon"), "28.9802");
+    assert.equal(requestedUrl.searchParams.get("lat"), "41.009");
+    assert.equal(requestedUrl.searchParams.get("lon"), "28.980");
     assert.match(requestedHeaders.get("User-Agent"), /^ROYALPlusLauncherWeather/);
 
     const second = await worker.fetch(request, { WEATHER_CACHE: bucket });
