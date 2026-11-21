@@ -17,11 +17,13 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Process
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.Gravity
@@ -54,6 +56,13 @@ class FloatingTranslationOverlayService : Service() {
     private var mediaProjectionCallback: MediaProjection.Callback? = null
     private var projectionResultCode: Int = Activity.RESULT_CANCELED
     private var projectionResultData: Intent? = null
+    @Volatile private var phoneCompanionMode = false
+    @Volatile private var captionConnectionMessage = "بانتظار اتصال الهاتف بالتلفاز عبر Wi-Fi…"
+    @Volatile private var captionSender: RoyalCaptionSender? = null
+    private var phoneTargetHost: String? = null
+    private var phonePairingPin: String? = null
+    private var cpuWakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
     private var consecutiveSilentSegments = 0
     private var consecutiveUnrecognizedSegments = 0
     private var lastRecognizedTail: List<String> = emptyList()
@@ -108,13 +117,59 @@ class FloatingTranslationOverlayService : Service() {
         }
         if (intent?.action == ACTION_SHOW && running.get()) {
             revealControl()
-            updateNotification("الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة")
+            updateNotification(
+                if (phoneCompanionMode) {
+                    "الهاتف يلتقط صوت التلفاز ويرسل الترجمة؛ يمكنك إطفاء الشاشة."
+                } else {
+                    "الترجمة جاهزة؛ شغّل صوتاً لبدء الترجمة"
+                }
+            )
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) START_NOT_STICKY else START_STICKY
         }
         if (intent?.action == ACTION_DOWNLOAD_TRANSLATION_MODEL && running.get()) {
             startTranslationModelDownload()
             return START_NOT_STICKY
         }
+
+        val preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
+        phoneCompanionMode = intent?.action == ACTION_START_PHONE_CAPTURE ||
+            (intent == null && preferences.getBoolean(KEY_PHONE_CAPTURE_ENABLED, false))
+        if (phoneCompanionMode) {
+            if (TranslationDeviceRoleDetector.detect(this) != TranslationDeviceRole.PHONE_CAPTURE) {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            phoneTargetHost = intent?.getStringExtra(EXTRA_TV_HOST)
+                ?: preferences.getString(KEY_PHONE_TV_HOST, null)
+            phonePairingPin = intent?.getStringExtra(EXTRA_TV_PIN)
+                ?: preferences.getString(KEY_PHONE_TV_PIN, null)
+            val host = phoneTargetHost
+            val pin = phonePairingPin
+            if (host.isNullOrBlank() || pin.isNullOrBlank() ||
+                !RoyalCaptionTransport.isPrivateIpv4Address(host) ||
+                !pin.matches(Regex("\\d{8}"))
+            ) {
+                preferences.edit().putBoolean(KEY_PHONE_CAPTURE_ENABLED, false).apply()
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            preferences.edit()
+                .putBoolean(KEY_PHONE_CAPTURE_ENABLED, true)
+                .putString(KEY_PHONE_TV_HOST, host)
+                .putString(KEY_PHONE_TV_PIN, pin)
+                .apply()
+            captionSender = runCatching {
+                RoyalCaptionSender(host, pin) { connected, message ->
+                    captionConnectionMessage = message
+                    if (running.get()) updateNotification(message)
+                }
+            }.getOrElse {
+                updateNotification(it.localizedMessage ?: "تعذر تجهيز اتصال التلفاز")
+                stopSelf()
+                return START_NOT_STICKY
+            }
+        }
+
         val hardwareAssessment = TranslationDeviceCapability.checkHardware(applicationContext)
         if (!hardwareAssessment.supported) {
             getSharedPreferences(PREFERENCES, MODE_PRIVATE)
@@ -134,7 +189,7 @@ class FloatingTranslationOverlayService : Service() {
             return START_NOT_STICKY
         }
 
-        if (!Settings.canDrawOverlays(this)) {
+        if (!phoneCompanionMode && !Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -145,7 +200,7 @@ class FloatingTranslationOverlayService : Service() {
             return START_NOT_STICKY
         }
 
-        val usePlaybackCapture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val usePlaybackCapture = !phoneCompanionMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         if (usePlaybackCapture) {
             projectionResultCode = intent?.getIntExtra(EXTRA_PROJECTION_RESULT_CODE, Activity.RESULT_CANCELED)
                 ?: Activity.RESULT_CANCELED
@@ -158,7 +213,9 @@ class FloatingTranslationOverlayService : Service() {
 
         createNotificationChannel()
         startTranslationForeground(usePlaybackCapture)
-        if (captionView == null) {
+        if (phoneCompanionMode) {
+            acquirePhoneBackgroundLocks()
+        } else if (captionView == null) {
             try {
                 showOverlay()
             } catch (_: Exception) {
@@ -167,10 +224,39 @@ class FloatingTranslationOverlayService : Service() {
             }
         }
         if (running.compareAndSet(false, true)) {
+            if (phoneCompanionMode) updateNotification(captionConnectionMessage)
             updateStatus("يتم تجهيز الترجمة لأول استخدام…")
             modelThread = Thread({ prepareRecognizer() }, "RoyalWhisperSetup").apply { start() }
         }
         return if (usePlaybackCapture) START_NOT_STICKY else START_STICKY
+    }
+
+    /**
+     * Keeps the phone CPU and Wi-Fi radio awake during an explicitly started
+     * microphone foreground session. The screen itself is never kept on.
+     */
+    @Suppress("DEPRECATION")
+    private fun acquirePhoneBackgroundLocks() {
+        runCatching {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            cpuWakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "ROYALPlus:PhoneCaptionCapture"
+            ).apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }
+        runCatching {
+            val manager = getSystemService(WIFI_SERVICE) as? WifiManager ?: return@runCatching
+            wifiLock = manager.createWifiLock(
+                WifiManager.WIFI_MODE_FULL,
+                "ROYALPlus:PhoneCaptionWiFi"
+            ).apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }
     }
 
     private fun prepareRecognizer() {
@@ -212,16 +298,19 @@ class FloatingTranslationOverlayService : Service() {
 
     private fun startAudioCapture(): Boolean {
         val recorder = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) createPlaybackCaptureRecord()
+            if (phoneCompanionMode) createMicrophoneRecord()
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) createPlaybackCaptureRecord()
             else createMicrophoneRecord()
         } catch (error: Exception) {
-            updateStatus(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val captureError = when {
+                phoneCompanionMode ->
+                    "تعذر تشغيل ميكروفون الهاتف: ${error.localizedMessage ?: "تحقق من الإذن وأعد المحاولة"}"
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                     "تعذر التقاط صوت التطبيق: ${error.localizedMessage ?: "لم يمنح النظام إذن مشاركة الصوت"}"
-                } else {
-                    "تعذر تشغيل ميكروفون التلفاز: ${error.localizedMessage ?: "تحقق من وجود ميكروفون ومنح الإذن"}"
-                }
-            )
+                else ->
+                    "تعذر تشغيل ميكروفون الجهاز: ${error.localizedMessage ?: "تحقق من وجود ميكروفون ومنح الإذن"}"
+            }
+            updateStatus(captureError)
             mainHandler.postDelayed({ stopSelf() }, 8_000L)
             return false
         }
@@ -232,13 +321,15 @@ class FloatingTranslationOverlayService : Service() {
             return false
         }
         audioRecord = recorder
-        updateStatus(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val captureReadyMessage = when {
+            phoneCompanionMode ->
+                "الهاتف يلتقط صوت التلفاز عبر ميكروفونه ويرسل الترجمة؛ يمكنك إطفاء الشاشة."
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                 "تم ربط التقاط صوت التطبيقات. جارٍ تجهيز محرك الترجمة…"
-            } else {
-                "Android 8/9: الترجمة تستمع عبر ميكروفون التلفاز؛ ارفع صوت الفيديو وتأكد من وجود ميكروفون فعلي."
-            }
-        )
+            else ->
+                "Android 8/9: الترجمة تستمع عبر ميكروفون الجهاز؛ ارفع صوت الفيديو وتأكد من وجود ميكروفون فعلي."
+        }
+        updateStatus(captureReadyMessage)
         captureThread = Thread({ captureAudio(recorder) }, "RoyalAudioCapture").apply { start() }
         return true
     }
@@ -331,7 +422,10 @@ class FloatingTranslationOverlayService : Service() {
         var filled = 0
         try {
             recorder.startRecording()
-            updateNotification("يلتقط ROYAL+ صوت الفيديو الآن؛ يجري تحليل المقاطع محلياً")
+            updateNotification(
+                if (phoneCompanionMode) "الهاتف يلتقط صوت التلفاز ويرسل الترجمة حتى عند إطفاء الشاشة"
+                else "يلتقط ROYAL+ صوت الفيديو الآن؛ يجري تحليل المقاطع محلياً"
+            )
             while (running.get() && !Thread.currentThread().isInterrupted) {
                 val count = recorder.read(input, 0, input.size)
                 if (count > 0) {
@@ -445,13 +539,15 @@ class FloatingTranslationOverlayService : Service() {
                     if (consecutiveSilentSegments == 2) {
                         lastRecognizedTail = emptyList()
                         lastRecognizedLanguage = null
-                        updateStatus(
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val silentAudioMessage = when {
+                            phoneCompanionMode ->
+                                "ميكروفون الهاتف لا يلتقط صوت التلفاز بوضوح؛ قرّب الهاتف من سماعات التلفاز وارفع الصوت."
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                                 "لا يصل صوت واضح من التطبيق إلى ROYAL+. تحقق من إذن مشاركة صوت الشاشة."
-                            } else {
-                                "لم يلتقط الميكروفون صوتاً واضحاً؛ قرّب الهاتف أو التلفاز من مصدر الصوت."
-                            }
-                        )
+                            else ->
+                                "لم يلتقط الميكروفون صوتاً واضحاً؛ قرّب الجهاز من مصدر الصوت."
+                        }
+                        updateStatus(silentAudioMessage)
                     }
                     continue
                 }
@@ -835,8 +931,16 @@ class FloatingTranslationOverlayService : Service() {
 
     private fun showCaption(text: String, language: String) {
         mainHandler.post {
-            val caption = captionView ?: return@post
             val safeArabicCaption = ArabicCaptionFormatter.format(text)
+            if (phoneCompanionMode) {
+                if (safeArabicCaption.isBlank()) {
+                    updateNotification("تم التعرف على الكلام، لكن الترجمة العربية غير صالحة للإرسال.")
+                    return@post
+                }
+                captionSender?.sendCaption(safeArabicCaption, language)
+                return@post
+            }
+            val caption = captionView ?: return@post
             if (safeArabicCaption.isBlank()) {
                 updateStatus("تم التعرف على الكلام، لكن محرك الترجمة لم يُرجع نصاً عربياً صالحاً.")
                 return@post
@@ -1055,11 +1159,32 @@ class FloatingTranslationOverlayService : Service() {
     }
 
     private fun startTranslationForeground(usePlaybackCapture: Boolean) {
-        val notification = buildNotification(if (usePlaybackCapture) "تهيئة التقاط صوت التطبيقات" else "تهيئة ميكروفون التلفاز")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && usePlaybackCapture) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        val message = when {
+            phoneCompanionMode -> "تهيئة ميكروفون الهاتف والاتصال بالتلفاز"
+            usePlaybackCapture -> "تهيئة التقاط صوت التطبيقات"
+            else -> "تهيئة ميكروفون الجهاز"
+        }
+        val notification = buildNotification(message)
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && usePlaybackCapture -> {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                )
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && phoneCompanionMode -> {
+                // The microphone foreground-service type was added in Android 11 (API 30).
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            }
+            else -> {
+                // Android 7–10 use the compatible two-argument foreground-service API.
+                startForeground(NOTIFICATION_ID, notification)
+            }
         }
     }
 
@@ -1143,6 +1268,12 @@ class FloatingTranslationOverlayService : Service() {
             // The capture device may already have been released by the system.
         }
         audioRecord = null
+        captionSender?.close()
+        captionSender = null
+        runCatching { if (cpuWakeLock?.isHeld == true) cpuWakeLock?.release() }
+        cpuWakeLock = null
+        runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
+        wifiLock = null
         val projection = mediaProjection
         val projectionCallback = mediaProjectionCallback
         mediaProjection = null
@@ -1228,7 +1359,10 @@ class FloatingTranslationOverlayService : Service() {
         windowManager = null
 
         getSharedPreferences(PREFERENCES, MODE_PRIVATE)
-            .edit().putBoolean(KEY_ENABLED, false).apply()
+            .edit()
+            .putBoolean(KEY_ENABLED, false)
+            .putBoolean(KEY_PHONE_CAPTURE_ENABLED, false)
+            .apply()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -1243,6 +1377,12 @@ class FloatingTranslationOverlayService : Service() {
 
     companion object {
         const val ACTION_SHOW = "com.royalplus.launcher.action.SHOW_TRANSLATION_OVERLAY"
+        const val ACTION_START_PHONE_CAPTURE = "com.royalplus.launcher.action.START_PHONE_CAPTION_CAPTURE"
+        const val EXTRA_TV_HOST = "royal_caption_tv_host"
+        const val EXTRA_TV_PIN = "royal_caption_tv_pin"
+        const val KEY_PHONE_CAPTURE_ENABLED = "royal_phone_caption_capture_enabled"
+        const val KEY_PHONE_TV_HOST = "royal_phone_caption_tv_host"
+        const val KEY_PHONE_TV_PIN = "royal_phone_caption_tv_pin"
         const val ACTION_STOP = "com.royalplus.launcher.action.STOP_TRANSLATION_OVERLAY"
         const val ACTION_DOWNLOAD_TRANSLATION_MODEL = "com.royalplus.launcher.action.DOWNLOAD_TRANSLATION_MODEL"
         const val ACTION_DEVICE_CAPABILITY_FAILED = "com.royalplus.launcher.action.TRANSLATION_DEVICE_CAPABILITY_FAILED"
