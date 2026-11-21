@@ -13,15 +13,39 @@ assert "-keep class com.k2fsa.sherpa.onnx.** { *; }" in proguard
 assert "-keep interface com.k2fsa.sherpa.onnx.** { *; }" in proguard
 
 weather = (JAVA / "RoyalWeatherAtmosphereOverlay.kt").read_text(encoding="utf-8")
-assert "drawRoyalRain(" not in weather, "Animated rain drops must not cover the local weather video"
-assert "drawRoyalSnow(" not in weather, "Animated snow particles must not cover the local weather video"
+assert "drawRoyalRain(" not in weather, "Do not replace or cover the base rain footage with a generic rain layer"
+assert "drawRoyalSnow(" not in weather, "Do not replace or cover the existing snow footage"
+assert "drawRoyalDrizzle(progress, width, height, effectScale)" in weather
+assert "drawRoyalFreezingRain(progress, width, height, effectScale)" in weather
+assert "drawRoyalHail(progress, width, height, effectScale)" in weather
+assert "effectiveWeatherCode in 51..55" in weather
+assert "effectiveWeatherCode in 56..57 || effectiveWeatherCode in 66..67" in weather
+assert "effectiveWeatherCode == 96 || effectiveWeatherCode == 99" in weather
 assert "drawRoyalWind(" in weather, "Weather atmosphere must retain wind motion"
 assert "val windThreshold = if (isSnow) 12 else 18" in weather, "Wind gusts should remain visible during snow and stronger wind"
 gust_renderer = weather.split("private fun DrawScope.drawRoyalWind(", 1)[1]
 for forbidden in ("drawRoyalClouds", "drawRoyalSun", "drawRoyalFog", "drawRoyalNightSky", "drawRoyalLightning"):
     assert forbidden not in weather, f"Unwanted procedural weather layer remains: {forbidden}"
 assert "cubicTo(" in gust_renderer and "trailingCurl" in gust_renderer and "drawPath(" in gust_renderer
-assert "drawLine(" not in weather and "drawRect(" not in weather
+assert "drawLine(" not in gust_renderer and "drawArc(" not in gust_renderer
+for renderer_name in ("drawRoyalFreezingRain", "drawRoyalHail"):
+    renderer = weather.split(f"private fun DrawScope.{renderer_name}(", 1)[1].split("\n}", 1)[0]
+    assert "drawCircle(" in renderer
+for renderer_name in ("drawRoyalDrizzle", "drawRoyalFreezingRain"):
+    renderer = weather.split(f"private fun DrawScope.{renderer_name}(", 1)[1].split("\n}", 1)[0]
+    assert "drawLine(" in renderer
+hail_renderer = weather.split("private fun DrawScope.drawRoyalHail(", 1)[1].split("\n}", 1)[0]
+assert "drawArc(" in hail_renderer, "Hail stones should retain their shaded ice-rim detail"
+
+videos = list((ROOT / "app/src/main/assets/weather_videos").glob("*.mp4"))
+assert len(videos) == 13, "Keep the existing 13 local weather videos; do not add storage-heavy clips"
+
+audio = (JAVA / "RoyalWeatherAmbienceController.kt").read_text(encoding="utf-8")
+assert "resolveWeatherAmbienceMix(" in audio
+assert "selectWindCompanionScene(" in audio
+assert "windPlayer" in audio
+assert "RAIN_WITH_WIND_VOLUME_MULTIPLIER = 0.68f" in audio
+assert "WIND_WITH_RAIN_VOLUME_MULTIPLIER = 0.32f" in audio
 
 weather_details = (JAVA / "WeatherDetailsScreen.kt").read_text(encoding="utf-8")
 weather_card = (JAVA / "WeatherGlassCard.kt").read_text(encoding="utf-8")
