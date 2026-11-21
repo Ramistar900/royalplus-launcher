@@ -284,6 +284,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        captionDiscovery?.stop()
+        captionDiscovery = null
         installedAppsLoadGeneration++
         installedAppsExecutor.shutdownNow()
         RoyalUiSounds.release()
