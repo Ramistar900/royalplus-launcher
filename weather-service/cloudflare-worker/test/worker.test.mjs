@@ -36,7 +36,7 @@ function makeForecast(days = 9) {
 }
 
 test("coordinates are validated and rounded to three decimals", () => {
-  assert.equal(__test.normalizeCoordinate("41.00912", -90, 90), 41.0086);
+  assert.equal(__test.normalizeCoordinate("41.008612", -90, 90), 41.009);
   assert.equal(__test.normalizeCoordinate("91", -90, 90), null);
   assert.equal(__test.normalizeCoordinate("", -90, 90), null);
   assert.equal(__test.normalizeCoordinate("not-a-number", -90, 90), null);
