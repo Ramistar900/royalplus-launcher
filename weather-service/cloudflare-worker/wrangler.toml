@@ -3,5 +3,6 @@ main = "src/index.mjs"
 compatibility_date = "2026-11-21"
 workers_dev = true
 
-# Uses the Workers Cache API at the edge; no paid database or KV namespace is required.
-# Deploy on Cloudflare Workers Free. Review current account limits before public launch.
+[[r2_buckets]]
+binding = "WEATHER_CACHE"
+bucket_name = "royalplus-weather-cache"
