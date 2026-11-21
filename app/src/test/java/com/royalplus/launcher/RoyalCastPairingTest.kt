@@ -33,7 +33,9 @@ class RoyalCastPairingTest {
             token = "0123456789abcdef0123456789abcdef",
             pin = "042681",
             transport = RoyalCastTransport.WIFI_DIRECT,
-            deviceAddress = "02:11:22:33:44:55"
+            deviceAddress = "02:11:22:33:44:55",
+            wifiDirectSsid = "DIRECT-RY-ROYAL",
+            wifiDirectPassphrase = "RoyalCast4821"
         )
         val payload = RoyalCastPairing.createPayload(
             host = endpoint.host,
@@ -41,7 +43,9 @@ class RoyalCastPairingTest {
             token = endpoint.token,
             pin = endpoint.pin,
             transport = endpoint.transport,
-            deviceAddress = endpoint.deviceAddress
+            deviceAddress = endpoint.deviceAddress,
+            wifiDirectSsid = endpoint.wifiDirectSsid,
+            wifiDirectPassphrase = endpoint.wifiDirectPassphrase
         )
         assertEquals(endpoint, RoyalCastPairing.parsePayload(payload))
     }
@@ -50,7 +54,7 @@ class RoyalCastPairingTest {
     fun wifiDirectPayloadWithoutPeerAddressIsRejected() {
         assertNull(
             RoyalCastPairing.parsePayload(
-                "royalcast://connect?host=192.168.49.1&port=38471&token=0123456789abcdef0123456789abcdef&pin=042681&transport=wifi_direct"
+                "royalcast://connect?host=192.168.49.1&port=38471&token=0123456789abcdef0123456789abcdef&pin=042681&transport=wifi_direct&wifiDirectSsid=DIRECT-RY-ROYAL&wifiDirectPassphrase=RoyalCast4821"
             )
         )
     }
