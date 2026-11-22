@@ -6,6 +6,15 @@ import org.junit.Test
 
 class RoyalInterfaceQualityTest {
     @Test
+    fun userFacingPresetsMatchOverallQualityChoices() {
+        assertEquals(
+            listOf("تلقائي", "SD", "HD", "Full HD", "2K", "4K"),
+            RoyalInterfaceQualityPreset.selectablePresets.map { it.label }
+        )
+        assertEquals(RoyalInterfaceQualityPreset.AUTO, RoyalInterfaceQualityPreset.selectablePresets.first())
+    }
+
+    @Test
     fun automaticQualityFollowsScreenAndMemoryLimits() {
         val budget = resolveRoyalInterfaceQualityBudget(RoyalInterfaceQualityPreset.AUTO, 1920, 1080, 512)
         assertEquals(RoyalInterfaceQualityPreset.P1080, budget.effectivePreset)
