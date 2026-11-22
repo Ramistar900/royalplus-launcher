@@ -111,4 +111,24 @@ assert "عبر Wi-Fi" in service
 assert "weather_manual_latitude" in activity and "weather_manual_longitude" in activity
 assert "fetchForLocation(this, normalized, city.latitude, city.longitude)" in activity
 
-print("Verified 100-place weather geocoding search, small-settlement inclusion, exact selected coordinates and gold text on a teal-blue search field with a white frame.")
+
+# ROYAL+ weather forecasts must use the shared gateway; Android must never
+# bypass the global provider quota by calling either forecast API directly.
+assert "ROYAL_WEATHER_API_BASE_URL" in gradle
+assert "buildConfigField(\"String\", \"ROYAL_WEATHER_API_BASE_URL\"" in gradle
+assert "ROYAL_WEATHER_API_BASE_URL" in (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
+assert "BuildConfig.ROYAL_WEATHER_API_BASE_URL" in weather_locations
+assert "/v1/forecast?lat=" in weather_locations
+assert "X-Royal-Weather-Source" in weather_locations
+assert "parseOpenMeteo(root, location, city)" in weather_locations
+assert "parseMetNorway(root, location, city)" in weather_locations
+assert "https://api.open-meteo.com/v1/forecast" not in weather_locations
+assert "https://api.met.no/weatherapi/locationforecast/2.0/compact" not in weather_locations
+assert 'put("attributionText", weather.attributionText)' in weather_locations
+assert 'put("attributionUrl", weather.attributionUrl)' in weather_locations
+assert 'put("licenseUrl", weather.licenseUrl)' in weather_locations
+assert 'attributionText = json.optString("attributionText")' in weather_locations
+assert "CC BY 4.0" in city_screen
+assert "weather.licenseUrl" in city_screen and "weather.attributionUrl" in city_screen
+
+print("Verified 100-place weather geocoding search, exact selected coordinates, shared weather gateway-only forecasts, persistent provider attribution and CC BY 4.0 links.")
