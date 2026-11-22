@@ -167,7 +167,7 @@ internal fun RoyalSongsScreen() {
             ) {
                 Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(46.dp)))
                 Spacer(Modifier.height(12.dp))
-                Text("لا توجد قائمة أغاني", color = RoyalColors.Pearl, fontSize = 19.sp)
+                Text(if (context.checkSelfPermission(audioPermission) == PackageManager.PERMISSION_GRANTED) "لا توجد ملفات موسيقى على الجهاز" else "اسمح بالوصول إلى ملفات الموسيقى لعرض مكتبتك تلقائياً", color = RoyalColors.Pearl, fontSize = 19.sp)
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -241,8 +241,13 @@ private fun loadDeviceRoyalSongs(context: Context): List<RoyalSong> = runCatchin
         MediaStore.Audio.Media.IS_MUSIC
     )
     val result = mutableListOf<RoyalSong>()
+    val audioCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+    } else {
+        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+    }
     context.contentResolver.query(
-        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+        audioCollection,
         projection,
         "${MediaStore.Audio.Media.IS_MUSIC} != 0",
         null,
@@ -253,7 +258,7 @@ private fun loadDeviceRoyalSongs(context: Context): List<RoyalSong> = runCatchin
         while (cursor.moveToNext()) {
             val id = cursor.getLong(idColumn)
             val title = cursor.getString(titleColumn)?.takeIf { it.isNotBlank() } ?: "أغنية"
-            val uri = android.content.ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+            val uri = android.content.ContentUris.withAppendedId(audioCollection, id)
             result += RoyalSong(uri, title)
         }
     }
