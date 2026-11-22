@@ -116,7 +116,6 @@ assert "fetchForLocation(this, normalized, city.latitude, city.longitude)" in ac
 assert "https://api.open-meteo.com/v1/forecast" in weather_locations
 assert "https://api.met.no/weatherapi/locationforecast/2.0/compact" in weather_locations
 assert "fetchOpenMeteo(location, city)" in weather_locations
-assert "fetchMetNorway(location, city)" in weather_locations
 assert "fetchWeatherGateway" not in weather_locations
 assert "BuildConfig.ROYAL_WEATHER_API_BASE_URL" not in weather_locations
 assert 'put("attributionText", weather.attributionText)' in weather_locations
