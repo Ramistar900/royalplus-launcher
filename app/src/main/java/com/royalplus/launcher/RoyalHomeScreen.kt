@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -517,7 +518,7 @@ internal fun RoyalHomeScreen(
 
     val baseDensity = LocalDensity.current
     CompositionLocalProvider(
-        LocalDensity provides Density(baseDensity.density, launcherTextScale),
+        LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * launcherTextScale),
         LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = selectedFontFamily)
     ) {
     Surface(modifier = Modifier.fillMaxSize(), color = RoyalColors.Black) {
@@ -814,7 +815,7 @@ internal fun RoyalHomeScreen(
                     }
                     if (!isSinjarPlayerFullscreen) {
                         Spacer(Modifier.height(8.dp))
-                        RoyalFooter(Modifier.fillMaxWidth().height(31.dp), currentTime = timeText, dateText = dateText, weather = weather)
+                        RoyalFooter(Modifier.fillMaxWidth().heightIn(min = 36.dp), currentTime = timeText, dateText = dateText, weather = weather)
                     }
                 }
             }
@@ -2298,8 +2299,9 @@ private fun HomeDashboard(
         (shortcuts + favorites).distinctBy { it.packageName }
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp)
-        val favoriteHeight = (maxHeight * 0.24f).coerceIn(104.dp, 126.dp)
+        val textScale = LocalDensity.current.fontScale.coerceIn(0.9f, 1.8f)
+        val heroHeight = ((maxHeight * 0.27f).coerceIn(112.dp, 148.dp) * textScale).coerceAtMost(maxHeight * 0.36f)
+        val favoriteHeight = ((maxHeight * 0.24f).coerceIn(104.dp, 126.dp) * textScale).coerceAtMost(maxHeight * 0.34f)
         // Ramadan artwork and greeting are rendered behind the interactive home content,
         // and only while the device's Islamic calendar is in Ramadan.
         val isRamadan = remember(currentTime) {
@@ -2847,12 +2849,14 @@ private fun SidebarNavItem(
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
-    val navItemHeight = when {
+    val textScale = LocalDensity.current.fontScale.coerceIn(0.9f, 1.8f)
+    val baseNavItemHeight = when {
         compactPhone -> 42.dp
         adaptiveProfile.isTelevision && adaptiveProfile.heightClass == RoyalWindowHeightClass.EXPANDED -> 56.dp
         adaptiveProfile.isTelevision -> 48.dp
         else -> maxOf(42.dp, adaptiveProfile.minimumFocusTarget)
     }
+    val navItemHeight = maxOf(baseNavItemHeight, (12f * textScale * 1.7f + 16f).dp)
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(13.dp)
@@ -2950,7 +2954,7 @@ private fun SectionHeading(
     icon: ImageVector
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(20.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = (20f * LocalDensity.current.fontScale.coerceIn(0.9f, 1.8f)).dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
