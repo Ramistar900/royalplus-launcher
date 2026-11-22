@@ -18,14 +18,16 @@ internal enum class RoyalInterfaceQualityPreset(
     val motionScale: Float
 ) {
     AUTO("auto", "تلقائي", 0, 0L, 1f),
-    P360("360p", "360p", 640, 230_400L, 0.25f),
-    P480("480p", "480p", 854, 409_920L, 0.40f),
-    P720("720p", "720p", 1280, 921_600L, 0.58f),
-    P1080("1080p", "1080p", 1920, 2_073_600L, 0.76f),
-    P1440("1440p", "1440p", 2560, 3_686_400L, 0.90f),
+    P360("360p", "SD", 640, 230_400L, 0.25f),
+    P480("480p", "SD", 854, 409_920L, 0.40f),
+    P720("720p", "HD", 1280, 921_600L, 0.58f),
+    P1080("1080p", "Full HD", 1920, 2_073_600L, 0.76f),
+    P1440("1440p", "2K", 2560, 3_686_400L, 0.90f),
     P4K("4k", "4K", 3840, 8_294_400L, 1f);
 
     companion object {
+        val selectablePresets = listOf(AUTO, P480, P720, P1080, P1440, P4K)
+
         fun fromStoredValue(value: String?): RoyalInterfaceQualityPreset =
             values().firstOrNull { it.storedValue == value } ?: AUTO
     }
