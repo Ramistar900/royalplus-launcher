@@ -17,6 +17,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.widget.Button
 import android.widget.EditText
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var captionDiscoveryManager: NsdManager? = null
     private var captionDiscoveryListener: NsdManager.DiscoveryListener? = null
     private var discoveredCaptionHost: String? = null
+    private var captionDiscoveryMulticastLock: WifiManager.MulticastLock? = null
     private var weatherState by mutableStateOf(WeatherUiState())
     private var lastWeatherRefreshAt = 0L
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
@@ -592,6 +594,13 @@ class MainActivity : ComponentActivity() {
             return
         }
         captionDiscoveryManager = manager
+        runCatching {
+            val wifi = getSystemService(Context.WIFI_SERVICE) as WifiManager
+            captionDiscoveryMulticastLock = wifi.createMulticastLock("RoyalCaptionNsdDiscovery").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }
         val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(serviceType: String) {
                 statusView.text = "جارٍ البحث عن تلفاز ROYAL+ على الشبكة المحلية..."
@@ -653,6 +662,10 @@ class MainActivity : ComponentActivity() {
         }
         captionDiscoveryListener = null
         captionDiscoveryManager = null
+        runCatching {
+            captionDiscoveryMulticastLock?.takeIf { it.isHeld }?.release()
+        }
+        captionDiscoveryMulticastLock = null
     }
 
     private fun startPhoneCaptionCapture() {
