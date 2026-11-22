@@ -639,6 +639,9 @@ private fun RoyalInternalMediaPreview(uri: Uri) {
             playWhenReady = false
         }
     }
+    LaunchedEffect(player, RoyalInterfaceQualitySettings.current) {
+        applyRoyalInterfaceVideoQuality(player, context)
+    }
     DisposableEffect(player) {
         onDispose { player.release() }
     }
