@@ -16,6 +16,7 @@ function jsonResponse(body, status = 200, extraHeaders = {}) {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Expose-Headers": "X-Royal-Weather-Source, X-Weather-Attribution, X-Royal-Weather-Cache",
       "Cache-Control": "no-store",
       ...extraHeaders,
     },
@@ -57,8 +58,8 @@ function hasUsableForecast(payload, source) {
 
 function attributionFor(source) {
   return source === "Open-Meteo"
-    ? "Weather data: Open-Meteo (https://open-meteo.com/)."
-    : "Weather data: MET Norway, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).";
+    ? "Weather data by Open-Meteo (https://open-meteo.com/), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)."
+    : "Weather data by MET Norway (https://api.met.no/), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).";
 }
 
 function responseFor(entry, cacheStatus, stale = false) {
@@ -255,6 +256,7 @@ export default {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
+          "Access-Control-Expose-Headers": "X-Royal-Weather-Source, X-Weather-Attribution, X-Royal-Weather-Cache",
           "Access-Control-Max-Age": "86400",
         },
       });
