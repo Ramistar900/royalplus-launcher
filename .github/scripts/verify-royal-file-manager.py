@@ -10,7 +10,7 @@ GRADLE = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 WORKFLOW = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 assert "LauncherDestination.FILES -> RoyalFileManagerScreen" in HOME
-assert "List(11) { FocusRequester() }" in HOME
+assert "List(10) { FocusRequester() }" in HOME
 sidebar = HOME[HOME.index("private fun RoyalSidePanel("):HOME.index("private fun StatusIcon(")]
 for forbidden in ('"مسلم"', '"اختصاراتي"', "LauncherDestination.MUSLIM", "LauncherDestination.SHORTCUTS"):
     assert forbidden not in sidebar, f"Hidden sidebar item returned: {forbidden}"
