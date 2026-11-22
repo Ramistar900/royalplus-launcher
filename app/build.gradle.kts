@@ -37,6 +37,7 @@ android {
         targetSdk = 35
         versionCode = royalPlusVersionCode
         versionName = "1.0.0"
+        buildConfigField("String", "ROYAL_WEATHER_API_BASE_URL", "\"$royalWeatherApiBaseUrl\"")
     }
 
     signingConfigs {
@@ -74,9 +75,6 @@ android {
         buildConfig = true
     }
 
-    defaultConfig {
-        buildConfigField("String", "ROYAL_WEATHER_API_BASE_URL", "\"$royalWeatherApiBaseUrl\"")
-    }
 
     splits {
         abi {
