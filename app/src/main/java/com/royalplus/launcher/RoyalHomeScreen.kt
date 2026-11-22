@@ -2710,9 +2710,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Settings", "Manage apps")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Ayarlar", "Uygulamaları yönet")
-        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "الإعدادات", "إدارة التطبيقات")
+        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Manage apps")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Uygulamaları yönet")
+        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "إدارة التطبيقات")
     }
     val shape = RoundedCornerShape(19.dp)
     val panelBrush = if (RoyalColors.isLightTheme) {
@@ -2772,15 +2772,10 @@ private fun RoyalSidePanel(
             iconRes = R.drawable.royal_files_luxe, modifier = navigationFocusModifiers[8]
         ) { onNavigate(LauncherDestination.FILES) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(
-            labels[9], Icons.Rounded.Settings, false,
-            iconRes = R.drawable.royal_settings_luxe,
-            modifier = navigationFocusModifiers[9], onClick = onOpenSettings
-        )
         Spacer(Modifier.height(if (compactPhone) 8.dp else 14.dp))
         SidebarNavItem(
-            labels[10], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
-            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[10]
+            labels[9], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
+            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[9]
         ) { onNavigate(LauncherDestination.MANAGE_APPS) }
         Spacer(Modifier.height(12.dp))
         GoldDivider(Modifier.fillMaxWidth())
@@ -2902,28 +2897,42 @@ private fun SidebarNavItem(
             maxLines = 1
         )
         when {
-            sinjarLogo -> Column(
+            sinjarLogo -> Box(
+                modifier = Modifier.width(27.dp).height(42.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (focused || selected) Color(0x3323B8B0) else Color(0x221A202B))
+                    .border(1.2.dp, if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.78f), RoundedCornerShape(50)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Sinjar\nTV",
+                    color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl,
+                    fontSize = 7.sp,
+                    lineHeight = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2
+                )
+            }
+            sportsBall -> Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
-                    painter = rememberRoyalBitmapPainter(R.drawable.sinjar_show_logo, maxEdgePx = 512, maxPixels = 262_144L),
-                    contentDescription = "Sinjar TV",
+                    painter = painterResource(R.drawable.royal_sports_luxe),
+                    contentDescription = "ROYAL SPORTS",
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(width = 34.dp, height = 25.dp)
+                    modifier = Modifier.size(width = 38.dp, height = 29.dp)
                 )
                 Text(
-                    "TV",
-                    color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl,
-                    fontSize = 8.sp,
+                    "ROYAL SPORTS",
+                    color = if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                    fontSize = 5.5.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    letterSpacing = 0.25.sp,
+                    maxLines = 1
                 )
             }
-            sportsBall -> RoyalRotatingFootballIcon(
-                modifier = Modifier.size(royalSportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
-                contentDescription = title
-            )
             iconRes == null -> {
                 if (icon != null) {
                     Icon(
