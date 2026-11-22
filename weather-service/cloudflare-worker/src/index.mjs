@@ -35,7 +35,7 @@ function cacheKeyFor(latitude, longitude) {
 
 function upstreamExpiry(headers, now, source) {
   const cacheControl = headers.get("Cache-Control") || "";
-  const maxAge = cacheControl.match(/(?:^|,)\\s*max-age=(\\d+)/i);
+  const maxAge = cacheControl.match(/(?:^|,)\s*max-age=(\d+)/i);
   const minimum = source === "MET Norway" ? MET_NORWAY_MIN_INTERVAL_MS : 0;
   if (maxAge) return now + Math.max(Number(maxAge[1]) * 1000, minimum);
 
