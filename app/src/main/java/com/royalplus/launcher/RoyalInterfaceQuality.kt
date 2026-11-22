@@ -30,7 +30,7 @@ internal enum class RoyalInterfaceQualityPreset(
         val selectablePresets = listOf(AUTO, P480, P720, P1080, P1440, P4K)
 
         fun fromStoredValue(value: String?): RoyalInterfaceQualityPreset =
-            values().firstOrNull { it.storedValue == value } ?: AUTO
+            if (value == "360p") P480 else values().firstOrNull { it.storedValue == value } ?: AUTO
     }
 }
 
