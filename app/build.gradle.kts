@@ -10,6 +10,7 @@ val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
 val royalPlusVersionCode = providers.gradleProperty("royalplusVersionCode")
     .orNull?.toIntOrNull()?.takeIf { it > 0 } ?: 1
+
 val releaseSigningAvailable = listOf(
     signingKeystorePath,
     signingStorePassword,
@@ -64,7 +65,6 @@ android {
         compose = true
     }
 
-
     splits {
         abi {
             isEnable = project.findProperty("enableAbiSplits")?.toString() == "true"
@@ -107,6 +107,8 @@ dependencies {
     implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("com.google.zxing:core:3.5.3")
+    implementation("io.github.webrtc-sdk:android:150.7871.08")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
