@@ -45,6 +45,15 @@ function makeMetNorwayForecast(days = 9) {
   return { properties: { timeseries } };
 }
 
+function quotaBinding(allowed = true, unavailable = false) {
+  return {
+    idFromName: () => "open-meteo-global",
+    get: () => ({
+      fetch: async () => Response.json({ allowed, unavailable }),
+    }),
+  };
+}
+
 function requestFor(lat = "41.008612", lon = "28.980175") {
   return new Request(`https://weather.example/v1/forecast?lat=${lat}&lon=${lon}`);
 }
@@ -120,7 +129,7 @@ test("Open-Meteo is the primary source and its seven-day forecast is cached", as
     });
   };
   try {
-    const first = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const first = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(first.status, 200);
     assert.equal(first.headers.get("X-Royal-Weather-Cache"), "MISS");
     assert.equal(first.headers.get("X-Royal-Weather-Source"), "Open-Meteo");
@@ -130,7 +139,7 @@ test("Open-Meteo is the primary source and its seven-day forecast is cached", as
     assert.equal(calls[0].url.hostname, "api.open-meteo.com");
     assert.equal(calls[0].url.searchParams.get("latitude"), "41.009");
     assert.equal(calls[0].url.searchParams.get("longitude"), "28.980");
-    const second = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const second = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(second.headers.get("X-Royal-Weather-Cache"), "HIT");
     assert.equal(calls.length, 1);
     assert.equal(kv.items.size, 1);
@@ -152,11 +161,34 @@ test("MET Norway is used only when Open-Meteo fails", async () => {
     });
   };
   try {
-    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("X-Royal-Weather-Source"), "MET Norway");
     assert.match(response.headers.get("X-Weather-Attribution"), /CC BY 4.0/);
     assert.deepEqual(calls, ["api.open-meteo.com", "api.met.no"]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("Open-Meteo quota exhaustion skips the primary provider and uses the fallback", async () => {
+  const originalFetch = globalThis.fetch;
+  const kv = new MemoryKV();
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const host = new URL(url).hostname;
+    calls.push(host);
+    return new Response(JSON.stringify(makeMetNorwayForecast()), {
+      status: 200,
+      headers: { "Cache-Control": "public, max-age=21600" },
+    });
+  };
+  try {
+    const response = await worker.fetch(requestFor(), {
+      WEATHER_CACHE: kv,
+      OPEN_METEO_QUOTA: quotaBinding(false, false),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("X-Royal-Weather-Source"), "MET Norway");
+    assert.deepEqual(calls, ["api.met.no"]);
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -171,7 +203,7 @@ test("incomplete Open-Meteo data triggers the MET Norway fallback", async () => 
     return new Response(JSON.stringify(payload), { status: 200, headers: { "Cache-Control": "public, max-age=21600" } });
   };
   try {
-    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("X-Royal-Weather-Source"), "MET Norway");
     assert.deepEqual(calls, ["api.open-meteo.com", "api.met.no"]);
@@ -189,8 +221,8 @@ test("simultaneous requests for one location share a single primary refresh", as
   };
   try {
     const [first, second] = await Promise.all([
-      worker.fetch(requestFor(), { WEATHER_CACHE: kv }),
-      worker.fetch(requestFor(), { WEATHER_CACHE: kv }),
+      worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() }),
+      worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() }),
     ]);
     const statuses = [first.headers.get("X-Royal-Weather-Cache"), second.headers.get("X-Royal-Weather-Cache")].sort();
     assert.deepEqual(statuses, ["COALESCED", "MISS"]);
@@ -210,7 +242,7 @@ test("last valid cached forecast is returned when both providers fail", async ()
   }));
   globalThis.fetch = async () => new Response("provider down", { status: 503 });
   try {
-    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("X-Royal-Weather-Cache"), "STALE");
     assert.equal(response.headers.get("X-Royal-Weather-Source"), "Open-Meteo");
@@ -225,7 +257,7 @@ test("KV read quota errors fail closed without contacting either provider", asyn
   let calls = 0;
   globalThis.fetch = async () => { calls += 1; throw new Error("must not be called"); };
   try {
-    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const response = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(response.status, 503);
     assert.equal(response.headers.get("X-Royal-Weather-Cache"), "LIMIT");
     assert.equal(calls, 0);
@@ -242,10 +274,10 @@ test("KV write quota errors retain isolate-local cache without requiring paid st
     return new Response(JSON.stringify(makeOpenMeteoForecast()), { status: 200, headers: { "Cache-Control": "public, max-age=21600" } });
   };
   try {
-    const first = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const first = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(first.status, 200);
     assert.equal(first.headers.get("X-Royal-Weather-Cache"), "UNCACHED");
-    const second = await worker.fetch(requestFor(), { WEATHER_CACHE: kv });
+    const second = await worker.fetch(requestFor(), { WEATHER_CACHE: kv, OPEN_METEO_QUOTA: quotaBinding() });
     assert.equal(second.headers.get("X-Royal-Weather-Cache"), "LOCAL");
     assert.equal(calls, 1);
   } finally { globalThis.fetch = originalFetch; }
