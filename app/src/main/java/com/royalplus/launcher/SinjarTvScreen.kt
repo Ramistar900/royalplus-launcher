@@ -100,6 +100,9 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val player = remember(context) { ExoPlayer.Builder(context).build() }
+    LaunchedEffect(player, RoyalInterfaceQualitySettings.current) {
+        applyRoyalInterfaceVideoQuality(player, context)
+    }
     val favoriteWriteMutex = remember { Mutex() }
     var section by remember { mutableStateOf(SinjarSection.LIVE) }
     var channels by remember { mutableStateOf<List<RSTVChannel>>(emptyList()) }
