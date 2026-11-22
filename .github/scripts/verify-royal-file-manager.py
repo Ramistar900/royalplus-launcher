@@ -17,11 +17,12 @@ for forbidden in ('"مسلم"', '"اختصاراتي"', "LauncherDestination.MUS
 assert "labels[3], null, selectedDestination == LauncherDestination.SCREEN_CAST" in sidebar
 assert "iconRes = R.drawable.royal_screen_cast" in sidebar
 assert "LauncherDestination.SCREEN_CAST -> RoyalCastScreen" in HOME
-assert "labels[9], Icons.Rounded.Settings" in sidebar
-assert "labels[10], Icons.Rounded.Apps" in sidebar
-assert sidebar.index("labels[10], Icons.Rounded.Apps") > sidebar.index("labels[9], Icons.Rounded.Settings")
-assert "sinjarLogo = true" in sidebar and "R.drawable.sinjar_show_logo" in HOME
-assert "R.drawable.royal_settings_luxe" in sidebar
+assert "labels[9], Icons.Rounded.Apps" in sidebar
+assert "labels[10]" not in sidebar
+assert "Icons.Rounded.Settings" not in sidebar
+assert "R.drawable.royal_settings_luxe" not in sidebar
+assert "sinjarLogo = true" in sidebar and '"Sinjar\\nTV"' in sidebar
+assert "sportsBall = true" in sidebar and "royal_sports_luxe" in sidebar
 assert "RoyalColors.Activity" in HOME
 for required in (
     "OpenDocumentTree", "DocumentFile",
@@ -42,4 +43,4 @@ for icon in ("royal_apps_luxe", "royal_calendar_luxe", "royal_manage_apps_luxe",
     path = ROOT / ("app/src/main/res/drawable/" + icon + ".xml")
     assert path.exists(), f"Missing premium sidebar icon: {icon}"
     ET.parse(path)
-print("Verified the 11-item ROYAL+ sidebar including phone casting, approved theme accents, internal previews, storage access and delete-confirmation paths.")
+print("Verified the 10-item ROYAL+ sidebar including phone casting, approved theme accents, internal previews, storage access and delete-confirmation paths.")
