@@ -59,7 +59,7 @@ assert "ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref ==
 assert 'gh release create "$TAG"' in WORKFLOW and '--latest' in WORKFLOW
 # Settings remains reachable from the top bar but is not a sidebar destination.
 sidebar_start = HOME.index("val labels = when (language)")
-sidebar_end = HOME.index("@Composable\\nprivate fun StatusIcon", sidebar_start)
+sidebar_end = HOME.index("@Composable\nprivate fun StatusIcon", sidebar_start)
 sidebar = HOME[sidebar_start:sidebar_end]
 assert "Manage apps" in sidebar and "Settings" not in sidebar
 assert "royal_settings_luxe" not in sidebar
