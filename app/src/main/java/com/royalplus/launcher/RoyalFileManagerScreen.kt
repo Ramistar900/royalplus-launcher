@@ -615,7 +615,16 @@ private fun RoyalInternalImagePreview(uri: Uri) {
         bitmap = withContext(Dispatchers.IO) {
             runCatching {
                 openRoyalFileStream(context, uri, null)?.use { input ->
-                    val options = BitmapFactory.Options().apply { inSampleSize = 2 }
+                    val quality = RoyalInterfaceQualitySettings.budget(context).effectivePreset
+                    val sampleSize = when (quality) {
+                        RoyalInterfaceQualityPreset.P360, RoyalInterfaceQualityPreset.P480 -> 4
+                        RoyalInterfaceQualityPreset.P720 -> 2
+                        RoyalInterfaceQualityPreset.P1080,
+                        RoyalInterfaceQualityPreset.P1440,
+                        RoyalInterfaceQualityPreset.P4K,
+                        RoyalInterfaceQualityPreset.AUTO -> 1
+                    }
+                    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
                     BitmapFactory.decodeStream(input, null, options)
                 }
             }.getOrNull()
