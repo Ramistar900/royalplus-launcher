@@ -544,7 +544,7 @@ class MainActivity : ComponentActivity() {
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("ربط الهاتف بالتلفاز")
             .setMessage(
-                "ضع الهاتف والتلفاز على شبكة Wi-Fi نفسها. سيعثر الهاتف على التلفاز تلقائياً؛ لا حاجة لإدخال عنوان IP. أدخل رمز الاقتران الذي يعرضه التلفاز."
+                "ضع الهاتف والتلفاز على شبكة Wi-Fi نفسها. سيعثر الهاتف على التلفاز تلقائياً؛ لا حاجة لإدخال أي عنوان يدوياً. أدخل رمز الاقتران الذي يعرضه التلفاز."
             )
             .setView(form)
             .setPositiveButton("بدء الالتقاط", null)
