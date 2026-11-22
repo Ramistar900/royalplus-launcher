@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.media3.exoplayer.ExoPlayer
 
 /**
  * Internal resource-quality ceilings. These presets never change Android's display mode,
@@ -76,6 +77,14 @@ internal fun resolveRoyalInterfaceQualityBudget(
         maxPixels = effective.maxPixels,
         motionScale = effective.motionScale
     )
+}
+
+/** Applies the shared interface-quality ceiling to every app-owned video player. */
+internal fun applyRoyalInterfaceVideoQuality(player: ExoPlayer, context: Context) {
+    val budget = RoyalInterfaceQualitySettings.budget(context)
+    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+        .setMaxVideoSize(budget.maxEdgePx, budget.maxEdgePx)
+        .build()
 }
 
 /** Persists one device-wide quality choice and exposes it as Compose snapshot state. */
