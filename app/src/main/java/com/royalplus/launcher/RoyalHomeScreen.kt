@@ -688,13 +688,15 @@ internal fun RoyalHomeScreen(
                 maxWidth >= 900.dp -> 188.dp
                 else -> (maxWidth * 0.205f).coerceIn(120.dp, 188.dp)
             }
+            val showHomeNavigation = selectedDestination == LauncherDestination.HOME &&
+                !searchActive && !showWeatherDetails && !showWallpaperSettings && !showQuickControls
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
                 Column(
                     Modifier.fillMaxSize()
                         .focusGroup()
                         .then(if (isSinjarPlayerFullscreen) Modifier else Modifier.padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding))
                 ) {
-                    if (!isSinjarPlayerFullscreen && (selectedDestination == LauncherDestination.HOME || searchActive)) {
+                    if (!isSinjarPlayerFullscreen && (showHomeNavigation || searchActive)) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome,
@@ -763,7 +765,7 @@ internal fun RoyalHomeScreen(
                     }
                     if (!isSinjarPlayerFullscreen) Spacer(Modifier.height(9.dp))
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isSinjarPlayerFullscreen) 0.dp else 14.dp)) {
-                        if (!isSinjarPlayerFullscreen && selectedDestination == LauncherDestination.HOME && !searchActive) RoyalSidePanel(
+                        if (!isSinjarPlayerFullscreen && showHomeNavigation) RoyalSidePanel(
                             modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
