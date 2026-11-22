@@ -67,7 +67,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -112,7 +111,6 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     var busyPackageId by remember { mutableStateOf<String?>(null) }
     var selectedChannel by remember { mutableStateOf<RSTVChannel?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
-    var videoHeight by remember { mutableStateOf(0) }
 
     val sourceEntries = remember {
         val douboCountries = RemotePlaylistSources.douboCountryPackages()
@@ -156,9 +154,6 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                 status = "تعذّر تشغيل البث: ${error.message ?: error.errorCodeName}"
             }
 
-            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                videoHeight = videoSize.height
-            }
         }
         player.addListener(listener)
         onDispose {
@@ -179,7 +174,6 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
             return
         }
         selectedChannel = channel
-        videoHeight = 0
         status = "جارٍ تشغيل ${channel.name}..."
         val httpFactory = DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(channel.httpHeaders)
@@ -368,7 +362,6 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                     selectedChannel = selectedChannel,
                     visibleChannels = visibleChannels,
                     favoriteUrls = favoriteUrls,
-                    videoHeight = videoHeight,
                     status = status,
                     arabic = arabic,
                     gold = gold,
@@ -382,7 +375,6 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                         player.stop()
                         player.clearMediaItems()
                         selectedChannel = null
-                        videoHeight = 0
                     }
                 )
             }
@@ -398,7 +390,6 @@ private fun SinjarPlayerPane(
     selectedChannel: RSTVChannel?,
     visibleChannels: List<RSTVChannel>,
     favoriteUrls: Set<String>,
-    videoHeight: Int,
     status: String,
     arabic: Boolean,
     gold: Color,
@@ -445,27 +436,7 @@ private fun SinjarPlayerPane(
         }
     }
 
-    val qualityLevel = when {
-        videoHeight >= 2160 -> 4
-        videoHeight >= 1080 -> 3
-        videoHeight >= 720 -> 2
-        videoHeight > 0 -> 1
-        else -> 0
-    }
-    val qualityLabel = when (qualityLevel) {
-        4 -> "4K"
-        3 -> "FHD"
-        2 -> "HD"
-        1 -> "SD"
-        else -> if (arabic) "جارٍ فحص الجودة" else "Checking quality"
-    }
-    val qualityColor = when (qualityLevel) {
-        4 -> Color(0xFFD7B45A)
-        3 -> Color(0xFF37C879)
-        2 -> Color(0xFF42A5F5)
-        1 -> Color(0xFFE34B4B)
-        else -> muted
-    }
+
 
     fun handleOk() {
         val now = SystemClock.uptimeMillis()
@@ -743,23 +714,6 @@ private fun SinjarPlayerPane(
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 11.sp
                 )
-                Text(
-                    "$qualityLabel  •  ${if (arabic) "جودة البث" else "Stream quality"}",
-                    color = qualityColor,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(5.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(Color.White.copy(alpha = 0.18f))
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(qualityLevel / 4f)
-                            .fillMaxHeight()
-                            .background(qualityColor, RoundedCornerShape(5.dp))
-                    )
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
