@@ -214,10 +214,13 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
             ?: state.optJSONObject("currentItem")?.optString("mediaUrl")
                 ?.takeIf { it.startsWith("https://") }
             ?: throw IllegalStateException("لم يحدد الخادم رابط تشغيل صالحاً.")
+        val liveMode = state.optString("playbackMode") == "live"
         val positionMs = state.optLong("positionMs", 0L).coerceAtLeast(0L)
         val currentUrl = player.currentMediaItem?.localConfiguration?.uri?.toString()
-        if (currentUrl != streamUrl || kotlin.math.abs(player.currentPosition - positionMs) > 4_000L) {
-            player.setMediaItem(MediaItem.fromUri(streamUrl), positionMs)
+        val needsVODSeek = !liveMode && kotlin.math.abs(player.currentPosition - positionMs) > 4_000L
+        if (currentUrl != streamUrl || needsVODSeek) {
+            if (liveMode) player.setMediaItem(MediaItem.fromUri(streamUrl))
+            else player.setMediaItem(MediaItem.fromUri(streamUrl), positionMs)
             player.prepare()
             player.playWhenReady = true
         }
