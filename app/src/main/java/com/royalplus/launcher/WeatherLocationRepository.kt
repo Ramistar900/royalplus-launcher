@@ -613,64 +613,46 @@ internal object RoyalWeatherRepository {
         saveAsLastLocation: Boolean = true
     ): WeatherUiState {
         if (saveAsLastLocation) saveLastLocation(context, location)
-        val cached = readWeatherCache(context, location)
-        return try {
-            val weather = fetchWeatherGateway(location, city)
-            if (weather.forecast.size < 7) {
-                throw IllegalStateException("Weather gateway returned fewer than seven forecast days")
-            }
-            saveWeatherCache(context, weather)
-            weather
-        } catch (error: Exception) {
-            cached?.first?.copy(city = city, isLoading = false)
-                ?: throw IllegalStateException("ROYAL+ weather gateway is unavailable and no saved forecast exists", error)
-        }
-    }
-
-    private fun fetchWeatherGateway(location: Location, city: String): WeatherUiState {
-        val baseUrl = BuildConfig.ROYAL_WEATHER_API_BASE_URL.trim().trimEnd('/')
-        require(baseUrl.startsWith("https://")) {
-            "ROYAL+ weather gateway URL is not configured. Direct provider access is disabled."
-        }
-        val url = URL(
-            "$baseUrl/v1/forecast?lat=${"%.3f".format(Locale.US, location.latitude)}" +
-                "&lon=${"%.3f".format(Locale.US, location.longitude)}"
-        )
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "ROYALPlusLauncher/1.0 (Android TV; https://github.com/Ramistar900/royalplus-launcher)")
-        }
         try {
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) throw IllegalStateException("ROYAL+ weather gateway HTTP $status")
-            val root = JSONObject(body)
-            val source = connection.getHeaderField("X-Royal-Weather-Source")?.trim()
-                ?: throw IllegalStateException("Weather gateway did not identify its provider")
-            val license = "https://creativecommons.org/licenses/by/4.0/"
-            return when (source) {
-                "Open-Meteo" -> parseOpenMeteo(root, location, city).copy(
-                    attributionText = "Open-Meteo",
-                    attributionUrl = "https://open-meteo.com/",
-                    licenseUrl = license
-                )
-                "MET Norway" -> parseMetNorway(root, location, city).copy(
-                    attributionText = "MET Norway",
-                    attributionUrl = "https://api.met.no/",
-                    licenseUrl = license
-                )
-                else -> throw IllegalStateException("Unknown weather provider: $source")
-            }
-        } finally {
-            connection.disconnect()
+            val weather = fetchOpenMeteo(location, city).copy(
+                attributionText = "Open-Meteo",
+                attributionUrl = "https://open-meteo.com/",
+                licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
+            )
+            if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
+            return weather
+        } catch (_: Exception) {
+            // Open-Meteo is the primary source. Continue to the independent backup.
+        }
+
+        val cached = readWeatherCache(context, location)
+        if (cached != null && System.currentTimeMillis() - cached.second < MET_REFRESH_INTERVAL_MS) {
+            return cached.first.copy(city = city)
+        }
+
+        return try {
+            val backup = fetchMetNorway(location, city).copy(
+                attributionText = "MET Norway",
+                attributionUrl = "https://api.met.no/",
+                licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
+            )
+            if (backup.forecast.size >= 7) saveWeatherCache(context, backup)
+            backup
+        } catch (_: Exception) {
+            cached?.first?.copy(city = city) ?: throw IllegalStateException("Both weather sources failed")
         }
     }
 
-    private fun parseOpenMeteo(root: JSONObject, location: Location, city: String): WeatherUiState {
+    private fun fetchOpenMeteo(location: Location, city: String): WeatherUiState {
+        val url = URL(
+            "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=${location.latitude}&longitude=${location.longitude}" +
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation" +
+                "&wind_speed_unit=kmh" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+                "&forecast_days=7&timezone=auto"
+        )
+        val root = requestJson(url)
         val current = root.getJSONObject("current")
         val temperature = current.getDouble("temperature_2m").roundToInt()
         val apparent = current.optDouble("apparent_temperature", Double.NaN)
@@ -716,7 +698,14 @@ internal object RoyalWeatherRepository {
         )
     }
 
-    private fun parseMetNorway(root: JSONObject, location: Location, city: String): WeatherUiState {
+    private fun fetchMetNorway(location: Location, city: String): WeatherUiState {
+        // MET Norway requires an identifiable, non-generic User-Agent.
+        val url = URL(
+            "https://api.met.no/weatherapi/locationforecast/2.0/compact" +
+                "?lat=${"%.4f".format(Locale.US, location.latitude)}" +
+                "&lon=${"%.4f".format(Locale.US, location.longitude)}"
+        )
+        val root = requestJson(url, metNorway = true)
         val series = root.getJSONObject("properties").getJSONArray("timeseries")
         if (series.length() == 0) throw IllegalStateException("MET Norway returned an empty forecast")
 
