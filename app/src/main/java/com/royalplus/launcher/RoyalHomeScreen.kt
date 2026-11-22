@@ -1581,6 +1581,9 @@ internal fun RoyalHomeScreen(
                     }
                 }
             }
+            if (!showSmartScreensaver && !isSinjarPlayerFullscreen) {
+                RoyalFloatingMusicPlayer(language = selectedLanguage)
+            }
             activeAdhanPrayer?.let { prayerName ->
                 AdhanOverlay(
                     prayerName = prayerName,
