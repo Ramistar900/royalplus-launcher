@@ -3,6 +3,8 @@ package com.royalplus.launcher
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +55,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.Executor
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 private data class RoyalSong(val uri: Uri, val title: String)
@@ -83,6 +86,7 @@ internal fun RoyalSongsScreen() {
                 controller?.let { currentIndex = it.currentMediaItemIndex }
             }
         }
+        val mainExecutor = Executor { command -> Handler(Looper.getMainLooper()).post(command) }
         future.addListener({
             runCatching {
                 val connected = future.get()
@@ -91,7 +95,7 @@ internal fun RoyalSongsScreen() {
                 currentIndex = connected.currentMediaItemIndex
                 isPlaying = connected.isPlaying
             }.onFailure { playbackError = "تعذّر الاتصال بمشغّل ROYAL AUDIO" }
-        }, context.mainExecutor)
+        }, mainExecutor)
         onDispose {
             controller?.removeListener(playerListener)
             MediaController.releaseFuture(future)

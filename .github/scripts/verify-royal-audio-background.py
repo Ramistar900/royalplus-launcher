@@ -14,6 +14,8 @@ assert ".setHandleAudioBecomingNoisy(true)" in SERVICE
 assert ".setUsage(C.USAGE_MEDIA)" in SERVICE
 assert ".setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)" in SERVICE
 assert "MediaController.Builder(context, token).buildAsync()" in SONGS
+assert "Handler(Looper.getMainLooper())" in SONGS
+assert "context.mainExecutor" not in SONGS
 assert "setMediaItems(queue, index, 0L)" in SONGS
 assert "MediaController.releaseFuture(future)" in SONGS
 assert "DisposableEffect(player)" not in SONGS
