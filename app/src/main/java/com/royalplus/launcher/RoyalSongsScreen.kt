@@ -2,10 +2,12 @@ package com.royalplus.launcher
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.provider.OpenableColumns
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -64,7 +66,23 @@ private data class RoyalSong(val uri: Uri, val title: String)
 internal fun RoyalSongsScreen() {
     val adaptiveProfile = com.royal.adaptive.LocalRoyalAdaptiveProfile.current
     val context = LocalContext.current
-    val songs = remember { mutableStateListOf<RoyalSong>().apply { addAll(loadSavedRoyalSongs(context)) } }
+    val songs = remember { mutableStateListOf<RoyalSong>() }
+    val audioPermission = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_AUDIO else android.Manifest.permission.READ_EXTERNAL_STORAGE
+    fun refreshDeviceSongs() {
+        songs.clear()
+        songs.addAll(loadDeviceRoyalSongs(context))
+        saveRoyalSongs(context, songs)
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) refreshDeviceSongs()
+    }
+    LaunchedEffect(context) {
+        if (context.checkSelfPermission(audioPermission) == PackageManager.PERMISSION_GRANTED) {
+            refreshDeviceSongs()
+        } else {
+            songs.addAll(loadSavedRoyalSongs(context))
+        }
+    }
     var currentIndex by remember { mutableStateOf(-1) }
     var isPlaying by remember { mutableStateOf(false) }
     var controller by remember { mutableStateOf<MediaController?>(null) }
@@ -122,22 +140,6 @@ internal fun RoyalSongsScreen() {
         }.onFailure { playbackError = "تعذّر فتح الملف الصوتي" }
     }
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { selected ->
-        selected.forEach { uri ->
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            if (songs.none { it.uri == uri }) {
-                val title = runCatching {
-                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                        ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-                }.getOrNull()?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment ?: "أغنية"
-                songs.add(RoyalSong(uri, title))
-            }
-        }
-        saveRoyalSongs(context, songs)
-    }
-
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding),
         verticalArrangement = Arrangement.spacedBy(adaptiveProfile.sectionSpacing)
@@ -146,13 +148,17 @@ internal fun RoyalSongsScreen() {
             Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(28.dp)))
             Text("الأغاني", color = RoyalColors.Pearl, fontSize = 23.sp)
         }
-        Text("اختر الأغاني من الجهاز أو فلاشة USB أو بطاقة الذاكرة", color = RoyalColors.Pearl.copy(alpha = 0.75f), fontSize = 13.sp)
+        Text("يبحث ROYAL AUDIO تلقائياً عن ملفات الصوت على الجهاز وذاكرة USB بعد منح الإذن", color = RoyalColors.Pearl.copy(alpha = 0.75f), fontSize = 13.sp)
         Button(onClick = {
             playLauncherUiSound(context, RoyalUiSound.ACTION_ADD)
-            picker.launch(arrayOf("audio/*"))
+            if (context.checkSelfPermission(audioPermission) == PackageManager.PERMISSION_GRANTED) {
+                refreshDeviceSongs()
+            } else {
+                permissionLauncher.launch(audioPermission)
+            }
         }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF76551F), contentColor = RoyalColors.Pearl)) {
             Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
-            Text("  اختيار الأغاني")
+            Text(if (context.checkSelfPermission(audioPermission) == PackageManager.PERMISSION_GRANTED) "  تحديث مكتبة الجهاز" else "  السماح بالوصول إلى الموسيقى")
         }
         if (songs.isEmpty()) {
             Column(
@@ -224,6 +230,34 @@ private fun loadSavedRoyalSongs(context: Context): List<RoyalSong> = runCatching
             if (uri.scheme == "content" || uri.scheme == "file") add(RoyalSong(uri, title))
         }
     }
+}.getOrDefault(emptyList())
+
+private fun loadDeviceRoyalSongs(context: Context): List<RoyalSong> = runCatching {
+    val permission = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_AUDIO else android.Manifest.permission.READ_EXTERNAL_STORAGE
+    if (context.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) return emptyList()
+    val projection = arrayOf(
+        MediaStore.Audio.Media._ID,
+        MediaStore.Audio.Media.TITLE,
+        MediaStore.Audio.Media.IS_MUSIC
+    )
+    val result = mutableListOf<RoyalSong>()
+    context.contentResolver.query(
+        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+        projection,
+        "${MediaStore.Audio.Media.IS_MUSIC} != 0",
+        null,
+        "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+    )?.use { cursor ->
+        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+        val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(idColumn)
+            val title = cursor.getString(titleColumn)?.takeIf { it.isNotBlank() } ?: "أغنية"
+            val uri = android.content.ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+            result += RoyalSong(uri, title)
+        }
+    }
+    result
 }.getOrDefault(emptyList())
 
 private fun saveRoyalSongs(context: Context, songs: List<RoyalSong>) {
