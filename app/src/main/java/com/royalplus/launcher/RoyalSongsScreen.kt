@@ -93,10 +93,8 @@ internal fun RoyalSongsScreen() {
             }.onFailure { playbackError = "تعذّر الاتصال بمشغّل ROYAL AUDIO" }
         }, context.mainExecutor)
         onDispose {
-            runCatching {
-                future.get().removeListener(playerListener)
-                MediaController.releaseFuture(future)
-            }
+            controller?.removeListener(playerListener)
+            MediaController.releaseFuture(future)
             controller = null
         }
     }
