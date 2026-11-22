@@ -21,8 +21,8 @@ assert "labels[9], Icons.Rounded.Apps" in sidebar
 assert "labels[10]" not in sidebar
 assert "Icons.Rounded.Settings" not in sidebar
 assert "R.drawable.royal_settings_luxe" not in sidebar
-assert "sinjarLogo = true" in sidebar and '"Sinjar\\nTV"' in sidebar
-assert "sportsBall = true" in sidebar and "royal_sports_luxe" in sidebar
+assert "sinjarLogo = true" in sidebar and '"Sinjar\\nTV"' in HOME
+assert "sportsBall = true" in sidebar and "royal_sports_luxe" in HOME
 assert "RoyalColors.Activity" in HOME
 for required in (
     "OpenDocumentTree", "DocumentFile",
