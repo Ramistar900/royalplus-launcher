@@ -37,7 +37,7 @@ assert "noPublishedRelease" in SHARE and "failed = true" in SHARE
 DEVICE_SETTINGS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
 assert "showDeviceSettings: Boolean = true" in DEVICE_SETTINGS
 assert "Clear ROYAL+ cache" in DEVICE_SETTINGS
-assert "RoyalInterfaceQualitySection(language = selectedLanguage)" in HOME
+assert "RoyalInterfaceQualitySection(language = selectedLanguage, onRefreshApps = onRefreshApps)" in HOME
 QUALITY_SECTION = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalInterfaceQualitySection.kt").read_text(encoding="utf-8")
 QUALITY_MODEL = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalInterfaceQuality.kt").read_text(encoding="utf-8")
 assert 'else -> "جودة العرض العامة"' in QUALITY_SECTION
