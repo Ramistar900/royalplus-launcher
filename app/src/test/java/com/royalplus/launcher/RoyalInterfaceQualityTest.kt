@@ -15,6 +15,11 @@ class RoyalInterfaceQualityTest {
     }
 
     @Test
+    fun legacy360pSelectionMigratesToVisibleSdPreset() {
+        assertEquals(RoyalInterfaceQualityPreset.P480, RoyalInterfaceQualityPreset.fromStoredValue("360p"))
+    }
+
+    @Test
     fun automaticQualityFollowsScreenAndMemoryLimits() {
         val budget = resolveRoyalInterfaceQualityBudget(RoyalInterfaceQualityPreset.AUTO, 1920, 1080, 512)
         assertEquals(RoyalInterfaceQualityPreset.P1080, budget.effectivePreset)
