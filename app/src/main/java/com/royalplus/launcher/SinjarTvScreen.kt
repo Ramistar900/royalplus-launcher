@@ -92,7 +92,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
+private enum class SinjarSection { LIVE, RAMI, SOURCES, FAVORITES }
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
@@ -103,6 +103,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     val favoriteWriteMutex = remember { Mutex() }
     var section by remember { mutableStateOf(SinjarSection.LIVE) }
     var channels by remember { mutableStateOf<List<RSTVChannel>>(emptyList()) }
+    var ramiNetworkChannels by remember { mutableStateOf<List<RSTVChannel>>(emptyList()) }
     var favoriteUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
     var savedSourceCount by remember { mutableStateOf(0) }
     var status by remember { mutableStateOf("جارٍ استعادة مكتبة Sinjar TV...") }
@@ -164,13 +165,80 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
         }
     }
 
+    LaunchedEffect(Unit) {
+        runCatching {
+            withContext(Dispatchers.IO) { RamiNetworkViewer.loadChannels() }
+        }.onSuccess { remote ->
+            ramiNetworkChannels = remote.map { item ->
+                RSTVChannel(
+                    name = item.name,
+                    tvgId = item.id,
+                    group = "RAMI NETWORK",
+                    logoUrl = item.logoUrl,
+                    streamUrl = "https://rami-network.invalid/channel/" + item.id
+                )
+            }
+        }.onFailure {
+            status = "تعذر تحميل قنوات RAMİ TV: " + (it.message ?: "خطأ اتصال")
+        }
+    }
+
     LaunchedEffect(isFullscreen) { onFullscreenChange(isFullscreen) }
 
     BackHandler(enabled = isFullscreen) {
         isFullscreen = false
     }
 
+    suspend fun syncRamiNetworkChannel(channel: RSTVChannel) {
+        val channelId = channel.tvgId ?: throw IllegalStateException("معرّف قناة RAMİ غير متوفر.")
+        val state = withContext(Dispatchers.IO) { RamiNetworkViewer.loadState(channelId) }
+        val playbackStatus = state.optString("status")
+        if (playbackStatus != "playing") {
+            status = when (playbackStatus) {
+                "waiting_for_stream" -> "القناة بانتظار مصدر HLS."
+                "waiting_for_playlist" -> "القناة بانتظار قائمة تشغيل معتمدة."
+                "stopped" -> "البث متوقف حالياً."
+                else -> "حالة القناة: $playbackStatus"
+            }
+            return
+        }
+        val streamUrl = state.optJSONObject("stream")?.optString("url")
+            ?.takeIf { it.startsWith("https://") }
+            ?: state.optJSONObject("currentItem")?.optString("mediaUrl")
+                ?.takeIf { it.startsWith("https://") }
+            ?: throw IllegalStateException("لم يحدد الخادم رابط تشغيل صالحاً.")
+        val positionMs = state.optLong("positionMs", 0L).coerceAtLeast(0L)
+        val currentUrl = player.currentMediaItem?.localConfiguration?.uri?.toString()
+        if (currentUrl != streamUrl || kotlin.math.abs(player.currentPosition - positionMs) > 4_000L) {
+            player.setMediaItem(MediaItem.fromUri(streamUrl), positionMs)
+            player.prepare()
+            player.playWhenReady = true
+        }
+        status = "متصل ببث RAMİ TV • تزامن الخادم: " + state.optLong("sequence")
+    }
+
+    LaunchedEffect(selectedChannel?.group, selectedChannel?.tvgId) {
+        val current = selectedChannel
+        if (current?.group == "RAMI NETWORK") {
+            while (true) {
+                delay(20_000)
+                runCatching { syncRamiNetworkChannel(current) }
+                    .onFailure { status = it.message ?: "تعذرت مزامنة بث RAMİ TV." }
+            }
+        }
+    }
+
     fun playChannel(channel: RSTVChannel) {
+        if (channel.group == "RAMI NETWORK") {
+            selectedChannel = channel
+            videoHeight = 0
+            status = "جارٍ الاتصال بقناة RAMİ TV..."
+            scope.launch {
+                runCatching { syncRamiNetworkChannel(channel) }
+                    .onFailure { status = it.message ?: "تعذر تشغيل قناة RAMİ TV." }
+            }
+            return
+        }
         if (AdultContentPolicy.isAdult(channel)) {
             status = "هذه القناة مصنّفة كمحتوى مقيّد ولا تظهر ضمن البث العام"
             return
@@ -244,6 +312,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
 
     val visibleChannels = when (section) {
         SinjarSection.LIVE -> channels
+        SinjarSection.RAMI -> ramiNetworkChannels
         SinjarSection.FAVORITES -> channels.filter { it.streamUrl in favoriteUrls }
         SinjarSection.SOURCES -> emptyList()
     }
@@ -253,6 +322,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     val muted = Color(0xFFA7AAB3)
     val arabic = language != "en" && language != "tr"
     val liveLabel = if (arabic) "البث المباشر" else if (language == "tr") "Canlı yayın" else "Live TV"
+    val ramiLabel = if (arabic) "قنوات RAMİ" else if (language == "tr") "RAMİ TV" else "RAMİ TV"
     val sourcesLabel = if (arabic) "المصادر" else if (language == "tr") "Kaynaklar" else "Sources"
     val favoritesLabel = if (arabic) "المفضلة" else if (language == "tr") "Favoriler" else "Favorites"
 
@@ -292,6 +362,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SinjarTabButton(liveLabel, section == SinjarSection.LIVE, gold) { section = SinjarSection.LIVE }
+                SinjarTabButton(ramiLabel, section == SinjarSection.RAMI, gold) { section = SinjarSection.RAMI }
                 SinjarTabButton(sourcesLabel, section == SinjarSection.SOURCES, gold) { section = SinjarSection.SOURCES }
                 SinjarTabButton(favoritesLabel, section == SinjarSection.FAVORITES, gold) { section = SinjarSection.FAVORITES }
             }
