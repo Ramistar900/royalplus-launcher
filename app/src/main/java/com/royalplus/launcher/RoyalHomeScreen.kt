@@ -2299,9 +2299,9 @@ private fun HomeDashboard(
         (shortcuts + favorites).distinctBy { it.packageName }
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val textScale = LocalDensity.current.fontScale.coerceIn(0.9f, 1.8f)
-        val heroHeight = ((maxHeight * 0.27f).coerceIn(112.dp, 148.dp) * textScale).coerceAtMost(maxHeight * 0.36f)
-        val favoriteHeight = ((maxHeight * 0.24f).coerceIn(104.dp, 126.dp) * textScale).coerceAtMost(maxHeight * 0.34f)
+        val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val heroHeight = (maxHeight * 0.27f).coerceIn(112.dp, 148.dp) * textScale
+        val favoriteHeight = (maxHeight * 0.24f).coerceIn(104.dp, 126.dp) * textScale
         // Ramadan artwork and greeting are rendered behind the interactive home content,
         // and only while the device's Islamic calendar is in Ramadan.
         val isRamadan = remember(currentTime) {
@@ -2316,7 +2316,7 @@ private fun HomeDashboard(
                 modifier = Modifier.fillMaxSize()
             )
         }
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             RoyalScenicBanner(
                 modifier = Modifier.fillMaxWidth().height(heroHeight),
                 weather = weather,
@@ -2331,7 +2331,7 @@ private fun HomeDashboard(
                 motionEnabled = weatherMotionEnabled
             )
             Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 26.dp * textScale), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(when (selectedLanguage) { "en" -> "Quick access"; "tr" -> "Hızlı erişim"; else -> "الوصول السريع" }, color = RoyalColors.Pearl, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Icon(Icons.Rounded.Apps, null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(21.dp)))
             }
@@ -2530,6 +2530,8 @@ private fun AppGrid(
     initialHighlight: Boolean
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val scaledTileHeight = tileHeight * textScale
     if (apps.isEmpty()) {
         EmptyAppsMessage(
             message = "لا توجد تطبيقات لعرضها هنا",
@@ -2548,7 +2550,7 @@ private fun AppGrid(
                     (focusedAppPackage == null && initialHighlight && app.packageName == apps.firstOrNull()?.packageName)
                 AppTile(
                     app = app,
-                    modifier = Modifier.fillMaxWidth().height(tileHeight),
+                    modifier = Modifier.fillMaxWidth().height(scaledTileHeight),
                     highlighted = highlighted,
                     iconStyle = iconStyle,
                     onFocused = onAppFocused,
@@ -2849,7 +2851,7 @@ private fun SidebarNavItem(
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
-    val textScale = LocalDensity.current.fontScale.coerceIn(0.9f, 1.8f)
+    val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
     val baseNavItemHeight = when {
         compactPhone -> 42.dp
         adaptiveProfile.isTelevision && adaptiveProfile.heightClass == RoyalWindowHeightClass.EXPANDED -> 56.dp
@@ -2954,7 +2956,7 @@ private fun SectionHeading(
     icon: ImageVector
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = (20f * LocalDensity.current.fontScale.coerceIn(0.9f, 1.8f)).dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = (20f * LocalDensity.current.fontScale.coerceAtLeast(1f)).dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -3091,12 +3093,13 @@ private fun RoyalAppManagementScreen(
     onManageApp: (LauncherApp) -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
-    val managementCardHeight = when {
+    val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val managementCardHeight = (when {
         adaptiveProfile.isTelevision -> (adaptiveProfile.appTileHeight + 40.dp).coerceIn(156.dp, 184.dp)
         adaptiveProfile.isTablet -> 164.dp
         adaptiveProfile.isPhone -> 132.dp
         else -> 150.dp
-    }
+    }) * textScale
     val managementIconSize = adaptiveProfile.iconSize(42.dp).coerceIn(38.dp, 58.dp)
     Column(Modifier.fillMaxSize()) {
         Row(
