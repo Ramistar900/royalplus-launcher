@@ -45,6 +45,8 @@ assert "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in ACTIVITY
 assert "android:name=\".RoyalCaptionReceiverService\"" in MANIFEST
 assert 'android:foregroundServiceType="connectedDevice"' in MANIFEST
 assert "FOREGROUND_SERVICE_CONNECTED_DEVICE" in MANIFEST
+assert "CHANGE_WIFI_MULTICAST_STATE" in MANIFEST
+assert "createMulticastLock" in ACTIVITY
 assert "RECORD_AUDIO" in MANIFEST  # declared for phone builds; runtime prompt is role-gated in MainActivity
 assert "AudioRecord" not in RECEIVER
 assert "MediaRecorder" not in RECEIVER
