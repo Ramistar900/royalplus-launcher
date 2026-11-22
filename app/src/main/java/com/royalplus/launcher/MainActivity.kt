@@ -15,6 +15,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.widget.Button
 import android.widget.EditText
@@ -39,10 +41,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
+    private val captionNsdServiceType = RoyalCaptionReceiverService.CAPTION_NSD_SERVICE_TYPE
     private var translationOverlayEnabled by mutableStateOf(false)
     private var isTelevisionDevice = false
     private var pendingPhoneTvHost: String? = null
     private var pendingPhoneTvPin: String? = null
+    private var captionDiscoveryManager: NsdManager? = null
+    private var captionDiscoveryListener: NsdManager.DiscoveryListener? = null
+    private var discoveredCaptionHost: String? = null
     private var weatherState by mutableStateOf(WeatherUiState())
     private var lastWeatherRefreshAt = 0L
     private var installedApps by mutableStateOf<List<LauncherApp>>(emptyList())
@@ -444,20 +450,20 @@ class MainActivity : ComponentActivity() {
                 .putString(RoyalCaptionReceiverService.KEY_RECEIVER_PIN, pin)
                 .apply()
             translationOverlayEnabled = true
-            showTvPairingDetails(localAddress, pin)
+            showTvPairingDetails(pin)
         } catch (error: Exception) {
             translationOverlayEnabled = false
             Toast.makeText(this, error.localizedMessage ?: "تعذر تشغيل مستقبل الترجمة على التلفاز.", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun showTvPairingDetails(address: String, pin: String) {
+    private fun showTvPairingDetails(pin: String) {
         android.app.AlertDialog.Builder(this)
             .setTitle("ROYAL+ — استقبال الترجمة من الهاتف")
             .setMessage(
-                "اتصل الهاتف والتلفاز بشبكة Wi-Fi نفسها. أدخل هذه البيانات في الهاتف:\n\n" +
-                    "عنوان التلفاز: $address\nالمنفذ: ${RoyalCaptionTransport.PORT}\nرمز الاقتران: $pin\n\n" +
-                    "التلفاز يستقبل النص ويعرضه فقط؛ لا يستخدم الميكروفون."
+                "اتصل الهاتف والتلفاز بشبكة Wi-Fi نفسها. سيعثر الهاتف على هذا التلفاز تلقائياً.\n\n" +
+                    "رمز الاقتران: $pin\n\n" +
+                    "أدخل الرمز في الهاتف. التلفاز يستقبل النص ويعرضه فقط؛ لا يستخدم الميكروفون."
             )
             .setPositiveButton("تم", null)
             .setNeutralButton("ضبط تأخير العرض") { _, _ -> showCaptionDelayDialog() }
@@ -511,22 +517,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showPhonePairingDialog() {
-        val preferences = getSharedPreferences(FloatingTranslationOverlayService.PREFERENCES, MODE_PRIVATE)
-        val addressInput = EditText(this).apply {
-            hint = "مثال: 192.168.1.20"
-            inputType = InputType.TYPE_CLASS_TEXT
-            setSingleLine(true)
-            setText(preferences.getString(FloatingTranslationOverlayService.KEY_PHONE_TV_HOST, ""))
+        discoveredCaptionHost = null
+        val statusView = TextView(this).apply {
+            text = "جارٍ البحث تلقائياً عن تلفاز ROYAL+ على شبكة Wi-Fi..."
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            setPadding(24, 18, 24, 12)
         }
         val pinInput = EditText(this).apply {
-            hint = "رمز الاقتران المكون من 8 أرقام"
+            hint = "رمز الاقتران الظاهر على التلفاز (8 أرقام)"
             inputType = InputType.TYPE_CLASS_NUMBER
             setSingleLine(true)
         }
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 8, 24, 4)
-            addView(addressInput, LinearLayout.LayoutParams(
+            setPadding(20, 4, 20, 4)
+            addView(statusView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ))
             addView(pinInput, LinearLayout.LayoutParams(
@@ -536,8 +542,7 @@ class MainActivity : ComponentActivity() {
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("ربط الهاتف بالتلفاز")
             .setMessage(
-                "اكتب عنوان IP ورمز الاقتران الظاهرين على شاشة التلفاز. يجب أن يكون الجهازان على شبكة Wi-Fi نفسها. " +
-                    "بعد بدء الالتقاط يمكنك إطفاء الشاشة. بعض الهواتف تحتاج إلى السماح لـ ROYAL+ بالعمل دون قيود بطارية حتى لا توقف الشركة المصنّعة الخدمة."
+                "ضع الهاتف والتلفاز على شبكة Wi-Fi نفسها. سيعثر الهاتف على التلفاز تلقائياً؛ لا حاجة لإدخال عنوان IP. أدخل رمز الاقتران الذي يعرضه التلفاز."
             )
             .setView(form)
             .setPositiveButton("بدء الالتقاط", null)
@@ -545,6 +550,7 @@ class MainActivity : ComponentActivity() {
             .setNegativeButton("إلغاء", null)
             .create()
         dialog.setOnShowListener {
+            startCaptionTvDiscovery(statusView)
             dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
                 try {
                     startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
@@ -553,10 +559,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val host = addressInput.text.toString().trim()
+                val host = discoveredCaptionHost
                 val pin = pinInput.text.toString().trim()
-                if (!RoyalCaptionTransport.isPrivateIpv4Address(host)) {
-                    addressInput.error = "أدخل عنوان IP محلياً صحيحاً للتلفاز"
+                if (host.isNullOrBlank()) {
+                    statusView.text = "لم يتم العثور على التلفاز بعد. تأكد من تشغيل استقبال الترجمة على التلفاز واتصال الجهازين بالشبكة نفسها."
                     return@setOnClickListener
                 }
                 if (!pin.matches(Regex("\\d{8}"))) {
@@ -565,6 +571,7 @@ class MainActivity : ComponentActivity() {
                 }
                 pendingPhoneTvHost = host
                 pendingPhoneTvPin = pin
+                stopCaptionTvDiscovery()
                 dialog.dismiss()
                 if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                     translationMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -573,7 +580,79 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        dialog.setOnDismissListener { stopCaptionTvDiscovery() }
         dialog.show()
+    }
+
+    private fun startCaptionTvDiscovery(statusView: TextView) {
+        stopCaptionTvDiscovery()
+        val manager = getSystemService(Context.NSD_SERVICE) as? NsdManager
+        if (manager == null) {
+            statusView.text = "ميزة اكتشاف الأجهزة غير متاحة على هذا الهاتف."
+            return
+        }
+        captionDiscoveryManager = manager
+        val listener = object : NsdManager.DiscoveryListener {
+            override fun onDiscoveryStarted(serviceType: String) {
+                statusView.text = "جارٍ البحث عن تلفاز ROYAL+ على الشبكة المحلية..."
+            }
+
+            override fun onServiceFound(serviceInfo: NsdServiceInfo) {
+                if (!serviceInfo.serviceType.contains(captionNsdServiceType.trimEnd('.'))) return
+                runCatching {
+                    manager.resolveService(serviceInfo, object : NsdManager.ResolveListener {
+                        override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {
+                            statusView.post { statusView.text = "تم العثور على تلفاز، جارٍ إكمال الاتصال..." }
+                        }
+
+                        override fun onServiceResolved(info: NsdServiceInfo) {
+                            val address = info.host?.hostAddress
+                            if (!address.isNullOrBlank() &&
+                                RoyalCaptionTransport.isPrivateIpv4Address(address) &&
+                                info.port == RoyalCaptionTransport.PORT
+                            ) {
+                                discoveredCaptionHost = address
+                                statusView.post {
+                                    statusView.text = "تم العثور على التلفاز: ${info.serviceName}. أدخل رمز الاقتران الظاهر على شاشة التلفاز."
+                                }
+                            }
+                        }
+                    })
+                }.onFailure {
+                    statusView.post { statusView.text = "جارٍ البحث عن التلفاز..." }
+                }
+            }
+
+            override fun onServiceLost(serviceInfo: NsdServiceInfo) {
+                discoveredCaptionHost = null
+                statusView.post { statusView.text = "انقطع ظهور التلفاز على الشبكة؛ جارٍ البحث مجدداً..." }
+            }
+
+            override fun onDiscoveryStopped(serviceType: String) = Unit
+
+            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+                statusView.post { statusView.text = "تعذر بدء اكتشاف التلفاز. تحقق من Wi-Fi ثم أعد المحاولة." }
+                runCatching { manager.stopServiceDiscovery(this) }
+            }
+
+            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
+        }
+        captionDiscoveryListener = listener
+        runCatching {
+            manager.discoverServices(captionNsdServiceType, NsdManager.PROTOCOL_DNS_SD, listener)
+        }.onFailure {
+            statusView.text = "تعذر بدء اكتشاف التلفاز على الشبكة المحلية."
+        }
+    }
+
+    private fun stopCaptionTvDiscovery() {
+        val manager = captionDiscoveryManager
+        val listener = captionDiscoveryListener
+        if (manager != null && listener != null) {
+            runCatching { manager.stopServiceDiscovery(listener) }
+        }
+        captionDiscoveryListener = null
+        captionDiscoveryManager = null
     }
 
     private fun startPhoneCaptionCapture() {
