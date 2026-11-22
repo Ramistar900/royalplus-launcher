@@ -747,7 +747,7 @@ private fun WeatherCurrentDetailsPanel(
                     color = Color.White,
                     fontSize = if (isPhone) 19.sp else 24.sp,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -790,7 +790,7 @@ private fun WeatherCurrentDetailsPanel(
                 color = Color.White,
                 fontSize = if (isPhone) 17.sp else 20.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             if (nextPrayerSummary.isNotBlank()) {

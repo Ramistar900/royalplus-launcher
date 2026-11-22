@@ -431,7 +431,7 @@ internal fun GregorianCalendarScreen(language: String) {
                                             color = RoyalCalendarPalette.White,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1
+                                            maxLines = 2
                                         )
                                         val clock = String.format(Locale.ROOT, "%02d:%02d", reminder.hour, reminder.minute)
                                         Text(
@@ -450,7 +450,7 @@ internal fun GregorianCalendarScreen(language: String) {
                                             } else "",
                                             color = RoyalCalendarPalette.OatCrystal.copy(alpha = 0.76f),
                                             fontSize = 10.sp,
-                                            maxLines = 1
+                                            maxLines = 3
                                         )
                                     }
                                     TextButton(onClick = {

@@ -550,7 +550,7 @@ private fun RoyalFileRow(
             Icon(icon, null, tint = accent, modifier = Modifier.size(26.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(entry.name, color = RoyalColors.Pearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(entry.name, color = RoyalColors.Pearl, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 if (entry.directory) if (language == "en") "Folder" else if (language == "tr") "Klasör" else "مجلد"
                 else Formatter.formatFileSize(LocalContext.current, entry.size) + " • " + DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(entry.modified)),

@@ -208,7 +208,7 @@ private fun PrivacyPermissionRow(
         Spacer(Modifier.size(11.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = RoyalColors.Pearl, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text(detail, color = RoyalColors.Muted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(detail, color = RoyalColors.Muted, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         Text(status, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
