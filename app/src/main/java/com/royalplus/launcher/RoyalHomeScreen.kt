@@ -1109,6 +1109,8 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "appearance") {
+                        RoyalInterfaceQualitySection(language = selectedLanguage)
+                        Spacer(Modifier.height(14.dp))
                         Text(
                             when (selectedLanguage) { "en" -> "Interface theme"; "tr" -> "Arayüz teması"; else -> "مظهر الواجهة" },
                             color = RoyalColors.Gold, fontSize = 17.sp, fontWeight = FontWeight.SemiBold
