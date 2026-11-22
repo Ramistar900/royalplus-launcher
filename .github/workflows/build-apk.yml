@@ -381,7 +381,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROYALPLUS_VERSION_CODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_number || '1' }}
-      ROYAL_WEATHER_API_BASE_URL: ${{ vars.ROYAL_WEATHER_API_BASE_URL }}
     permissions:
       contents: write
     steps:
