@@ -8,7 +8,7 @@ Weather data is fetched directly by ROYAL+ Launcher. No Cloudflare Worker, gatew
 - **Fallback:** MET Norway Locationforecast, used if Open-Meteo is unavailable or returns unusable data.
 - **Geocoding:** Open-Meteo Geocoding API for city search.
 
-The Android app keeps a separate rolling forecast cache for each saved city. Cached weather remains available offline; if both providers fail, the app keeps the last valid saved forecast rather than clearing it. Weather videos remain local to the device.
+The Android app keeps a separate rolling forecast cache for each saved city. Cached weather remains available offline; if both providers fail, the app keeps the last valid saved forecast rather than clearing it. When MET Norway is used, the app resolves the selected city's timezone and converts its UTC forecast timestamps into local calendar days. If timezone lookup is unavailable, it falls back to the device timezone. Older cached forecasts that predate provider metadata remain available offline but are explicitly labelled as legacy data with an unrecorded original provider; the app does not guess which provider supplied them. Weather videos remain local to the device.
 
 ## Attribution and license
 
