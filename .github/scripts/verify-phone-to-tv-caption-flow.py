@@ -50,6 +50,13 @@ assert "AudioRecord" not in RECEIVER
 assert "MediaRecorder" not in RECEIVER
 assert "Settings.canDrawOverlays(this)" in RECEIVER
 
+# Automatic local discovery replaces manual IP entry; the TV advertises itself over mDNS.
+assert "NsdManager" in ACTIVITY and "discoverServices" in ACTIVITY
+assert "resolveService" in ACTIVITY and "discoveredCaptionHost" in ACTIVITY
+assert "CAPTION_NSD_SERVICE_TYPE" in RECEIVER and "registerService" in RECEIVER
+assert "addressInput" not in ACTIVITY[ACTIVITY.index("private fun showPhonePairingDialog()"):ACTIVITY.index("private fun startPhoneCaptionCapture()")]
+assert "عنوان IP" not in ACTIVITY[ACTIVITY.index("private fun showPhonePairingDialog()"):ACTIVITY.index("private fun startPhoneCaptionCapture()")]
+
 # LAN pairing is authenticated and payloads are encrypted; no cloud endpoint is used.
 assert "ServerSocket" in RECEIVER
 assert "RoyalCaptionTransport.PORT" in RECEIVER
