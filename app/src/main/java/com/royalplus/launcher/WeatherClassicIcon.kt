@@ -55,6 +55,9 @@ private fun resolveRoyalClassicWeatherKind(
         text.contains("fog") || text.contains("ضباب") || text.contains("sis")) {
         return RoyalClassicWeatherKind.FOG
     }
+    if (text.contains("hail") || text.contains("برد") || text.contains("dolu")) {
+        return RoyalClassicWeatherKind.HAIL
+    }
     if (text.contains("lightning") || text.contains("برق") || text.contains("şimşek")) {
         return RoyalClassicWeatherKind.THUNDERSTORM
     }
