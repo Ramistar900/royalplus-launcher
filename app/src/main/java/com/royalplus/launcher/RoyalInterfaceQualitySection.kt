@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-internal fun RoyalInterfaceQualitySection(language: String) {
+internal fun RoyalInterfaceQualitySection(language: String, onRefreshApps: () -> Unit) {
     val context = LocalContext.current
     val selectedQuality by androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf { RoyalInterfaceQualitySettings.current } }
     val effectiveQuality = remember(context, selectedQuality) {
@@ -60,7 +60,11 @@ internal fun RoyalInterfaceQualitySection(language: String) {
                         .then(royalGlassFocus(RoundedCornerShape(10.dp)))
                         .background(if (selected) RoyalColors.Gold.copy(alpha = 0.20f) else RoyalColors.Surface)
                         .border(1.dp, if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.28f), RoundedCornerShape(10.dp))
-                        .clickable { RoyalInterfaceQualitySettings.select(context, preset) }
+                        .clickable {
+                            RoyalInterfaceQualitySettings.select(context, preset)
+                            LauncherAppsRepository.invalidate()
+                            onRefreshApps()
+                        }
                         .padding(horizontal = 13.dp, vertical = 10.dp)
                 ) {
                     Text(label, color = if (selected) RoyalColors.Gold else RoyalColors.Pearl,
