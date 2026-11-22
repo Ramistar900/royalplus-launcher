@@ -1,6 +1,7 @@
 package com.royalplus.launcher
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -21,6 +22,7 @@ internal object LauncherAppsRepository {
     @Suppress("DEPRECATION")
     @Synchronized
     fun load(
+        context: Context,
         packageManager: PackageManager,
         ownPackageName: String,
         forceRefresh: Boolean = false
@@ -62,7 +64,7 @@ internal object LauncherAppsRepository {
                     label = info.loadLabel(packageManager).toString(),
                     packageName = appPackageName,
                     launchIntent = launchIntent,
-                    icon = loadIconBitmap(info, packageManager)
+                    icon = loadIconBitmap(info, packageManager, context)
                 )
             }
             .distinctBy { it.packageName }
@@ -84,11 +86,20 @@ internal object LauncherAppsRepository {
 
     private fun loadIconBitmap(
         info: ResolveInfo,
-        packageManager: PackageManager
+        packageManager: PackageManager,
+        context: Context
     ): Bitmap? {
         return try {
             val drawable = info.loadIcon(packageManager)
-            val size = 96
+            val quality = RoyalInterfaceQualitySettings.budget(context).effectivePreset
+            val size = when (quality) {
+                RoyalInterfaceQualityPreset.P360, RoyalInterfaceQualityPreset.P480 -> 48
+                RoyalInterfaceQualityPreset.P720 -> 72
+                RoyalInterfaceQualityPreset.P1080 -> 96
+                RoyalInterfaceQualityPreset.P1440 -> 128
+                RoyalInterfaceQualityPreset.P4K -> 160
+                RoyalInterfaceQualityPreset.AUTO -> 96
+            }
             Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { bitmap ->
                 val canvas = Canvas(bitmap)
                 drawable.setBounds(0, 0, size, size)
