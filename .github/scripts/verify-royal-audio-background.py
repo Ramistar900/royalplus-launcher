@@ -9,7 +9,9 @@ GRADLE = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 assert "MediaSessionService" in SERVICE
 assert "ExoPlayer.Builder(this)" in SERVICE
 assert "MediaSession.Builder(this, player)" in SERVICE
-assert "setAudioAttributes(AudioAttributes.DEFAULT, true)" in SERVICE
+assert ".setWakeMode(C.WAKE_MODE_LOCAL)" in SERVICE
+assert ".setUsage(C.USAGE_MEDIA)" in SERVICE
+assert ".setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)" in SERVICE
 assert "MediaController.Builder(context, token).buildAsync()" in SONGS
 assert "setMediaItems(queue, index, 0L)" in SONGS
 assert "MediaController.releaseFuture(future)" in SONGS
