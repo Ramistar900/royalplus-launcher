@@ -632,7 +632,10 @@ internal object RoyalWeatherRepository {
         }
  
         return try {
-            val backup = fetchMetNorway(location, city).copy(
+            // MET Norway timestamps are UTC. Resolve the selected coordinates' local
+            // timezone so daily forecast buckets match the city rather than device UTC.
+            val cityTimeZone = fetchOpenMeteoTimeZone(location) ?: TimeZone.getDefault()
+            val backup = fetchMetNorway(location, city, cityTimeZone).copy(
                 attributionText = "MET Norway",
                 attributionUrl = "https://api.met.no/",
                 licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
@@ -700,7 +703,26 @@ internal object RoyalWeatherRepository {
         )
     }
 
-    private fun fetchMetNorway(location: Location, city: String): WeatherUiState {
+    private fun fetchOpenMeteoTimeZone(location: Location): TimeZone? {
+        return try {
+            val url = URL(
+                "https://api.open-meteo.com/v1/forecast" +
+                    "?latitude=${location.latitude}&longitude=${location.longitude}" +
+                    "&current=temperature_2m&forecast_days=1&timezone=auto"
+            )
+            val zoneId = requestJson(url).optString("timezone")
+            if (zoneId.isBlank() || TimeZone.getTimeZone(zoneId).id != zoneId) null
+            else TimeZone.getTimeZone(zoneId)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun fetchMetNorway(
+        location: Location,
+        city: String,
+        cityTimeZone: TimeZone
+    ): WeatherUiState {
         // MET Norway requires an identifiable, non-generic User-Agent.
         val url = URL(
             "https://api.met.no/weatherapi/locationforecast/2.0/compact" +
@@ -738,7 +760,19 @@ internal object RoyalWeatherRepository {
         val dailyBuckets = linkedMapOf<String, MutableList<Pair<Int, Int>>>()
         for (index in 0 until series.length()) {
             val item = series.optJSONObject(index) ?: continue
-            val date = item.optString("time").substringBefore("T")
+            val timestamp = item.optString("time")
+            val utcDateFormat = java.text.SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US
+            ).apply { timeZone = TimeZone.getTimeZone("UTC") }
+            val localDateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                timeZone = cityTimeZone
+            }
+            val date = try {
+                val instant = utcDateFormat.parse(timestamp) ?: continue
+                localDateFormat.format(instant)
+            } catch (_: Exception) {
+                continue
+            }
             if (date.isBlank()) continue
             val details = item.optJSONObject("data")?.optJSONObject("instant")?.optJSONObject("details")
                 ?: continue
@@ -770,6 +804,7 @@ internal object RoyalWeatherRepository {
             precipitationMm = precipitation,
             weatherCode = code,
             description = weatherDescription(code),
+            timeZoneId = cityTimeZone.id,
             latitude = location.latitude,
             longitude = location.longitude,
             forecast = forecast,
@@ -918,9 +953,16 @@ internal object RoyalWeatherRepository {
                 weatherCode = json.optIntOrNull("code"),
                 description = json.optString("description", "حالة الطقس الحالية"),
                 timeZoneId = json.optString("timezone").takeIf { it.isNotBlank() && it != "null" },
-                attributionText = json.optString("attributionText").takeIf { it.isNotBlank() && it != "null" },
-                attributionUrl = json.optString("attributionUrl").takeIf { it.startsWith("https://") },
-                licenseUrl = json.optString("licenseUrl").takeIf { it.startsWith("https://") },
+                // Older app versions cached forecasts without recording their provider.
+                // Keep those forecasts offline, but disclose that the original source is unknown.
+                attributionText = json.optString("attributionText")
+                    .takeIf { it.isNotBlank() && it != "null" }
+                    ?: "Legacy cached data (original provider not recorded)",
+                attributionUrl = json.optString("attributionUrl")
+                    .takeIf { it.startsWith("https://") },
+                licenseUrl = json.optString("licenseUrl")
+                    .takeIf { it.startsWith("https://") }
+                    ?: "https://creativecommons.org/licenses/by/4.0/",
                 latitude = latitude,
                 longitude = longitude,
                 forecast = forecast,
