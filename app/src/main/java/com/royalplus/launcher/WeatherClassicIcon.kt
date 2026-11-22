@@ -29,7 +29,8 @@ import kotlin.math.sin
  */
 private enum class RoyalClassicWeatherKind {
     SUNNY, PARTLY_CLOUDY, CLOUDY, FOG, DRIZZLE, RAIN, HEAVY_RAIN,
-    SNOW, HEAVY_SNOW, THUNDERSTORM, WIND, STRONG_WIND,
+    SNOW, HEAVY_SNOW, FREEZING_DRIZZLE, FREEZING_RAIN, HAIL,
+    THUNDERSTORM, THUNDERSTORM_HAIL, WIND, STRONG_WIND,
     CLEAR_NIGHT, SUNRISE, SUNSET, HOT, COLD
 }
 
@@ -73,12 +74,14 @@ private fun resolveRoyalClassicWeatherKind(
         3 -> return RoyalClassicWeatherKind.CLOUDY
         45, 48 -> return RoyalClassicWeatherKind.FOG
         51, 53, 55 -> return RoyalClassicWeatherKind.DRIZZLE
-        56, 57, 66, 67 -> return RoyalClassicWeatherKind.RAIN
+        56, 57 -> return RoyalClassicWeatherKind.FREEZING_DRIZZLE
+        66, 67 -> return RoyalClassicWeatherKind.FREEZING_RAIN
         61, 63, 80, 81 -> return RoyalClassicWeatherKind.RAIN
         65, 82 -> return RoyalClassicWeatherKind.HEAVY_RAIN
         71, 73, 77, 85 -> return RoyalClassicWeatherKind.SNOW
         75, 86 -> return RoyalClassicWeatherKind.HEAVY_SNOW
-        95, 96, 99 -> return RoyalClassicWeatherKind.THUNDERSTORM
+        95 -> return RoyalClassicWeatherKind.THUNDERSTORM
+        96, 99 -> return RoyalClassicWeatherKind.THUNDERSTORM_HAIL
     }
 
     if ((windSpeedKmh ?: 0) >= 45) return RoyalClassicWeatherKind.STRONG_WIND
@@ -170,19 +173,38 @@ internal fun RoyalClassicWeatherIcon(
                 )
                 drawWeatherCloud(size.width * 0.17f, size.height * 0.36f, size.width * 0.76f, size.height * 0.50f)
             }
-            RoyalClassicWeatherKind.CLOUDY,
-            RoyalClassicWeatherKind.COLD,
-            RoyalClassicWeatherKind.HOT -> drawStandaloneCloud(edge, cloudDrift)
+            RoyalClassicWeatherKind.CLOUDY -> drawStandaloneCloud(edge, cloudDrift)
+            RoyalClassicWeatherKind.HOT -> {
+                drawSun(
+                    center = Offset(size.width * 0.5f, size.height * 0.40f),
+                    radius = edge * 0.18f,
+                    rotationDegrees = sunRotation
+                )
+                drawHeatShimmer(edge, weatherMotionProgress, weatherPulse)
+            }
+            RoyalClassicWeatherKind.COLD -> {
+                drawStandaloneCloud(edge, cloudDrift)
+                drawFrost(edge, weatherMotionProgress, weatherPulse)
+            }
             RoyalClassicWeatherKind.FOG -> {
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.16f, size.width * 0.78f, size.height * 0.53f)
                 drawFogLines(edge, weatherMotionProgress)
             }
             RoyalClassicWeatherKind.DRIZZLE,
             RoyalClassicWeatherKind.RAIN,
-            RoyalClassicWeatherKind.HEAVY_RAIN -> {
+            RoyalClassicWeatherKind.HEAVY_RAIN,
+            RoyalClassicWeatherKind.FREEZING_DRIZZLE,
+            RoyalClassicWeatherKind.FREEZING_RAIN -> {
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.14f, size.width * 0.78f, size.height * 0.55f)
                 if (showRainMarks) {
-                    drawRain(edge, if (kind == RoyalClassicWeatherKind.DRIZZLE) 3 else if (kind == RoyalClassicWeatherKind.HEAVY_RAIN) 6 else 5, weatherMotionProgress)
+                    val icy = kind == RoyalClassicWeatherKind.FREEZING_DRIZZLE ||
+                        kind == RoyalClassicWeatherKind.FREEZING_RAIN
+                    val count = when (kind) {
+                        RoyalClassicWeatherKind.DRIZZLE, RoyalClassicWeatherKind.FREEZING_DRIZZLE -> 3
+                        RoyalClassicWeatherKind.HEAVY_RAIN -> 6
+                        else -> 5
+                    }
+                    drawRain(edge, count, weatherMotionProgress, icy = icy)
                 }
             }
             RoyalClassicWeatherKind.SNOW,
@@ -190,11 +212,17 @@ internal fun RoyalClassicWeatherIcon(
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.13f, size.width * 0.78f, size.height * 0.56f)
                 drawSnow(edge, if (kind == RoyalClassicWeatherKind.HEAVY_SNOW) 6 else 4, weatherMotionProgress)
             }
-            RoyalClassicWeatherKind.THUNDERSTORM -> {
+            RoyalClassicWeatherKind.THUNDERSTORM,
+            RoyalClassicWeatherKind.THUNDERSTORM_HAIL -> {
                 drawWeatherCloud(size.width * 0.12f, size.height * 0.10f, size.width * 0.78f, size.height * 0.56f)
                 drawLightning(edge, weatherPulse)
-                if (showRainMarks) drawRain(edge, 3, weatherMotionProgress)
+                if (kind == RoyalClassicWeatherKind.THUNDERSTORM_HAIL) {
+                    drawHail(edge, 5, weatherMotionProgress)
+                } else if (showRainMarks) {
+                    drawRain(edge, 3, weatherMotionProgress)
+                }
             }
+            RoyalClassicWeatherKind.HAIL -> drawHail(edge, 6, weatherMotionProgress)
             RoyalClassicWeatherKind.WIND,
             RoyalClassicWeatherKind.STRONG_WIND -> {
                 drawWeatherCloud(size.width * 0.18f, size.height * 0.10f, size.width * 0.68f, size.height * 0.50f)
@@ -204,7 +232,10 @@ internal fun RoyalClassicWeatherIcon(
             RoyalClassicWeatherKind.SUNRISE,
             RoyalClassicWeatherKind.SUNSET -> {
                 drawSun(
-                    center = Offset(size.width * 0.5f, size.height * 0.56f),
+                    center = Offset(
+                        size.width * 0.5f,
+                        size.height * (0.56f + 0.025f * sin(weatherMotionProgress * (Math.PI * 2.0).toFloat()))
+                    ),
                     radius = edge * 0.19f,
                     rotationDegrees = sunRotation
                 )
@@ -320,8 +351,8 @@ private fun DrawScope.drawWeatherCloud(left: Float, top: Float, width: Float, he
     )
 }
 
-private fun DrawScope.drawRain(edge: Float, count: Int, progress: Float) {
-    val rain = Color(0xFF36B9F2)
+private fun DrawScope.drawRain(edge: Float, count: Int, progress: Float, icy: Boolean = false) {
+    val rain = if (icy) Color(0xFFBDEBFF) else Color(0xFF36B9F2)
     repeat(count) { index ->
         val x = size.width * (0.30f + index * (0.40f / (count - 1).coerceAtLeast(1)))
         val phase = (progress + index * 0.19f) % 1f
@@ -334,6 +365,43 @@ private fun DrawScope.drawRain(edge: Float, count: Int, progress: Float) {
             strokeWidth = edge * 0.045f,
             cap = StrokeCap.Round
         )
+    }
+}
+
+private fun DrawScope.drawHail(edge: Float, count: Int, progress: Float) {
+    repeat(count) { index ->
+        val phase = (progress + index * 0.21f) % 1f
+        val x = size.width * (0.28f + index * (0.44f / (count - 1).coerceAtLeast(1)))
+        val y = size.height * (0.63f + phase * 0.25f)
+        val radius = edge * (0.027f + (index % 2) * 0.008f)
+        val bounce = if (phase > 0.82f) (phase - 0.82f) * 5f else 0f
+        drawCircle(Color(0xFF7896A8).copy(alpha = 0.55f), radius * 1.18f, Offset(x, y + bounce * edge * 0.025f))
+        drawCircle(Color(0xFFE8F7FF), radius, Offset(x - edge * 0.012f, y - bounce * edge * 0.025f))
+        drawCircle(Color.White.copy(alpha = 0.9f), radius * 0.28f, Offset(x - radius * 0.28f, y - radius * 0.35f - bounce * edge * 0.025f))
+    }
+}
+
+private fun DrawScope.drawHeatShimmer(edge: Float, progress: Float, pulse: Float) {
+    repeat(3) { index ->
+        val phase = (progress + index * 0.29f) % 1f
+        val x = size.width * (0.34f + index * 0.16f)
+        val y = size.height * (0.68f - phase * 0.16f)
+        val path = Path().apply {
+            moveTo(x, y + edge * 0.055f)
+            cubicTo(x - edge * 0.045f, y + edge * 0.015f, x + edge * 0.045f, y - edge * 0.02f, x, y - edge * 0.06f)
+        }
+        drawPath(path, Color(0xFFFFD36A).copy(alpha = 0.28f + pulse * 0.18f), style = Stroke(width = edge * 0.018f, cap = StrokeCap.Round))
+    }
+}
+
+private fun DrawScope.drawFrost(edge: Float, progress: Float, pulse: Float) {
+    val points = listOf(0.25f to 0.72f, 0.48f to 0.80f, 0.72f to 0.70f)
+    points.forEachIndexed { index, (x, y) ->
+        val twinkle = 0.45f + 0.45f * (0.5f + 0.5f * sin((progress * Math.PI * 2.0 + index).toFloat()))
+        val radius = edge * (0.025f + pulse * 0.008f)
+        val center = Offset(size.width * x, size.height * y)
+        drawLine(Color(0xFFBDEBFF).copy(alpha = twinkle), Offset(center.x - radius, center.y), Offset(center.x + radius, center.y), edge * 0.018f, StrokeCap.Round)
+        drawLine(Color(0xFFBDEBFF).copy(alpha = twinkle), Offset(center.x, center.y - radius), Offset(center.x, center.y + radius), edge * 0.018f, StrokeCap.Round)
     }
 }
 
