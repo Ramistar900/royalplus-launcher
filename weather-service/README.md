@@ -30,7 +30,7 @@ Coordinates are rounded to three decimals so nearby devices can share one foreca
 
 The response identifies the actual provider in `X-Royal-Weather-Source` and provides provider attribution in `X-Weather-Attribution`.
 
-The Android UI migration is still required before launch. It must show attribution next to the displayed weather data, include the relevant license link, and indicate that ROYAL+ transforms the data:
+The Android client in this PR now routes forecast requests through the gateway, retains provider attribution in its local city cache, and displays the provider plus CC BY 4.0 links in the forecast panel. Before live gateway use, configure the real Worker URL in the GitHub Actions variable and verify the complete Android build:
 
 - Open-Meteo: **Weather data by Open-Meteo.com**, licensed under CC BY 4.0. Include https://open-meteo.com/ and https://creativecommons.org/licenses/by/4.0/.
 - MET Norway: **Weather data by MET Norway**, licensed under CC BY 4.0. Include https://api.met.no/ and https://creativecommons.org/licenses/by/4.0/.
