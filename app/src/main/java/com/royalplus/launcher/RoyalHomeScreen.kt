@@ -1109,7 +1109,7 @@ internal fun RoyalHomeScreen(
                         Spacer(Modifier.height(14.dp))
                         }
                         if (selectedSettingsCategory == "appearance") {
-                        RoyalInterfaceQualitySection(language = selectedLanguage)
+                        RoyalInterfaceQualitySection(language = selectedLanguage, onRefreshApps = onRefreshApps)
                         Spacer(Modifier.height(14.dp))
                         Text(
                             when (selectedLanguage) { "en" -> "Interface theme"; "tr" -> "Arayüz teması"; else -> "مظهر الواجهة" },
