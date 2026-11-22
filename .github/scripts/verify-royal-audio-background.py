@@ -10,6 +10,7 @@ assert "MediaSessionService" in SERVICE
 assert "ExoPlayer.Builder(this)" in SERVICE
 assert "MediaSession.Builder(this, player)" in SERVICE
 assert ".setWakeMode(C.WAKE_MODE_LOCAL)" in SERVICE
+assert ".setHandleAudioBecomingNoisy(true)" in SERVICE
 assert ".setUsage(C.USAGE_MEDIA)" in SERVICE
 assert ".setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)" in SERVICE
 assert "MediaController.Builder(context, token).buildAsync()" in SONGS
