@@ -13,12 +13,20 @@ internal class RoyalMusicPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val player = ExoPlayer.Builder(this).build().apply {
-            setAudioAttributes(AudioAttributes.DEFAULT, true)
-            setHandleAudioBecomingNoisy(true)
-            repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
-            setWakeMode(C.WAKE_MODE_LOCAL)
-        }
+        val player = ExoPlayer.Builder(this)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .build()
+            .apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build(),
+                    true
+                )
+                setHandleAudioBecomingNoisy(true)
+                repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+            }
         exoPlayer = player
         mediaSession = MediaSession.Builder(this, player).build()
     }
