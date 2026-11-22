@@ -166,20 +166,25 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     }
 
     LaunchedEffect(Unit) {
-        runCatching {
-            withContext(Dispatchers.IO) { RamiNetworkViewer.loadChannels() }
-        }.onSuccess { remote ->
-            ramiNetworkChannels = remote.map { item ->
-                RSTVChannel(
-                    name = item.name,
-                    tvgId = item.id,
-                    group = "RAMI NETWORK",
-                    logoUrl = item.logoUrl,
-                    streamUrl = "https://rami-network.invalid/channel/" + item.id
-                )
+        while (true) {
+            runCatching {
+                withContext(Dispatchers.IO) { RamiNetworkViewer.loadChannels() }
+            }.onSuccess { remote ->
+                ramiNetworkChannels = remote.map { item ->
+                    RSTVChannel(
+                        name = item.name,
+                        tvgId = item.id,
+                        group = "RAMI NETWORK",
+                        logoUrl = item.logoUrl,
+                        streamUrl = "https://rami-network.invalid/channel/" + item.id
+                    )
+                }
+            }.onFailure {
+                if (ramiNetworkChannels.isEmpty()) {
+                    status = "تعذر تحميل قنوات RAMİ TV: " + (it.message ?: "خطأ اتصال")
+                }
             }
-        }.onFailure {
-            status = "تعذر تحميل قنوات RAMİ TV: " + (it.message ?: "خطأ اتصال")
+            delay(60_000)
         }
     }
 
@@ -194,6 +199,8 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
         val state = withContext(Dispatchers.IO) { RamiNetworkViewer.loadState(channelId) }
         val playbackStatus = state.optString("status")
         if (playbackStatus != "playing") {
+            player.stop()
+            player.clearMediaItems()
             status = when (playbackStatus) {
                 "waiting_for_stream" -> "القناة بانتظار مصدر HLS."
                 "waiting_for_playlist" -> "القناة بانتظار قائمة تشغيل معتمدة."
