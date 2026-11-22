@@ -37,6 +37,15 @@ The Android UI migration is still required before launch. It must show attributi
 
 Do not imply either provider endorses ROYAL+.
 
+
+## Android gateway connection
+
+The Android weather repository now sends forecast requests only to this gateway at `/v1/forecast?lat=...&lon=...`. It no longer calls either forecast provider directly, so devices cannot bypass the centralized Open-Meteo quota guard. The app continues to keep each city's rolling seven-day forecast locally and returns the last saved forecast if the gateway is unavailable.
+
+Set the GitHub Actions repository variable `ROYAL_WEATHER_API_BASE_URL` to the deployed Worker origin, for example `https://royalplus-weather-api.<your-account-subdomain>.workers.dev` (replace the placeholder with the actual Cloudflare account subdomain). The Android Gradle build reads this variable into `BuildConfig.ROYAL_WEATHER_API_BASE_URL`. Do not set a guessed URL: until the real Worker URL is configured, Android deliberately makes no direct provider forecast calls and uses saved weather only.
+
+The app displays the actual source returned by the gateway and links both the provider and the CC BY 4.0 license. The source name is persisted with the local forecast so attribution remains visible offline.
+
 ## One-time Cloudflare setup (Free plan only)
 
 1. Create or sign in to Cloudflare. Keep the account on Workers Free.
