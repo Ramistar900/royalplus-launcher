@@ -43,6 +43,10 @@ QUALITY_MODEL = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalInterface
 assert 'else -> "جودة العرض العامة"' in QUALITY_SECTION
 assert "selectablePresets = listOf(AUTO, P480, P720, P1080, P1440, P4K)" in QUALITY_MODEL
 assert "applyRoyalInterfaceVideoQuality" in QUALITY_MODEL
+APPS_REPOSITORY = (ROOT / "app/src/main/java/com/royalplus/launcher/LauncherAppsRepository.kt").read_text(encoding="utf-8")
+assert "RoyalInterfaceQualitySettings.budget(context)" in APPS_REPOSITORY
+assert "RoyalInterfaceQualityPreset.P4K -> 160" in APPS_REPOSITORY
+assert "onRefreshApps = onRefreshApps" in HOME
 assert "Interface quality & performance" not in DEVICE_SETTINGS
 assert "royal_manage_apps_luxe" in HOME
 assert "showAudioSettings: Boolean = true" in DEVICE_SETTINGS
