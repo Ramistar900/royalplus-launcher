@@ -863,6 +863,7 @@ private fun WeatherForecastPanel(
     outline: Color,
     gold: Color
 ) {
+    val context = LocalContext.current
     val locale = when (language) {
         "en" -> Locale.ENGLISH
         "tr" -> Locale("tr")
@@ -948,6 +949,56 @@ private fun WeatherForecastPanel(
                             .background(Color.White.copy(alpha = 0.18f))
                     )
                 }
+            }
+        }
+        if (!weather.attributionText.isNullOrBlank()) {
+            Spacer(Modifier.height(7.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "CC BY 4.0",
+                    modifier = Modifier.clickable {
+                        weather.licenseUrl?.let { url ->
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(url)
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    color = Color.White.copy(alpha = 0.78f),
+                    fontSize = 9.sp
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    when (language) {
+                        "en" -> "Weather data by ${weather.attributionText}"
+                        "tr" -> "Hava durumu verisi: ${weather.attributionText}"
+                        else -> "بيانات الطقس من ${weather.attributionText}"
+                    },
+                    modifier = Modifier.clickable {
+                        weather.attributionUrl?.let { url ->
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(url)
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
