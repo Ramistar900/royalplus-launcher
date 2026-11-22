@@ -1,7 +1,6 @@
 package com.royalplus.launcher
 
 import android.content.ComponentName
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.BorderStroke
@@ -13,7 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -112,7 +111,7 @@ internal fun RoyalFloatingMusicPlayer(language: String) {
                 }
             } else {
                 Surface(
-                    modifier = Modifier.width(292.dp),
+                    modifier = Modifier.widthIn(max = 292.dp),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xF20D1118),
                     border = BorderStroke(1.dp, RoyalColors.Gold.copy(alpha = 0.78f)),
