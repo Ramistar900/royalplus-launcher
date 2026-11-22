@@ -40,6 +40,8 @@ internal object RamiNetworkViewer {
             connectTimeout = 12_000
             readTimeout = 15_000
             setRequestProperty("Accept", "application/json")
+            setRequestProperty("apikey", "sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW")
+            setRequestProperty("Authorization", "Bearer sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW")
         }
         try {
             val status = connection.responseCode
