@@ -153,9 +153,20 @@ async function fetchMetNorway(latitude, longitude, cached) {
   return { response, payload, source: "MET Norway" };
 }
 
-async function refreshForecast(kv, key, latitude, longitude, cached, now) {
+async function reserveOpenMeteoQuota(env) {
+  if (!env.OPEN_METEO_QUOTA) return { allowed: false, unavailable: true };
+  const id = env.OPEN_METEO_QUOTA.idFromName("open-meteo-global");
+  const stub = env.OPEN_METEO_QUOTA.get(id);
+  const response = await stub.fetch("https://quota.internal/reserve", { method: "POST" });
+  if (!response.ok) return { allowed: false, unavailable: true };
+  return response.json();
+}
+
+async function refreshForecast(kv, key, latitude, longitude, cached, now, env) {
   let primaryError;
   try {
+    const quota = await reserveOpenMeteoQuota(env);
+    if (!quota.allowed) throw new Error(quota.unavailable ? "Open-Meteo quota guard unavailable; primary request blocked." : "Open-Meteo free quota reached; primary request blocked.");
     const result = await fetchOpenMeteo(latitude, longitude, cached);
     if (result.notModified) {
       const entry = await storeForecast(kv, key, result.payload, result.response.headers, now, result.source);
@@ -212,7 +223,7 @@ async function handleForecast(request, env) {
   let refreshPromise = inFlightRefreshes.get(key);
   const isRefreshLeader = !refreshPromise;
   if (!refreshPromise) {
-    refreshPromise = refreshForecast(kv, key, latitude, longitude, cached, now);
+    refreshPromise = refreshForecast(kv, key, latitude, longitude, cached, now, env);
     inFlightRefreshes.set(key, refreshPromise);
   }
 
@@ -256,6 +267,56 @@ export default {
     return handleForecast(request, env || {});
   },
 };
+
+export class OpenMeteoQuotaDO {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS quota (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        day_start INTEGER NOT NULL,
+        day_units INTEGER NOT NULL,
+        hour_start INTEGER NOT NULL,
+        hour_units INTEGER NOT NULL,
+        minute_start INTEGER NOT NULL,
+        minute_units INTEGER NOT NULL
+      )
+    `);
+  }
+
+  async fetch(request) {
+    if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    const now = Date.now();
+    const minuteStart = Math.floor(now / 60_000) * 60_000;
+    const hourStart = Math.floor(now / 3_600_000) * 3_600_000;
+    const dayStart = Math.floor(now / 86_400_000) * 86_400_000;
+    // This request asks for more than ten weather variables, so reserve
+    // two Open-Meteo call units conservatively before contacting the API.
+    const cost = 2;
+    const rows = this.ctx.storage.sql.exec("SELECT * FROM quota WHERE id = 1").toArray();
+    const previous = rows[0] || {};
+    const dayUnits = previous.day_start === dayStart ? previous.day_units : 0;
+    const hourUnits = previous.hour_start === hourStart ? previous.hour_units : 0;
+    const minuteUnits = previous.minute_start === minuteStart ? previous.minute_units : 0;
+
+    // Stay below Open-Meteo's published free limits, with headroom for
+    // fractional call accounting and operational variance.
+    if (dayUnits + cost > 9000 || hourUnits + cost > 4500 || minuteUnits + cost > 540) {
+      return Response.json({ allowed: false, unavailable: false, retryAfter: 60 }, { status: 200 });
+    }
+
+    this.ctx.storage.sql.exec(
+      `INSERT INTO quota (id, day_start, day_units, hour_start, hour_units, minute_start, minute_units)
+       VALUES (1, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         day_start = excluded.day_start, day_units = excluded.day_units,
+         hour_start = excluded.hour_start, hour_units = excluded.hour_units,
+         minute_start = excluded.minute_start, minute_units = excluded.minute_units`,
+      dayStart, dayUnits + cost, hourStart, hourUnits + cost, minuteStart, minuteUnits + cost,
+    );
+    return Response.json({ allowed: true, unavailable: false, reservedUnits: cost });
+  }
+}
 
 export const __test = {
   normalizeCoordinate,
