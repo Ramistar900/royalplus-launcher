@@ -55,12 +55,12 @@ private fun resolveRoyalClassicWeatherKind(
         text.contains("fog") || text.contains("ضباب") || text.contains("sis")) {
         return RoyalClassicWeatherKind.FOG
     }
-    if (text.contains("hail") || text.contains("برد") || text.contains("dolu")) {
-        return RoyalClassicWeatherKind.HAIL
-    }
-    if (text.contains("lightning") || text.contains("برق") || text.contains("şimşek")) {
-        return RoyalClassicWeatherKind.THUNDERSTORM
-    }
+    val hasHail = text.contains("hail") || text.contains("برد") || text.contains("dolu")
+    val hasThunder = text.contains("thunder") || text.contains("lightning") ||
+        text.contains("رعد") || text.contains("برق") || text.contains("şimşek")
+    if (hasHail && hasThunder) return RoyalClassicWeatherKind.THUNDERSTORM_HAIL
+    if (hasHail) return RoyalClassicWeatherKind.HAIL
+    if (hasThunder) return RoyalClassicWeatherKind.THUNDERSTORM
 
     when (weatherCode) {
         0, 1 -> {
