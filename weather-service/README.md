@@ -4,44 +4,54 @@ A dedicated weather gateway for ROYAL+ Launcher only. It is not shared with ROYA
 
 ## Zero-billing architecture
 
-- **Weather source:** MET Norway Locationforecast (global coverage; up to nine forecast days).
-- **Gateway:** Cloudflare Workers Free.
-- **Shared cache:** Cloudflare Workers KV on the Free plan. No R2 bucket is used.
+- **Primary weather source:** Open-Meteo Free API, used only under the written permission received for the described non-commercial, ad-free ROYAL+ Launcher use.
+- **Fallback weather source:** MET Norway Locationforecast.
+- **Gateway and shared cache:** Cloudflare Workers Free + Workers KV Free.
+- **Strict Open-Meteo quota guard:** one SQLite-backed Cloudflare Durable Object on the Workers Free plan. It serializes quota reservations globally before an Open-Meteo request is sent.
 - **Device cache:** the existing ROYAL+ seven-day local forecast cache remains the offline source of truth.
-- **No paid plan, R2, card, PayPal, or paid API subscription is required for this design.**
+- **No paid plan, R2 bucket, paid storage backend, card, PayPal, or paid API subscription is part of this design.**
 
-All ROYAL+ devices use one gateway. Coordinates are rounded to three decimals so nearby devices in the same city can share a forecast. KV keeps the shared forecast and its expiry/validator metadata. The Worker follows upstream cache headers, uses conditional revalidation, and can serve the last valid forecast for up to 48 hours during an upstream outage.
+The Open-Meteo request is conservatively charged as two call units because it requests more than ten weather variables. The global quota guard allows at most 9,000 weighted units/day, 4,500/hour, and 540/minute. These safety ceilings are intentionally below Open-Meteo's published free limits (10,000/day, 5,000/hour, 600/minute). The daily ceiling also keeps a 31-day month below the published 300,000-call monthly limit. Quota is reserved before the primary upstream request; failed upstream requests still consume the reservation so retries cannot evade the cap.
 
-If a Free-plan limit is reached, Cloudflare Free operations fail rather than becoming paid overage. The Worker fails closed when it cannot read the shared cache; it does not bypass the cache and send repeated upstream requests. If a KV write limit is reached, it may serve the just-fetched forecast from the current Worker isolate, but it does not retry writes or enable a paid plan. The Android app must keep using its existing local seven-day cache when the gateway returns 503/502.
+If the quota guard is missing, unavailable, or reports that a ceiling has been reached, the Worker does not call Open-Meteo. It may try MET Norway as the fallback. If both providers fail, or the free cache is unavailable, the Worker returns an error and ROYAL+ must continue using its saved local seven-day forecast and offline videos.
 
-**Account safety rule:** keep the Cloudflare account on Workers Free. Do not activate Workers Paid, R2 billing, or any paid add-on. Never enter a payment method for this weather service. Free allowances are finite, not unlimited.
+Coordinates are rounded to three decimals so nearby devices can share one forecast. The shared KV cache follows upstream cache headers and retains the last valid forecast for up to 48 hours during provider outages. Open-Meteo is refreshed no more often than the shared cache allows. MET Norway requests respect its documented minimum polling interval outside the Nordic region.
 
-## Free limits used by this service
+## Free-plan safeguards
 
-Current published Workers Free limits include 100,000 Worker requests/day and 10 ms CPU per invocation. Workers KV Free includes 100,000 reads/day, 1,000 writes/day, and 1 GB stored data. When an individual KV Free daily limit is exceeded, further operations of that type fail until reset; this service treats that as a temporary outage and relies on device caches. These limits are not guarantees of unlimited capacity.
+- Keep the Cloudflare account on **Workers Free**.
+- Use only SQLite-backed Durable Objects, which are available on Workers Free; do not select a paid storage backend.
+- Use Workers KV Free for weather payload caching; do not create an R2 bucket.
+- Do not activate Workers Paid, R2 billing, a paid add-on, or enter a payment method for this service.
+- Cloudflare Free allowances are finite. If a Workers, KV, or Durable Objects free allowance is exhausted, operations fail until reset; the app falls back to local cached weather.
+- Never enable automatic paid overage or upgrade billing to keep the service running.
 
-## Why MET Norway
+## Attribution
 
-MET Norway states that its open weather data, including global Locationforecast, is available for commercial use under Creative Commons Attribution 4.0. Its service terms require a truthful identifying User-Agent, attribution, caching, and responsible traffic; the service does not provide an SLA. Global forecasts are updated every six hours, and its documentation says identical requests outside the Nordic region should not be repeated more often than every three hours. This Worker also respects longer upstream cache headers.
+The response identifies the actual provider in `X-Royal-Weather-Source` and provides provider attribution in `X-Weather-Attribution`.
 
-Required visible attribution in ROYAL+:
-"Weather data: MET Norway, licensed under CC BY 4.0. Modified for ROYAL+."
-Include a link to https://creativecommons.org/licenses/by/4.0/ and indicate that ROYAL+ transforms the source data.
+The Android UI migration is still required before launch. It must show attribution next to the displayed weather data, include the relevant license link, and indicate that ROYAL+ transforms the data:
+
+- Open-Meteo: **Weather data by Open-Meteo.com**, licensed under CC BY 4.0. Include https://open-meteo.com/ and https://creativecommons.org/licenses/by/4.0/.
+- MET Norway: **Weather data by MET Norway**, licensed under CC BY 4.0. Include https://api.met.no/ and https://creativecommons.org/licenses/by/4.0/.
+
+Do not imply either provider endorses ROYAL+.
 
 ## One-time Cloudflare setup (Free plan only)
 
-1. Create or sign in to Cloudflare. Do not select a paid Workers plan.
-2. Open **Workers & Pages → KV** and create a namespace named `ROYALPLUS_WEATHER_CACHE`. Creating a KV namespace uses the Workers Free allowance; do not create an R2 bucket.
+1. Create or sign in to Cloudflare. Keep the account on Workers Free.
+2. Open **Workers & Pages → KV** and create a namespace named `ROYALPLUS_WEATHER_CACHE`. Do not create an R2 bucket.
 3. Copy the KV namespace ID into `weather-service/cloudflare-worker/wrangler.toml` at `id = "REPLACE_WITH_KV_NAMESPACE_ID"`.
-4. For deployment only, create a Cloudflare API token with the minimum permission **Workers Scripts: Edit** for this account. Do not grant R2 permissions.
-5. In GitHub repository **Settings → Secrets and variables → Actions**, add:
+4. The SQLite Durable Object quota class is declared in Wrangler migrations. It must remain SQLite-backed; do not switch to a paid KV-backed Durable Object.
+5. For deployment only, create a Cloudflare API token with the minimum permission **Workers Scripts: Edit** for this account. Do not grant R2 permissions.
+6. In GitHub repository **Settings → Secrets and variables → Actions**, add:
    - `CLOUDFLARE_API_TOKEN` — the restricted deployment token.
    - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID.
    Never send either value in chat or commit it to the repository.
-6. After the tested PR is merged to `main`, run **Deploy ROYAL+ Weather Service** manually from GitHub Actions.
-7. Record the resulting `https://royalplus-weather-api.<account-subdomain>.workers.dev` URL. The Android client migration and visible attribution must be completed and tested in a separate change before the gateway is treated as the app's active source.
+7. After the complete PR is tested and merged to `main`, run **Deploy ROYAL+ Weather Service** manually from GitHub Actions.
+8. Record the resulting `https://royalplus-weather-api.<account-subdomain>.workers.dev` URL. The Android client migration and visible attribution must be completed and tested before the gateway becomes the app's active weather source.
 
-The deploy workflow runs only from `main`. Deployment credentials are used only to publish the Worker; they do not enable paid billing.
+The deploy workflow runs only from `main`. No service has been deployed or activated by this PR change.
 
 ## Local tests
 
@@ -49,12 +59,15 @@ The deploy workflow runs only from `main`. Deployment credentials are used only 
 npm test
 ```
 
-## Upstream and platform documentation
+## Provider and platform terms
 
-- MET Norway API and global products: https://api.met.no/
-- Locationforecast documentation: https://api.met.no/weatherapi/locationforecast/2.0/documentation
+- Open-Meteo Terms of Use: https://open-meteo.com/en/terms
+- Open-Meteo pricing and free API limits: https://open-meteo.com/en/pricing
+- Open-Meteo attribution: https://open-meteo.com/
+- MET Norway API: https://api.met.no/
+- MET Norway Locationforecast documentation: https://api.met.no/weatherapi/locationforecast/2.0/documentation
 - MET Norway Terms of Service: https://docs.api.met.no/doc/TermsOfService
-- MET Norway Locationforecast FAQ: https://api.met.no/doc/locationforecast/FAQ
 - CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
 - Cloudflare Workers Free limits: https://developers.cloudflare.com/workers/platform/limits/
-- Cloudflare Workers KV pricing and Free limits: https://developers.cloudflare.com/kv/platform/pricing/
+- Cloudflare Workers KV pricing: https://developers.cloudflare.com/kv/platform/pricing/
+- Cloudflare Durable Objects pricing: https://developers.cloudflare.com/durable-objects/platform/pricing/
