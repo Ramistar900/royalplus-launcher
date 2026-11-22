@@ -2674,7 +2674,7 @@ private fun AppTile(
                 color = RoyalColors.Pearl,
                 fontSize = 13.sp,
                 fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Medium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
