@@ -10,6 +10,14 @@ val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
 val royalPlusVersionCode = providers.gradleProperty("royalplusVersionCode")
     .orNull?.toIntOrNull()?.takeIf { it > 0 } ?: 1
+val royalWeatherApiBaseUrl = providers.gradleProperty("royalWeatherApiBaseUrl")
+    .orElse(providers.environmentVariable("ROYAL_WEATHER_API_BASE_URL"))
+    .orElse("")
+    .get()
+    .trim()
+    .trimEnd('/')
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
 
 val releaseSigningAvailable = listOf(
     signingKeystorePath,
@@ -63,6 +71,11 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField("String", "ROYAL_WEATHER_API_BASE_URL", "\"$royalWeatherApiBaseUrl\"")
     }
 
     splits {
