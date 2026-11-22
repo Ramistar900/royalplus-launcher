@@ -655,12 +655,12 @@ internal object RoyalWeatherRepository {
             val license = "https://creativecommons.org/licenses/by/4.0/"
             return when (source) {
                 "Open-Meteo" -> parseOpenMeteo(root, location, city).copy(
-                    attributionText = "Weather data by Open-Meteo · CC BY 4.0",
+                    attributionText = "Open-Meteo",
                     attributionUrl = "https://open-meteo.com/",
                     licenseUrl = license
                 )
                 "MET Norway" -> parseMetNorway(root, location, city).copy(
-                    attributionText = "Weather data by MET Norway · CC BY 4.0",
+                    attributionText = "MET Norway",
                     attributionUrl = "https://api.met.no/",
                     licenseUrl = license
                 )
