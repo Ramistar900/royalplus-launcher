@@ -2226,6 +2226,7 @@ private fun ShortcutManagerScreen(
     onLaunchApp: (LauncherApp) -> Unit,
     onManageApp: (LauncherApp) -> Unit
 ) {
+    val textScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
     Column(Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -2269,7 +2270,7 @@ private fun ShortcutManagerScreen(
                     val selected = app.packageName in selectedPackages
                     AppTile(
                         app = app,
-                        modifier = Modifier.height(88.dp),
+                        modifier = Modifier.height(124.dp * textScale),
                         highlighted = selected,
                         iconStyle = iconStyle,
                         onFocused = {},
