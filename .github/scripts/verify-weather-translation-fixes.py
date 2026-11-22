@@ -126,4 +126,30 @@ assert 'attributionText = json.optString("attributionText")' in weather_location
 assert "CC BY 4.0" in city_screen
 assert "weather.licenseUrl" in city_screen and "weather.attributionUrl" in city_screen
 
-print("Verified direct Open-Meteo primary and MET Norway fallback, local seven-day cache, and persistent provider attribution with CC BY 4.0 links.")
+# Legacy caches must remain usable offline without inventing an unknown provider.
+assert "Legacy cached data (original provider not recorded)" in weather_locations
+assert "Older app versions cached forecasts without recording their provider." in weather_locations
+assert '?: "https://creativecommons.org/licenses/by/4.0/"' in weather_locations
+
+# MET Norway supplies UTC timestamps; convert them using the selected city's timezone.
+assert "fetchOpenMeteoTimeZone(location)" in weather_locations
+assert "fetchMetNorway(location, city, cityTimeZone)" in weather_locations
+assert 'TimeZone.getTimeZone("UTC")' in weather_locations
+assert "timeZone = cityTimeZone" in weather_locations
+assert "timeZoneId = cityTimeZone.id" in weather_locations
+assert "localDateFormat.format(instant)" in weather_locations
+
+# Verify the UTC-to-city-local date boundary used by the MET Norway regression fixture.
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+utc_instant = datetime(2026, 1, 1, 23, 30, tzinfo=timezone.utc)
+assert utc_instant.astimezone(ZoneInfo("Europe/Istanbul")).strftime("%Y-%m-%d") == "2026-01-02"
+assert utc_instant.astimezone(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d") == "2026-01-01"
+
+# A failed primary or backup must not clear the last successful local forecast.
+assert "fetchOpenMeteo(location, city)" in weather_locations
+assert "fetchMetNorway(location, city, cityTimeZone)" in weather_locations
+assert "cached?.first?.copy(city = city) ?: throw IllegalStateException" in weather_locations
+assert "require(weather.forecast.size >= 7)" in weather_locations
+
+print("Verified direct provider fallback, offline legacy-cache disclosure, city-local MET Norway dates, seven-day cache preservation, and CC BY 4.0 attribution.")
