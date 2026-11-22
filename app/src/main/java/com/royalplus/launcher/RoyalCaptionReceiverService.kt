@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -39,6 +41,8 @@ class RoyalCaptionReceiverService : Service() {
     @Volatile private var serverSocket: ServerSocket? = null
     @Volatile private var activeClient: Socket? = null
     private var serverThread: Thread? = null
+    private var nsdManager: NsdManager? = null
+    private var nsdRegistrationListener: NsdManager.RegistrationListener? = null
     private var captionView: TextView? = null
     private var windowManager: WindowManager? = null
     private val hideCaption = Runnable { captionView?.visibility = View.GONE }
@@ -88,6 +92,7 @@ class RoyalCaptionReceiverService : Service() {
             server.reuseAddress = true
             server.bind(InetSocketAddress(RoyalCaptionTransport.PORT), 2)
             serverSocket = server
+            registerCaptionDiscoveryService(server.localPort)
             updateNotification("جاهز لاستقبال الترجمة من الهاتف عبر Wi-Fi")
             while (running.get()) {
                 val socket = try {
@@ -114,6 +119,44 @@ class RoyalCaptionReceiverService : Service() {
         } finally {
             running.set(false)
         }
+    }
+
+    private fun registerCaptionDiscoveryService(port: Int) {
+        val manager = getSystemService(NsdManager::class.java) ?: return
+        nsdManager = manager
+        val serviceInfo = NsdServiceInfo().apply {
+            serviceName = "ROYAL+ TV"
+            serviceType = CAPTION_NSD_SERVICE_TYPE
+            this.port = port
+        }
+        val listener = object : NsdManager.RegistrationListener {
+            override fun onServiceRegistered(info: NsdServiceInfo) {
+                updateNotification("تم إعلان التلفاز للاكتشاف التلقائي على الشبكة المحلية")
+            }
+
+            override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
+                updateNotification("تعذر إعلان التلفاز للاكتشاف التلقائي؛ تحقق من إعدادات الشبكة")
+            }
+
+            override fun onServiceUnregistered(info: NsdServiceInfo) = Unit
+            override fun onUnregistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
+        }
+        nsdRegistrationListener = listener
+        runCatching {
+            manager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, listener)
+        }.onFailure {
+            updateNotification("تعذر تفعيل اكتشاف التلفاز على الشبكة المحلية")
+        }
+    }
+
+    private fun unregisterCaptionDiscoveryService() {
+        val manager = nsdManager
+        val listener = nsdRegistrationListener
+        if (manager != null && listener != null) {
+            runCatching { manager.unregisterService(listener) }
+        }
+        nsdRegistrationListener = null
+        nsdManager = null
     }
 
     private fun receiveClient(socket: Socket, pin: String) {
@@ -298,6 +341,7 @@ class RoyalCaptionReceiverService : Service() {
 
     override fun onDestroy() {
         running.set(false)
+        unregisterCaptionDiscoveryService()
         runCatching { activeClient?.close() }
         activeClient = null
         runCatching { serverSocket?.close() }
@@ -328,6 +372,7 @@ class RoyalCaptionReceiverService : Service() {
         const val KEY_RECEIVER_ENABLED = "royal_caption_receiver_enabled"
         const val KEY_RECEIVER_PIN = "royal_caption_receiver_pin_saved"
         const val KEY_DISPLAY_DELAY_MS = "royal_caption_display_delay_ms"
+        const val CAPTION_NSD_SERVICE_TYPE = "_royalcaption._tcp."
         private const val CHANNEL_ID = "royal_caption_receiver"
         private const val NOTIFICATION_ID = 45873
     }
