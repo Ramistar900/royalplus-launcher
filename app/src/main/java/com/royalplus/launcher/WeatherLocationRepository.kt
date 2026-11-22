@@ -79,6 +79,7 @@ internal object RoyalWeatherRepository {
     private const val CACHE_KEY_PREFIX = "weather_city_cache_"
     private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
     private const val WEATHER_CACHE_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
+    private const val MET_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
     private val executor = Executors.newSingleThreadExecutor()
@@ -619,7 +620,8 @@ internal object RoyalWeatherRepository {
                 attributionUrl = "https://open-meteo.com/",
                 licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
             )
-            if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
+            require(weather.forecast.size >= 7) { "Open-Meteo returned fewer than seven forecast days" }
+            saveWeatherCache(context, weather)
             return weather
         } catch (_: Exception) {
             // Open-Meteo is the primary source. Continue to the independent backup.
@@ -636,7 +638,8 @@ internal object RoyalWeatherRepository {
                 attributionUrl = "https://api.met.no/",
                 licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
             )
-            if (backup.forecast.size >= 7) saveWeatherCache(context, backup)
+            require(backup.forecast.size >= 7) { "MET Norway returned fewer than seven forecast days" }
+            saveWeatherCache(context, backup)
             backup
         } catch (_: Exception) {
             cached?.first?.copy(city = city) ?: throw IllegalStateException("Both weather sources failed")
