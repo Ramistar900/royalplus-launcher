@@ -15,6 +15,7 @@ internal class RoyalMusicPlaybackService : MediaSessionService() {
         super.onCreate()
         val player = ExoPlayer.Builder(this)
             .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setHandleAudioBecomingNoisy(true)
             .build()
             .apply {
                 setAudioAttributes(
@@ -24,7 +25,6 @@ internal class RoyalMusicPlaybackService : MediaSessionService() {
                         .build(),
                     true
                 )
-                setHandleAudioBecomingNoisy(true)
                 repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
             }
         exoPlayer = player
