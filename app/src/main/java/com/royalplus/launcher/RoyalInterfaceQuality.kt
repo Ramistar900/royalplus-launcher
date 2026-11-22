@@ -80,6 +80,7 @@ internal fun resolveRoyalInterfaceQualityBudget(
 }
 
 /** Applies the shared interface-quality ceiling to every app-owned video player. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun applyRoyalInterfaceVideoQuality(player: ExoPlayer, context: Context) {
     val budget = RoyalInterfaceQualitySettings.budget(context)
     player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
