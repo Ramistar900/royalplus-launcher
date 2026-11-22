@@ -79,7 +79,7 @@ internal object RoyalWeatherRepository {
     private const val CACHE_KEY_PREFIX = "weather_city_cache_"
     private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
     private const val WEATHER_CACHE_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
-    private const val MET_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
+    private const val WEATHER_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
     private val executor = Executors.newSingleThreadExecutor()
@@ -614,6 +614,10 @@ internal object RoyalWeatherRepository {
         saveAsLastLocation: Boolean = true
     ): WeatherUiState {
         if (saveAsLastLocation) saveLastLocation(context, location)
+        val cached = readWeatherCache(context, location)
+        if (cached != null && System.currentTimeMillis() - cached.second < WEATHER_REFRESH_INTERVAL_MS) {
+            return cached.first.copy(city = city, isLoading = false)
+        }
         try {
             val weather = fetchOpenMeteo(location, city).copy(
                 attributionText = "Open-Meteo",
@@ -626,12 +630,7 @@ internal object RoyalWeatherRepository {
         } catch (_: Exception) {
             // Open-Meteo is the primary source. Continue to the independent backup.
         }
-
-        val cached = readWeatherCache(context, location)
-        if (cached != null && System.currentTimeMillis() - cached.second < MET_REFRESH_INTERVAL_MS) {
-            return cached.first.copy(city = city)
-        }
-
+ 
         return try {
             val backup = fetchMetNorway(location, city).copy(
                 attributionText = "MET Norway",
