@@ -20,6 +20,8 @@ class LauncherRemoteInputTest {
     fun mapsRemoteNavigationAndColorKeys() {
         assertEquals(RemoteKey.MENU, RemoteKeys.fromComposeKey(Key.Menu))
         assertEquals(RemoteKey.BACK, RemoteKeys.fromComposeKey(Key.Back))
+        assertEquals(RemoteKey.EXIT, RemoteKeys.fromComposeKey(Key.Escape))
+        assertEquals(RemoteKey.HOME, RemoteKeys.fromComposeKey(Key.Home))
         assertEquals(RemoteKey.SEARCH, RemoteKeys.fromComposeKey(Key.Search))
         assertEquals(RemoteKey.VOICE, RemoteKeys.fromComposeKey(Key.VoiceAssist))
         assertEquals(RemoteKey.RED, RemoteKeys.fromComposeKey(Key.ProgramRed))

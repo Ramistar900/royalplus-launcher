@@ -9,6 +9,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +64,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -558,7 +561,36 @@ private fun SinjarPlayerPane(
                     false
                 }
             }
-            .focusable(),
+            .focusable()
+            .pointerInput(visibleChannels, selectedChannel, channelMenuVisible) {
+                var horizontalDrag = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        horizontalDrag += dragAmount
+                    },
+                    onDragEnd = {
+                        val threshold = 72.dp.toPx()
+                        if (!channelMenuVisible && visibleChannels.size > 1 && abs(horizontalDrag) >= threshold) {
+                            val currentIndex = visibleChannels.indexOfFirst {
+                                it.streamUrl == selectedChannel?.streamUrl
+                            }.let { if (it >= 0) it else 0 }
+                            val nextIndex = if (horizontalDrag < 0f) {
+                                (currentIndex + 1).coerceAtMost(visibleChannels.lastIndex)
+                            } else {
+                                (currentIndex - 1).coerceAtLeast(0)
+                            }
+                            visibleChannels.getOrNull(nextIndex)?.let { channel ->
+                                onPlayChannel(channel)
+                                infoChannel = channel
+                                controlsTimerKey++
+                            }
+                        }
+                        horizontalDrag = 0f
+                    },
+                    onDragCancel = { horizontalDrag = 0f }
+                )
+            },
         contentAlignment = Alignment.Center
     ) {
         AndroidView(

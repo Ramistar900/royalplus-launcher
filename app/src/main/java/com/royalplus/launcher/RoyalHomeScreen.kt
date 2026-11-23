@@ -112,6 +112,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -137,6 +138,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
@@ -153,6 +155,7 @@ private enum class LauncherDestination {
     HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SCREEN_CAST, SINJAR_TV, SPORTS, GALLERY, SONGS, FILES, FAVORITES, SHORTCUTS, MORE
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun RoyalHomeScreen(
     apps: List<LauncherApp>,
@@ -178,6 +181,7 @@ internal fun RoyalHomeScreen(
     onToggleTranslationOverlay: () -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var prayerTimesForHome by remember { mutableStateOf<PrayerTimesData?>(null) }
     var prayerTimeBanner by remember { mutableStateOf<String?>(null) }
@@ -614,8 +618,25 @@ internal fun RoyalHomeScreen(
                                 if (isInitialPress) onRefreshApps()
                                 true
                             }
-                            // BACK remains owned by BackHandler. Other media/channel keys
-                            // are not consumed by the launcher.
+                            RemoteKey.BACK, RemoteKey.EXIT -> {
+                                if (isInitialPress) backDispatcher?.onBackPressed()
+                                true
+                            }
+                            RemoteKey.HOME -> {
+                                if (isInitialPress) {
+                                    selectedDestination = LauncherDestination.HOME
+                                    searchActive = false
+                                    searchQuery = ""
+                                    appForManagement = null
+                                    showQuickControls = false
+                                    showWallpaperSettings = false
+                                    showWeatherDetails = false
+                                    showSmartScreensaver = false
+                                    isSinjarPlayerFullscreen = false
+                                }
+                                true
+                            }
+                            // Other media/channel keys are not consumed by the launcher.
                             else -> false
                         }
                     } else {
@@ -765,7 +786,8 @@ internal fun RoyalHomeScreen(
                     if (!isSinjarPlayerFullscreen) Spacer(Modifier.height(9.dp))
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isSinjarPlayerFullscreen) 0.dp else 14.dp)) {
                         if (!isSinjarPlayerFullscreen && showHomeNavigation) RoyalSidePanel(
-                            modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
+                            modifier = Modifier.width(sidebarWidth).fillMaxHeight()
+                                .focusProperties { canFocus = selectedDestination == LauncherDestination.HOME },
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
                             onNavigate = { destination ->
@@ -774,7 +796,16 @@ internal fun RoyalHomeScreen(
                             },
                             onOpenSettings = { showWallpaperSettings = true }
                         )
-                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                        Box(
+                            Modifier.weight(1f).fillMaxHeight()
+                                .focusProperties {
+                                    exit = {
+                                        if (selectedDestination == LauncherDestination.HOME) FocusRequester.Default
+                                        else FocusRequester.Cancel
+                                    }
+                                }
+                                .focusGroup()
+                        ) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
                                 val columns = adaptiveProfile.launcherAppColumns(maxWidth)
                                 val favoriteTileWidth = ((maxWidth - 16.dp - adaptiveProfile.itemSpacing * 5f) / 6)
@@ -2757,7 +2788,7 @@ private fun RoyalSidePanel(
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
     val itemGap = if (compactPhone) 3.dp else 8.dp
-    val sidebarFocusRequesters = remember { List(11) { FocusRequester() } }
+    val sidebarFocusRequesters = remember { List(10) { FocusRequester() } }
     val navigationFocusModifiers = remember(sidebarFocusRequesters) {
         sidebarFocusRequesters.mapIndexed { index, requester ->
             Modifier.focusRequester(requester).focusProperties {
@@ -2767,9 +2798,9 @@ private fun RoyalSidePanel(
         }
     }
     val labels = when (language) {
-        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Settings", "Manage apps")
-        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Ayarlar", "Uygulamaları yönet")
-        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "الإعدادات", "إدارة التطبيقات")
+        "en" -> listOf("Home", "Apps", "Calendar", "Phone Cast", "Sinjar TV", "Sports", "Gallery", "Songs", "Files", "Manage apps")
+        "tr" -> listOf("Ana sayfa", "Uygulamalar", "Takvim", "Telefon yansıtma", "Sinjar TV", "Spor", "Galeri", "Şarkılar", "Dosyalar", "Uygulamaları yönet")
+        else -> listOf("الرئيسية", "التطبيقات", "التقويم الميلادي", "بث شاشة الهاتف", "سنجار TV", "الرياضة", "المعرض", "الأغاني", "الملفات", "إدارة التطبيقات")
     }
     val shape = RoundedCornerShape(19.dp)
     val panelBrush = if (RoyalColors.isLightTheme) {
@@ -2829,15 +2860,10 @@ private fun RoyalSidePanel(
             iconRes = R.drawable.royal_files_luxe, modifier = navigationFocusModifiers[8]
         ) { onNavigate(LauncherDestination.FILES) }
         Spacer(Modifier.height(itemGap))
-        SidebarNavItem(
-            labels[9], Icons.Rounded.Settings, false,
-            iconRes = R.drawable.royal_settings_luxe,
-            modifier = navigationFocusModifiers[9], onClick = onOpenSettings
-        )
         Spacer(Modifier.height(if (compactPhone) 8.dp else 14.dp))
         SidebarNavItem(
-            labels[10], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
-            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[10]
+            labels[9], Icons.Rounded.Apps, selectedDestination == LauncherDestination.MANAGE_APPS,
+            iconRes = R.drawable.royal_manage_apps_luxe, modifier = navigationFocusModifiers[9]
         ) { onNavigate(LauncherDestination.MANAGE_APPS) }
         Spacer(Modifier.height(12.dp))
         GoldDivider(Modifier.fillMaxWidth())
@@ -2959,28 +2985,42 @@ private fun SidebarNavItem(
             maxLines = 1
         )
         when {
-            sinjarLogo -> Column(
+            sinjarLogo -> Box(
+                modifier = Modifier.width(27.dp).height(42.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (focused || selected) Color(0x3323B8B0) else Color(0x221A202B))
+                    .border(1.2.dp, if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Gold.copy(alpha = 0.78f), RoundedCornerShape(50)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Sinjar\nTV",
+                    color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl,
+                    fontSize = 7.sp,
+                    lineHeight = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2
+                )
+            }
+            sportsBall -> Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
-                    painter = rememberRoyalBitmapPainter(R.drawable.sinjar_show_logo, maxEdgePx = 512, maxPixels = 262_144L),
-                    contentDescription = "Sinjar TV",
+                    painter = painterResource(R.drawable.royal_sports_luxe),
+                    contentDescription = "ROYAL SPORTS",
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(width = 34.dp, height = 25.dp)
+                    modifier = Modifier.size(width = 38.dp, height = 29.dp)
                 )
                 Text(
-                    "TV",
-                    color = if (focused) Color(0xFFEAF8FF) else if (selected) Color(0xFFFFD36A) else RoyalColors.Pearl,
-                    fontSize = 8.sp,
+                    "ROYAL SPORTS",
+                    color = if (focused) RoyalColors.Activity else if (selected) RoyalColors.Gold else RoyalColors.Pearl,
+                    fontSize = 5.5.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    letterSpacing = 0.25.sp,
+                    maxLines = 1
                 )
             }
-            sportsBall -> RoyalRotatingFootballIcon(
-                modifier = Modifier.size(royalSportsIconSize(28.dp, max = (navItemHeight - 8.dp))),
-                contentDescription = title
-            )
             iconRes == null -> {
                 if (icon != null) {
                     Icon(
