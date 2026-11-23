@@ -20,9 +20,19 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 private const val ROYAL_WEATHER_VIDEO_TAG = "RoyalWeatherVideo"
+
+/** Resolve day/night visuals using the selected weather location's timezone, not the device clock. */
+internal fun weatherLocalHour(currentTimeMillis: Long, timeZoneId: String?): Int {
+    val zone = timeZoneId?.takeIf { it.isNotBlank() }?.let(TimeZone::getTimeZone)
+        ?: TimeZone.getDefault()
+    return Calendar.getInstance(zone).apply { timeInMillis = currentTimeMillis }
+        .get(Calendar.HOUR_OF_DAY)
+}
 
 internal fun weatherVideoAsset(weather: WeatherUiState, hour: Int?): String? {
     val night = hour != null && (hour >= 19 || hour < 6)
