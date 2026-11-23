@@ -32,6 +32,8 @@ Do not imply either provider endorses ROYAL+.
 
 The 9,550 figure is the application's own enforced ceiling, not a claim that either provider authorizes that exact volume. Provider terms, written permission, attribution, rate limits, and service availability still apply. If the provider's terms or written permission require a lower limit, the lower limit must be enforced.
 
+The global ceiling can only govern clients that use this gateway. Previously installed launcher versions that still call provider APIs directly cannot be retroactively intercepted; every active device must install a gateway-enabled release before the ceiling is guaranteed across all devices.
+
 ## Provider terms
 
 - [Open-Meteo Terms of Use](https://open-meteo.com/en/terms)
