@@ -6,6 +6,7 @@ HOME = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalHomeScreen.kt").re
 PLAYER = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalFireplaceBackground.kt").read_text(encoding="utf-8")
 SOUNDS = (ROOT / "royal-ui-sounds/src/main/java/com/royalplus/launcher/royalsounds/RoyalUiSounds.kt").read_text(encoding="utf-8")
 WORKFLOW = (ROOT / ".github/workflows/build-apk.yml").read_text(encoding="utf-8")
+PROGUARD = (ROOT / "app/proguard-rules.pro").read_text(encoding="utf-8")
 
 assert 'putBoolean("ui_click_sounds_enabled", isTelevisionDevice)' in MAIN
 assert "RoyalUiSound.NAV_TV_FOCUS" in MAIN
@@ -20,4 +21,5 @@ assert "mainHandler.postDelayed(task, delayMs)" in PLAYER
 assert "surfaceTexture?.let(::startPlayer)" in PLAYER
 assert WORKFLOW.count("scale='min(1920,iw)':-2:flags=lanczos") == 2
 assert '"-r", "24"' not in WORKFLOW
+assert "RoyalHomeScreenKt$* { *; }" in PROGUARD
 print("Verified TV click/focus audio routing, screensaver keep-awake behavior, fireplace decoder retry, and source-frame-rate-preserving 1080p optimization.")
