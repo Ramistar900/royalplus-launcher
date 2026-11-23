@@ -149,6 +149,39 @@ Deno.serve(async (req: Request) => {
       "ROYALPlusLauncher/1.0 (Android TV; https://github.com/Ramistar900/royalplus-launcher)";
   }
 
+  async function storeCache(responseBody: Record<string, unknown>, ttlMs: number) {
+    const fetchedAt = new Date();
+    const expiresAt = new Date(fetchedAt.getTime() + ttlMs);
+    return await admin
+      .from("royalplus_weather_response_cache")
+      .upsert({
+        cache_key: cacheKey,
+        provider: target.provider,
+        response_body: responseBody,
+        fetched_at: fetchedAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      }, { onConflict: "cache_key" });
+  }
+
+  async function providerFailure(errorCode: string, upstreamStatus?: number) {
+    // Negative-cache failed locations too: otherwise a 30-minute worker could
+    // repeatedly hit MET Norway while its primary provider remains unavailable.
+    const failure: Record<string, unknown> = {
+      _royal_weather_error: errorCode,
+      ...(upstreamStatus ? { upstream_status: upstreamStatus } : {}),
+    };
+    const failureTtl = target.provider === "met_norway"
+      ? THREE_HOURS_MS
+      : target.url.pathname === "/v1/search"
+      ? 5 * 60 * 1000
+      : THREE_HOURS_MS;
+    await storeCache(failure, failureTtl);
+    return json(failure, 502, {
+      "X-Royal-Weather-Provider": target.provider,
+      "X-Royal-Weather-Cache": "NEGATIVE",
+    });
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(target.url, {
@@ -157,41 +190,26 @@ Deno.serve(async (req: Request) => {
       signal: AbortSignal.timeout(15000),
     });
   } catch {
-    return json({ error: "weather_provider_unreachable" }, 502);
+    return await providerFailure("weather_provider_unreachable");
   }
 
   if (!upstream.ok) {
-    return json(
-      { error: "weather_provider_error", upstream_status: upstream.status },
-      502,
-      { "X-Royal-Weather-Provider": target.provider },
-    );
+    return await providerFailure("weather_provider_error", upstream.status);
   }
 
   let payload: unknown;
   try {
     payload = await upstream.json();
   } catch {
-    return json({ error: "weather_provider_invalid_json" }, 502);
+    return await providerFailure("weather_provider_invalid_json");
   }
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return json({ error: "weather_provider_invalid_payload" }, 502);
+    return await providerFailure("weather_provider_invalid_payload");
   }
 
-  const fetchedAt = new Date();
-  const expiresAt = new Date(fetchedAt.getTime() + target.ttlMs);
-  const { error: cacheWriteError } = await admin
-    .from("royalplus_weather_response_cache")
-    .upsert({
-      cache_key: cacheKey,
-      provider: target.provider,
-      response_body: payload,
-      fetched_at: fetchedAt.toISOString(),
-      expires_at: expiresAt.toISOString(),
-    }, { onConflict: "cache_key" });
-
+  const { error: cacheWriteError } = await storeCache(payload as Record<string, unknown>, target.ttlMs);
   if (cacheWriteError) {
-    // The live response is still valid; return it, but never bypass the quota reservation.
+    // The live response is still valid; the Open-Meteo slot remains reserved.
     return json(payload, 200, {
       "X-Royal-Weather-Provider": target.provider,
       "X-Royal-Weather-Cache": "MISS-STORE-FAILED",
