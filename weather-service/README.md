@@ -1,6 +1,6 @@
 # ROYAL+ Weather
 
-Weather data is fetched directly by ROYAL+ Launcher. No Cloudflare Worker, gateway, shared server, KV namespace, Durable Object, or server deployment is required.
+Weather-provider requests from ROYAL+ Launcher pass through the dedicated Supabase Edge Function `royalplus-weather` in the existing ROYAL+ project. The gateway uses a shared server-side response cache and one atomic database counter for all launcher devices. No Cloudflare Worker, paid gateway, separate weather project, or paid server is used.
 
 ## Providers
 
@@ -19,15 +19,20 @@ The forecast screen identifies the actual provider used and links to the provide
 
 Do not imply either provider endorses ROYAL+.
 
-## Cost and quota safeguards
+## Shared gateway, cache, and quota safeguards
 
-- No Cloudflare account or deployment.
-- No paid API, subscription, server, database, storage, or payment method.
-- Use only the providers' free public endpoints under their applicable terms and limits.
-- Keep request frequency conservative and use the local cache to avoid unnecessary requests.
-- If a provider's free allowance or service is unavailable, retain local data and retry later; never switch to a paid provider.
+- All Open-Meteo forecast, timezone, and geocoding requests are routed through the dedicated `royalplus-weather` Edge Function.
+- All MET Norway forecast requests also pass through the gateway, with a three-hour shared cache per normalized location. An atomic per-location lease ensures concurrent devices cannot trigger duplicate upstream fetches for the same provider/location; failed forecasts keep a three-hour negative-cache cooldown.
+- Open-Meteo responses are shared across devices for three hours; geocoding responses are shared for 30 days.
+- A database RPC atomically reserves each actual upstream Open-Meteo request. The hard ceiling is **9,550 requests per UTC day across every ROYAL+ Launcher device**. The 9,551st request is rejected before reaching Open-Meteo.
+- Cache hits do not consume the Open-Meteo request allowance. Failed upstream attempts do consume a reserved slot, preventing retries from bypassing the ceiling. Failed forecast locations are negative-cached for three hours, so the 30-minute local check cannot repeatedly hit an unavailable provider; failed geocoding lookups cool down for five minutes.
+- The Android worker checks cached saved-city forecasts every 30 minutes, but the local and shared three-hour freshness windows prevent a provider request every 30 minutes. MET Norway is contacted only when a refresh is due and the primary provider cannot provide valid data.
+- The app retains each city's valid forecast locally for seven days and continues showing the last saved data if both providers or the gateway are unavailable. Expired server cache rows, fetch leases, and quota history older than 30 days are cleaned daily by the existing free Supabase Cron extension.
+- No Cloudflare, paid API, subscription, paid server, paid database, paid storage, payment method, or automatic upgrade is used.
 
-Free-provider availability and quotas are controlled by the providers and may change. The app must not create paid usage or automatically upgrade any service.
+The 9,550 figure is the application's own enforced ceiling, not a claim that either provider authorizes that exact volume. Provider terms, written permission, attribution, rate limits, and service availability still apply. If the provider's terms or written permission require a lower limit, the lower limit must be enforced.
+
+The global ceiling can only govern clients that use this gateway. Previously installed launcher versions that still call provider APIs directly cannot be retroactively intercepted; every active device must install a gateway-enabled release before the ceiling is guaranteed across all devices.
 
 ## Provider terms
 

@@ -136,11 +136,15 @@ assert "weather_manual_latitude" in activity and "weather_manual_longitude" in a
 assert "fetchForLocation(this, normalized, city.latitude, city.longitude)" in activity
 
 
-# Forecasts use the approved providers directly, with local seven-day caching.
+# Provider URLs are routed through the dedicated central gateway before any upstream request.
 assert "https://api.open-meteo.com/v1/forecast" in weather_locations
 assert "https://api.met.no/weatherapi/locationforecast/2.0/compact" in weather_locations
 assert "fetchOpenMeteo(location, city)" in weather_locations
-assert "fetchWeatherGateway" not in weather_locations
+assert "requestWeatherGatewayJson(url)" in weather_locations
+assert "WEATHER_GATEWAY_URL" in weather_locations
+assert 'host == "api.open-meteo.com"' in weather_locations
+assert 'host == "geocoding-api.open-meteo.com"' in weather_locations
+assert 'host == "api.met.no"' in weather_locations
 assert "BuildConfig.ROYAL_WEATHER_API_BASE_URL" not in weather_locations
 assert 'put("attributionText", weather.attributionText)' in weather_locations
 assert 'put("attributionUrl", weather.attributionUrl)' in weather_locations
@@ -175,4 +179,4 @@ assert "fetchMetNorway(location, city, cityTimeZone)" in weather_locations
 assert "cached?.first?.copy(city = city) ?: throw IllegalStateException" in weather_locations
 assert "require(weather.forecast.size >= 7)" in weather_locations
 
-print("Verified direct provider fallback, offline legacy-cache disclosure, city-local MET Norway dates, seven-day cache preservation, and CC BY 4.0 attribution.")
+print("Verified central weather gateway routing, provider fallback, offline legacy-cache disclosure, city-local MET Norway dates, seven-day cache preservation, and CC BY 4.0 attribution.")

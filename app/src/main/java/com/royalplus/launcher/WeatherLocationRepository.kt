@@ -78,8 +78,10 @@ internal object RoyalWeatherRepository {
     private const val LEGACY_CACHE_KEY = "weather_last_successful_payload"
     private const val CACHE_KEY_PREFIX = "weather_city_cache_"
     private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
-    private const val WEATHER_CACHE_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
+    private const val WEATHER_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L
     private const val WEATHER_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
+    private const val WEATHER_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW"
+    private const val WEATHER_GATEWAY_URL = "https://ymujjcdsdclptbpgckll.supabase.co/functions/v1/royalplus-weather"
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
     private val executor = Executors.newSingleThreadExecutor()
@@ -830,23 +832,56 @@ internal object RoyalWeatherRepository {
     }
 
     private fun requestJson(url: URL, metNorway: Boolean = false): JSONObject {
+        val host = url.host.lowercase(Locale.ROOT)
+        if (metNorway || host == "api.open-meteo.com" ||
+            host == "geocoding-api.open-meteo.com" || host == "api.met.no"
+        ) {
+            return requestWeatherGatewayJson(url)
+        }
+
+        // IP-based location lookup is not a weather-provider request and remains independent.
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
             setRequestProperty("Accept", "application/json")
-            if (metNorway) {
-                setRequestProperty(
-                    "User-Agent",
-                    "ROYALPlusLauncher/1.0 (Android TV; https://github.com/Ramistar900/royalplus-launcher)"
-                )
-            }
         }
         try {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) throw IllegalStateException("Weather service HTTP $status")
+            if (status !in 200..299) throw IllegalStateException("Location service HTTP $status")
+            return JSONObject(body)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun requestWeatherGatewayJson(upstreamUrl: URL): JSONObject {
+        val payload = JSONObject().put("url", upstreamUrl.toString())
+            .toString().toByteArray(Charsets.UTF_8)
+        val connection = (URL(WEATHER_GATEWAY_URL).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            doOutput = true
+            setRequestProperty("apikey", WEATHER_SUPABASE_PUBLISHABLE_KEY)
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Accept", "application/json")
+        }
+        try {
+            connection.outputStream.use { it.write(payload) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) {
+                val reason = try {
+                    JSONObject(body).optString("error").ifBlank { "weather_gateway_error" }
+                } catch (_: Exception) {
+                    "weather_gateway_error"
+                }
+                throw IllegalStateException("Weather gateway HTTP $status: $reason")
+            }
             return JSONObject(body)
         } finally {
             connection.disconnect()
