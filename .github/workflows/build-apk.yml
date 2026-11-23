@@ -188,6 +188,9 @@ jobs:
       - name: Verify weather and translation regression guards
         run: python3 .github/scripts/verify-weather-translation-fixes.py
 
+      - name: Verify central weather gateway and global daily quota
+        run: python3 .github/scripts/verify-weather-central-gateway.py
+
       - name: Verify static classic weather icons
         run: python3 .github/scripts/verify-classic-weather-icons.py
 

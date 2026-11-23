@@ -135,4 +135,48 @@ assert "عبر Wi-Fi" in service
 assert "weather_manual_latitude" in activity and "weather_manual_longitude" in activity
 assert "fetchForLocation(this, normalized, city.latitude, city.longitude)" in activity
 
-print("Verified 100-place weather geocoding search, small-settlement inclusion, exact selected coordinates and gold text on a teal-blue search field with a white frame.")
+
+# Provider URLs are routed through the dedicated central gateway before any upstream request.
+assert "https://api.open-meteo.com/v1/forecast" in weather_locations
+assert "https://api.met.no/weatherapi/locationforecast/2.0/compact" in weather_locations
+assert "fetchOpenMeteo(location, city)" in weather_locations
+assert "requestWeatherGatewayJson(url)" in weather_locations
+assert "WEATHER_GATEWAY_URL" in weather_locations
+assert 'host == "api.open-meteo.com"' in weather_locations
+assert 'host == "geocoding-api.open-meteo.com"' in weather_locations
+assert 'host == "api.met.no"' in weather_locations
+assert "BuildConfig.ROYAL_WEATHER_API_BASE_URL" not in weather_locations
+assert 'put("attributionText", weather.attributionText)' in weather_locations
+assert 'put("attributionUrl", weather.attributionUrl)' in weather_locations
+assert 'put("licenseUrl", weather.licenseUrl)' in weather_locations
+assert 'attributionText = json.optString("attributionText")' in weather_locations
+assert "CC BY 4.0" in city_screen
+assert "weather.licenseUrl" in city_screen and "weather.attributionUrl" in city_screen
+
+# Legacy caches must remain usable offline without inventing an unknown provider.
+assert "Legacy cached data (original provider not recorded)" in weather_locations
+assert "Older app versions cached forecasts without recording their provider." in weather_locations
+assert '?: "https://creativecommons.org/licenses/by/4.0/"' in weather_locations
+
+# MET Norway supplies UTC timestamps; convert them using the selected city's timezone.
+assert "fetchOpenMeteoTimeZone(location)" in weather_locations
+assert "fetchMetNorway(location, city, cityTimeZone)" in weather_locations
+assert 'TimeZone.getTimeZone("UTC")' in weather_locations
+assert "timeZone = cityTimeZone" in weather_locations
+assert "timeZoneId = cityTimeZone.id" in weather_locations
+assert "localDateFormat.format(instant)" in weather_locations
+
+# Verify the UTC-to-city-local date boundary used by the MET Norway regression fixture.
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+utc_instant = datetime(2026, 1, 1, 23, 30, tzinfo=timezone.utc)
+assert utc_instant.astimezone(ZoneInfo("Europe/Istanbul")).strftime("%Y-%m-%d") == "2026-01-02"
+assert utc_instant.astimezone(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d") == "2026-01-01"
+
+# A failed primary or backup must not clear the last successful local forecast.
+assert "fetchOpenMeteo(location, city)" in weather_locations
+assert "fetchMetNorway(location, city, cityTimeZone)" in weather_locations
+assert "cached?.first?.copy(city = city) ?: throw IllegalStateException" in weather_locations
+assert "require(weather.forecast.size >= 7)" in weather_locations
+
+print("Verified central weather gateway routing, provider fallback, offline legacy-cache disclosure, city-local MET Norway dates, seven-day cache preservation, and CC BY 4.0 attribution.")

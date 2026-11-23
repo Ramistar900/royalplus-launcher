@@ -45,10 +45,19 @@ assert "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in ACTIVITY
 assert "android:name=\".RoyalCaptionReceiverService\"" in MANIFEST
 assert 'android:foregroundServiceType="connectedDevice"' in MANIFEST
 assert "FOREGROUND_SERVICE_CONNECTED_DEVICE" in MANIFEST
+assert "CHANGE_WIFI_MULTICAST_STATE" in MANIFEST
+assert "createMulticastLock" in ACTIVITY
 assert "RECORD_AUDIO" in MANIFEST  # declared for phone builds; runtime prompt is role-gated in MainActivity
 assert "AudioRecord" not in RECEIVER
 assert "MediaRecorder" not in RECEIVER
 assert "Settings.canDrawOverlays(this)" in RECEIVER
+
+# Automatic local discovery replaces manual IP entry; the TV advertises itself over mDNS.
+assert "NsdManager" in ACTIVITY and "discoverServices" in ACTIVITY
+assert "resolveService" in ACTIVITY and "discoveredCaptionHost" in ACTIVITY
+assert "CAPTION_NSD_SERVICE_TYPE" in RECEIVER and "registerService" in RECEIVER
+assert "addressInput" not in ACTIVITY[ACTIVITY.index("private fun showPhonePairingDialog()"):ACTIVITY.index("private fun startPhoneCaptionCapture()")]
+assert "عنوان IP" not in ACTIVITY[ACTIVITY.index("private fun showPhonePairingDialog()"):ACTIVITY.index("private fun startPhoneCaptionCapture()")]
 
 # LAN pairing is authenticated and payloads are encrypted; no cloud endpoint is used.
 assert "ServerSocket" in RECEIVER

@@ -65,6 +65,9 @@ internal data class WeatherUiState(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val forecast: List<WeatherForecastDay> = emptyList(),
+    val attributionText: String? = null,
+    val attributionUrl: String? = null,
+    val licenseUrl: String? = null,
     val isLoading: Boolean = true,
     val needsPermission: Boolean = false,
     val isManualLocation: Boolean = false
@@ -75,8 +78,10 @@ internal object RoyalWeatherRepository {
     private const val LEGACY_CACHE_KEY = "weather_last_successful_payload"
     private const val CACHE_KEY_PREFIX = "weather_city_cache_"
     private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
-    private const val WEATHER_CACHE_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
-    private const val MET_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
+    private const val WEATHER_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L
+    private const val WEATHER_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
+    private const val WEATHER_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW"
+    private const val WEATHER_GATEWAY_URL = "https://ymujjcdsdclptbpgckll.supabase.co/functions/v1/royalplus-weather"
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
     private val executor = Executors.newSingleThreadExecutor()
@@ -611,22 +616,34 @@ internal object RoyalWeatherRepository {
         saveAsLastLocation: Boolean = true
     ): WeatherUiState {
         if (saveAsLastLocation) saveLastLocation(context, location)
+        val cached = readWeatherCache(context, location)
+        if (cached != null && System.currentTimeMillis() - cached.second < WEATHER_REFRESH_INTERVAL_MS) {
+            return cached.first.copy(city = city, isLoading = false)
+        }
         try {
-            val weather = fetchOpenMeteo(location, city)
-            if (weather.forecast.size >= 7) saveWeatherCache(context, weather)
+            val weather = fetchOpenMeteo(location, city).copy(
+                attributionText = "Open-Meteo",
+                attributionUrl = "https://open-meteo.com/",
+                licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
+            )
+            require(weather.forecast.size >= 7) { "Open-Meteo returned fewer than seven forecast days" }
+            saveWeatherCache(context, weather)
             return weather
         } catch (_: Exception) {
             // Open-Meteo is the primary source. Continue to the independent backup.
         }
-
-        val cached = readWeatherCache(context, location)
-        if (cached != null && System.currentTimeMillis() - cached.second < MET_REFRESH_INTERVAL_MS) {
-            return cached.first.copy(city = city)
-        }
-
+ 
         return try {
-            val backup = fetchMetNorway(location, city)
-            if (backup.forecast.size >= 7) saveWeatherCache(context, backup)
+            // MET Norway timestamps are UTC. Resolve the selected coordinates' local
+            // timezone so daily forecast buckets match the city rather than device UTC.
+            val cityTimeZone = fetchOpenMeteoTimeZone(location) ?: TimeZone.getDefault()
+            val backup = fetchMetNorway(location, city, cityTimeZone).copy(
+                attributionText = "MET Norway",
+                attributionUrl = "https://api.met.no/",
+                licenseUrl = "https://creativecommons.org/licenses/by/4.0/"
+            )
+            require(backup.forecast.size >= 7) { "MET Norway returned fewer than seven forecast days" }
+            saveWeatherCache(context, backup)
             backup
         } catch (_: Exception) {
             cached?.first?.copy(city = city) ?: throw IllegalStateException("Both weather sources failed")
@@ -688,7 +705,26 @@ internal object RoyalWeatherRepository {
         )
     }
 
-    private fun fetchMetNorway(location: Location, city: String): WeatherUiState {
+    private fun fetchOpenMeteoTimeZone(location: Location): TimeZone? {
+        return try {
+            val url = URL(
+                "https://api.open-meteo.com/v1/forecast" +
+                    "?latitude=${location.latitude}&longitude=${location.longitude}" +
+                    "&current=temperature_2m&forecast_days=1&timezone=auto"
+            )
+            val zoneId = requestJson(url).optString("timezone")
+            if (zoneId.isBlank() || TimeZone.getTimeZone(zoneId).id != zoneId) null
+            else TimeZone.getTimeZone(zoneId)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun fetchMetNorway(
+        location: Location,
+        city: String,
+        cityTimeZone: TimeZone
+    ): WeatherUiState {
         // MET Norway requires an identifiable, non-generic User-Agent.
         val url = URL(
             "https://api.met.no/weatherapi/locationforecast/2.0/compact" +
@@ -726,7 +762,19 @@ internal object RoyalWeatherRepository {
         val dailyBuckets = linkedMapOf<String, MutableList<Pair<Int, Int>>>()
         for (index in 0 until series.length()) {
             val item = series.optJSONObject(index) ?: continue
-            val date = item.optString("time").substringBefore("T")
+            val timestamp = item.optString("time")
+            val utcDateFormat = java.text.SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US
+            ).apply { timeZone = TimeZone.getTimeZone("UTC") }
+            val localDateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                timeZone = cityTimeZone
+            }
+            val date = try {
+                val instant = utcDateFormat.parse(timestamp) ?: continue
+                localDateFormat.format(instant)
+            } catch (_: Exception) {
+                continue
+            }
             if (date.isBlank()) continue
             val details = item.optJSONObject("data")?.optJSONObject("instant")?.optJSONObject("details")
                 ?: continue
@@ -758,6 +806,7 @@ internal object RoyalWeatherRepository {
             precipitationMm = precipitation,
             weatherCode = code,
             description = weatherDescription(code),
+            timeZoneId = cityTimeZone.id,
             latitude = location.latitude,
             longitude = location.longitude,
             forecast = forecast,
@@ -783,23 +832,56 @@ internal object RoyalWeatherRepository {
     }
 
     private fun requestJson(url: URL, metNorway: Boolean = false): JSONObject {
+        val host = url.host.lowercase(Locale.ROOT)
+        if (metNorway || host == "api.open-meteo.com" ||
+            host == "geocoding-api.open-meteo.com" || host == "api.met.no"
+        ) {
+            return requestWeatherGatewayJson(url)
+        }
+
+        // IP-based location lookup is not a weather-provider request and remains independent.
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
             setRequestProperty("Accept", "application/json")
-            if (metNorway) {
-                setRequestProperty(
-                    "User-Agent",
-                    "ROYALPlusLauncher/1.0 (Android TV; https://github.com/Ramistar900/royalplus-launcher)"
-                )
-            }
         }
         try {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) throw IllegalStateException("Weather service HTTP $status")
+            if (status !in 200..299) throw IllegalStateException("Location service HTTP $status")
+            return JSONObject(body)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun requestWeatherGatewayJson(upstreamUrl: URL): JSONObject {
+        val payload = JSONObject().put("url", upstreamUrl.toString())
+            .toString().toByteArray(Charsets.UTF_8)
+        val connection = (URL(WEATHER_GATEWAY_URL).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            doOutput = true
+            setRequestProperty("apikey", WEATHER_SUPABASE_PUBLISHABLE_KEY)
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Accept", "application/json")
+        }
+        try {
+            connection.outputStream.use { it.write(payload) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) {
+                val reason = try {
+                    JSONObject(body).optString("error").ifBlank { "weather_gateway_error" }
+                } catch (_: Exception) {
+                    "weather_gateway_error"
+                }
+                throw IllegalStateException("Weather gateway HTTP $status: $reason")
+            }
             return JSONObject(body)
         } finally {
             connection.disconnect()
@@ -843,6 +925,9 @@ internal object RoyalWeatherRepository {
             put("code", weather.weatherCode)
             put("description", weather.description)
             put("timezone", weather.timeZoneId)
+            put("attributionText", weather.attributionText)
+            put("attributionUrl", weather.attributionUrl)
+            put("licenseUrl", weather.licenseUrl)
             put("forecast", forecast)
         }
         val location = Location("royalplus-weather-cache").apply {
@@ -903,6 +988,16 @@ internal object RoyalWeatherRepository {
                 weatherCode = json.optIntOrNull("code"),
                 description = json.optString("description", "حالة الطقس الحالية"),
                 timeZoneId = json.optString("timezone").takeIf { it.isNotBlank() && it != "null" },
+                // Older app versions cached forecasts without recording their provider.
+                // Keep those forecasts offline, but disclose that the original source is unknown.
+                attributionText = json.optString("attributionText")
+                    .takeIf { it.isNotBlank() && it != "null" }
+                    ?: "Legacy cached data (original provider not recorded)",
+                attributionUrl = json.optString("attributionUrl")
+                    .takeIf { it.startsWith("https://") },
+                licenseUrl = json.optString("licenseUrl")
+                    .takeIf { it.startsWith("https://") }
+                    ?: "https://creativecommons.org/licenses/by/4.0/",
                 latitude = latitude,
                 longitude = longitude,
                 forecast = forecast,

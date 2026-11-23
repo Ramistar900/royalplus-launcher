@@ -30,6 +30,19 @@ assert "RoyalV21Weather" not in card + details + screensaver + settings + compon
 assert "rememberInfiniteTransition" in component, "Sun rotation animation must remain enabled"
 assert "animateFloat" in component and "rotationDegrees = sunRotation" in component, "Sun rotation must be wired into the icon renderer"
 assert "rotate(degrees = rotationDegrees, pivot = center)" in component, "The complete sun disc must rotate around its center"
+
+# Every Open-Meteo WMO precipitation family supported by the app has a distinct
+# animated vector treatment, including freezing precipitation and hail variants.
+for kind in (
+    "FREEZING_DRIZZLE", "FREEZING_RAIN", "HAIL", "THUNDERSTORM_HAIL",
+    "THUNDERSTORM", "HEAVY_RAIN", "HEAVY_SNOW", "HOT", "COLD",
+):
+    assert f"RoyalClassicWeatherKind.{kind}" in component, f"Missing weather condition: {kind}"
+for code in ("56, 57", "66, 67", "95", "96, 99", "75, 86"):
+    assert code in component, f"Missing WMO weather-code mapping: {code}"
+for primitive in ("drawHail", "drawHeatShimmer", "drawFrost", "drawLightning", "drawWind", "drawMoon"):
+    assert primitive in component, f"Missing animated weather primitive: {primitive}"
+assert "weatherMotionProgress" in component and "weatherPulse" in component, "Weather animation timelines must remain connected"
 assert "horizon = true" not in component, "Sunrise/sunset must not clip the sun rays"
 assert "drawLine(Color.White.copy(alpha = 0.88f)" not in component, "Remove the unexplained white horizon line"
 assert "drawRoyalRain(" not in atmosphere and "drawRoyalSnow(" not in atmosphere, "Animated rain and snow particles must stay off the weather video"

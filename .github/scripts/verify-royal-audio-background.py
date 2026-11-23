@@ -3,6 +3,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SONGS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalSongsScreen.kt").read_text(encoding="utf-8")
 SERVICE = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalMusicPlaybackService.kt").read_text(encoding="utf-8")
+FLOATING = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalFloatingMusicPlayer.kt").read_text(encoding="utf-8")
+HOME = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalHomeScreen.kt").read_text(encoding="utf-8")
 MANIFEST = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 GRADLE = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 
@@ -25,4 +27,13 @@ assert 'android:name=".RoyalMusicPlaybackService"' in MANIFEST
 assert 'android:foregroundServiceType="mediaPlayback"' in MANIFEST
 assert 'androidx.media3:media3-session:1.5.1' in GRADLE
 assert "local_playlist" in SONGS
+assert "MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)" in SONGS
+assert "READ_MEDIA_AUDIO" in SONGS
+assert "READ_MEDIA_AUDIO" in MANIFEST
+assert "MediaController.Builder(context, token).buildAsync()" in FLOATING
+assert "active.stop()" in FLOATING
+assert "active.clearMediaItems()" in FLOATING
+assert "minimized = true" in FLOATING
+assert "minimized = false" in FLOATING
+assert "RoyalFloatingMusicPlayer(language = selectedLanguage)" in HOME
 print("Verified background ROYAL AUDIO service, MediaSession controller, persistent playlist and screen-independent playback ownership.")
