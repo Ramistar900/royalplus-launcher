@@ -8,6 +8,7 @@ ACTIVITY = (REPO / "app/src/main/java/com/royalplus/launcher/MainActivity.kt").r
 GATEWAY = (REPO / "supabase/functions/royalplus-weather/index.ts").read_text()
 QUOTA = (REPO / "supabase/migrations/20261123030843_royalplus_weather_global_open_meteo_daily_cap.sql").read_text()
 CACHE = (REPO / "supabase/migrations/20261123031424_royalplus_weather_shared_response_cache.sql").read_text()
+LOCKS = (REPO / "supabase/migrations/20261123031909_royalplus_weather_fetch_singleflight_lock.sql").read_text()
 README = (REPO / "weather-service/README.md").read_text()
 
 assert 'WEATHER_GATEWAY_URL = "$WEATHER_SUPABASE_URL/functions/v1/royalplus-weather"' in WEATHER
@@ -39,9 +40,14 @@ assert 'geocoding-api.open-meteo.com' in GATEWAY
 assert 'api.met.no' in GATEWAY
 assert 'THREE_HOURS_MS = 3 * 60 * 60 * 1000' in GATEWAY
 assert 'GEOCODING_CACHE_MS = 30 * 24 * 60 * 60 * 1000' in GATEWAY
-assert GATEWAY.index('rpc("reserve_royalplus_open_meteo_request")') < GATEWAY.index('fetch(target.url')
-assert 'if (reserved !== true)' in GATEWAY
+assert GATEWAY.index('rpc("reserve_royalplus_weather_fetch")') < GATEWAY.index('fetch(target.url')
+assert 'reservation === "quota_exhausted"' in GATEWAY
+assert 'reservation === "in_progress"' in GATEWAY
 assert 'async function providerFailure' in GATEWAY
+assert 'royalplus_weather_fetch_locks' in LOCKS
+assert 'reserve_royalplus_weather_fetch' in LOCKS
+assert 'p_lease_seconds' in LOCKS
+assert 'reserve_royalplus_open_meteo_request' in LOCKS
 assert 'failureTtl = target.provider === "met_norway"' in GATEWAY
 assert 'verify_jwt' not in GATEWAY
 assert 'service_role' not in GATEWAY.split('Deno.serve', 1)[0], "No service key may be embedded in source"
