@@ -10,6 +10,21 @@ class WeatherVideoMappingTest {
     )
 
     @Test
+    fun selectedCityTimezoneControlsDayAndNightVideo() {
+        // 20:30 UTC is 23:30 in Istanbul but 12:30 in Los Angeles in January.
+        val instant = java.time.Instant.parse("2026-01-15T20:30:00Z").toEpochMilli()
+        val istanbulHour = weatherLocalHour(instant, "Europe/Istanbul")
+        val losAngelesHour = weatherLocalHour(instant, "America/Los_Angeles")
+
+        assertEquals(23, istanbulHour)
+        assertEquals(12, losAngelesHour)
+        assertEquals("weather_clear_night.mp4", weatherVideoAsset(weather(0), istanbulHour))
+        assertEquals("weather_clear_sunny.mp4", weatherVideoAsset(weather(0), losAngelesHour))
+        assertEquals("weather_partly_cloudy_night.mp4", weatherVideoAsset(weather(2), istanbulHour))
+        assertEquals("weather_partly_cloudy_day.mp4", weatherVideoAsset(weather(2), losAngelesHour))
+    }
+
+    @Test
     fun hailUsesRainFootageForProceduralHailLayer() {
         assertEquals("weather_rain.mp4", weatherVideoAsset(weather(96), 12))
         assertEquals("weather_rain.mp4", weatherVideoAsset(weather(99), 12))
