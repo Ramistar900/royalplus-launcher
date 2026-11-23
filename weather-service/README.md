@@ -22,7 +22,7 @@ Do not imply either provider endorses ROYAL+.
 ## Shared gateway, cache, and quota safeguards
 
 - All Open-Meteo forecast, timezone, and geocoding requests are routed through the dedicated `royalplus-weather` Edge Function.
-- All MET Norway forecast requests also pass through the gateway, with a three-hour shared cache per normalized location.
+- All MET Norway forecast requests also pass through the gateway, with a three-hour shared cache per normalized location. An atomic per-location lease ensures concurrent devices cannot trigger duplicate upstream fetches for the same provider/location; failed forecasts keep a three-hour negative-cache cooldown.
 - Open-Meteo responses are shared across devices for three hours; geocoding responses are shared for 30 days.
 - A database RPC atomically reserves each actual upstream Open-Meteo request. The hard ceiling is **9,550 requests per UTC day across every ROYAL+ Launcher device**. The 9,551st request is rejected before reaching Open-Meteo.
 - Cache hits do not consume the Open-Meteo request allowance. Failed upstream attempts do consume a reserved slot, preventing retries from bypassing the ceiling. Failed forecast locations are negative-cached for three hours, so the 30-minute local check cannot repeatedly hit an unavailable provider; failed geocoding lookups cool down for five minutes.
