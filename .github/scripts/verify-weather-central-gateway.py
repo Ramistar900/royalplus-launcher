@@ -42,7 +42,7 @@ assert 'geocoding-api.open-meteo.com' in GATEWAY
 assert 'api.met.no' in GATEWAY
 assert 'THREE_HOURS_MS = 3 * 60 * 60 * 1000' in GATEWAY
 assert 'GEOCODING_CACHE_MS = 30 * 24 * 60 * 60 * 1000' in GATEWAY
-assert GATEWAY.index('rpc("reserve_royalplus_weather_fetch")') < GATEWAY.index('fetch(target.url')
+assert GATEWAY.index('.rpc("reserve_royalplus_weather_fetch"') < GATEWAY.index('fetch(target.url')
 assert 'reservation === "quota_exhausted"' in GATEWAY
 assert 'reservation === "in_progress"' in GATEWAY
 assert 'async function providerFailure' in GATEWAY
