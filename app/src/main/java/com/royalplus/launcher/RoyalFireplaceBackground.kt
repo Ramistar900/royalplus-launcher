@@ -163,7 +163,7 @@ private class RoyalFireplaceVideoPlayer(context: Context) {
                         scheduleRetry()
                     }
             }
-        } else {
+        } else if (mediaPlayer == null && retryTask == null) {
             surfaceTexture?.let(::startPlayer)
         }
     }
