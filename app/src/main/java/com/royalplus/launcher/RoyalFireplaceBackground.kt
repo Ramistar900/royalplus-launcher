@@ -8,6 +8,8 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.view.Surface
 import android.view.TextureView
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -70,14 +72,26 @@ internal fun RoyalFireplaceBackground(modifier: Modifier = Modifier) {
 
 private class RoyalFireplaceVideoPlayer(context: Context) {
     private val appContext = context.applicationContext
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var mediaPlayer: MediaPlayer? = null
     private var videoSurface: Surface? = null
+    private var surfaceTexture: SurfaceTexture? = null
+    private var retryTask: Runnable? = null
+    private var retryAttempt = 0
     private var isPrepared = false
     private var isResumed = true
 
     fun attach(surfaceTexture: SurfaceTexture) {
+        this.surfaceTexture = surfaceTexture
+        cancelRetry()
+        retryAttempt = 0
+        startPlayer(surfaceTexture)
+    }
+
+    private fun startPlayer(texture: SurfaceTexture) {
+        if (!isResumed || surfaceTexture !== texture) return
         releasePlayer()
-        val surface = Surface(surfaceTexture)
+        val surface = Surface(texture)
         videoSurface = surface
         val player = MediaPlayer()
         mediaPlayer = player
@@ -92,17 +106,51 @@ private class RoyalFireplaceVideoPlayer(context: Context) {
             player.setOnPreparedListener { preparedPlayer ->
                 if (mediaPlayer === preparedPlayer) {
                     isPrepared = true
-                    if (isResumed) runCatching { preparedPlayer.start() }
+                    retryAttempt = 0
+                    if (isResumed) {
+                        runCatching { preparedPlayer.start() }
+                            .onFailure {
+                                releasePlayer()
+                                scheduleRetry()
+                            }
+                    }
                 }
             }
-            player.setOnErrorListener { failedPlayer, _, _ ->
-                if (mediaPlayer === failedPlayer) releasePlayer()
+            player.setOnErrorListener { failedPlayer, what, extra ->
+                if (mediaPlayer === failedPlayer) {
+                    android.util.Log.w(
+                        "RoyalFireplaceVideo",
+                        "Fireplace playback error (what=$what, extra=$extra); retrying"
+                    )
+                    releasePlayer()
+                    scheduleRetry()
+                }
                 true
             }
             player.prepareAsync()
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            android.util.Log.w("RoyalFireplaceVideo", "Could not prepare fireplace video; retrying", error)
             releasePlayer()
+            scheduleRetry()
         }
+    }
+
+    private fun scheduleRetry() {
+        if (!isResumed || surfaceTexture == null || retryTask != null) return
+        val delayMs = (1_000L shl retryAttempt.coerceAtMost(5)).coerceAtMost(30_000L)
+        retryAttempt = (retryAttempt + 1).coerceAtMost(5)
+        val task = Runnable {
+            retryTask = null
+            val texture = surfaceTexture
+            if (isResumed && texture != null) startPlayer(texture)
+        }
+        retryTask = task
+        mainHandler.postDelayed(task, delayMs)
+    }
+
+    private fun cancelRetry() {
+        retryTask?.let(mainHandler::removeCallbacks)
+        retryTask = null
     }
 
     fun resume() {
@@ -110,12 +158,19 @@ private class RoyalFireplaceVideoPlayer(context: Context) {
         if (isPrepared) {
             mediaPlayer?.let { active ->
                 if (!active.isPlaying) runCatching { active.start() }
+                    .onFailure {
+                        releasePlayer()
+                        scheduleRetry()
+                    }
             }
+        } else {
+            surfaceTexture?.let(::startPlayer)
         }
     }
 
     fun pause() {
         isResumed = false
+        cancelRetry()
         if (isPrepared) {
             mediaPlayer?.let { active ->
                 if (active.isPlaying) runCatching { active.pause() }
@@ -124,12 +179,12 @@ private class RoyalFireplaceVideoPlayer(context: Context) {
     }
 
     fun detach() {
+        surfaceTexture = null
+        cancelRetry()
         releasePlayer()
     }
 
-    fun release() {
-        releasePlayer()
-    }
+    fun release() = detach()
 
     private fun releasePlayer() {
         isPrepared = false
