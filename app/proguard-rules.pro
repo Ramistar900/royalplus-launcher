@@ -14,3 +14,9 @@
 # Compose lambda from RoyalHomeScreen. Keep the complete screen's generated
 # lambda classes stable until the minified API 24 smoke test proves optimization safe.
 -keep class com.royalplus.launcher.RoyalHomeScreenKt$* { *; }
+
+# Android 7 ART startup crash: R8's optimized Compose lambda from RoyalHomeScreen
+# produces invalid register typing on API 24 (VerifyError during app startup).
+# Keep this exact generated lambda and its members unshrunk, unobfuscated and
+# unoptimized. This is deliberately narrow; do not disable R8 for the app.
+-keep class com.royalplus.launcher.RoyalHomeScreenKt$RoyalHomeScreen$18$1$4$2$1$8$3$1 { *; }

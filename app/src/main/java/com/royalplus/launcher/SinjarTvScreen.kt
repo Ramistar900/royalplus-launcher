@@ -538,11 +538,22 @@ private fun SinjarPlayerPane(
                         androidx.compose.ui.input.key.Key.Back,
                         androidx.compose.ui.input.key.Key.Escape -> {
                             when {
-                                favoritePromptChannel != null -> favoritePromptChannel = null
-                                channelMenuVisible -> channelMenuVisible = false
-                                isFullscreen -> onToggleFullscreen()
+                                favoritePromptChannel != null -> {
+                                    favoritePromptChannel = null
+                                    true
+                                }
+                                channelMenuVisible -> {
+                                    channelMenuVisible = false
+                                    true
+                                }
+                                isFullscreen -> {
+                                    onToggleFullscreen()
+                                    true
+                                }
+                                // Let the parent section handler close Sinjar when no
+                                // player-local layer remains to dismiss.
+                                else -> false
                             }
-                            true
                         }
                         else -> false
                     }

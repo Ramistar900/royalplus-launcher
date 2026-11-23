@@ -42,9 +42,7 @@ assert "rotate(degrees = rotationDegrees, pivot = Offset(32f, 32f))" in graphics
 assert "rotationDegrees = rotation" in graphics
 assert "durationMillis = 2800" in graphics
 assert "sportsBall = true" in home
-assert "royal_sports_luxe" in home
-assert "ROYAL SPORTS" in home
-assert (ROOT / "app/src/main/res/drawable/royal_sports_luxe.xml").is_file()
+assert "RoyalRotatingFootballIcon" in home
 
 # Competition headings separate and sort fixtures into clear football-league groups.
 assert "groupBy { Triple(it.leagueId, it.country.trim(), it.league.trim()) }" in screen

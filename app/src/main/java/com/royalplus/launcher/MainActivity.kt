@@ -300,7 +300,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (showingCrashReport) return
-        if (System.currentTimeMillis() - lastWeatherRefreshAt >= 24 * 60 * 60 * 1000L) {
+        if (System.currentTimeMillis() - lastWeatherRefreshAt >= 3 * 60 * 60 * 1000L) {
             refreshWeather()
         }
         RoyalPlusApplication.markStage(this, "MainActivity.onResume: restoring phone/TV caption role")

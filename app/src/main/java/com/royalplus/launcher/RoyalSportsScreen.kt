@@ -618,7 +618,7 @@ internal fun RoyalSportsScreen(language: String) {
     val context = LocalContext.current.applicationContext
     val arabic = language == "ar"
     val turkish = language == "tr"
-    var selectedTab by remember { mutableStateOf(RoyalSportsTab.UPCOMING) }
+    var selectedTab by remember { mutableStateOf(RoyalSportsTab.LIVE) }
     var loaded by remember { mutableStateOf<RoyalSportsLoadResult?>(null) }
     var loading by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf<String?>(null) }

@@ -3,7 +3,7 @@ package com.royalplus.launcher
 import androidx.compose.ui.input.key.Key
 
 internal enum class RemoteKey {
-    MENU, BACK, EXIT, HOME, SEARCH, VOICE, INFO, GUIDE, INPUT,
+    MENU, BACK, SEARCH, VOICE, INFO, GUIDE, INPUT,
     PLAY_PAUSE, PLAY, PAUSE, STOP, REWIND, FAST_FORWARD, NEXT, PREVIOUS,
     CHANNEL_UP, CHANNEL_DOWN, RED, GREEN, YELLOW, BLUE
 }
@@ -12,8 +12,6 @@ internal object RemoteKeys {
     fun fromComposeKey(key: Key): RemoteKey? = when (key) {
         Key.Menu -> RemoteKey.MENU
         Key.Back -> RemoteKey.BACK
-        Key.Escape -> RemoteKey.EXIT
-        Key.Home -> RemoteKey.HOME
         Key.Search -> RemoteKey.SEARCH
         Key.VoiceAssist -> RemoteKey.VOICE
         Key.Info -> RemoteKey.INFO
