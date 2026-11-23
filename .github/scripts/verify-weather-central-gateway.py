@@ -36,6 +36,7 @@ assert 'royalplus_weather_response_cache' in CACHE
 assert 'ENABLE ROW LEVEL SECURITY' in CACHE
 assert 'REVOKE ALL' in CACHE and 'GRANT ALL' in CACHE
 assert '9550' in GATEWAY
+assert 'npm:@supabase/supabase-js@2.119.2' in GATEWAY
 assert 'api.open-meteo.com' in GATEWAY
 assert 'geocoding-api.open-meteo.com' in GATEWAY
 assert 'api.met.no' in GATEWAY
