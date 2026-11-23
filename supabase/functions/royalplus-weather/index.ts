@@ -44,8 +44,11 @@ function validateTarget(value: unknown): { url: URL; provider: "open_meteo" | "m
 
   if (host === "api.open-meteo.com" && url.pathname === "/v1/forecast") {
     provider = "open_meteo";
-    const latitude = Number(url.searchParams.get("latitude"));
-    const longitude = Number(url.searchParams.get("longitude"));
+    const latitudeValue = url.searchParams.get("latitude");
+    const longitudeValue = url.searchParams.get("longitude");
+    if (url.port || latitudeValue === null || longitudeValue === null) return null;
+    const latitude = Number(latitudeValue);
+    const longitude = Number(longitudeValue);
     const days = Number(url.searchParams.get("forecast_days") ?? "7");
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
         !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
@@ -59,19 +62,25 @@ function validateTarget(value: unknown): { url: URL; provider: "open_meteo" | "m
     provider = "open_meteo";
     const name = url.searchParams.get("name") ?? "";
     const count = Number(url.searchParams.get("count") ?? "10");
-    if (name.trim().length < 2 || name.length > 100 ||
-        !Number.isInteger(count) || count < 1 || count > 100) return null;
+    if (url.port || name.trim().length < 2 || name.length > 100 ||
+        !Number.isInteger(count) || count < 1 || count > 100 ||
+        url.searchParams.getAll("name").length !== 1) return null;
     const allowed = new Set(["name", "count", "language", "format"]);
     for (const key of url.searchParams.keys()) if (!allowed.has(key)) return null;
     ttlMs = GEOCODING_CACHE_MS;
   } else if (host === "api.met.no" &&
       url.pathname === "/weatherapi/locationforecast/2.0/compact") {
     provider = "met_norway";
-    const latitude = Number(url.searchParams.get("lat"));
-    const longitude = Number(url.searchParams.get("lon"));
+    const latitudeValue = url.searchParams.get("lat");
+    const longitudeValue = url.searchParams.get("lon");
+    if (url.port || latitudeValue === null || longitudeValue === null) return null;
+    const latitude = Number(latitudeValue);
+    const longitude = Number(longitudeValue);
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
         !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
-        [...url.searchParams.keys()].some((key) => key !== "lat" && key !== "lon")) return null;
+        [...url.searchParams.keys()].some((key) => key !== "lat" && key !== "lon") ||
+        url.searchParams.getAll("lat").length !== 1 ||
+        url.searchParams.getAll("lon").length !== 1) return null;
   } else {
     return null;
   }
