@@ -1,0 +1,205 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json; charset=utf-8",
+};
+
+const PUBLIC_KEY = "sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW";
+const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+const GEOCODING_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, ...extra },
+  });
+}
+
+async function sha256(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function validateTarget(value: unknown): { url: URL; provider: "open_meteo" | "met_norway"; ttlMs: number } | null {
+  if (typeof value !== "string" || value.length > 2048) return null;
+
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.hash) return null;
+
+  const host = url.hostname.toLowerCase();
+  let provider: "open_meteo" | "met_norway";
+  let ttlMs = THREE_HOURS_MS;
+
+  if (host === "api.open-meteo.com" && url.pathname === "/v1/forecast") {
+    provider = "open_meteo";
+    const latitude = Number(url.searchParams.get("latitude"));
+    const longitude = Number(url.searchParams.get("longitude"));
+    const days = Number(url.searchParams.get("forecast_days") ?? "7");
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
+        ![1, 7].includes(days)) return null;
+    const allowed = new Set([
+      "latitude", "longitude", "current", "wind_speed_unit",
+      "daily", "forecast_days", "timezone",
+    ]);
+    for (const key of url.searchParams.keys()) if (!allowed.has(key)) return null;
+  } else if (host === "geocoding-api.open-meteo.com" && url.pathname === "/v1/search") {
+    provider = "open_meteo";
+    const name = url.searchParams.get("name") ?? "";
+    const count = Number(url.searchParams.get("count") ?? "10");
+    if (name.trim().length < 2 || name.length > 100 ||
+        !Number.isInteger(count) || count < 1 || count > 100) return null;
+    const allowed = new Set(["name", "count", "language", "format"]);
+    for (const key of url.searchParams.keys()) if (!allowed.has(key)) return null;
+    ttlMs = GEOCODING_CACHE_MS;
+  } else if (host === "api.met.no" &&
+      url.pathname === "/weatherapi/locationforecast/2.0/compact") {
+    provider = "met_norway";
+    const latitude = Number(url.searchParams.get("lat"));
+    const longitude = Number(url.searchParams.get("lon"));
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
+        [...url.searchParams.keys()].some((key) => key !== "lat" && key !== "lon")) return null;
+  } else {
+    return null;
+  }
+
+  url.searchParams.sort();
+  return { url, provider, ttlMs };
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  // This key is public in the Android app. It is an API identifier, not a secret.
+  // The strict server-side quota remains the protection against unbounded upstream use.
+  if (req.headers.get("apikey") !== PUBLIC_KEY) {
+    return json({ error: "invalid_api_key" }, 401);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    return json({ error: "server_configuration_incomplete" }, 503);
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json() as Record<string, unknown>;
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+
+  const target = validateTarget(body.url);
+  if (!target) return json({ error: "unsupported_weather_request" }, 400);
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const cacheKey = await sha256(`${target.provider}|${target.url.toString()}`);
+
+  const { data: cached, error: cacheReadError } = await admin
+    .from("royalplus_weather_response_cache")
+    .select("response_body, expires_at")
+    .eq("cache_key", cacheKey)
+    .maybeSingle();
+
+  if (cacheReadError) return json({ error: "weather_cache_unavailable" }, 503);
+  if (cached && Date.parse(cached.expires_at) > Date.now()) {
+    return json(cached.response_body, 200, {
+      "X-Royal-Weather-Provider": target.provider,
+      "X-Royal-Weather-Cache": "HIT",
+    });
+  }
+
+  if (target.provider === "open_meteo") {
+    const { data: reserved, error: budgetError } = await admin
+      .rpc("reserve_royalplus_open_meteo_request");
+    if (budgetError) return json({ error: "weather_budget_unavailable" }, 503);
+    if (reserved !== true) {
+      const now = new Date();
+      const nextUtcDay = Date.UTC(
+        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
+      );
+      const retryAfter = Math.max(1, Math.ceil((nextUtcDay - now.getTime()) / 1000));
+      return json(
+        { error: "open_meteo_daily_limit_reached", daily_limit: 9550 },
+        429,
+        { "Retry-After": String(retryAfter), "X-Royal-Weather-Provider": target.provider },
+      );
+    }
+  }
+
+  const upstreamHeaders: Record<string, string> = { "Accept": "application/json" };
+  if (target.provider === "met_norway") {
+    upstreamHeaders["User-Agent"] =
+      "ROYALPlusLauncher/1.0 (Android TV; https://github.com/Ramistar900/royalplus-launcher)";
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(target.url, {
+      method: "GET",
+      headers: upstreamHeaders,
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    return json({ error: "weather_provider_unreachable" }, 502);
+  }
+
+  if (!upstream.ok) {
+    return json(
+      { error: "weather_provider_error", upstream_status: upstream.status },
+      502,
+      { "X-Royal-Weather-Provider": target.provider },
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await upstream.json();
+  } catch {
+    return json({ error: "weather_provider_invalid_json" }, 502);
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return json({ error: "weather_provider_invalid_payload" }, 502);
+  }
+
+  const fetchedAt = new Date();
+  const expiresAt = new Date(fetchedAt.getTime() + target.ttlMs);
+  const { error: cacheWriteError } = await admin
+    .from("royalplus_weather_response_cache")
+    .upsert({
+      cache_key: cacheKey,
+      provider: target.provider,
+      response_body: payload,
+      fetched_at: fetchedAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    }, { onConflict: "cache_key" });
+
+  if (cacheWriteError) {
+    // The live response is still valid; return it, but never bypass the quota reservation.
+    return json(payload, 200, {
+      "X-Royal-Weather-Provider": target.provider,
+      "X-Royal-Weather-Cache": "MISS-STORE-FAILED",
+    });
+  }
+
+  return json(payload, 200, {
+    "X-Royal-Weather-Provider": target.provider,
+    "X-Royal-Weather-Cache": "MISS",
+  });
+});
