@@ -247,7 +247,7 @@ jobs:
           MAP="app/build/outputs/mapping/release/mapping.txt"
           if [[ -f "$MAP" ]]; then
             echo "R8 mapping for the failing Android 7 class (if present):"
-            grep -n -B 2 -A 30 ' -> v3.l4:' "$MAP" || true
+            grep -n -B 2 -A 30 -F ' -> V3.X4:' "$MAP" || { echo "Obfuscated class V3.X4 was not found; showing nearby Compose mappings:"; grep -n -B 1 -A 3 -E ' -> [A-Z0-9]+:' "$MAP" | head -n 120 || true; }
           else
             echo "R8 mapping file was not generated at $MAP"
           fi
