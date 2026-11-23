@@ -6,6 +6,7 @@ import com.royal.adaptive.RoyalWindowWidthClass
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import android.os.Build
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -177,6 +178,7 @@ internal fun RoyalHomeScreen(
     onToggleTranslationOverlay: () -> Unit
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var prayerTimesForHome by remember { mutableStateOf<PrayerTimesData?>(null) }
     var prayerTimeBanner by remember { mutableStateOf<String?>(null) }
@@ -603,8 +605,25 @@ internal fun RoyalHomeScreen(
                                 if (isInitialPress) onRefreshApps()
                                 true
                             }
-                            // BACK remains owned by BackHandler. Other media/channel keys
-                            // are not consumed by the launcher.
+                            RemoteKey.BACK, RemoteKey.EXIT -> {
+                                if (isInitialPress) backDispatcher?.onBackPressed()
+                                true
+                            }
+                            RemoteKey.HOME -> {
+                                if (isInitialPress) {
+                                    selectedDestination = LauncherDestination.HOME
+                                    searchActive = false
+                                    searchQuery = ""
+                                    appForManagement = null
+                                    showQuickControls = false
+                                    showWallpaperSettings = false
+                                    showWeatherDetails = false
+                                    showSmartScreensaver = false
+                                    isSinjarPlayerFullscreen = false
+                                }
+                                true
+                            }
+                            // Other media/channel keys are not consumed by the launcher.
                             else -> false
                         }
                     } else {
@@ -712,7 +731,8 @@ internal fun RoyalHomeScreen(
                     if (!isSinjarPlayerFullscreen) Spacer(Modifier.height(9.dp))
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isSinjarPlayerFullscreen) 0.dp else 14.dp)) {
                         if (!isSinjarPlayerFullscreen) RoyalSidePanel(
-                            modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
+                            modifier = Modifier.width(sidebarWidth).fillMaxHeight()
+                                .focusProperties { canFocus = selectedDestination == LauncherDestination.HOME },
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
                             onNavigate = { destination ->
@@ -721,7 +741,16 @@ internal fun RoyalHomeScreen(
                             },
                             onOpenSettings = { showWallpaperSettings = true }
                         )
-                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                        Box(
+                            Modifier.weight(1f).fillMaxHeight()
+                                .focusProperties {
+                                    exit = {
+                                        if (selectedDestination == LauncherDestination.HOME) FocusRequester.Default
+                                        else FocusRequester.Cancel
+                                    }
+                                }
+                                .focusGroup()
+                        ) {
                             BoxWithConstraints(Modifier.fillMaxSize()) {
                                 val columns = adaptiveProfile.launcherAppColumns(maxWidth)
                                 val favoriteTileWidth = ((maxWidth - 16.dp - adaptiveProfile.itemSpacing * 5f) / 6)
