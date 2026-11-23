@@ -178,6 +178,9 @@ jobs:
 
       - name: Verify settings navigation and release update detection
         run: python3 .github/scripts/verify-settings-navigation-and-release-check.py
+ 
+      - name: Verify TV audio and smart screensaver stability
+        run: python3 .github/scripts/verify-tv-audio-screensaver.py
 
       - name: Verify ROYAL+ internal file manager and approved theme palette
         run: python3 .github/scripts/verify-royal-file-manager.py
