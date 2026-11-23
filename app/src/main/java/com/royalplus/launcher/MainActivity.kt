@@ -110,6 +110,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isTelevisionDevice = TranslationDeviceRoleDetector.detect(this) ==
             TranslationDeviceRole.TELEVISION_RECEIVER
+        val launcherPreferences = getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+        if (!launcherPreferences.contains("ui_click_sounds_enabled")) {
+            launcherPreferences.edit()
+                .putBoolean("ui_click_sounds_enabled", isTelevisionDevice)
+                .apply()
+        }
+        val uiSoundsEnabled = launcherPreferences.getBoolean(
+            "ui_click_sounds_enabled",
+            isTelevisionDevice
+        )
         RoyalColors.applyLightTheme(
             getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
                 .getString("launcher_theme_mode", "dark") == "light"
@@ -123,6 +133,7 @@ class MainActivity : ComponentActivity() {
             RoyalUiSound.ACTION_ERROR,
             RoyalUiSound.NAV_SELECT,
             RoyalUiSound.NAV_FOCUS_MOVE,
+            RoyalUiSound.NAV_TV_FOCUS,
             RoyalUiSound.SELECT_TOGGLE_OFF,
             RoyalUiSound.SELECT_TOGGLE_ON,
             RoyalUiSound.NAV_OPEN_MENU,
@@ -130,7 +141,20 @@ class MainActivity : ComponentActivity() {
             RoyalUiSound.ACTION_ADD,
             RoyalUiSound.MEDIA_PREV,
             RoyalUiSound.MEDIA_NEXT
-        ))
+        ), televisionMode = isTelevisionDevice)
+        RoyalUiSounds.setEnabled(applicationContext, uiSoundsEnabled)
+        RoyalUiSounds.initialize(applicationContext, setOf(
+            RoyalUiSound.NAV_BACK,
+            RoyalUiSound.NAV_SELECT,
+            RoyalUiSound.NAV_FOCUS_MOVE,
+            RoyalUiSound.NAV_TV_FOCUS,
+            RoyalUiSound.NAV_OPEN_MENU,
+            RoyalUiSound.NAV_CLOSE_MENU,
+            RoyalUiSound.ACTION_SUCCESS,
+            RoyalUiSound.ACTION_ERROR,
+            RoyalUiSound.SELECT_TOGGLE_ON,
+            RoyalUiSound.SELECT_TOGGLE_OFF
+        ), televisionMode = isTelevisionDevice)
         val savedCrashReport = RoyalPlusApplication.readPendingReport(this)
         if (savedCrashReport != null) {
             showingCrashReport = true
