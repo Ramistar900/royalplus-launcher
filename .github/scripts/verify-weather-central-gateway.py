@@ -12,7 +12,7 @@ LOCKS = (REPO / "supabase/migrations/20261123031909_royalplus_weather_fetch_sing
 CLEANUP = (REPO / "supabase/migrations/20261123032127_royalplus_weather_daily_cache_cleanup.sql").read_text()
 README = (REPO / "weather-service/README.md").read_text()
 
-assert 'WEATHER_GATEWAY_URL = "$WEATHER_SUPABASE_URL/functions/v1/royalplus-weather"' in WEATHER
+assert 'WEATHER_GATEWAY_URL = "https://ymujjcdsdclptbpgckll.supabase.co/functions/v1/royalplus-weather"' in WEATHER
 assert 'requestWeatherGatewayJson(url)' in WEATHER
 for host in ('api.open-meteo.com', 'geocoding-api.open-meteo.com', 'api.met.no'):
     assert host in WEATHER, f"Missing gateway routing for {host}"
