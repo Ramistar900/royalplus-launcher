@@ -29,9 +29,13 @@ internal class RoyalWeatherForecastWorker(
 }
 
 internal object RoyalWeatherForecastScheduler {
+    private const val LEGACY_UNIQUE_WORK_NAME = "royalplus-weekly-weather-refresh"
     private const val UNIQUE_WORK_NAME = "royalplus-weather-refresh-30m"
 
     fun schedule(context: Context) {
+        val workManager = WorkManager.getInstance(context.applicationContext)
+        // Remove the former 24-hour schedule so only the new 30-minute cache check remains.
+        workManager.cancelUniqueWork(LEGACY_UNIQUE_WORK_NAME)
         val request = PeriodicWorkRequestBuilder<RoyalWeatherForecastWorker>(
             30, TimeUnit.MINUTES
         )
@@ -42,7 +46,7 @@ internal object RoyalWeatherForecastScheduler {
             )
             .build()
 
-        WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
+        workManager.enqueueUniquePeriodicWork(
             UNIQUE_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             request
