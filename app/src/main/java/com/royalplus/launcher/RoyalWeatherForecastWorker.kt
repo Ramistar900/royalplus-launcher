@@ -11,9 +11,10 @@ import androidx.work.WorkerParameters
 import java.util.concurrent.TimeUnit
 
 /**
- * Refreshes the complete rolling seven-day forecast once per day when a network
- * is available. The repository only replaces the saved forecast after a valid
- * seven-day response, so a failed/short response cannot erase offline data.
+ * Checks saved-city weather every 30 minutes when connected. The repository's
+ * three-hour freshness window and the shared server cache prevent unnecessary
+ * provider requests; MET Norway is contacted only when a refresh is due and
+ * the Open-Meteo primary source cannot provide a valid forecast.
  */
 internal class RoyalWeatherForecastWorker(
     context: Context,
@@ -28,11 +29,11 @@ internal class RoyalWeatherForecastWorker(
 }
 
 internal object RoyalWeatherForecastScheduler {
-    private const val UNIQUE_WORK_NAME = "royalplus-weekly-weather-refresh"
+    private const val UNIQUE_WORK_NAME = "royalplus-weather-refresh-30m"
 
     fun schedule(context: Context) {
         val request = PeriodicWorkRequestBuilder<RoyalWeatherForecastWorker>(
-            24, TimeUnit.HOURS
+            30, TimeUnit.MINUTES
         )
             .setConstraints(
                 Constraints.Builder()
