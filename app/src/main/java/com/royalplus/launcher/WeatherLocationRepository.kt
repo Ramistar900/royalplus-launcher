@@ -80,9 +80,8 @@ internal object RoyalWeatherRepository {
     private const val LOCATION_MAX_AGE_MS = 8 * 24 * 60 * 60 * 1000L
     private const val WEATHER_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L
     private const val WEATHER_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L
-    private const val WEATHER_SUPABASE_URL = "https://ymujjcdsdclptbpgckll.supabase.co"
     private const val WEATHER_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rltTQCQ_SlGkj_eRecMVaQ_gu-Sw_bW"
-    private const val WEATHER_GATEWAY_URL = "$WEATHER_SUPABASE_URL/functions/v1/royalplus-weather"
+    private const val WEATHER_GATEWAY_URL = "https://ymujjcdsdclptbpgckll.supabase.co/functions/v1/royalplus-weather"
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
     private val executor = Executors.newSingleThreadExecutor()
