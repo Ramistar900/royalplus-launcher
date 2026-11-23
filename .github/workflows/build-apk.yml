@@ -164,7 +164,7 @@ jobs:
               subprocess.run([
                   "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                   "-i", str(video), "-an",
-                  "-vf", "scale='min(2560,iw)':-2", "-r", "24",
+                  "-vf", "scale='min(1920,iw)':-2:flags=lanczos",
                   "-c:v", "libx264", "-preset", "slow", "-crf", "26",
                   "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(temporary)
               ], check=True)
@@ -546,7 +546,7 @@ jobs:
               subprocess.run([
                   "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                   "-i", str(video), "-an",
-                  "-vf", "scale='min(2560,iw)':-2", "-r", "24",
+                  "-vf", "scale='min(1920,iw)':-2:flags=lanczos",
                   "-c:v", "libx264", "-preset", "slow", "-crf", "26",
                   "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(temporary)
               ], check=True)
