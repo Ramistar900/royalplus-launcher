@@ -41,6 +41,8 @@ assert 'THREE_HOURS_MS = 3 * 60 * 60 * 1000' in GATEWAY
 assert 'GEOCODING_CACHE_MS = 30 * 24 * 60 * 60 * 1000' in GATEWAY
 assert GATEWAY.index('rpc("reserve_royalplus_open_meteo_request")') < GATEWAY.index('fetch(target.url')
 assert 'if (reserved !== true)' in GATEWAY
+assert 'async function providerFailure' in GATEWAY
+assert 'failureTtl = target.provider === "met_norway"' in GATEWAY
 assert 'verify_jwt' not in GATEWAY
 assert 'service_role' not in GATEWAY.split('Deno.serve', 1)[0], "No service key may be embedded in source"
 assert '9,550 requests per UTC day across every ROYAL+ Launcher device' in README
