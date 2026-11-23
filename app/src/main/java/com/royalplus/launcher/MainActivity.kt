@@ -740,7 +740,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openDefaultHomeSettings() {
-        if (HomeRoleCompat.openDefaultHomeSettings(this)) return
+        // Android 10+ owns the HOME role request and must display its system confirmation.
+        if (HomeRoleCompat.openDefaultHomeSettings(this)) {
+            Toast.makeText(
+                this,
+                "اختر ROYAL+ Launcher من نافذة أندرويد ثم اضغط دائماً أو تعيين كافتراضي.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
 
         val actions = listOf(
             Settings.ACTION_HOME_SETTINGS,
@@ -748,16 +756,38 @@ class MainActivity : ComponentActivity() {
             Settings.ACTION_SETTINGS
         )
         for (action in actions) {
+            val intent = Intent(action)
+            if (packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) == null) continue
             try {
-                startActivity(Intent(action))
+                startActivity(intent)
+                Toast.makeText(
+                    this,
+                    "من إعدادات التطبيقات الافتراضية اختر تطبيق الشاشة الرئيسية ثم ROYAL+ Launcher.",
+                    Toast.LENGTH_LONG
+                ).show()
                 return
-            } catch (_: android.content.ActivityNotFoundException) {
-                // Try the next supported system settings screen.
-            } catch (_: SecurityException) {
-                // Try the next supported system settings screen.
+            } catch (error: Exception) {
+                android.util.Log.w("RoyalPlusHomeRole", "Could not open $action", error)
             }
         }
-        Toast.makeText(this, "لم يعثر أندرويد على شاشة اختيار الواجهة الرئيسية", Toast.LENGTH_LONG).show()
+
+        // Some TV firmwares hide the HOME settings page. Ask Android to show its HOME app chooser.
+        val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        try {
+            startActivity(Intent.createChooser(homeIntent, "اختيار واجهة الشاشة الرئيسية"))
+            Toast.makeText(
+                this,
+                "اختر ROYAL+ Launcher من قائمة التطبيقات لتعيينه واجهة رئيسية.",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (error: Exception) {
+            android.util.Log.e("RoyalPlusHomeRole", "No HOME selection screen is available", error)
+            Toast.makeText(
+                this,
+                "تعذر فتح اختيار اللانشر تلقائياً. افتح إعدادات الجهاز ثم التطبيقات الافتراضية > تطبيق الشاشة الرئيسية.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun isRoyalPlusDefaultHome(): Boolean {
