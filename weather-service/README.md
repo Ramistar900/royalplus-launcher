@@ -25,7 +25,7 @@ Do not imply either provider endorses ROYAL+.
 - All MET Norway forecast requests also pass through the gateway, with a three-hour shared cache per normalized location.
 - Open-Meteo responses are shared across devices for three hours; geocoding responses are shared for 30 days.
 - A database RPC atomically reserves each actual upstream Open-Meteo request. The hard ceiling is **9,550 requests per UTC day across every ROYAL+ Launcher device**. The 9,551st request is rejected before reaching Open-Meteo.
-- Cache hits do not consume the Open-Meteo request allowance. Failed upstream attempts do consume a reserved slot, preventing retries from bypassing the ceiling.
+- Cache hits do not consume the Open-Meteo request allowance. Failed upstream attempts do consume a reserved slot, preventing retries from bypassing the ceiling. Failed forecast locations are negative-cached for three hours, so the 30-minute local check cannot repeatedly hit an unavailable provider; failed geocoding lookups cool down for five minutes.
 - The Android worker checks cached saved-city forecasts every 30 minutes, but the local and shared three-hour freshness windows prevent a provider request every 30 minutes. MET Norway is contacted only when a refresh is due and the primary provider cannot provide valid data.
 - The app retains each city's valid forecast locally for seven days and continues showing the last saved data if both providers or the gateway are unavailable.
 - No Cloudflare, paid API, subscription, paid server, paid database, paid storage, payment method, or automatic upgrade is used.
