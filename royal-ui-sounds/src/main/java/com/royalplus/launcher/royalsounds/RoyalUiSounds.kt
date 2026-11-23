@@ -86,7 +86,8 @@ object RoyalUiSounds {
      */
     fun initialize(
         context: Context,
-        preloadSounds: Set<RoyalUiSound> = emptySet()
+        preloadSounds: Set<RoyalUiSound> = emptySet(),
+        televisionMode: Boolean = false
     ) {
         val applicationContext = context.applicationContext
         synchronized(lock) {
@@ -97,7 +98,10 @@ object RoyalUiSounds {
                 volume = preferences.getFloat(KEY_VOLUME, DEFAULT_VOLUME).coerceIn(0f, 1f)
 
                 val attributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setUsage(
+                        if (televisionMode) AudioAttributes.USAGE_MEDIA
+                        else AudioAttributes.USAGE_ASSISTANCE_SONIFICATION
+                    )
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 val pool = SoundPool.Builder()
