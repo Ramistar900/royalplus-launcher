@@ -6,7 +6,10 @@ import com.royal.adaptive.RoyalWindowWidthClass
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
+import android.app.Activity
+import android.content.ContextWrapper
 import android.os.Build
+import android.view.WindowManager
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Canvas
@@ -147,6 +150,15 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+private fun android.content.Context.findActivity(): Activity? {
+    var current: android.content.Context? = this
+    while (current != null) {
+        if (current is Activity) return current
+        current = (current as? ContextWrapper)?.baseContext
+    }
+    return null
+}
+
 private enum class LauncherDestination {
     HOME, APPS, MANAGE_APPS, MUSLIM, CALENDAR, SCREEN_CAST, SINJAR_TV, SPORTS, GALLERY, SONGS, FILES, FAVORITES, SHORTCUTS, MORE
 }
@@ -220,6 +232,19 @@ internal fun RoyalHomeScreen(
     }
     var showQuickControls by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    DisposableEffect(showSmartScreensaver, context) {
+        val window = context.findActivity()?.window
+        if (showSmartScreensaver) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            if (showSmartScreensaver) {
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+    }
     val wallpaperPreferences = remember(context) { context.getSharedPreferences("royalplus_launcher_preferences", android.content.Context.MODE_PRIVATE) }
     var masterNatureSoundsEnabled by remember(wallpaperPreferences) {
         mutableStateOf(wallpaperPreferences.getBoolean(RoyalWeatherAmbienceController.MASTER_ENABLED_KEY, true))
@@ -558,6 +583,14 @@ internal fun RoyalHomeScreen(
                             false
                         }
                         else -> false
+                    }
+
+                    val isDirectionalRemoteKey = when (event.key) {
+                        Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> true
+                        else -> false
+                    }
+                    if (isKeyDown && isInitialPress && adaptiveProfile.isTelevision && isDirectionalRemoteKey) {
+                        playLauncherUiSound(context, RoyalUiSound.NAV_TV_FOCUS)
                     }
 
                     val handledRemoteKey = if (isKeyDown) {
