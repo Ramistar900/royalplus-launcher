@@ -134,23 +134,35 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (target.provider === "open_meteo") {
-    const { data: reserved, error: budgetError } = await admin
-      .rpc("reserve_royalplus_open_meteo_request");
-    if (budgetError) return json({ error: "weather_budget_unavailable" }, 503);
-    if (reserved !== true) {
-      const now = new Date();
-      const nextUtcDay = Date.UTC(
-        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
-      );
-      const retryAfter = Math.max(1, Math.ceil((nextUtcDay - now.getTime()) / 1000));
-      return json(
-        { error: "open_meteo_daily_limit_reached", daily_limit: 9550 },
-        429,
-        { "Retry-After": String(retryAfter), "X-Royal-Weather-Provider": target.provider },
-      );
-    }
+  const leaseSeconds = target.url.pathname === "/v1/search" ? 300 : 10800;
+  const { data: reservation, error: reservationError } = await admin
+    .rpc("reserve_royalplus_weather_fetch", {
+      p_cache_key: cacheKey,
+      p_provider: target.provider,
+      p_lease_seconds: leaseSeconds,
+    });
+  if (reservationError) return json({ error: "weather_reservation_unavailable" }, 503);
+
+  if (reservation === "quota_exhausted") {
+    const now = new Date();
+    const nextUtcDay = Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
+    );
+    const retryAfter = Math.max(1, Math.ceil((nextUtcDay - now.getTime()) / 1000));
+    return json(
+      { error: "open_meteo_daily_limit_reached", daily_limit: 9550 },
+      429,
+      { "Retry-After": String(retryAfter), "X-Royal-Weather-Provider": target.provider },
+    );
   }
+  if (reservation === "in_progress") {
+    return json(
+      { error: "weather_fetch_in_progress" },
+      503,
+      { "Retry-After": "3", "X-Royal-Weather-Provider": target.provider },
+    );
+  }
+  if (reservation !== "reserved") return json({ error: "weather_reservation_invalid" }, 400);
 
   const upstreamHeaders: Record<string, string> = { "Accept": "application/json" };
   if (target.provider === "met_norway") {
