@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -101,6 +102,12 @@ internal fun MuslimScreen(
     val context = LocalContext.current
     var selectedSection by remember { mutableStateOf("home") }
     var showCityPicker by remember { mutableStateOf(false) }
+
+    // The Muslim section has its own page stack: Back closes a Quran/duas/
+    // hadith/worship page before the launcher leaves the Muslim section.
+    BackHandler(enabled = selectedSection != "home") {
+        selectedSection = "home"
+    }
     val hijriPreferences = remember(context) {
         context.getSharedPreferences("royalplus_muslim_preferences", android.content.Context.MODE_PRIVATE)
     }

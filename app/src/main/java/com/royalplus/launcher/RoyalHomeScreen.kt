@@ -6,6 +6,7 @@ import com.royal.adaptive.RoyalWindowWidthClass
 import com.royalplus.launcher.royalsounds.RoyalUiSound
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import android.os.Build
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,6 +25,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -311,6 +313,14 @@ internal fun RoyalHomeScreen(
     var weatherMotionEnabled by remember { mutableStateOf(wallpaperPreferences.getBoolean("motion_weather", true)) }
     var selectedLanguage by remember { mutableStateOf(wallpaperPreferences.getString("launcher_language", "ar") ?: "ar") }
     var isSinjarPlayerFullscreen by remember { mutableStateOf(false) }
+    val sectionBackFocusRequester = remember { FocusRequester() }
+    val backPressedDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    LaunchedEffect(selectedDestination, isSinjarPlayerFullscreen, searchActive) {
+        if (selectedDestination != LauncherDestination.HOME && !searchActive && !isSinjarPlayerFullscreen) {
+            withFrameNanos { }
+            runCatching { sectionBackFocusRequester.requestFocus() }
+        }
+    }
     var selectedFont by remember { mutableStateOf(wallpaperPreferences.getString("launcher_font", "cairo") ?: "cairo") }
     var lightThemeEnabled by remember(wallpaperPreferences) {
         mutableStateOf(wallpaperPreferences.getString("launcher_theme_mode", "dark") == "light")
@@ -560,7 +570,9 @@ internal fun RoyalHomeScreen(
                         else -> false
                     }
 
-                    val handledRemoteKey = if (isKeyDown) {
+                    val homeShortcutsEnabled = selectedDestination == LauncherDestination.HOME &&
+                        !searchActive && !showWeatherDetails && !showWallpaperSettings && !showQuickControls
+                    val handledRemoteKey = if (isKeyDown && homeShortcutsEnabled) {
                         when (RemoteKeys.fromComposeKey(event.key)) {
                             RemoteKey.MENU, RemoteKey.BLUE -> {
                                 if (isInitialPress) {
@@ -614,6 +626,16 @@ internal fun RoyalHomeScreen(
                     showSmartScreensaver = false
                     handledRemoteKey
                 }
+                .onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                        // Route remote EXIT/ESCAPE through the same nested BackHandler stack
+                        // used by the phone Back button, so inner pages close before sections.
+                        backPressedDispatcher?.onBackPressed()
+                        backPressedDispatcher != null
+                    } else {
+                        false
+                    }
+                }
         ) {
             RoyalBackdrop(
                 modifier = Modifier.matchParentSize(),
@@ -665,9 +687,15 @@ internal fun RoyalHomeScreen(
                 maxWidth >= 900.dp -> 188.dp
                 else -> (maxWidth * 0.205f).coerceIn(120.dp, 188.dp)
             }
+            val showHomeNavigation = selectedDestination == LauncherDestination.HOME &&
+                !searchActive && !showWeatherDetails && !showWallpaperSettings && !showQuickControls
             CompositionLocalProvider(LocalLayoutDirection provides if (selectedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr) {
-                Column(Modifier.fillMaxSize().then(if (isSinjarPlayerFullscreen) Modifier else Modifier.padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding))) {
-                    if (!isSinjarPlayerFullscreen) {
+                Column(
+                    Modifier.fillMaxSize()
+                        .focusGroup()
+                        .then(if (isSinjarPlayerFullscreen) Modifier else Modifier.padding(horizontal = adaptiveProfile.pageHorizontalPadding, vertical = adaptiveProfile.pageVerticalPadding))
+                ) {
+                    if (!isSinjarPlayerFullscreen && (showHomeNavigation || searchActive)) {
                     RoyalBrandHeader(
                         searchActive = searchActive, searchQuery = searchQuery,
                         currentTime = timeText, dateText = dateText, showDate = showDateOnHome,
@@ -684,6 +712,32 @@ internal fun RoyalHomeScreen(
                         onToggleTranslationOverlay = onToggleTranslationOverlay,
                         selectedLanguage = selectedLanguage
                     )
+                    }
+                    if (selectedDestination != LauncherDestination.HOME && !searchActive && !isSinjarPlayerFullscreen) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            TextButton(
+                                modifier = Modifier.focusRequester(sectionBackFocusRequester),
+                                onClick = {
+                                    selectedDestination = LauncherDestination.HOME
+                                    searchActive = false
+                                    searchQuery = ""
+                                }
+                            ) {
+                                Text(
+                                    when (selectedLanguage) {
+                                        "en" -> "← Back to Home"
+                                        "tr" -> "← Ana sayfaya dön"
+                                        else -> "→ العودة إلى الرئيسية"
+                                    },
+                                    color = RoyalColors.Gold,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
                     if (selectedDestination == LauncherDestination.HOME && prayerTimeBanner != null) {
                         Row(
@@ -710,7 +764,7 @@ internal fun RoyalHomeScreen(
                     }
                     if (!isSinjarPlayerFullscreen) Spacer(Modifier.height(9.dp))
                     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (isSinjarPlayerFullscreen) 0.dp else 14.dp)) {
-                        if (!isSinjarPlayerFullscreen) RoyalSidePanel(
+                        if (!isSinjarPlayerFullscreen && showHomeNavigation) RoyalSidePanel(
                             modifier = Modifier.width(sidebarWidth).fillMaxHeight(),
                             selectedDestination = selectedDestination,
                             language = selectedLanguage,
