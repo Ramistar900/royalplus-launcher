@@ -20,6 +20,7 @@ assert 'service_role' not in WEATHER.lower(), "Privileged service role must neve
 assert 'WEATHER_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L' in WEATHER
 assert '3 * 60 * 60 * 1000L' in WEATHER
 assert '30, TimeUnit.MINUTES' in WORKER
+assert 'cancelUniqueWork(LEGACY_UNIQUE_WORK_NAME)' in WORKER
 assert '3 * 60 * 60 * 1000L' in ACTIVITY
 
 assert 'request_count <= 9550' in QUOTA
