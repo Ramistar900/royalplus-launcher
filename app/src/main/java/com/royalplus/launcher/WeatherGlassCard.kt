@@ -100,7 +100,7 @@ internal fun WeatherGlassCard(
         in 95..99 -> when (language) { "en" -> "Thunderstorm"; "tr" -> "Gök gürültülü fırtına"; else -> "عاصفة رعدية" }
         else -> weather.description
     }
-    val hour = currentTime.substringBefore(":").toIntOrNull()
+    val hour = prayerClock.get(java.util.Calendar.HOUR_OF_DAY)
     val isNight = hour != null && (hour >= 19 || hour < 6)
     val weatherVideo = weatherVideoAsset(weather, hour)
     val weatherFrame = RoundedCornerShape(12.dp)
