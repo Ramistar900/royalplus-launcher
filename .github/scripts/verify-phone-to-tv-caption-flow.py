@@ -79,4 +79,17 @@ assert "translationIsTelevision" in HOME
 assert "استقبال الترجمة من الهاتف" in HOME
 assert "التقاط صوت التلفاز وإرسال الترجمة" in HOME
 
+
+# Android TV consent is an in-app allow/deny prompt; never send users to missing TV settings.
+assert '.setPositiveButton("السماح")' in ACTIVITY
+assert '.setNegativeButton("رفض", null)' in ACTIVITY
+assert "openOverlayPermissionSettings" not in ACTIVITY
+assert "Settings.ACTION_MANAGE_OVERLAY_PERMISSION" not in ACTIVITY
+assert "ACTION_CAPTION_RECEIVED" in ACTIVITY and "captionReceiver" in ACTIVITY
+assert "ACTION_CAPTION_RECEIVED" in RECEIVER
+assert "EXTRA_CAPTION_TEXT" in RECEIVER
+assert "sendBroadcast(" in RECEIVER
+assert "return@post" in RECEIVER  # no WindowManager.addView attempt without system overlay access
+assert "translationOverlayEnabled = receiverEnabled" in ACTIVITY
+
 print("Verified phone-only microphone capture, screen-off foreground operation, encrypted LAN caption transport, TV-only overlay receiver, pairing and manual display delay.")
