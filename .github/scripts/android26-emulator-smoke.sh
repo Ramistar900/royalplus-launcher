@@ -31,8 +31,15 @@ cleanup() {
     timeout --foreground --signal=TERM --kill-after=5s 15s "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1
   fi
   if [[ -n "$EMULATOR_PID" ]] && kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then
-    kill "$EMULATOR_PID" >/dev/null 2>&1
-    wait "$EMULATOR_PID" >/dev/null 2>&1
+    kill -TERM "$EMULATOR_PID" >/dev/null 2>&1
+    for attempt in $(seq 1 10); do
+      kill -0 "$EMULATOR_PID" >/dev/null 2>&1 || break
+      sleep 1
+    done
+    if kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then
+      kill -KILL "$EMULATOR_PID" >/dev/null 2>&1
+    fi
+    wait "$EMULATOR_PID" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
