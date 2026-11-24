@@ -59,12 +59,6 @@ class RoyalCaptionReceiverService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!Settings.canDrawOverlays(this)) {
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                .putBoolean(KEY_RECEIVER_ENABLED, false).apply()
-            stopSelf()
-            return START_NOT_STICKY
-        }
         val preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
         val pin = intent?.getStringExtra(EXTRA_PIN)
             ?: preferences.getString(KEY_RECEIVER_PIN, null)
@@ -185,7 +179,13 @@ class RoyalCaptionReceiverService : Service() {
                 return
             }
             socket.soTimeout = 30_000
-            updateNotification("الهاتف متصل؛ يتم عرض الترجمة العائمة فوق التطبيقات")
+            updateNotification(
+                if (Settings.canDrawOverlays(this)) {
+                    "الهاتف متصل؛ الترجمة العائمة مفعّلة"
+                } else {
+                    "الهاتف متصل؛ ستظهر الترجمة داخل ROYAL+"
+                }
+            )
             var lastSequence = 0L
             while (running.get() && !socket.isClosed) {
                 val frame = RoyalCaptionTransport.readFrame(reader)
@@ -222,6 +222,14 @@ class RoyalCaptionReceiverService : Service() {
 
     private fun showCaption(text: String) {
         mainHandler.post {
+            if (!Settings.canDrawOverlays(this)) {
+                sendBroadcast(
+                    Intent(ACTION_CAPTION_RECEIVED)
+                        .setPackage(packageName)
+                        .putExtra(EXTRA_CAPTION_TEXT, text)
+                )
+                return@post
+            }
             val manager = windowManager ?: getSystemService(WINDOW_SERVICE) as WindowManager
             windowManager = manager
             val delay = getSharedPreferences(PREFERENCES, MODE_PRIVATE)
@@ -368,6 +376,8 @@ class RoyalCaptionReceiverService : Service() {
         const val ACTION_START = "com.royalplus.launcher.action.START_CAPTION_RECEIVER"
         const val ACTION_STOP = "com.royalplus.launcher.action.STOP_CAPTION_RECEIVER"
         const val EXTRA_PIN = "royal_caption_receiver_pin"
+        const val ACTION_CAPTION_RECEIVED = "com.royalplus.launcher.action.CAPTION_RECEIVED"
+        const val EXTRA_CAPTION_TEXT = "royal_caption_text"
         const val PREFERENCES = "royalplus_launcher_preferences"
         const val KEY_RECEIVER_ENABLED = "royal_caption_receiver_enabled"
         const val KEY_RECEIVER_PIN = "royal_caption_receiver_pin_saved"

@@ -61,6 +61,17 @@ class MainActivity : ComponentActivity() {
     private var voiceSearchResult by mutableStateOf("")
     private var showingCrashReport = false
     private var translationCapabilityReceiverRegistered = false
+    private var captionReceiverRegistered = false
+
+    private val captionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val caption = intent?.getStringExtra(RoyalCaptionReceiverService.EXTRA_CAPTION_TEXT)
+                ?.takeIf { it.isNotBlank() } ?: return
+            if (isTelevisionDevice && !isFinishing && !isDestroyed) {
+                Toast.makeText(this@MainActivity, caption, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     private val translationCapabilityReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -280,12 +291,25 @@ class MainActivity : ComponentActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         translationCapabilityReceiverRegistered = true
+        if (isTelevisionDevice) {
+            ContextCompat.registerReceiver(
+                this,
+                captionReceiver,
+                IntentFilter(RoyalCaptionReceiverService.ACTION_CAPTION_RECEIVED),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            captionReceiverRegistered = true
+        }
     }
 
     override fun onStop() {
         if (translationCapabilityReceiverRegistered) {
             runCatching { unregisterReceiver(translationCapabilityReceiver) }
             translationCapabilityReceiverRegistered = false
+        }
+        if (captionReceiverRegistered) {
+            runCatching { unregisterReceiver(captionReceiver) }
+            captionReceiverRegistered = false
         }
         super.onStop()
     }
@@ -309,8 +333,8 @@ class MainActivity : ComponentActivity() {
             val receiverEnabled = translationPreferences.getBoolean(
                 RoyalCaptionReceiverService.KEY_RECEIVER_ENABLED, false
             )
-            translationOverlayEnabled = receiverEnabled && Settings.canDrawOverlays(this)
-            if (receiverEnabled && Settings.canDrawOverlays(this) &&
+            translationOverlayEnabled = receiverEnabled
+            if (receiverEnabled &&
                 !isServiceRunning(RoyalCaptionReceiverService::class.java)
             ) {
                 val pin = translationPreferences.getString(RoyalCaptionReceiverService.KEY_RECEIVER_PIN, null)
@@ -428,12 +452,15 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "تم إيقاف استقبال الترجمة على التلفاز", Toast.LENGTH_SHORT).show()
             return
         }
-        if (!Settings.canDrawOverlays(this)) {
-            if (!openOverlayPermissionSettings()) {
-                Toast.makeText(this, "اسمح لـ ROYAL+ بالظهور فوق التطبيقات لعرض الترجمة العائمة.", Toast.LENGTH_LONG).show()
-            }
-            return
-        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("ROYAL+ — الترجمة")
+            .setMessage("هل تسمح لـ ROYAL+ باستقبال الترجمة وعرضها؟")
+            .setPositiveButton("السماح") { _, _ -> startTvCaptionReceiver(preferences) }
+            .setNegativeButton("رفض", null)
+            .show()
+    }
+
+    private fun startTvCaptionReceiver(preferences: android.content.SharedPreferences) {
         val localAddress = RoyalCaptionTransport.localIpv4Address()
         if (localAddress.isNullOrBlank()) {
             Toast.makeText(this, "اتصل التلفاز بشبكة Wi-Fi نفسها التي سيتصل بها الهاتف، ثم أعد المحاولة.", Toast.LENGTH_LONG).show()
@@ -453,6 +480,9 @@ class MainActivity : ComponentActivity() {
                 .apply()
             translationOverlayEnabled = true
             showTvPairingDetails(pin)
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "سيظهر النص داخل ROYAL+ لأن التلفاز لا يتيح إذن النافذة العائمة.", Toast.LENGTH_LONG).show()
+            }
         } catch (error: Exception) {
             translationOverlayEnabled = false
             Toast.makeText(this, error.localizedMessage ?: "تعذر تشغيل مستقبل الترجمة على التلفاز.", Toast.LENGTH_LONG).show()
@@ -708,31 +738,6 @@ class MainActivity : ComponentActivity() {
             translationOverlayEnabled = false
             Toast.makeText(this, error.localizedMessage ?: "تعذر تشغيل خدمة التقاط الهاتف.", Toast.LENGTH_LONG).show()
         }
-    }
-
-    /** Opens the special-access page on TV firmware that exposes a package-scoped overlay setting. */
-    private fun openOverlayPermissionSettings(): Boolean {
-        val settingsIntents = listOf(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION),
-            Intent(Settings.ACTION_SETTINGS)
-        )
-        settingsIntents.forEachIndexed { index, settingsIntent ->
-            try {
-                startActivity(settingsIntent)
-                if (index > 0) {
-                    Toast.makeText(
-                        this,
-                        "من إعدادات التلفاز افتح التطبيقات > وصول خاص للتطبيقات > الظهور فوق التطبيقات، ثم اسمح لـ ROYAL+ Launcher.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-                return true
-            } catch (_: Exception) {
-                // Try the next settings entry point exposed by this TV firmware.
-            }
-        }
-        return false
     }
 
     private fun startVoiceSearch() {
