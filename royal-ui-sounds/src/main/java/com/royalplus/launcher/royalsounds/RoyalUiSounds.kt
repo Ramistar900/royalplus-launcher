@@ -86,18 +86,22 @@ object RoyalUiSounds {
      */
     fun initialize(
         context: Context,
-        preloadSounds: Set<RoyalUiSound> = emptySet()
+        preloadSounds: Set<RoyalUiSound> = emptySet(),
+        televisionMode: Boolean = false
     ) {
         val applicationContext = context.applicationContext
         synchronized(lock) {
             if (soundPool == null) {
                 appContext = applicationContext
                 val preferences = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                enabled = preferences.getBoolean(KEY_ENABLED, DEFAULT_ENABLED)
+                enabled = preferences.getBoolean(KEY_ENABLED, if (televisionMode) true else DEFAULT_ENABLED)
+                if (!preferences.contains(KEY_ENABLED) && televisionMode) {
+                    preferences.edit().putBoolean(KEY_ENABLED, true).apply()
+                }
                 volume = preferences.getFloat(KEY_VOLUME, DEFAULT_VOLUME).coerceIn(0f, 1f)
 
                 val attributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setUsage(if (televisionMode) AudioAttributes.USAGE_MEDIA else AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 val pool = SoundPool.Builder()
