@@ -129,6 +129,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isTelevisionDevice = TranslationDeviceRoleDetector.detect(this) ==
             TranslationDeviceRole.TELEVISION_RECEIVER
+        val launcherPreferences = getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
+        if (!launcherPreferences.contains("ui_click_sounds_enabled") && isTelevisionDevice) {
+            launcherPreferences.edit().putBoolean("ui_click_sounds_enabled", true).apply()
+        }
         RoyalColors.applyLightTheme(
             getSharedPreferences("royalplus_launcher_preferences", MODE_PRIVATE)
                 .getString("launcher_theme_mode", "dark") == "light"
@@ -142,6 +146,7 @@ class MainActivity : ComponentActivity() {
             RoyalUiSound.ACTION_ERROR,
             RoyalUiSound.NAV_SELECT,
             RoyalUiSound.NAV_FOCUS_MOVE,
+            RoyalUiSound.NAV_TV_FOCUS,
             RoyalUiSound.SELECT_TOGGLE_OFF,
             RoyalUiSound.SELECT_TOGGLE_ON,
             RoyalUiSound.NAV_OPEN_MENU,
@@ -149,7 +154,7 @@ class MainActivity : ComponentActivity() {
             RoyalUiSound.ACTION_ADD,
             RoyalUiSound.MEDIA_PREV,
             RoyalUiSound.MEDIA_NEXT
-        ))
+        ), televisionMode = isTelevisionDevice)
         val savedCrashReport = RoyalPlusApplication.readPendingReport(this)
         if (savedCrashReport != null) {
             showingCrashReport = true
