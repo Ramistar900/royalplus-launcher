@@ -37,6 +37,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify TV audio and smart screensaver stability
+        run: python3 .github/scripts/verify-tv-audio-screensaver.py
+
+      - name: Verify default launcher activation flow
+        run: python3 .github/scripts/verify-default-home-activation.py
+
       - name: Download and verify approved Muslim PNG icons
         run: python3 .github/scripts/prepare-muslim-png-icons.py
 
