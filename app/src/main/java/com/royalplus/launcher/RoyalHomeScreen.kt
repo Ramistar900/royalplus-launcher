@@ -2413,8 +2413,7 @@ private fun HomeDashboard(
                 onRequestLocation = onRequestLocation,
                 onRefreshWeather = onRefreshWeather,
                 onOpenWeather = onOpenWeather,
-                onExploreApps = { onNavigate(LauncherDestination.APPS) },
-                motionEnabled = weatherMotionEnabled
+                        motionEnabled = weatherMotionEnabled
             )
             Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -2524,14 +2523,12 @@ private fun RoyalScenicBanner(
     onRequestLocation: () -> Unit,
     onRefreshWeather: () -> Unit,
     onOpenWeather: () -> Unit,
-    onExploreApps: () -> Unit,
     prayerTimes: PrayerTimesData?,
     currentTimeMillis: Long,
     motionEnabled: Boolean = true
 ) {
-    var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(17.dp)
-    Box(modifier.clip(shape).border(BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFFD36A) else RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
+    Box(modifier.clip(shape).border(BorderStroke(1.dp, RoyalColors.Gold.copy(alpha = 0.72f)), shape)) {
         Image(rememberRoyalBitmapPainter(R.drawable.royal_nature_wallpaper, maxEdgePx = 1024, maxPixels = 1_500_000L), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xE900050A), Color(0x5A00050A), Color(0xD900050A)))))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x18000000), Color(0x16000000), Color(0xC900050A)))))
@@ -2543,15 +2540,12 @@ private fun RoyalScenicBanner(
             Column(
                 Modifier.weight(1f).fillMaxHeight()
                     .clip(RoundedCornerShape(15.dp))
-                    .clickable(onClick = onExploreApps)
-                    .onFocusChanged { focused = it.isFocused }
-                    .focusable()
                     .padding(horizontal = 12.dp, vertical = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(when (language) { "en" -> "Welcome to"; "tr" -> "Hoş geldiniz"; else -> "مرحباً بك في" }, color = RoyalColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text("ROYAL+", color = Color(0xFFFFD76D), fontSize = 43.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.5.sp, maxLines = 1)
+                Text("ROYAL+", color = Color(0xFFFFD76D), fontSize = 43.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, letterSpacing = 3.2.sp, maxLines = 1)
                 Text(when (language) { "en" -> "Entertainment at your fingertips"; "tr" -> "Eğlence parmaklarınızın ucunda"; else -> "عالم الترفيه بين يديك" }, color = RoyalColors.Pearl, fontSize = 16.sp, maxLines = 1)
             }
             WeatherGlassCard(
