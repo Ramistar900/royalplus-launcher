@@ -114,6 +114,18 @@ jobs:
           done
           unzip -l app/libs/onnxruntime-android-1.28.2.aar | grep -q 'jni/arm64-v8a/libonnxruntime4j_jni.so'
 
+      - name: Download pinned SMaLL-100 tokenizer test fixture
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/test/resources
+          curl --fail --location --retry 3 https://huggingface.co/casawolice/small100-onnx/resolve/a0d8498bbf489866eeff5e53b53f6997d2b299db/tokenizer.json --output app/src/test/resources/small100-tokenizer.json
+          TOKENIZER_BYTES="$(stat -c%s app/src/test/resources/small100-tokenizer.json)"
+          test "$TOKENIZER_BYTES" -ge 5000000
+          test "$TOKENIZER_BYTES" -le 7000000
+
+      - name: Run launcher and adaptive display unit tests before release
+        run: /tmp/gradle-8.9/bin/gradle --no-daemon :royal-adaptive-ui:testDebugUnitTest :app:testDebugUnitTest
+
       - name: Optimize bundled media without removing features
         shell: bash
         run: |
