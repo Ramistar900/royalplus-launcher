@@ -13,10 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.PI
@@ -30,11 +31,20 @@ import kotlin.math.sin
 internal fun RoyalFlagOverlay(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val quality = RoyalInterfaceQualitySettings.budget(context)
-    val painter = rememberRoyalBitmapPainter(R.drawable.royal_syria_flag_4k)
-    val flag = (painter as? BitmapPainter)?.image?.asAndroidBitmap()
-    if (flag == null || quality.motionScale <= 0.25f) {
+    val flagImage = rememberRoyalBitmapImage(R.drawable.royal_syria_flag_4k)
+    if (flagImage == null) {
         Image(
-            painter = painter,
+            painter = ColorPainter(Color(0xFF080A0F)),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+    val flag = flagImage.asAndroidBitmap()
+    if (quality.motionScale <= 0.25f) {
+        Image(
+            bitmap = flagImage,
             contentDescription = null,
             contentScale = ContentScale.FillBounds,
             modifier = modifier.fillMaxSize()
