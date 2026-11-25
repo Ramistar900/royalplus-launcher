@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -20,18 +21,17 @@ import androidx.compose.ui.platform.LocalContext
  * allocating the pixel buffer.
  */
 @Composable
-internal fun rememberRoyalBitmapPainter(
+internal fun rememberRoyalBitmapImage(
     resourceId: Int,
     maxEdgePx: Int = 4096,
     maxPixels: Long = 8_294_400L
-): Painter {
+): ImageBitmap? {
     val context = LocalContext.current
     val qualityBudget = RoyalInterfaceQualitySettings.budget(context)
     val safeMaxEdge = minOf(maxEdgePx.coerceAtLeast(1), qualityBudget.maxEdgePx)
     val safeMaxPixels = minOf(maxPixels.coerceAtLeast(1L), qualityBudget.maxPixels)
 
     return remember(context, resourceId, safeMaxEdge, safeMaxPixels) {
-        val fallback = ColorPainter(Color(0xFF080A0F))
         val bitmap = runCatching {
             val bounds = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
@@ -56,8 +56,19 @@ internal fun rememberRoyalBitmapPainter(
                 BitmapFactory.decodeResource(context.resources, resourceId, options)
             }
         }.getOrNull()
+        bitmap?.asImageBitmap()
+    }
+}
 
-        bitmap?.let { BitmapPainter(it.asImageBitmap()) } ?: fallback
+@Composable
+internal fun rememberRoyalBitmapPainter(
+    resourceId: Int,
+    maxEdgePx: Int = 4096,
+    maxPixels: Long = 8_294_400L
+): Painter {
+    val image = rememberRoyalBitmapImage(resourceId, maxEdgePx, maxPixels)
+    return remember(image) {
+        image?.let { BitmapPainter(it) } ?: ColorPainter(Color(0xFF080A0F))
     }
 }
 
