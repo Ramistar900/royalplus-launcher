@@ -423,8 +423,8 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                 IconButton(
                     onClick = {
                         scope.launch {
-                            runCatching { reloadLibrary() }
-                                .onFailure { status = "تعذّر تحديث المكتبة" }
+                            runCatching { refreshRemoteCatalog() }
+                                .onFailure { status = "تعذّر تحديث الكتالوج المركزي" }
                         }
                     }
                 ) {
