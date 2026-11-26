@@ -2,7 +2,7 @@ name: ROYAL+ Launcher Android Build
 
 on:
   push:
-    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "feature/royal-sports-four-panels", "fix/royalplus-abi-test-assets", "feature/sinjar-tv-embedded-integration", "feature/universal-language-translation", "feature/settings-completion-light-theme", "fix/tv-audio-screensaver-main-sync" ]
+    branches: [ "main", "feature/quran-audio-clean", "fix/complete-royal-audio-fireplace", "feature/royal-adaptive-device-system", "fix/android8-native-weather-low-latency", "feature/weather-videos-optimized", "feature/weather-tv-load-optimization-main-rebased", "feature/sports-original-graphics", "feature/royal-sports-four-panels", "fix/royalplus-abi-test-assets", "feature/sinjar-tv-embedded-integration", "feature/universal-language-translation", "feature/settings-completion-light-theme", "fix/tv-audio-screensaver-main-sync", "experiment/remote-channel-catalog" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -27,7 +27,7 @@ concurrency:
 jobs:
   build-pr:
     name: Verify pull request build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sinjar-tv-embedded-integration' || github.ref == 'refs/heads/feature/universal-language-translation' || github.ref == 'refs/heads/feature/settings-completion-light-theme' || github.ref == 'refs/heads/feature/royal-sports-four-panels' || github.ref == 'refs/heads/fix/tv-audio-screensaver-main-sync')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'verify' && (github.ref == 'refs/heads/feature/universal-language-translation' || github.ref == 'refs/heads/fix/tv-audio-screensaver-main-sync'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/feature/sports-original-graphics' || github.ref == 'refs/heads/fix/complete-royal-audio-fireplace' || github.ref == 'refs/heads/feature/royal-adaptive-device-system' || github.ref == 'refs/heads/fix/android8-native-weather-low-latency' || github.ref == 'refs/heads/feature/weather-tv-load-optimization-main-rebased' || github.ref == 'refs/heads/fix/royalplus-abi-test-assets' || github.ref == 'refs/heads/feature/sinjar-tv-embedded-integration' || github.ref == 'refs/heads/feature/universal-language-translation' || github.ref == 'refs/heads/feature/settings-completion-light-theme' || github.ref == 'refs/heads/feature/royal-sports-four-panels' || github.ref == 'refs/heads/fix/tv-audio-screensaver-main-sync' || github.ref == 'refs/heads/experiment/remote-channel-catalog')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'verify' && (github.ref == 'refs/heads/feature/universal-language-translation' || github.ref == 'refs/heads/fix/tv-audio-screensaver-main-sync'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
