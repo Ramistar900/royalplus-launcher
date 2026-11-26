@@ -189,7 +189,9 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
             }.onSuccess { refreshed++ }
         }
         if (refreshed > 0) reloadLibrary()
-        status = "الكتالوج ${catalog.revision} • قنوات RAMİ TV: ${ramiNetworkChannels.size} • قنوات IPTV المباشرة: ${remoteCatalogChannels.size}"
+        if (selectedChannel == null) {
+            status = "الكتالوج ${catalog.revision} • قنوات RAMİ TV: ${ramiNetworkChannels.size} • قنوات IPTV المباشرة: ${remoteCatalogChannels.size}"
+        }
     }
 
     suspend fun syncRamiNetworkChannel(channel: RSTVChannel) {
