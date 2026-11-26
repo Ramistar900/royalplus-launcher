@@ -108,7 +108,7 @@ internal object SinjarRemoteCatalog {
                                 .takeIf { it.isNotBlank() && it != "null" },
                             allowedHosts = allowedHosts
                         ),
-                        autoSync = item.optBoolean("autoSync", false),
+                        autoSync = item.optBoolean("autoSync", true),
                         refreshIntervalMinutes = item.optInt("refreshIntervalMinutes", 360)
                             .coerceIn(60, 10_080)
                     )
