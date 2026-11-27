@@ -309,7 +309,6 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     fun playChannel(channel: RSTVChannel) {
         if (channel.group == "RAMI NETWORK") {
             selectedChannel = channel
-            videoHeight = 0
             status = "جارٍ الاتصال بقناة RAMİ TV..."
             scope.launch {
                 runCatching { syncRamiNetworkChannel(channel) }
