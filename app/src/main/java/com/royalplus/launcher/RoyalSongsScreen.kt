@@ -181,7 +181,7 @@ internal fun RoyalSongsScreen() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
-                        Text(song.title, color = RoyalColors.Pearl, modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 1)
+                        Text(song.title, color = RoyalColors.Pearl, modifier = Modifier.weight(1f).padding(horizontal = 12.dp), maxLines = 2)
                         Icon(if (index == currentIndex && isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = if (index == currentIndex && isPlaying) "يعمل الآن" else "تشغيل",
                             tint = RoyalColors.Gold, modifier = Modifier.size(royalAdaptiveIconSize(24.dp)))
