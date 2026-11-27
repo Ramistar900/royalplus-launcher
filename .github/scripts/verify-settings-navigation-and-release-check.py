@@ -37,6 +37,18 @@ assert "noPublishedRelease" in SHARE and "failed = true" in SHARE
 DEVICE_SETTINGS = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalDeviceSettingsSection.kt").read_text(encoding="utf-8")
 assert "showDeviceSettings: Boolean = true" in DEVICE_SETTINGS
 assert "Clear ROYAL+ cache" in DEVICE_SETTINGS
+assert "RoyalInterfaceQualitySection(language = selectedLanguage, onRefreshApps = onRefreshApps)" in HOME
+QUALITY_SECTION = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalInterfaceQualitySection.kt").read_text(encoding="utf-8")
+QUALITY_MODEL = (ROOT / "app/src/main/java/com/royalplus/launcher/RoyalInterfaceQuality.kt").read_text(encoding="utf-8")
+assert 'else -> "جودة العرض العامة"' in QUALITY_SECTION
+assert "selectablePresets = listOf(AUTO, P480, P720, P1080, P1440, P4K)" in QUALITY_MODEL
+assert "applyRoyalInterfaceVideoQuality" in QUALITY_MODEL
+APPS_REPOSITORY = (ROOT / "app/src/main/java/com/royalplus/launcher/LauncherAppsRepository.kt").read_text(encoding="utf-8")
+assert "RoyalInterfaceQualitySettings.budget(context)" in APPS_REPOSITORY
+assert "RoyalInterfaceQualityPreset.P4K -> 160" in APPS_REPOSITORY
+assert "onRefreshApps = onRefreshApps" in HOME
+assert "Interface quality & performance" not in DEVICE_SETTINGS
+assert "royal_manage_apps_luxe" in HOME
 assert "showAudioSettings: Boolean = true" in DEVICE_SETTINGS
 assert "showDeviceSettings = false" in HOME and "showAudioSettings = true" in HOME
 assert "showDeviceSettings = true" in HOME and "showAudioSettings = false" in HOME

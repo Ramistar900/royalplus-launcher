@@ -396,6 +396,7 @@ class MainActivity : ComponentActivity() {
             installedAppsExecutor.execute {
                 val apps = runCatching {
                     LauncherAppsRepository.load(
+                        context = this@MainActivity,
                         packageManager = packageManager,
                         ownPackageName = packageName,
                         forceRefresh = forceRefresh
