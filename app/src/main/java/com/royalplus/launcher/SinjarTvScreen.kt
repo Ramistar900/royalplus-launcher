@@ -329,13 +329,13 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                                     verticalArrangement = Arrangement.spacedBy(5.dp)
                                 ) {
                                     Text(item.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    Text(item.description, color = muted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(item.description, color = muted, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                     Text(
                                         item.sources.map { it.provider }.distinct().joinToString(" + "),
-                                        color = gold, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                                        color = gold, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis
                                     )
                                     item.sources.mapNotNull { it.attribution }.distinct().forEach { attribution ->
-                                        Text(attribution, color = muted, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text(attribution, color = muted, fontSize = 9.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                     }
                                     Button(
                                         onClick = { downloadPackage(item) },
