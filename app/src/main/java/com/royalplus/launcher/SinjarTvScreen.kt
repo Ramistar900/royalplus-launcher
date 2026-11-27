@@ -83,6 +83,7 @@ import com.sinjartv.rstv.M3uPlaylistParser
 import com.sinjartv.rstv.RemotePlaylistDownloader
 import com.sinjartv.rstv.RemotePlaylistMerger
 import com.sinjartv.rstv.RemotePlaylistPackage
+import com.sinjartv.rstv.RemotePlaylistSource
 import com.sinjartv.rstv.RemotePlaylistSources
 import com.sinjartv.rstv.RemoteSourceSnapshot
 import com.sinjartv.rstv.RSTVChannel
@@ -94,7 +95,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-private enum class SinjarSection { LIVE, SOURCES, FAVORITES }
+private enum class SinjarSection { LIVE, RAMI, SOURCES, FAVORITES }
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
@@ -108,6 +109,10 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     val favoriteWriteMutex = remember { Mutex() }
     var section by remember { mutableStateOf(SinjarSection.LIVE) }
     var channels by remember { mutableStateOf<List<RSTVChannel>>(emptyList()) }
+    var ramiNetworkChannels by remember { mutableStateOf<List<RSTVChannel>>(emptyList()) }
+    var remoteCatalogSources by remember { mutableStateOf<List<RemotePlaylistSource>>(emptyList()) }
+    var remoteCatalogChannels by remember { mutableStateOf<List<RSTVChannel>>(emptyList()) }
+    var remoteCatalogRefreshMinutes by remember { mutableStateOf(15) }
     var favoriteUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
     var savedSourceCount by remember { mutableStateOf(0) }
     var status by remember { mutableStateOf("جارٍ استعادة مكتبة Sinjar TV...") }
@@ -115,7 +120,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     var selectedChannel by remember { mutableStateOf<RSTVChannel?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
 
-    val sourceEntries = remember {
+    val baseSourceEntries = remember {
         val douboCountries = RemotePlaylistSources.douboCountryPackages()
         val countryCodes = douboCountries.mapNotNull { source ->
             source.id.removePrefix("doubo-country-").uppercase()
@@ -124,6 +129,11 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
         RemotePlaylistSources.playlists +
             RemotePlaylistSources.countryPackages(countryCodes) +
             douboCountries
+    }
+    val sourceEntries = remember(baseSourceEntries, remoteCatalogSources) {
+        val byId = linkedMapOf<String, RemotePlaylistSource>()
+        (baseSourceEntries + remoteCatalogSources).forEach { byId[it.id] = it }
+        byId.values.toList()
     }
     val packages = remember(sourceEntries) { RemotePlaylistSources.displayPackages(sourceEntries) }
 
@@ -135,6 +145,54 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
         savedSourceCount = saved.size
         favoriteUrls = withContext(Dispatchers.IO) { LocalLibraryStore.favoriteStreams(context) }
         status = "تم تحميل ${channels.size} قناة من ${saved.size} مصدر محفوظ"
+    }
+
+    suspend fun refreshRemoteCatalog() {
+        val catalog = withContext(Dispatchers.IO) { SinjarRemoteCatalog.loadOrCached(context) }
+        remoteCatalogSources = catalog.sources.map { it.source }
+        remoteCatalogChannels = catalog.channels.filterNot(AdultContentPolicy::isAdult)
+        remoteCatalogRefreshMinutes = catalog.refreshMinutes
+
+        val savedSources = withContext(Dispatchers.IO) { LocalLibraryStore.loadRemoteSources(context) }
+        val definitions = (baseSourceEntries + catalog.sources.map { it.source }).associateBy { it.id }
+        val catalogDefinitions = catalog.sources.associateBy { it.source.id }
+        val candidates = linkedMapOf<String, Pair<RemotePlaylistSource, Int>>()
+        savedSources.forEach { saved ->
+            definitions[saved.id]?.let { source ->
+                candidates[source.id] = source to (catalogDefinitions[source.id]?.refreshIntervalMinutes ?: 360)
+            }
+        }
+        catalog.sources.filter { it.autoSync }.forEach { definition ->
+            candidates[definition.source.id] = definition.source to definition.refreshIntervalMinutes
+        }
+
+        val syncPreferences = context.getSharedPreferences("sinjar_remote_iptv_sync", android.content.Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        var refreshed = 0
+        candidates.values.forEach { (source, intervalMinutes) ->
+            val lastRefresh = syncPreferences.getLong("last_refresh_${source.id}", 0L)
+            if (now - lastRefresh < intervalMinutes * 60_000L) return@forEach
+            runCatching {
+                val content = withContext(Dispatchers.IO) { RemotePlaylistDownloader.download(source) }
+                val parsed = withContext(Dispatchers.Default) { M3uPlaylistParser.parse(content) }
+                require(parsed.isValidPlaylist && parsed.channels.isNotEmpty()) {
+                    "لم يُرجع المصدر قائمة قنوات صالحة"
+                }
+                val snapshot = RemoteSourceSnapshot(
+                    id = source.id,
+                    name = source.name,
+                    provider = source.provider,
+                    attribution = source.attribution,
+                    content = content
+                )
+                withContext(Dispatchers.IO) { LocalLibraryStore.saveRemoteSource(context, snapshot) }
+                syncPreferences.edit().putLong("last_refresh_${source.id}", now).apply()
+            }.onSuccess { refreshed++ }
+        }
+        if (refreshed > 0) reloadLibrary()
+        if (selectedChannel == null) {
+            status = "الكتالوج ${catalog.revision} • قنوات RAMİ TV: ${ramiNetworkChannels.size} • قنوات IPTV المباشرة: ${remoteCatalogChannels.size}"
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -165,13 +223,99 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
         }
     }
 
+    LaunchedEffect(Unit) {
+        runCatching { refreshRemoteCatalog() }
+            .onFailure { if (selectedChannel == null) status = "تعذر تحديث الكتالوج المركزي" }
+        while (true) {
+            delay(remoteCatalogRefreshMinutes * 60_000L)
+            runCatching { refreshRemoteCatalog() }
+                .onFailure { if (selectedChannel == null) status = "تعذر تحديث الكتالوج المركزي" }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            runCatching {
+                withContext(Dispatchers.IO) { RamiNetworkViewer.loadChannels() }
+            }.onSuccess { remote ->
+                ramiNetworkChannels = remote.map { item ->
+                    RSTVChannel(
+                        name = item.name,
+                        tvgId = item.id,
+                        group = "RAMI NETWORK",
+                        logoUrl = item.logoUrl,
+                        streamUrl = "https://rami-network.invalid/channel/" + item.id
+                    )
+                }
+            }.onFailure {
+                if (ramiNetworkChannels.isEmpty()) {
+                    status = "تعذر تحميل قنوات RAMİ TV: " + (it.message ?: "خطأ اتصال")
+                }
+            }
+            delay(60_000)
+        }
+    }
+
     LaunchedEffect(isFullscreen) { onFullscreenChange(isFullscreen) }
 
     BackHandler(enabled = isFullscreen) {
         isFullscreen = false
     }
 
+    suspend fun syncRamiNetworkChannel(channel: RSTVChannel) {
+        val channelId = channel.tvgId ?: throw IllegalStateException("معرّف قناة RAMİ غير متوفر.")
+        val state = withContext(Dispatchers.IO) { RamiNetworkViewer.loadState(channelId) }
+        val playbackStatus = state.optString("status")
+        if (playbackStatus != "playing") {
+            player.stop()
+            player.clearMediaItems()
+            status = when (playbackStatus) {
+                "waiting_for_stream" -> "القناة بانتظار مصدر HLS."
+                "waiting_for_playlist" -> "القناة بانتظار قائمة تشغيل معتمدة."
+                "stopped" -> "البث متوقف حالياً."
+                else -> "حالة القناة: $playbackStatus"
+            }
+            return
+        }
+        val streamUrl = state.optJSONObject("stream")?.optString("url")
+            ?.takeIf { it.startsWith("https://") }
+            ?: state.optJSONObject("currentItem")?.optString("mediaUrl")
+                ?.takeIf { it.startsWith("https://") }
+            ?: throw IllegalStateException("لم يحدد الخادم رابط تشغيل صالحاً.")
+        val liveMode = state.optString("playbackMode") == "live"
+        val positionMs = state.optLong("positionMs", 0L).coerceAtLeast(0L)
+        val currentUrl = player.currentMediaItem?.localConfiguration?.uri?.toString()
+        val needsVODSeek = !liveMode && kotlin.math.abs(player.currentPosition - positionMs) > 4_000L
+        if (currentUrl != streamUrl || needsVODSeek) {
+            if (liveMode) player.setMediaItem(MediaItem.fromUri(streamUrl))
+            else player.setMediaItem(MediaItem.fromUri(streamUrl), positionMs)
+            player.prepare()
+            player.playWhenReady = true
+        }
+        status = "متصل ببث RAMİ TV • تزامن الخادم: " + state.optLong("sequence")
+    }
+
+    LaunchedEffect(selectedChannel?.group, selectedChannel?.tvgId) {
+        val current = selectedChannel
+        if (current?.group == "RAMI NETWORK") {
+            while (true) {
+                delay(20_000)
+                runCatching { syncRamiNetworkChannel(current) }
+                    .onFailure { status = it.message ?: "تعذرت مزامنة بث RAMİ TV." }
+            }
+        }
+    }
+
     fun playChannel(channel: RSTVChannel) {
+        if (channel.group == "RAMI NETWORK") {
+            selectedChannel = channel
+            status = "جارٍ الاتصال بقناة RAMİ TV..."
+            scope.launch {
+                runCatching { syncRamiNetworkChannel(channel) }
+                    .onFailure { status = it.message ?: "تعذر تشغيل قناة RAMİ TV." }
+            }
+            return
+        }
         if (AdultContentPolicy.isAdult(channel)) {
             status = "هذه القناة مصنّفة كمحتوى مقيّد ولا تظهر ضمن البث العام"
             return
@@ -243,8 +387,11 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
 
 
     val visibleChannels = when (section) {
-        SinjarSection.LIVE -> channels
-        SinjarSection.FAVORITES -> channels.filter { it.streamUrl in favoriteUrls }
+        SinjarSection.LIVE -> (channels + remoteCatalogChannels).distinctBy { it.streamUrl }
+        SinjarSection.RAMI -> ramiNetworkChannels
+        SinjarSection.FAVORITES -> (channels + remoteCatalogChannels + ramiNetworkChannels)
+            .distinctBy { it.streamUrl }
+            .filter { it.streamUrl in favoriteUrls }
         SinjarSection.SOURCES -> emptyList()
     }
 
@@ -253,6 +400,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
     val muted = Color(0xFFA7AAB3)
     val arabic = language != "en" && language != "tr"
     val liveLabel = if (arabic) "البث المباشر" else if (language == "tr") "Canlı yayın" else "Live TV"
+    val ramiLabel = if (arabic) "قنوات RAMİ" else if (language == "tr") "RAMİ TV" else "RAMİ TV"
     val sourcesLabel = if (arabic) "المصادر" else if (language == "tr") "Kaynaklar" else "Sources"
     val favoritesLabel = if (arabic) "المفضلة" else if (language == "tr") "Favoriler" else "Favorites"
 
@@ -277,8 +425,8 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                 IconButton(
                     onClick = {
                         scope.launch {
-                            runCatching { reloadLibrary() }
-                                .onFailure { status = "تعذّر تحديث المكتبة" }
+                            runCatching { refreshRemoteCatalog() }
+                                .onFailure { status = "تعذّر تحديث الكتالوج المركزي" }
                         }
                     }
                 ) {
@@ -292,6 +440,7 @@ internal fun SinjarTvScreen(language: String, onFullscreenChange: (Boolean) -> U
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SinjarTabButton(liveLabel, section == SinjarSection.LIVE, gold) { section = SinjarSection.LIVE }
+                SinjarTabButton(ramiLabel, section == SinjarSection.RAMI, gold) { section = SinjarSection.RAMI }
                 SinjarTabButton(sourcesLabel, section == SinjarSection.SOURCES, gold) { section = SinjarSection.SOURCES }
                 SinjarTabButton(favoritesLabel, section == SinjarSection.FAVORITES, gold) { section = SinjarSection.FAVORITES }
             }
