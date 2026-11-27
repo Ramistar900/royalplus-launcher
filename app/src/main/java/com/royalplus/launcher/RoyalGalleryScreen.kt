@@ -231,7 +231,7 @@ private fun RoyalMediaTile(item: RoyalMediaItem, onClick: () -> Unit) {
                     modifier = Modifier.size(royalAdaptiveIconSize(24.dp)).align(Alignment.BottomEnd).padding(7.dp))
             }
         }
-        Text(item.name.ifBlank { if (item.video) "فيديو" else "صورة" }, color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 1,
+        Text(item.name.ifBlank { if (item.video) "فيديو" else "صورة" }, color = RoyalColors.Pearl, fontSize = 11.sp, maxLines = 2,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 7.dp))
     }
 }
