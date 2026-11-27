@@ -2909,7 +2909,6 @@ private fun StatusIcon(
 ) {
     val adaptiveProfile = LocalRoyalAdaptiveProfile.current
     val compactPhone = adaptiveProfile.isPhone && adaptiveProfile.widthClass == RoyalWindowWidthClass.COMPACT
-    val navItemHeight = maxOf(baseNavItemHeight, (12f * textScale * 1.7f + 16f).dp)
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(50)
@@ -2964,6 +2963,7 @@ private fun SidebarNavItem(
         adaptiveProfile.isTelevision -> 48.dp
         else -> maxOf(42.dp, adaptiveProfile.minimumFocusTarget)
     }
+    val navItemHeight = maxOf(baseNavItemHeight, (12f * textScale * 1.7f + 16f).dp)
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(13.dp)
