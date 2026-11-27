@@ -17,8 +17,9 @@ for forbidden in ('"مسلم"', '"اختصاراتي"', "LauncherDestination.MUS
 assert "labels[3], null, selectedDestination == LauncherDestination.SCREEN_CAST" in sidebar
 assert "iconRes = R.drawable.royal_screen_cast" in sidebar
 assert "LauncherDestination.SCREEN_CAST -> RoyalCastScreen" in HOME
-assert "labels[9], Icons.Rounded.Apps" in sidebar
-assert "labels[10]" not in sidebar
+assert "labels[9], Icons.Rounded.Folder" in sidebar
+assert "labels[10], Icons.Rounded.Apps" in sidebar
+assert "iconRes = R.drawable.royal_manage_apps_luxe" in sidebar
 assert "Icons.Rounded.Settings" not in sidebar
 assert "R.drawable.royal_settings_luxe" not in sidebar
 assert "sinjarLogo = true" in sidebar and '"Sinjar\\nTV"' in HOME
